@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Compound, getDaysRemaining, getStatus, CompoundCategory } from '@/data/compounds';
+import { Pencil, Check, X } from 'lucide-react';
 
 interface InventoryViewProps {
   compounds: Compound[];
+  onUpdateCompound: (id: string, updates: Partial<Compound>) => void;
 }
 
 const categoryLabels: Record<CompoundCategory, string> = {
@@ -14,7 +16,7 @@ const categoryLabels: Record<CompoundCategory, string> = {
 
 const categoryOrder: CompoundCategory[] = ['peptide', 'injectable-oil', 'oral', 'powder'];
 
-const InventoryView = ({ compounds }: InventoryViewProps) => {
+const InventoryView = ({ compounds, onUpdateCompound }: InventoryViewProps) => {
   const [filter, setFilter] = useState<CompoundCategory | 'all'>('all');
   const [sortBy, setSortBy] = useState<'name' | 'days'>('days');
 
@@ -58,6 +60,11 @@ const InventoryView = ({ compounds }: InventoryViewProps) => {
         </button>
       </div>
 
+      {/* Info note */}
+      <p className="text-[10px] text-muted-foreground italic">
+        Tap ✏️ on any card to edit inventory. Peptide reorder qty = kits of 10 vials each.
+      </p>
+
       {/* Compound Cards */}
       {grouped.map(group => (
         <div key={group.category}>
@@ -66,7 +73,7 @@ const InventoryView = ({ compounds }: InventoryViewProps) => {
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
             {group.items.map(compound => (
-              <CompoundCard key={compound.id} compound={compound} />
+              <CompoundCard key={compound.id} compound={compound} onUpdate={onUpdateCompound} />
             ))}
           </div>
         </div>
@@ -75,11 +82,58 @@ const InventoryView = ({ compounds }: InventoryViewProps) => {
   );
 };
 
-const CompoundCard = ({ compound }: { compound: Compound }) => {
+interface EditState {
+  currentQuantity: string;
+  unitPrice: string;
+  purchaseDate: string;
+  reorderQuantity: string;
+}
+
+const CompoundCard = ({ compound, onUpdate }: { compound: Compound; onUpdate: (id: string, updates: Partial<Compound>) => void }) => {
+  const [editing, setEditing] = useState(false);
+  const [editState, setEditState] = useState<EditState>({
+    currentQuantity: '',
+    unitPrice: '',
+    purchaseDate: '',
+    reorderQuantity: '',
+  });
+
   const days = getDaysRemaining(compound);
   const status = getStatus(days);
   const maxDays = 90;
   const progress = Math.min(100, (days / maxDays) * 100);
+  const isPeptide = compound.category === 'peptide';
+
+  const startEdit = () => {
+    setEditState({
+      currentQuantity: compound.currentQuantity.toString(),
+      unitPrice: compound.unitPrice.toString(),
+      purchaseDate: compound.purchaseDate,
+      reorderQuantity: compound.reorderQuantity.toString(),
+    });
+    setEditing(true);
+  };
+
+  const saveEdit = () => {
+    const qty = parseFloat(editState.currentQuantity);
+    const price = parseFloat(editState.unitPrice);
+    const reorder = parseInt(editState.reorderQuantity);
+    if (isNaN(qty) || isNaN(price) || isNaN(reorder) || qty < 0 || price < 0 || reorder < 0) return;
+
+    onUpdate(compound.id, {
+      currentQuantity: qty,
+      unitPrice: price,
+      purchaseDate: editState.purchaseDate,
+      reorderQuantity: reorder,
+    });
+    setEditing(false);
+  };
+
+  const cancelEdit = () => setEditing(false);
+
+  const reorderLabel = isPeptide
+    ? `${compound.reorderQuantity} kit${compound.reorderQuantity !== 1 ? 's' : ''} (${compound.reorderQuantity * 10} vials)`
+    : `${compound.reorderQuantity}`;
 
   return (
     <div className={`bg-card rounded-lg border p-3 card-glow ${
@@ -92,13 +146,20 @@ const CompoundCard = ({ compound }: { compound: Compound }) => {
           <h4 className="text-sm font-semibold text-foreground truncate">{compound.name}</h4>
           <p className="text-[10px] text-muted-foreground truncate">{compound.timingNote}</p>
         </div>
-        <span className={`text-xs font-mono px-2 py-0.5 rounded-full flex-shrink-0 ml-2 ${
-          status === 'critical' ? 'bg-destructive/20 text-status-critical' :
-          status === 'warning' ? 'bg-accent/20 text-status-warning' :
-          'bg-status-good/10 text-status-good'
-        }`}>
-          {days}d
-        </span>
+        <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+          <span className={`text-xs font-mono px-2 py-0.5 rounded-full ${
+            status === 'critical' ? 'bg-destructive/20 text-status-critical' :
+            status === 'warning' ? 'bg-accent/20 text-status-warning' :
+            'bg-status-good/10 text-status-good'
+          }`}>
+            {days}d
+          </span>
+          {!editing && (
+            <button onClick={startEdit} className="p-1 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground">
+              <Pencil className="w-3 h-3" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Progress bar */}
@@ -113,30 +174,75 @@ const CompoundCard = ({ compound }: { compound: Compound }) => {
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-x-3 text-[10px]">
-        <div>
-          <span className="text-muted-foreground">Qty:</span>{' '}
-          <span className="font-mono text-foreground">{compound.currentQuantity} {compound.unitLabel}</span>
+      {editing ? (
+        <div className="space-y-1.5">
+          <EditRow label="Qty" value={editState.currentQuantity} suffix={compound.unitLabel}
+            onChange={v => setEditState(s => ({ ...s, currentQuantity: v }))} type="number" />
+          <EditRow label="Price" value={editState.unitPrice} prefix="$"
+            onChange={v => setEditState(s => ({ ...s, unitPrice: v }))} type="number" />
+          <EditRow label="Purchased" value={editState.purchaseDate}
+            onChange={v => setEditState(s => ({ ...s, purchaseDate: v }))} type="date" />
+          <EditRow
+            label={isPeptide ? 'Kits (×10)' : 'Reorder'}
+            value={editState.reorderQuantity}
+            onChange={v => setEditState(s => ({ ...s, reorderQuantity: v }))}
+            type="number"
+          />
+          <div className="flex justify-end gap-1 pt-1">
+            <button onClick={cancelEdit} className="p-1 rounded bg-secondary hover:bg-secondary/80 text-muted-foreground">
+              <X className="w-3.5 h-3.5" />
+            </button>
+            <button onClick={saveEdit} className="p-1 rounded bg-primary/20 hover:bg-primary/30 text-primary">
+              <Check className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
-        <div>
-          <span className="text-muted-foreground">Price:</span>{' '}
-          <span className="font-mono text-foreground">${compound.unitPrice}</span>
-        </div>
-        <div>
-          <span className="text-muted-foreground">Dose:</span>{' '}
-          <span className="font-mono text-foreground">{compound.dosePerUse} {compound.doseLabel}</span>
-        </div>
-        <div>
-          <span className="text-muted-foreground">Reorder:</span>{' '}
-          <span className="font-mono text-foreground">{compound.reorderQuantity}</span>
-        </div>
-      </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-x-3 text-[10px]">
+            <div>
+              <span className="text-muted-foreground">Qty:</span>{' '}
+              <span className="font-mono text-foreground">{compound.currentQuantity} {compound.unitLabel}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Price:</span>{' '}
+              <span className="font-mono text-foreground">${compound.unitPrice}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Dose:</span>{' '}
+              <span className="font-mono text-foreground">{compound.dosePerUse} {compound.doseLabel}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Reorder:</span>{' '}
+              <span className="font-mono text-foreground">{reorderLabel}</span>
+            </div>
+          </div>
 
-      {compound.cyclingNote && (
-        <p className="text-[10px] text-accent mt-1.5 italic">⟳ {compound.cyclingNote}</p>
+          {compound.cyclingNote && (
+            <p className="text-[10px] text-accent mt-1.5 italic">⟳ {compound.cyclingNote}</p>
+          )}
+        </>
       )}
     </div>
   );
 };
+
+const EditRow = ({ label, value, onChange, type, prefix, suffix }: {
+  label: string; value: string; onChange: (v: string) => void; type: string; prefix?: string; suffix?: string;
+}) => (
+  <div className="flex items-center gap-2 text-[11px]">
+    <span className="text-muted-foreground w-16 flex-shrink-0">{label}</span>
+    <div className="flex items-center gap-1 flex-1">
+      {prefix && <span className="text-muted-foreground">{prefix}</span>}
+      <input
+        type={type}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="w-full bg-secondary border border-border/50 rounded px-2 py-1 text-foreground font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50"
+      />
+      {suffix && <span className="text-muted-foreground text-[10px] whitespace-nowrap">{suffix}</span>}
+    </div>
+  </div>
+);
 
 export default InventoryView;

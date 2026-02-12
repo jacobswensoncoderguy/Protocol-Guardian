@@ -8,7 +8,11 @@ import InventoryView from '@/components/InventoryView';
 import CostProjectionView from '@/components/CostProjectionView';
 
 const Index = () => {
-  const [compounds] = useState<Compound[]>(defaultCompounds);
+  const [compounds, setCompounds] = useState<Compound[]>(defaultCompounds);
+
+  const handleUpdateCompound = (id: string, updates: Partial<Compound>) => {
+    setCompounds(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -60,7 +64,7 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="inventory" className="animate-slide-up">
-            <InventoryView compounds={compounds} />
+            <InventoryView compounds={compounds} onUpdateCompound={handleUpdateCompound} />
           </TabsContent>
 
           <TabsContent value="costs" className="animate-slide-up">

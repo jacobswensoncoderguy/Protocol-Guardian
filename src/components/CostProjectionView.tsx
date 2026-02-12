@@ -27,12 +27,16 @@ function buildProjection(compounds: Compound[]): MonthData[] {
     const daysLeft = getDaysRemaining(compound);
     const reorderDate = new Date(now.getTime() + daysLeft * 24 * 60 * 60 * 1000);
     const reorderMonth = reorderDate.getMonth();
-    const cost = compound.reorderQuantity * compound.unitPrice;
+    // Peptides: reorderQuantity = kits, each kit = 10 vials
+    const actualUnits = compound.category === 'peptide'
+      ? compound.reorderQuantity * 10
+      : compound.reorderQuantity;
+    const cost = actualUnits * compound.unitPrice;
 
     // Add initial reorder
     months[reorderMonth].compounds.push({
       name: compound.name,
-      qty: compound.reorderQuantity,
+      qty: actualUnits,
       unitPrice: compound.unitPrice,
       cost,
     });
@@ -41,14 +45,14 @@ function buildProjection(compounds: Compound[]): MonthData[] {
     // Check if it needs another reorder within the year
     const dailyConsumption = (compound.dosePerUse * compound.dosesPerDay * compound.daysPerWeek) / 7;
     if (dailyConsumption > 0) {
-      const supplyDays = (compound.reorderQuantity * compound.unitSize) / dailyConsumption;
+      const supplyDays = (actualUnits * compound.unitSize) / dailyConsumption;
       const secondReorderDate = new Date(reorderDate.getTime() + supplyDays * 24 * 60 * 60 * 1000);
       if (secondReorderDate.getFullYear() === now.getFullYear() || (secondReorderDate.getFullYear() === now.getFullYear() + 1 && secondReorderDate.getMonth() < now.getMonth())) {
         const secondMonth = secondReorderDate.getMonth();
         if (secondMonth !== reorderMonth) {
           months[secondMonth].compounds.push({
             name: compound.name,
-            qty: compound.reorderQuantity,
+            qty: actualUnits,
             unitPrice: compound.unitPrice,
             cost,
           });
