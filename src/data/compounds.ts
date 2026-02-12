@@ -8,23 +8,24 @@ export interface Compound {
   category: CompoundCategory;
   // Vial/bottle info
   unitSize: number;
-  unitLabel: string; // "IU", "mL", "caps", "servings"
-  unitPrice: number;
+  unitLabel: string; // "mg vial", "mg (10mL)", "caps", "servings"
+  unitPrice: number; // per-unit price (per vial for oils, per bottle for orals/powders)
+  kitPrice?: number; // peptides only: price per kit (10 vials)
   // Dosing
   dosePerUse: number;
   doseLabel: string; // "IU", "mg", "caps", "g"
   // Reconstitution (peptides only)
-  bacstatPerVial?: number; // in mL
+  bacstatPerVial?: number; // total IU per reconstituted vial (e.g. 200 for 2mL, 300 for 3mL)
   reconVolume?: number; // mL of bacstat water used to reconstitute
   // Scheduling
-  dosesPerDay: number; // average across the week
-  daysPerWeek: number; // how many days per week it's used
+  dosesPerDay: number;
+  daysPerWeek: number;
   timingNote?: string;
   cyclingNote?: string;
   // Inventory
   currentQuantity: number;
-  purchaseDate: string; // ISO date
-  reorderQuantity: number;
+  purchaseDate: string; // ISO date (used for orals/powders only)
+  reorderQuantity: number; // for peptides: number of kits; for others: number of units
   notes?: string;
 }
 
@@ -55,16 +56,35 @@ export function getReorderMonth(compound: Compound): number {
   return reorderDate.getMonth();
 }
 
+export function getReorderDateString(compound: Compound): string {
+  const days = getDaysRemaining(compound);
+  const now = new Date();
+  const reorderDate = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${monthNames[reorderDate.getMonth()]} ${reorderDate.getFullYear()}`;
+}
+
+export function getReorderCost(compound: Compound): number {
+  if (compound.category === 'peptide' && compound.kitPrice) {
+    return compound.reorderQuantity * compound.kitPrice;
+  }
+  return compound.reorderQuantity * compound.unitPrice;
+}
+
 export function getMonthlyConsumptionCost(compound: Compound): number {
   const dailyConsumption = (compound.dosePerUse * compound.dosesPerDay * compound.daysPerWeek) / 7;
   if (dailyConsumption === 0) return 0;
   const monthlyConsumption = dailyConsumption * 30;
-  // For peptides: units per vial = bacstatPerVial (IU), not unitSize (mg)
-  const unitsPerVial = compound.category === 'peptide' && compound.bacstatPerVial
-    ? compound.bacstatPerVial
-    : compound.unitSize;
-  const vialsPerMonth = monthlyConsumption / unitsPerVial;
-  return vialsPerMonth * compound.unitPrice;
+
+  if (compound.category === 'peptide' && compound.bacstatPerVial) {
+    // Peptides: vials consumed per month, then convert to kits (10 vials/kit)
+    const vialsPerMonth = monthlyConsumption / compound.bacstatPerVial;
+    const kitsPerMonth = vialsPerMonth / 10;
+    return kitsPerMonth * (compound.kitPrice || 0);
+  }
+
+  const unitsPerMonth = monthlyConsumption / compound.unitSize;
+  return unitsPerMonth * compound.unitPrice;
 }
 
 // Helper: date N days ago as ISO string
@@ -83,6 +103,7 @@ export const defaultCompounds: Compound[] = [
     unitSize: 20,
     unitLabel: 'mg vial',
     unitPrice: 45,
+    kitPrice: 450,
     dosePerUse: 10,
     doseLabel: 'IU',
     bacstatPerVial: 200,
@@ -101,6 +122,7 @@ export const defaultCompounds: Compound[] = [
     unitSize: 10,
     unitLabel: 'mg vial',
     unitPrice: 35,
+    kitPrice: 350,
     dosePerUse: 10,
     doseLabel: 'IU',
     bacstatPerVial: 200,
@@ -119,6 +141,7 @@ export const defaultCompounds: Compound[] = [
     unitSize: 10,
     unitLabel: 'mg vial',
     unitPrice: 40,
+    kitPrice: 400,
     dosePerUse: 10,
     doseLabel: 'IU',
     bacstatPerVial: 200,
@@ -137,6 +160,7 @@ export const defaultCompounds: Compound[] = [
     unitSize: 30,
     unitLabel: 'mg vial',
     unitPrice: 55,
+    kitPrice: 550,
     dosePerUse: 30,
     doseLabel: 'IU',
     bacstatPerVial: 200,
@@ -156,6 +180,7 @@ export const defaultCompounds: Compound[] = [
     unitSize: 30,
     unitLabel: 'mg vial',
     unitPrice: 50,
+    kitPrice: 500,
     dosePerUse: 30,
     doseLabel: 'IU',
     bacstatPerVial: 200,
@@ -174,6 +199,7 @@ export const defaultCompounds: Compound[] = [
     unitSize: 10,
     unitLabel: 'mL vial',
     unitPrice: 15,
+    kitPrice: 150,
     dosePerUse: 0.1,
     doseLabel: 'mL',
     reconVolume: 2,
@@ -191,6 +217,7 @@ export const defaultCompounds: Compound[] = [
     unitSize: 15,
     unitLabel: 'mg vial',
     unitPrice: 65,
+    kitPrice: 650,
     dosePerUse: 15,
     doseLabel: 'IU',
     bacstatPerVial: 200,
@@ -209,6 +236,7 @@ export const defaultCompounds: Compound[] = [
     unitSize: 50,
     unitLabel: 'mg vial',
     unitPrice: 70,
+    kitPrice: 700,
     dosePerUse: 50,
     doseLabel: 'IU',
     bacstatPerVial: 200,
@@ -227,6 +255,7 @@ export const defaultCompounds: Compound[] = [
     unitSize: 40,
     unitLabel: 'mg vial',
     unitPrice: 55,
+    kitPrice: 550,
     dosePerUse: 40,
     doseLabel: 'IU',
     bacstatPerVial: 200,
@@ -245,6 +274,7 @@ export const defaultCompounds: Compound[] = [
     unitSize: 10,
     unitLabel: 'mg vial',
     unitPrice: 30,
+    kitPrice: 300,
     dosePerUse: 10,
     doseLabel: 'IU',
     bacstatPerVial: 200,
@@ -263,6 +293,7 @@ export const defaultCompounds: Compound[] = [
     unitSize: 20,
     unitLabel: 'mg vial',
     unitPrice: 80,
+    kitPrice: 800,
     dosePerUse: 20,
     doseLabel: 'IU',
     bacstatPerVial: 300,
@@ -282,6 +313,7 @@ export const defaultCompounds: Compound[] = [
     unitSize: 15,
     unitLabel: 'mg vial',
     unitPrice: 40,
+    kitPrice: 400,
     dosePerUse: 15,
     doseLabel: 'IU',
     bacstatPerVial: 200,
@@ -300,6 +332,7 @@ export const defaultCompounds: Compound[] = [
     unitSize: 10,
     unitLabel: 'mg vial',
     unitPrice: 35,
+    kitPrice: 350,
     dosePerUse: 10,
     doseLabel: 'IU',
     bacstatPerVial: 200,
@@ -318,6 +351,7 @@ export const defaultCompounds: Compound[] = [
     unitSize: 100,
     unitLabel: 'mg vial',
     unitPrice: 45,
+    kitPrice: 450,
     dosePerUse: 100,
     doseLabel: 'IU',
     bacstatPerVial: 200,
@@ -336,6 +370,7 @@ export const defaultCompounds: Compound[] = [
     unitSize: 15,
     unitLabel: 'mg vial',
     unitPrice: 90,
+    kitPrice: 900,
     dosePerUse: 15,
     doseLabel: 'IU',
     bacstatPerVial: 200,
