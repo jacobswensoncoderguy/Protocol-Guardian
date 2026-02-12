@@ -18,7 +18,7 @@ const categoryOrder: CompoundCategory[] = ['peptide', 'injectable-oil', 'oral', 
 
 const InventoryView = ({ compounds, onUpdateCompound }: InventoryViewProps) => {
   const [filter, setFilter] = useState<CompoundCategory | 'all'>('all');
-  const [sortBy, setSortBy] = useState<'name' | 'days'>('days');
+  const [sortBy, setSortBy] = useState<'name' | 'days'>('name');
 
   const filtered = filter === 'all' ? compounds : compounds.filter(c => c.category === filter);
   const sorted = [...filtered].sort((a, b) => {
