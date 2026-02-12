@@ -32,14 +32,10 @@ export function getDaysRemaining(compound: Compound): number {
   const dailyConsumption = (compound.dosePerUse * compound.dosesPerDay * compound.daysPerWeek) / 7;
   if (dailyConsumption === 0) return 999;
 
+  // currentQuantity represents what's on hand RIGHT NOW (number of vials/bottles)
   const totalSupply = compound.currentQuantity * compound.unitSize;
-  const purchaseDate = new Date(compound.purchaseDate);
-  const now = new Date();
-  const daysElapsed = Math.max(0, Math.floor((now.getTime() - purchaseDate.getTime()) / (1000 * 60 * 60 * 24)));
-  const used = daysElapsed * dailyConsumption;
-  const remaining = totalSupply - used;
 
-  return Math.max(0, Math.floor(remaining / dailyConsumption));
+  return Math.max(0, Math.floor(totalSupply / dailyConsumption));
 }
 
 export function getStatus(daysRemaining: number): CompoundStatus {
