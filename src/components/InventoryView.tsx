@@ -84,6 +84,7 @@ const InventoryView = ({ compounds, onUpdateCompound }: InventoryViewProps) => {
 
 interface EditState {
   currentQuantity: string;
+  unitSize: string;
   unitPrice: string;
   purchaseDate: string;
   reorderQuantity: string;
@@ -93,6 +94,7 @@ const CompoundCard = ({ compound, onUpdate }: { compound: Compound; onUpdate: (i
   const [editing, setEditing] = useState(false);
   const [editState, setEditState] = useState<EditState>({
     currentQuantity: '',
+    unitSize: '',
     unitPrice: '',
     purchaseDate: '',
     reorderQuantity: '',
@@ -107,6 +109,7 @@ const CompoundCard = ({ compound, onUpdate }: { compound: Compound; onUpdate: (i
   const startEdit = () => {
     setEditState({
       currentQuantity: compound.currentQuantity.toString(),
+      unitSize: compound.unitSize.toString(),
       unitPrice: compound.unitPrice.toString(),
       purchaseDate: compound.purchaseDate,
       reorderQuantity: compound.reorderQuantity.toString(),
@@ -116,12 +119,14 @@ const CompoundCard = ({ compound, onUpdate }: { compound: Compound; onUpdate: (i
 
   const saveEdit = () => {
     const qty = parseFloat(editState.currentQuantity);
+    const size = parseFloat(editState.unitSize);
     const price = parseFloat(editState.unitPrice);
     const reorder = parseInt(editState.reorderQuantity);
-    if (isNaN(qty) || isNaN(price) || isNaN(reorder) || qty < 0 || price < 0 || reorder < 0) return;
+    if (isNaN(qty) || isNaN(size) || isNaN(price) || isNaN(reorder) || qty < 0 || size <= 0 || price < 0 || reorder < 0) return;
 
     onUpdate(compound.id, {
       currentQuantity: qty,
+      unitSize: size,
       unitPrice: price,
       purchaseDate: editState.purchaseDate,
       reorderQuantity: reorder,
@@ -176,9 +181,11 @@ const CompoundCard = ({ compound, onUpdate }: { compound: Compound; onUpdate: (i
 
       {editing ? (
         <div className="space-y-1.5">
-          <EditRow label="Qty" value={editState.currentQuantity} suffix={compound.unitLabel}
+          <EditRow label="Vials" value={editState.currentQuantity}
             onChange={v => setEditState(s => ({ ...s, currentQuantity: v }))} type="number" />
-          <EditRow label="Price" value={editState.unitPrice} prefix="$"
+          <EditRow label="Per Vial" value={editState.unitSize} suffix={isPeptide ? 'mg' : compound.unitLabel.split(' ')[0]}
+            onChange={v => setEditState(s => ({ ...s, unitSize: v }))} type="number" />
+          <EditRow label="Price" value={editState.unitPrice} prefix="$" suffix="/vial"
             onChange={v => setEditState(s => ({ ...s, unitPrice: v }))} type="number" />
           <EditRow label="Purchased" value={editState.purchaseDate}
             onChange={v => setEditState(s => ({ ...s, purchaseDate: v }))} type="date" />
@@ -201,16 +208,24 @@ const CompoundCard = ({ compound, onUpdate }: { compound: Compound; onUpdate: (i
         <>
           <div className="grid grid-cols-2 gap-x-3 text-[10px]">
             <div>
-              <span className="text-muted-foreground">Qty:</span>{' '}
-              <span className="font-mono text-foreground">{compound.currentQuantity} {compound.unitLabel}</span>
+              <span className="text-muted-foreground">Vials:</span>{' '}
+              <span className="font-mono text-foreground">{compound.currentQuantity}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Per Vial:</span>{' '}
+              <span className="font-mono text-foreground">{compound.unitSize} {isPeptide ? 'mg' : compound.unitLabel}</span>
             </div>
             <div>
               <span className="text-muted-foreground">Price:</span>{' '}
-              <span className="font-mono text-foreground">${compound.unitPrice}</span>
+              <span className="font-mono text-foreground">${compound.unitPrice}/vial</span>
             </div>
             <div>
               <span className="text-muted-foreground">Dose:</span>{' '}
               <span className="font-mono text-foreground">{compound.dosePerUse} {compound.doseLabel}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Total:</span>{' '}
+              <span className="font-mono text-foreground">{compound.currentQuantity * compound.unitSize} {isPeptide ? 'mg' : compound.unitLabel}</span>
             </div>
             <div>
               <span className="text-muted-foreground">Reorder:</span>{' '}
