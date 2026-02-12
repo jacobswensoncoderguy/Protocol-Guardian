@@ -45,7 +45,10 @@ function buildProjection(compounds: Compound[]): MonthData[] {
     // Check if it needs another reorder within the year
     const dailyConsumption = (compound.dosePerUse * compound.dosesPerDay * compound.daysPerWeek) / 7;
     if (dailyConsumption > 0) {
-      const supplyDays = (actualUnits * compound.unitSize) / dailyConsumption;
+      const unitsPerVial = compound.category === 'peptide' && compound.bacstatPerVial
+        ? compound.bacstatPerVial
+        : compound.unitSize;
+      const supplyDays = (actualUnits * unitsPerVial) / dailyConsumption;
       const secondReorderDate = new Date(reorderDate.getTime() + supplyDays * 24 * 60 * 60 * 1000);
       if (secondReorderDate.getFullYear() === now.getFullYear() || (secondReorderDate.getFullYear() === now.getFullYear() + 1 && secondReorderDate.getMonth() < now.getMonth())) {
         const secondMonth = secondReorderDate.getMonth();

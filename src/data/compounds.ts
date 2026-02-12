@@ -32,8 +32,12 @@ export function getDaysRemaining(compound: Compound): number {
   const dailyConsumption = (compound.dosePerUse * compound.dosesPerDay * compound.daysPerWeek) / 7;
   if (dailyConsumption === 0) return 999;
 
-  // currentQuantity represents what's on hand RIGHT NOW (number of vials/bottles)
-  const totalSupply = compound.currentQuantity * compound.unitSize;
+  // For peptides: supply is measured in IU (bacstat units), not mg
+  // Each vial has bacstatPerVial IU when reconstituted, doses are in IU
+  // For non-peptides: supply = currentQuantity * unitSize
+  const totalSupply = compound.category === 'peptide' && compound.bacstatPerVial
+    ? compound.currentQuantity * compound.bacstatPerVial
+    : compound.currentQuantity * compound.unitSize;
 
   return Math.max(0, Math.floor(totalSupply / dailyConsumption));
 }
@@ -55,8 +59,12 @@ export function getMonthlyConsumptionCost(compound: Compound): number {
   const dailyConsumption = (compound.dosePerUse * compound.dosesPerDay * compound.daysPerWeek) / 7;
   if (dailyConsumption === 0) return 0;
   const monthlyConsumption = dailyConsumption * 30;
-  const unitsPerMonth = monthlyConsumption / compound.unitSize;
-  return unitsPerMonth * compound.unitPrice;
+  // For peptides: units per vial = bacstatPerVial (IU), not unitSize (mg)
+  const unitsPerVial = compound.category === 'peptide' && compound.bacstatPerVial
+    ? compound.bacstatPerVial
+    : compound.unitSize;
+  const vialsPerMonth = monthlyConsumption / unitsPerVial;
+  return vialsPerMonth * compound.unitPrice;
 }
 
 // Helper: date N days ago as ISO string
@@ -76,12 +84,12 @@ export const defaultCompounds: Compound[] = [
     unitLabel: 'mg vial',
     unitPrice: 45,
     dosePerUse: 10,
-    doseLabel: 'mg',
+    doseLabel: 'IU',
     bacstatPerVial: 200,
     reconVolume: 2,
     dosesPerDay: 2,
     daysPerWeek: 7,
-    timingNote: '10 mg AM + 10 mg PM',
+    timingNote: '10 IU AM + 10 IU PM',
     currentQuantity: 5,
     purchaseDate: daysAgo(3),
     reorderQuantity: 10,
@@ -94,12 +102,12 @@ export const defaultCompounds: Compound[] = [
     unitLabel: 'mg vial',
     unitPrice: 35,
     dosePerUse: 10,
-    doseLabel: 'mg',
+    doseLabel: 'IU',
     bacstatPerVial: 200,
     reconVolume: 2,
     dosesPerDay: 2,
     daysPerWeek: 7,
-    timingNote: '10 mg AM + 10 mg PM',
+    timingNote: '10 IU AM + 10 IU PM',
     currentQuantity: 5,
     purchaseDate: daysAgo(5),
     reorderQuantity: 10,
@@ -112,12 +120,12 @@ export const defaultCompounds: Compound[] = [
     unitLabel: 'mg vial',
     unitPrice: 40,
     dosePerUse: 10,
-    doseLabel: 'mg',
+    doseLabel: 'IU',
     bacstatPerVial: 200,
     reconVolume: 2,
     dosesPerDay: 2,
     daysPerWeek: 7,
-    timingNote: '10 mg AM + 10 mg PM',
+    timingNote: '10 IU AM + 10 IU PM',
     currentQuantity: 4,
     purchaseDate: daysAgo(2),
     reorderQuantity: 10,
@@ -130,12 +138,12 @@ export const defaultCompounds: Compound[] = [
     unitLabel: 'mg vial',
     unitPrice: 55,
     dosePerUse: 30,
-    doseLabel: 'mg',
+    doseLabel: 'IU',
     bacstatPerVial: 200,
     reconVolume: 2,
     dosesPerDay: 1,
     daysPerWeek: 7,
-    timingNote: '30 mg daily',
+    timingNote: '30 IU daily',
     cyclingNote: '30 days on / 60 days off',
     currentQuantity: 3,
     purchaseDate: daysAgo(10),
@@ -149,7 +157,7 @@ export const defaultCompounds: Compound[] = [
     unitLabel: 'mg vial',
     unitPrice: 50,
     dosePerUse: 30,
-    doseLabel: 'mg',
+    doseLabel: 'IU',
     bacstatPerVial: 200,
     reconVolume: 2,
     dosesPerDay: 1,
@@ -184,7 +192,7 @@ export const defaultCompounds: Compound[] = [
     unitLabel: 'mg vial',
     unitPrice: 65,
     dosePerUse: 15,
-    doseLabel: 'mg',
+    doseLabel: 'IU',
     bacstatPerVial: 200,
     reconVolume: 2,
     dosesPerDay: 1,
@@ -202,7 +210,7 @@ export const defaultCompounds: Compound[] = [
     unitLabel: 'mg vial',
     unitPrice: 70,
     dosePerUse: 50,
-    doseLabel: 'mg',
+    doseLabel: 'IU',
     bacstatPerVial: 200,
     reconVolume: 2,
     dosesPerDay: 1,
@@ -220,7 +228,7 @@ export const defaultCompounds: Compound[] = [
     unitLabel: 'mg vial',
     unitPrice: 55,
     dosePerUse: 40,
-    doseLabel: 'mg',
+    doseLabel: 'IU',
     bacstatPerVial: 200,
     reconVolume: 2,
     dosesPerDay: 1,
@@ -238,12 +246,12 @@ export const defaultCompounds: Compound[] = [
     unitLabel: 'mg vial',
     unitPrice: 30,
     dosePerUse: 10,
-    doseLabel: 'mg',
+    doseLabel: 'IU',
     bacstatPerVial: 200,
     reconVolume: 2,
     dosesPerDay: 1,
     daysPerWeek: 7,
-    timingNote: '10 mg nightly',
+    timingNote: '10 IU nightly',
     currentQuantity: 6,
     purchaseDate: daysAgo(12),
     reorderQuantity: 10,
@@ -256,7 +264,7 @@ export const defaultCompounds: Compound[] = [
     unitLabel: 'mg vial',
     unitPrice: 80,
     dosePerUse: 20,
-    doseLabel: 'mg',
+    doseLabel: 'IU',
     bacstatPerVial: 300,
     reconVolume: 3,
     dosesPerDay: 1,
@@ -275,12 +283,12 @@ export const defaultCompounds: Compound[] = [
     unitLabel: 'mg vial',
     unitPrice: 40,
     dosePerUse: 15,
-    doseLabel: 'mg',
+    doseLabel: 'IU',
     bacstatPerVial: 200,
     reconVolume: 2,
     dosesPerDay: 1,
     daysPerWeek: 7,
-    timingNote: '15 mg nightly',
+    timingNote: '15 IU nightly',
     currentQuantity: 4,
     purchaseDate: daysAgo(6),
     reorderQuantity: 8,
@@ -293,7 +301,7 @@ export const defaultCompounds: Compound[] = [
     unitLabel: 'mg vial',
     unitPrice: 35,
     dosePerUse: 10,
-    doseLabel: 'mg',
+    doseLabel: 'IU',
     bacstatPerVial: 200,
     reconVolume: 2,
     dosesPerDay: 1,
@@ -311,7 +319,7 @@ export const defaultCompounds: Compound[] = [
     unitLabel: 'mg vial',
     unitPrice: 45,
     dosePerUse: 100,
-    doseLabel: 'mg',
+    doseLabel: 'IU',
     bacstatPerVial: 200,
     reconVolume: 2,
     dosesPerDay: 1,
@@ -329,7 +337,7 @@ export const defaultCompounds: Compound[] = [
     unitLabel: 'mg vial',
     unitPrice: 90,
     dosePerUse: 15,
-    doseLabel: 'mg',
+    doseLabel: 'IU',
     bacstatPerVial: 200,
     reconVolume: 2,
     dosesPerDay: 1,
