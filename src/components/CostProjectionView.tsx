@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Compound, getDaysRemaining, getMonthlyConsumptionCost } from '@/data/compounds';
+import { Compound, getDaysRemaining, getMonthlyConsumptionCost, getReorderCost } from '@/data/compounds';
 
 interface CostProjectionViewProps {
   compounds: Compound[];
@@ -10,7 +10,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 interface MonthData {
   month: number;
   name: string;
-  compounds: { name: string; qty: number; unitPrice: number; cost: number }[];
+  compounds: { name: string; qty: string; unitPrice: number; cost: number }[];
   total: number;
 }
 
@@ -27,17 +27,20 @@ function buildProjection(compounds: Compound[]): MonthData[] {
     const daysLeft = getDaysRemaining(compound);
     const reorderDate = new Date(now.getTime() + daysLeft * 24 * 60 * 60 * 1000);
     const reorderMonth = reorderDate.getMonth();
-    // Peptides: reorderQuantity = kits, each kit = 10 vials
-    const actualUnits = compound.category === 'peptide'
-      ? compound.reorderQuantity * 10
-      : compound.reorderQuantity;
-    const cost = actualUnits * compound.unitPrice;
+    // Peptides: cost = kits × kitPrice; Others: cost = reorderQuantity × unitPrice
+    const cost = getReorderCost(compound);
+    const displayQty = compound.category === 'peptide'
+      ? `${compound.reorderQuantity} kit${compound.reorderQuantity !== 1 ? 's' : ''}`
+      : `${compound.reorderQuantity}`;
+    const displayPrice = compound.category === 'peptide'
+      ? (compound.kitPrice || 0)
+      : compound.unitPrice;
 
     // Add initial reorder
     months[reorderMonth].compounds.push({
       name: compound.name,
-      qty: actualUnits,
-      unitPrice: compound.unitPrice,
+      qty: displayQty,
+      unitPrice: displayPrice,
       cost,
     });
     months[reorderMonth].total += cost;
@@ -45,18 +48,21 @@ function buildProjection(compounds: Compound[]): MonthData[] {
     // Check if it needs another reorder within the year
     const dailyConsumption = (compound.dosePerUse * compound.dosesPerDay * compound.daysPerWeek) / 7;
     if (dailyConsumption > 0) {
+      const reorderVials = compound.category === 'peptide'
+        ? compound.reorderQuantity * 10
+        : compound.reorderQuantity;
       const unitsPerVial = compound.category === 'peptide' && compound.bacstatPerVial
         ? compound.bacstatPerVial
         : compound.unitSize;
-      const supplyDays = (actualUnits * unitsPerVial) / dailyConsumption;
+      const supplyDays = (reorderVials * unitsPerVial) / dailyConsumption;
       const secondReorderDate = new Date(reorderDate.getTime() + supplyDays * 24 * 60 * 60 * 1000);
       if (secondReorderDate.getFullYear() === now.getFullYear() || (secondReorderDate.getFullYear() === now.getFullYear() + 1 && secondReorderDate.getMonth() < now.getMonth())) {
         const secondMonth = secondReorderDate.getMonth();
         if (secondMonth !== reorderMonth) {
           months[secondMonth].compounds.push({
             name: compound.name,
-            qty: actualUnits,
-            unitPrice: compound.unitPrice,
+            qty: displayQty,
+            unitPrice: displayPrice,
             cost,
           });
           months[secondMonth].total += cost;
@@ -135,7 +141,7 @@ const CostProjectionView = ({ compounds }: CostProjectionViewProps) => {
                 <div key={i} className="flex items-center justify-between text-sm bg-secondary/50 rounded px-3 py-1.5">
                   <span className="text-foreground/80 truncate mr-2">{item.name}</span>
                   <div className="flex items-center gap-3 text-xs font-mono flex-shrink-0">
-                    <span className="text-muted-foreground">×{item.qty}</span>
+                    <span className="text-muted-foreground">{item.qty}</span>
                     <span className="text-muted-foreground">@${item.unitPrice}</span>
                     <span className="text-primary font-semibold">${item.cost}</span>
                   </div>
