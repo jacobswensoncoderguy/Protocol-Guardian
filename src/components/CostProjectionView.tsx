@@ -95,7 +95,7 @@ const CostProjectionView = ({ compounds }: CostProjectionViewProps) => {
       </div>
 
       {/* Month Grid */}
-      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
+      <div className="grid grid-cols-4 sm:grid-cols-4 lg:grid-cols-6 gap-1.5 sm:gap-2">
         {projection.map((month) => {
           const color = month.total === 0 ? 'bg-secondary' :
             month.total < 200 ? 'bg-status-good/15 border-status-good/30' :
@@ -106,12 +106,12 @@ const CostProjectionView = ({ compounds }: CostProjectionViewProps) => {
             <button
               key={month.month}
               onClick={() => setSelectedMonth(selectedMonth === month.month ? null : month.month)}
-              className={`rounded-lg border p-2.5 text-center transition-all hover:scale-105 ${color} ${
+              className={`rounded-lg border p-2 sm:p-2.5 text-center transition-all active:scale-95 touch-manipulation ${color} ${
                 selectedMonth === month.month ? 'ring-1 ring-primary' : 'border-border/50'
               }`}
             >
-              <p className="text-xs font-semibold text-foreground">{month.name}</p>
-              <p className={`text-sm font-bold font-mono mt-0.5 ${
+              <p className="text-[11px] sm:text-xs font-semibold text-foreground">{month.name}</p>
+              <p className={`text-xs sm:text-sm font-bold font-mono mt-0.5 ${
                 month.total === 0 ? 'text-muted-foreground' :
                 month.total < 200 ? 'text-status-good' :
                 month.total < 500 ? 'text-status-warning' :
@@ -119,8 +119,8 @@ const CostProjectionView = ({ compounds }: CostProjectionViewProps) => {
               }`}>
                 ${Math.round(month.total)}
               </p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">
-                {month.compounds.length} item{month.compounds.length !== 1 ? 's' : ''}
+              <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5">
+                {month.compounds.length}
               </p>
             </button>
           );
