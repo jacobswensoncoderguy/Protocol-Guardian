@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Compound, getReorderCost } from '@/data/compounds';
 import { getDaysRemainingWithCycling, getEffectiveDailyConsumption } from '@/lib/cycling';
 import { supabase } from '@/integrations/supabase/client';
-import { Check, Package, PackageCheck, ShoppingCart } from 'lucide-react';
+import { Check, Package, PackageCheck, ShoppingCart, Undo2, Trash2 } from 'lucide-react';
 
 interface ReorderViewProps {
   compounds: Compound[];
@@ -140,6 +140,39 @@ const ReorderView = ({ compounds, onUpdateCompound }: ReorderViewProps) => {
     }
   };
 
+  const handleUndoReceived = async (order: OrderItem) => {
+    // Subtract quantity from inventory
+    const compound = compoundMap.get(order.compound_id);
+    if (compound) {
+      onUpdateCompound(compound.id, {
+        currentQuantity: Math.max(0, compound.currentQuantity - order.quantity),
+      });
+    }
+
+    // Move back to ordered
+    const { error } = await supabase
+      .from('orders')
+      .update({ status: 'ordered', received_at: null })
+      .eq('id', order.id);
+
+    if (!error) {
+      setOrders(prev => prev.map(o =>
+        o.id === order.id ? { ...o, status: 'ordered', received_at: null } : o
+      ));
+    }
+  };
+
+  const handleDeleteOrder = async (order: OrderItem) => {
+    const { error } = await supabase
+      .from('orders')
+      .delete()
+      .eq('id', order.id);
+
+    if (!error) {
+      setOrders(prev => prev.filter(o => o.id !== order.id));
+    }
+  };
+
   const getDisplayQty = (compoundId: string, qty: number) => {
     const compound = compoundMap.get(compoundId);
     if (!compound) return `${qty}`;
@@ -255,13 +288,22 @@ const ReorderView = ({ compounds, onUpdateCompound }: ReorderViewProps) => {
                         )}
                       </div>
                     </div>
-                    <button
-                      onClick={() => handleMarkReceived(order)}
-                      className="ml-2 px-3 py-1.5 rounded-md bg-status-good/15 text-status-good text-xs font-medium border border-status-good/30 active:bg-status-good/25 touch-manipulation flex-shrink-0 flex items-center gap-1"
-                    >
-                      <Check className="w-3 h-3" />
-                      Received
-                    </button>
+                    <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                      <button
+                        onClick={() => handleDeleteOrder(order)}
+                        className="p-1.5 rounded-md bg-destructive/10 text-status-critical border border-destructive/20 active:bg-destructive/20 touch-manipulation"
+                        title="Cancel order"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleMarkReceived(order)}
+                        className="px-3 py-1.5 rounded-md bg-status-good/15 text-status-good text-xs font-medium border border-status-good/30 active:bg-status-good/25 touch-manipulation flex items-center gap-1"
+                      >
+                        <Check className="w-3 h-3" />
+                        Received
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -297,7 +339,7 @@ const ReorderView = ({ compounds, onUpdateCompound }: ReorderViewProps) => {
             receivedItems.map(order => {
               const compound = compoundMap.get(order.compound_id);
               return (
-                <div key={order.id} className="bg-card rounded-lg border border-status-good/20 p-3 flex items-center justify-between opacity-70">
+                <div key={order.id} className="bg-card rounded-lg border border-status-good/20 p-3 flex items-center justify-between">
                   <div className="min-w-0 flex-1">
                     <h4 className="text-sm font-semibold text-foreground truncate">{compound?.name || order.compound_id}</h4>
                     <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground">
@@ -308,9 +350,22 @@ const ReorderView = ({ compounds, onUpdateCompound }: ReorderViewProps) => {
                       )}
                     </div>
                   </div>
-                  <span className="text-[10px] font-mono text-status-good px-2 py-0.5 bg-status-good/10 rounded-full">
-                    ✓ Added to inventory
-                  </span>
+                  <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                    <button
+                      onClick={() => handleUndoReceived(order)}
+                      className="p-1.5 rounded-md bg-accent/10 text-accent border border-accent/20 active:bg-accent/20 touch-manipulation"
+                      title="Undo — move back to ordered and subtract from inventory"
+                    >
+                      <Undo2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteOrder(order)}
+                      className="p-1.5 rounded-md bg-destructive/10 text-status-critical border border-destructive/20 active:bg-destructive/20 touch-manipulation"
+                      title="Delete order record"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               );
             })
