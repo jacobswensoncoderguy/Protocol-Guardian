@@ -199,7 +199,7 @@ const CompoundCard = ({ compound, onUpdate }: { compound: Compound; onUpdate: (i
             <EditRow label="Kit Price" value={editState.kitPrice} prefix="$" suffix="/kit (10 vials)"
               onChange={v => setEditState(s => ({ ...s, kitPrice: v }))} type="number" />
           ) : (
-            <EditRow label="Price" value={editState.unitPrice} prefix="$" suffix={`/${compound.unitLabel}`}
+            <EditRow label="Price" value={editState.unitPrice} prefix="$" suffix={`/${isOil ? 'vial' : 'bottle'}`}
               onChange={v => setEditState(s => ({ ...s, unitPrice: v }))} type="number" />
           )}
           {!isPeptide && !isOil && (
@@ -258,7 +258,7 @@ const CompoundCard = ({ compound, onUpdate }: { compound: Compound; onUpdate: (i
               </div>
               <div>
                 <span className="text-muted-foreground">Price:</span>{' '}
-                <span className="font-mono text-foreground">${compound.unitPrice}/{compound.unitLabel}</span>
+                <span className="font-mono text-foreground">${compound.unitPrice}/{isOil ? 'vial' : 'bottle'}</span>
               </div>
               <div>
                 <span className="text-muted-foreground">Dose:</span>{' '}
