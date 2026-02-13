@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { weeklySchedule, DayDose } from '@/data/schedule';
 import { Compound } from '@/data/compounds';
 import { getCycleStatus } from '@/lib/cycling';
-import { Sun, Moon, Dumbbell, PauseCircle } from 'lucide-react';
+import { Sun, Moon, Dumbbell } from 'lucide-react';
 
 interface WeeklyScheduleViewProps {
   compounds: Compound[];
@@ -15,7 +15,6 @@ const WeeklyScheduleView = ({ compounds }: WeeklyScheduleViewProps) => {
   const schedule = weeklySchedule[selectedDay];
   const compoundMap = new Map(compounds.map(c => [c.id, c]));
 
-  // Filter out compounds that are currently OFF-cycle
   const offCycleIds = new Set(
     compounds
       .filter(c => {
@@ -25,12 +24,9 @@ const WeeklyScheduleView = ({ compounds }: WeeklyScheduleViewProps) => {
       .map(c => c.id)
   );
 
-  const activeDoses = schedule.doses.filter(d => !offCycleIds.has(d.compoundId));
-  const pausedDoses = schedule.doses.filter(d => offCycleIds.has(d.compoundId));
-
-  const morningDoses = activeDoses.filter(d => d.timing === 'morning');
-  const afternoonDoses = activeDoses.filter(d => d.timing === 'afternoon');
-  const eveningDoses = activeDoses.filter(d => d.timing === 'evening');
+  const morningDoses = schedule.doses.filter(d => d.timing === 'morning');
+  const afternoonDoses = schedule.doses.filter(d => d.timing === 'afternoon');
+  const eveningDoses = schedule.doses.filter(d => d.timing === 'evening');
 
   return (
     <div className="space-y-4">
@@ -63,6 +59,7 @@ const WeeklyScheduleView = ({ compounds }: WeeklyScheduleViewProps) => {
         bgAccent="bg-primary/5 border-primary/20"
         doses={morningDoses}
         compoundMap={compoundMap}
+        offCycleIds={offCycleIds}
       />
 
       {/* Afternoon */}
@@ -74,6 +71,7 @@ const WeeklyScheduleView = ({ compounds }: WeeklyScheduleViewProps) => {
           bgAccent="bg-primary/5 border-primary/20"
           doses={afternoonDoses}
           compoundMap={compoundMap}
+          offCycleIds={offCycleIds}
         />
       )}
 
@@ -85,39 +83,21 @@ const WeeklyScheduleView = ({ compounds }: WeeklyScheduleViewProps) => {
         bgAccent="bg-accent/5 border-accent/20"
         doses={eveningDoses}
         compoundMap={compoundMap}
+        offCycleIds={offCycleIds}
       />
-
-      {/* Off-Cycle Section */}
-      {pausedDoses.length > 0 && (
-        <div className="rounded-lg border p-3 bg-muted/30 border-border/30">
-          <h3 className="text-sm font-semibold mb-2 flex items-center gap-2 text-muted-foreground">
-            <PauseCircle className="w-4 h-4" />
-            Off-Cycle
-            <span className="font-normal">({pausedDoses.length} paused)</span>
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
-            {[...new Set(pausedDoses.map(d => d.compoundId))].map(id => {
-              const compound = compoundMap.get(id);
-              const status = compound ? getCycleStatus(compound) : null;
-              return (
-                <div key={id} className="flex items-center justify-between bg-card/30 rounded px-2.5 py-1.5">
-                  <span className="text-xs text-muted-foreground truncate mr-2">
-                    {compound?.name || id}
-                  </span>
-                  {status?.hasCycle && (
-                    <span className="text-[10px] font-mono text-muted-foreground flex-shrink-0">
-                      {status.phaseLabel}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </div>
   );
 };
+
+/** Format a date N days from now as "Mon DD" */
+function formatCycleRestartDate(compound: Compound): string | null {
+  const status = getCycleStatus(compound);
+  if (!status.hasCycle || status.isOn) return null;
+  const restart = new Date();
+  restart.setDate(restart.getDate() + status.daysLeftInPhase);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${months[restart.getMonth()]} ${restart.getDate()}`;
+}
 
 const DoseSection = ({
   icon,
@@ -126,6 +106,7 @@ const DoseSection = ({
   bgAccent,
   doses,
   compoundMap,
+  offCycleIds,
 }: {
   icon: React.ReactNode;
   title: string;
@@ -133,28 +114,59 @@ const DoseSection = ({
   bgAccent: string;
   doses: DayDose[];
   compoundMap: Map<string, Compound>;
+  offCycleIds: Set<string>;
 }) => {
-  const peptides = doses.filter(d => d.category === 'peptide' || d.category === 'injectable-oil');
-  const orals = doses.filter(d => d.category === 'oral');
-  const powders = doses.filter(d => d.category === 'powder');
+  const activeDoses = doses.filter(d => !offCycleIds.has(d.compoundId));
+  const pausedDoses = doses.filter(d => offCycleIds.has(d.compoundId));
+
+  const activePeptides = activeDoses.filter(d => d.category === 'peptide' || d.category === 'injectable-oil');
+  const activeOrals = activeDoses.filter(d => d.category === 'oral');
+  const activePowders = activeDoses.filter(d => d.category === 'powder');
+
+  const pausedPeptides = pausedDoses.filter(d => d.category === 'peptide' || d.category === 'injectable-oil');
+  const pausedOrals = pausedDoses.filter(d => d.category === 'oral');
+  const pausedPowders = pausedDoses.filter(d => d.category === 'powder');
+
+  const totalActive = activeDoses.length;
 
   return (
     <div className={`rounded-lg border p-3 ${bgAccent}`}>
       <h3 className={`text-sm font-semibold mb-3 flex items-center gap-2 ${accent}`}>
         {icon}
         {title}
-        <span className="text-muted-foreground font-normal">({doses.length} items)</span>
+        <span className="text-muted-foreground font-normal">({totalActive} active)</span>
       </h3>
 
       <div className="space-y-3">
-        {peptides.length > 0 && (
-          <DoseGroup label="Injectables" doses={peptides} compoundMap={compoundMap} />
+        {activePeptides.length > 0 && (
+          <DoseGroup label="Injectables" doses={activePeptides} compoundMap={compoundMap} />
         )}
-        {orals.length > 0 && (
-          <DoseGroup label="Oral Supplements" doses={orals} compoundMap={compoundMap} />
+        {activeOrals.length > 0 && (
+          <DoseGroup label="Oral Supplements" doses={activeOrals} compoundMap={compoundMap} />
         )}
-        {powders.length > 0 && (
-          <DoseGroup label="Powders" doses={powders} compoundMap={compoundMap} />
+        {activePowders.length > 0 && (
+          <DoseGroup label="Powders" doses={activePowders} compoundMap={compoundMap} />
+        )}
+
+        {/* Off-cycle separator + grayed-out compounds */}
+        {pausedDoses.length > 0 && (
+          <>
+            <div className="flex items-center gap-2 pt-1">
+              <div className="flex-1 h-px bg-muted-foreground/20" />
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60">Off-Cycle ({pausedDoses.length})</span>
+              <div className="flex-1 h-px bg-muted-foreground/20" />
+            </div>
+
+            {pausedPeptides.length > 0 && (
+              <PausedDoseGroup label="Injectables" doses={pausedPeptides} compoundMap={compoundMap} />
+            )}
+            {pausedOrals.length > 0 && (
+              <PausedDoseGroup label="Oral Supplements" doses={pausedOrals} compoundMap={compoundMap} />
+            )}
+            {pausedPowders.length > 0 && (
+              <PausedDoseGroup label="Powders" doses={pausedPowders} compoundMap={compoundMap} />
+            )}
+          </>
         )}
       </div>
     </div>
@@ -187,5 +199,46 @@ const DoseGroup = ({
     </div>
   </div>
 );
+
+const PausedDoseGroup = ({
+  label,
+  doses,
+  compoundMap,
+}: {
+  label: string;
+  doses: DayDose[];
+  compoundMap: Map<string, Compound>;
+}) => {
+  // Deduplicate by compoundId (e.g. taurine appears twice)
+  const seen = new Set<string>();
+  const uniqueDoses = doses.filter(d => {
+    if (seen.has(d.compoundId)) return false;
+    seen.add(d.compoundId);
+    return true;
+  });
+
+  return (
+    <div>
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground/40 mb-1.5">{label}</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+        {uniqueDoses.map((dose, i) => {
+          const compound = compoundMap.get(dose.compoundId);
+          const restartDate = compound ? formatCycleRestartDate(compound) : null;
+          const status = compound ? getCycleStatus(compound) : null;
+          return (
+            <div key={`${dose.compoundId}-${i}`} className="flex items-center justify-between bg-card/20 rounded px-2.5 py-1.5 opacity-50">
+              <span className="text-xs text-muted-foreground truncate mr-2">
+                {compound?.name || dose.compoundId}
+              </span>
+              <span className="text-[10px] font-mono text-muted-foreground flex-shrink-0">
+                {restartDate ? `resumes ${restartDate}` : status?.phaseLabel}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
 export default WeeklyScheduleView;
