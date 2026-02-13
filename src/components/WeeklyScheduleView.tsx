@@ -187,12 +187,19 @@ const DoseGroup = ({
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
       {doses.map((dose, i) => {
         const compound = compoundMap.get(dose.compoundId);
+        const status = compound ? getCycleStatus(compound) : null;
+        const showCycleDays = status?.hasCycle && status.isOn;
         return (
           <div key={`${dose.compoundId}-${i}`} className="flex items-center justify-between bg-card/50 rounded px-2.5 py-1.5">
             <span className="text-xs text-foreground/90 truncate mr-2">
               {compound?.name || dose.compoundId}
             </span>
-            <span className="text-xs font-mono text-primary flex-shrink-0">{dose.dose}</span>
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              {showCycleDays && (
+                <span className="text-[10px] font-mono text-muted-foreground">{status.daysLeftInPhase}d</span>
+              )}
+              <span className="text-xs font-mono text-primary">{dose.dose}</span>
+            </div>
           </div>
         );
       })}
