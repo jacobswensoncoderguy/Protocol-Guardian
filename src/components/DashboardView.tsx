@@ -1,12 +1,42 @@
-import { Compound, getDaysRemaining, getStatus, getMonthlyConsumptionCost } from '@/data/compounds';
+import { Compound, getDaysRemaining, getStatus, getReorderCost } from '@/data/compounds';
 import { AlertTriangle, TrendingUp, DollarSign, Package } from 'lucide-react';
 
 interface DashboardViewProps {
   compounds: Compound[];
 }
 
+function getAnnualProjectedCost(compounds: Compound[]): number {
+  const now = new Date();
+  let total = 0;
+
+  compounds.forEach(compound => {
+    const daysLeft = getDaysRemaining(compound);
+    const cost = getReorderCost(compound);
+
+    const dailyConsumption = (compound.dosePerUse * compound.dosesPerDay * compound.daysPerWeek) / 7;
+    if (dailyConsumption === 0) return;
+
+    const reorderUnits = compound.category === 'peptide'
+      ? compound.reorderQuantity * 10
+      : compound.reorderQuantity;
+    const unitsPerUnit = compound.category === 'peptide' && compound.bacstatPerVial
+      ? compound.bacstatPerVial
+      : compound.unitSize;
+    const supplyDays = (reorderUnits * unitsPerUnit) / dailyConsumption;
+
+    let nextReorderDay = daysLeft;
+    while (nextReorderDay < 365) {
+      total += cost;
+      nextReorderDay += supplyDays;
+      if (supplyDays > 9000) break;
+    }
+  });
+
+  return total;
+}
+
 const DashboardView = ({ compounds }: DashboardViewProps) => {
-  const totalAnnualCost = compounds.reduce((sum, c) => sum + getMonthlyConsumptionCost(c) * 12, 0);
+  const totalAnnualCost = getAnnualProjectedCost(compounds);
   const criticalCompounds = compounds.filter(c => getStatus(getDaysRemaining(c)) === 'critical');
   const warningCompounds = compounds.filter(c => getStatus(getDaysRemaining(c)) === 'warning');
   const goodCompounds = compounds.filter(c => getStatus(getDaysRemaining(c)) === 'good');
