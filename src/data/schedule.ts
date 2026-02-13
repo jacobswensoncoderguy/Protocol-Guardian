@@ -44,10 +44,11 @@ const tb500Evening: DayDose = { compoundId: 'tb-500', dose: '100 IU', timing: 'e
 
 // Daily orals - morning
 const morningOrals: DayDose[] = [
+  { compoundId: 'anavar', dose: '25mg (2.5 pills)', timing: 'morning', category: 'oral' },
   { compoundId: 'bergamot', dose: '600mg', timing: 'morning', category: 'oral' },
   { compoundId: 'ashwagandha', dose: '600mg', timing: 'morning', category: 'oral' },
   { compoundId: 'tadalafil', dose: '5mg', timing: 'morning', category: 'oral' },
-  { compoundId: 'ubiquinol', dose: '200mg', timing: 'morning', category: 'oral' },
+  { compoundId: 'ubiquinol', dose: '200mg (Qunol/CoQ10)', timing: 'morning', category: 'oral' },
   { compoundId: 'pycnogenol', dose: '150mg', timing: 'morning', category: 'oral' },
   { compoundId: 'omega3', dose: '2 softgels', timing: 'morning', category: 'oral' },
   { compoundId: 'l-arginine', dose: '5g (5 caps)', timing: 'morning', category: 'oral' },
