@@ -14,7 +14,78 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      compounds: {
+        Row: {
+          bacstat_per_vial: number | null
+          category: string
+          created_at: string
+          current_quantity: number
+          cycling_note: string | null
+          days_per_week: number
+          dose_label: string
+          dose_per_use: number
+          doses_per_day: number
+          id: string
+          kit_price: number | null
+          name: string
+          notes: string | null
+          purchase_date: string | null
+          recon_volume: number | null
+          reorder_quantity: number
+          timing_note: string | null
+          unit_label: string
+          unit_price: number
+          unit_size: number
+          updated_at: string
+        }
+        Insert: {
+          bacstat_per_vial?: number | null
+          category: string
+          created_at?: string
+          current_quantity?: number
+          cycling_note?: string | null
+          days_per_week: number
+          dose_label: string
+          dose_per_use: number
+          doses_per_day: number
+          id: string
+          kit_price?: number | null
+          name: string
+          notes?: string | null
+          purchase_date?: string | null
+          recon_volume?: number | null
+          reorder_quantity?: number
+          timing_note?: string | null
+          unit_label: string
+          unit_price: number
+          unit_size: number
+          updated_at?: string
+        }
+        Update: {
+          bacstat_per_vial?: number | null
+          category?: string
+          created_at?: string
+          current_quantity?: number
+          cycling_note?: string | null
+          days_per_week?: number
+          dose_label?: string
+          dose_per_use?: number
+          doses_per_day?: number
+          id?: string
+          kit_price?: number | null
+          name?: string
+          notes?: string | null
+          purchase_date?: string | null
+          recon_volume?: number | null
+          reorder_quantity?: number
+          timing_note?: string | null
+          unit_label?: string
+          unit_price?: number
+          unit_size?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
