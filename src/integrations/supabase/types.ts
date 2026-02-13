@@ -95,6 +95,42 @@ export type Database = {
         }
         Relationships: []
       }
+      orders: {
+        Row: {
+          compound_id: string
+          cost: number
+          created_at: string
+          id: string
+          month_label: string
+          ordered_at: string | null
+          quantity: number
+          received_at: string | null
+          status: string
+        }
+        Insert: {
+          compound_id: string
+          cost: number
+          created_at?: string
+          id?: string
+          month_label: string
+          ordered_at?: string | null
+          quantity: number
+          received_at?: string | null
+          status?: string
+        }
+        Update: {
+          compound_id?: string
+          cost?: number
+          created_at?: string
+          id?: string
+          month_label?: string
+          ordered_at?: string | null
+          quantity?: number
+          received_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
