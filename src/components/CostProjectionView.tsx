@@ -8,26 +8,43 @@ interface CostProjectionViewProps {
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 interface MonthData {
-  month: number;
+  month: number; // 0-11 actual calendar month
+  year: number;
   name: string;
   compounds: { name: string; qty: string; unitPrice: number; cost: number }[];
   total: number;
 }
 
+function getReorderSupplyDays(compound: Compound): number {
+  const dailyConsumption = (compound.dosePerUse * compound.dosesPerDay * compound.daysPerWeek) / 7;
+  if (dailyConsumption === 0) return 9999;
+
+  const reorderUnits = compound.category === 'peptide'
+    ? compound.reorderQuantity * 10 // kits → vials
+    : compound.reorderQuantity;
+  const unitsPerUnit = compound.category === 'peptide' && compound.bacstatPerVial
+    ? compound.bacstatPerVial
+    : compound.unitSize;
+  return (reorderUnits * unitsPerUnit) / dailyConsumption;
+}
+
 function buildProjection(compounds: Compound[]): MonthData[] {
   const now = new Date();
-  const months: MonthData[] = MONTHS.map((name, i) => ({
-    month: i,
-    name,
-    compounds: [],
-    total: 0,
-  }));
+  const startMonth = now.getMonth();
+  const startYear = now.getFullYear();
+
+  // Build 12 months forward from current month
+  const months: MonthData[] = Array.from({ length: 12 }, (_, i) => {
+    const m = (startMonth + i) % 12;
+    const y = startYear + Math.floor((startMonth + i) / 12);
+    return { month: m, year: y, name: MONTHS[m], compounds: [], total: 0 };
+  });
+
+  const endDate = new Date(now);
+  endDate.setFullYear(endDate.getFullYear() + 1);
 
   compounds.forEach(compound => {
     const daysLeft = getDaysRemaining(compound);
-    const reorderDate = new Date(now.getTime() + daysLeft * 24 * 60 * 60 * 1000);
-    const reorderMonth = reorderDate.getMonth();
-    // Peptides: cost = kits × kitPrice; Others: cost = reorderQuantity × unitPrice
     const cost = getReorderCost(compound);
     const displayQty = compound.category === 'peptide'
       ? `${compound.reorderQuantity} kit${compound.reorderQuantity !== 1 ? 's' : ''}`
@@ -36,38 +53,31 @@ function buildProjection(compounds: Compound[]): MonthData[] {
       ? (compound.kitPrice || 0)
       : compound.unitPrice;
 
-    // Add initial reorder
-    months[reorderMonth].compounds.push({
-      name: compound.name,
-      qty: displayQty,
-      unitPrice: displayPrice,
-      cost,
-    });
-    months[reorderMonth].total += cost;
+    const supplyDays = getReorderSupplyDays(compound);
+    let nextReorderDay = daysLeft;
 
-    // Check if it needs another reorder within the year
-    const dailyConsumption = (compound.dosePerUse * compound.dosesPerDay * compound.daysPerWeek) / 7;
-    if (dailyConsumption > 0) {
-      const reorderVials = compound.category === 'peptide'
-        ? compound.reorderQuantity * 10
-        : compound.reorderQuantity;
-      const unitsPerVial = compound.category === 'peptide' && compound.bacstatPerVial
-        ? compound.bacstatPerVial
-        : compound.unitSize;
-      const supplyDays = (reorderVials * unitsPerVial) / dailyConsumption;
-      const secondReorderDate = new Date(reorderDate.getTime() + supplyDays * 24 * 60 * 60 * 1000);
-      if (secondReorderDate.getFullYear() === now.getFullYear() || (secondReorderDate.getFullYear() === now.getFullYear() + 1 && secondReorderDate.getMonth() < now.getMonth())) {
-        const secondMonth = secondReorderDate.getMonth();
-        if (secondMonth !== reorderMonth) {
-          months[secondMonth].compounds.push({
-            name: compound.name,
-            qty: displayQty,
-            unitPrice: displayPrice,
-            cost,
-          });
-          months[secondMonth].total += cost;
-        }
+    // Loop: add all reorders that fall within the next 12 months
+    while (nextReorderDay < 365) {
+      const reorderDate = new Date(now.getTime() + nextReorderDay * 24 * 60 * 60 * 1000);
+      if (reorderDate >= endDate) break;
+
+      // Find which of our 12 month slots this falls into
+      const rm = reorderDate.getMonth();
+      const ry = reorderDate.getFullYear();
+      const slotIndex = months.findIndex(s => s.month === rm && s.year === ry);
+
+      if (slotIndex !== -1) {
+        months[slotIndex].compounds.push({
+          name: compound.name,
+          qty: displayQty,
+          unitPrice: displayPrice,
+          cost,
+        });
+        months[slotIndex].total += cost;
       }
+
+      nextReorderDay += supplyDays;
+      if (supplyDays > 9000) break; // no consumption
     }
   });
 
