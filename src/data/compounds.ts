@@ -643,7 +643,7 @@ export const defaultCompounds: Compound[] = [
   },
   {
     id: 'ubiquinol',
-    name: 'Ubiquinol 200mg',
+    name: 'Qunol/CoQ10 200mg',
     category: 'oral',
     unitSize: 60,
     unitLabel: 'caps',
