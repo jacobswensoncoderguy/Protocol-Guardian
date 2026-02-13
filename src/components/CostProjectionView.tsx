@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Compound, getReorderCost, getMonthlyConsumptionCost } from '@/data/compounds';
+import { Compound, getReorderCost } from '@/data/compounds';
 import { getDaysRemainingWithCycling, getEffectiveDailyConsumption } from '@/lib/cycling';
 
 interface CostProjectionViewProps {
@@ -86,7 +86,20 @@ const CostProjectionView = ({ compounds }: CostProjectionViewProps) => {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const projection = buildProjection(compounds);
   const totalAnnual = projection.reduce((sum, m) => sum + m.total, 0);
-  const monthlyAvg = compounds.reduce((sum, c) => sum + getMonthlyConsumptionCost(c), 0);
+  const monthlyAvg = compounds.reduce((sum, c) => {
+    const effectiveDaily = getEffectiveDailyConsumption(c);
+    if (effectiveDaily === 0) return sum;
+    const monthlyConsumption = effectiveDaily * 30;
+
+    if (c.category === 'peptide' && c.bacstatPerVial) {
+      const vialsPerMonth = monthlyConsumption / c.bacstatPerVial;
+      const kitsPerMonth = vialsPerMonth / 10;
+      return sum + kitsPerMonth * (c.kitPrice || 0);
+    }
+
+    const unitsPerMonth = monthlyConsumption / c.unitSize;
+    return sum + unitsPerMonth * c.unitPrice;
+  }, 0);
 
   return (
     <div className="space-y-4">
