@@ -423,7 +423,7 @@ export const defaultCompounds: Compound[] = [
     reorderQuantity: 5,
     cycleOnDays: 90,
     cycleOffDays: 21,
-    cycleStartDate: daysAgo(35),
+    cycleStartDate: daysAgo(104),
   },
   {
     id: 'thymosin-a1',
