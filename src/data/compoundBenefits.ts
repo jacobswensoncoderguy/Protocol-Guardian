@@ -12,6 +12,7 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Enhances metabolic rate without stimulant side effects',
       'Synergizes with exercise for visceral fat reduction',
       'May improve insulin sensitivity over 30-day ON cycles',
+      '📊 Projected: 2-4% body fat reduction per 8-week cycle; ~1-2 lb visceral fat loss/month when paired with training',
     ],
   },
   b12: {
@@ -31,6 +32,7 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Promotes angiogenesis (new blood vessel growth) at injury sites',
       'Protects GI lining — counteracts NSAID & stress-related damage',
       'Synergizes with TB-500 for systemic tissue repair',
+      '📊 Projected: 30-50% faster tendon/ligament healing vs baseline; measurable pain reduction (VAS -3 to -5 points) within 3 weeks',
     ],
   },
   cerebroprotein: {
@@ -50,6 +52,7 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Improves deep sleep quality, recovery & body composition',
       'Paired with Ipamorelin for synergistic GH release',
       'No DAC version = cleaner pulsatile release pattern',
+      '📊 Projected: IGF-1 increase of 50-150 ng/mL; 1-3 lb lean mass gain & 1-2% body fat reduction over 12 weeks with training',
     ],
   },
   'ghk-cu': {
@@ -60,6 +63,7 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Stimulates collagen III synthesis & reduces fine lines',
       'Anti-inflammatory and antioxidant gene activation',
       'Promotes hair follicle health and wound healing',
+      '📊 Projected: ~30% increase in collagen III density at 8 weeks; measurable skin thickness increase of 10-15% via ultrasound',
     ],
   },
   'igf1-lr3': {
@@ -69,6 +73,7 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'At 15 IU post-workout 4x/wk: enhanced recovery & lean mass gains',
       'Promotes satellite cell activation for muscle repair',
       'Improves nutrient partitioning toward muscle tissue',
+      '📊 Projected: 2-5 lb lean muscle gain over 8-12 weeks; localized muscle fullness increase of ~5-10% in injected areas',
     ],
   },
   ipamorelin: {
@@ -79,6 +84,7 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Minimal hunger/cortisol side effects vs other GHRPs',
       'Supports fat loss, skin elasticity & joint health',
       'Stacks perfectly with CJC-1295 for amplified GH output',
+      '📊 Projected (with CJC stack): GH output 2-3x above baseline; 1-2% body fat loss & improved skin elasticity over 12 weeks',
     ],
   },
   'mots-c': {
@@ -89,6 +95,7 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Enhances glucose metabolism & insulin sensitivity',
       'Activates AMPK pathway → cellular energy homeostasis',
       'Anti-aging effects via mitochondrial function preservation',
+      '📊 Projected: VO2 max improvement of 5-10% over 8 weeks; fasting glucose reduction of 5-15 mg/dL; 1-2% body fat reduction',
     ],
   },
   'nad-plus': {
@@ -109,6 +116,7 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Superior appetite regulation and metabolic enhancement',
       'Glucagon component drives additional energy expenditure',
       '112-day ON cycles allow sustained, progressive fat loss',
+      '📊 Projected: 15-24% total body weight loss over 48 weeks; ~2-4 lb fat loss/month; waist circumference reduction of 3-6 inches over 6 months',
     ],
   },
   selank: {
@@ -139,6 +147,7 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Promotes cell migration to damaged tissue sites',
       'Reduces inflammation and fibrosis (scar tissue)',
       'Synergizes with BPC-157 for comprehensive healing',
+      '📊 Projected: 40-60% faster soft tissue repair; reduced scar tissue formation by ~20-30%; measurable joint ROM improvement in 4-6 weeks',
     ],
   },
   tesamorelin: {
@@ -149,6 +158,7 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'FDA-approved for lipodystrophy — well-studied safety profile',
       'Elevates IGF-1 for improved body composition',
       'Supports cognitive function via GH pathway activation',
+      '📊 Projected: 15-20% visceral fat reduction over 6 months; trunk fat decrease of ~1.5-2.5 cm via CT measurement; IGF-1 increase of 40-100 ng/mL',
     ],
   },
   'thymosin-a1': {
@@ -169,6 +179,7 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Stimulates collagen synthesis → healthier connective tissue',
       'Moderate anabolic effect with favorable side profile at this dose',
       'Supports bone mineral density during intense training',
+      '📊 Projected: 4-8 lb lean mass gain per 16-week cycle; collagen synthesis increase of ~200%; bone mineral density +2-3% annually; joint pain reduction of 50-70%',
     ],
   },
   'test-cyp': {
@@ -179,6 +190,7 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Enhanced muscle protein synthesis, recovery & strength',
       'Improved mood, motivation, libido & cognitive function',
       'Daily micro-dosing minimizes estrogen conversion vs weekly injections',
+      '📊 Projected: 8-15 lb lean mass gain in first 6 months; 2-4% body fat reduction; total T levels 900-1400 ng/dL; strength gains of 15-25% on major lifts',
     ],
   },
   anavar: {
@@ -189,6 +201,7 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Excellent for body recomposition with minimal water retention',
       'Low androgenic profile → favorable side effect ratio',
       '56-day cycles with liver support (TUDCA/NAC) protect hepatic function',
+      '📊 Projected: 3-6 lb lean mass gain per 8-week cycle; strength increase of 10-20%; 1-2% body fat reduction with visible muscle hardening & vascularity',
     ],
   },
   ashwagandha: {
@@ -234,6 +247,7 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'At 5g daily: improved pumps, erectile quality & cardiovascular function',
       'Part of "Dick Protocol" stack with Tadalafil + Pycnogenol + Citrulline',
       'Supports endothelial function and healthy blood pressure',
+      '📊 Projected: NO production increase of 30-50%; penile blood flow improvement contributing to +0.2-0.5" girth over 6-12 months (full protocol); BP reduction of 2-5 mmHg',
     ],
   },
   magnesium: {
@@ -281,6 +295,7 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Part of "Dick Protocol" — synergizes with L-Arginine for NO production',
       'Supports endothelial function and blood flow',
       'Additional benefits: skin health, joint support & cognitive function',
+      '📊 Projected: 92% of men achieve normal erectile function when combined with L-Arginine (Stanislavov study); endothelial function improvement of 30-40%',
     ],
   },
   tadalafil: {
@@ -291,6 +306,7 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Part of "Dick Protocol" with L-Arginine, Pycnogenol & Citrulline',
       'Cardioprotective: improves endothelial function & reduces blood pressure',
       'Half-life of 17.5h → smooth, continuous vascular support',
+      '📊 Projected: erectile hardness score improvement from 3→4 (EHS scale); penile blood flow increase of 25-40%; systolic BP reduction of 3-5 mmHg',
     ],
   },
   tudca: {
@@ -318,6 +334,7 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'At 11g daily: improved skin elasticity & joint comfort in 4-8 weeks',
       'Supports tendon, ligament & cartilage repair during heavy training',
       'Synergizes with Vitamin C for optimal collagen synthesis',
+      '📊 Projected: skin elasticity improvement of 15-20% at 8 weeks; joint pain reduction of 25-40%; tendon cross-sectional area increase of ~5% over 6 months',
     ],
   },
   citrulline: {
@@ -328,6 +345,7 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Part of "Dick Protocol" — converts to L-Arginine for sustained NO production',
       'Reduces ammonia buildup during intense exercise',
       'Malate form supports ATP regeneration via Krebs cycle',
+      '📊 Projected: plasma arginine increase of 227% (vs 70% from arginine alone); erectile hardness improvement synergistic with full Dick Protocol; exercise endurance +12-15%',
     ],
   },
   taurine: {
