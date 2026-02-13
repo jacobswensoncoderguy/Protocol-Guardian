@@ -1,0 +1,161 @@
+import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Compound, CompoundCategory, defaultCompounds } from '@/data/compounds';
+
+interface DbCompound {
+  id: string;
+  name: string;
+  category: string;
+  unit_size: number;
+  unit_label: string;
+  unit_price: number;
+  kit_price: number | null;
+  dose_per_use: number;
+  dose_label: string;
+  bacstat_per_vial: number | null;
+  recon_volume: number | null;
+  doses_per_day: number;
+  days_per_week: number;
+  timing_note: string | null;
+  cycling_note: string | null;
+  current_quantity: number;
+  purchase_date: string | null;
+  reorder_quantity: number;
+  notes: string | null;
+}
+
+function dbToCompound(row: DbCompound): Compound {
+  return {
+    id: row.id,
+    name: row.name,
+    category: row.category as CompoundCategory,
+    unitSize: row.unit_size,
+    unitLabel: row.unit_label,
+    unitPrice: row.unit_price,
+    kitPrice: row.kit_price ?? undefined,
+    dosePerUse: row.dose_per_use,
+    doseLabel: row.dose_label,
+    bacstatPerVial: row.bacstat_per_vial ?? undefined,
+    reconVolume: row.recon_volume ?? undefined,
+    dosesPerDay: row.doses_per_day,
+    daysPerWeek: row.days_per_week,
+    timingNote: row.timing_note ?? undefined,
+    cyclingNote: row.cycling_note ?? undefined,
+    currentQuantity: row.current_quantity,
+    purchaseDate: row.purchase_date ?? '',
+    reorderQuantity: row.reorder_quantity,
+    notes: row.notes ?? undefined,
+  };
+}
+
+export function useCompounds() {
+  const [compounds, setCompounds] = useState<Compound[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchCompounds = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('compounds')
+      .select('*');
+
+    if (error) {
+      console.error('Failed to fetch compounds:', error);
+      // Fallback to defaults if DB fails
+      setCompounds(defaultCompounds);
+    } else if (data && data.length > 0) {
+      setCompounds((data as DbCompound[]).map(dbToCompound));
+    } else {
+      setCompounds(defaultCompounds);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchCompounds();
+  }, [fetchCompounds]);
+
+  const updateCompound = useCallback(async (id: string, updates: Partial<Compound>) => {
+    // Optimistic update
+    setCompounds(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+
+    // Map camelCase to snake_case for DB
+    const dbUpdates: Record<string, unknown> = {};
+    if (updates.name !== undefined) dbUpdates.name = updates.name;
+    if (updates.category !== undefined) dbUpdates.category = updates.category;
+    if (updates.unitSize !== undefined) dbUpdates.unit_size = updates.unitSize;
+    if (updates.unitLabel !== undefined) dbUpdates.unit_label = updates.unitLabel;
+    if (updates.unitPrice !== undefined) dbUpdates.unit_price = updates.unitPrice;
+    if (updates.kitPrice !== undefined) dbUpdates.kit_price = updates.kitPrice;
+    if (updates.dosePerUse !== undefined) dbUpdates.dose_per_use = updates.dosePerUse;
+    if (updates.doseLabel !== undefined) dbUpdates.dose_label = updates.doseLabel;
+    if (updates.bacstatPerVial !== undefined) dbUpdates.bacstat_per_vial = updates.bacstatPerVial;
+    if (updates.reconVolume !== undefined) dbUpdates.recon_volume = updates.reconVolume;
+    if (updates.dosesPerDay !== undefined) dbUpdates.doses_per_day = updates.dosesPerDay;
+    if (updates.daysPerWeek !== undefined) dbUpdates.days_per_week = updates.daysPerWeek;
+    if (updates.timingNote !== undefined) dbUpdates.timing_note = updates.timingNote;
+    if (updates.cyclingNote !== undefined) dbUpdates.cycling_note = updates.cyclingNote;
+    if (updates.currentQuantity !== undefined) dbUpdates.current_quantity = updates.currentQuantity;
+    if (updates.purchaseDate !== undefined) dbUpdates.purchase_date = updates.purchaseDate;
+    if (updates.reorderQuantity !== undefined) dbUpdates.reorder_quantity = updates.reorderQuantity;
+    if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+
+    const { error } = await supabase
+      .from('compounds')
+      .update(dbUpdates)
+      .eq('id', id);
+
+    if (error) {
+      console.error('Failed to update compound:', error);
+      // Revert on failure
+      fetchCompounds();
+    }
+  }, [fetchCompounds]);
+
+  const addCompound = useCallback(async (compound: Compound) => {
+    setCompounds(prev => [...prev, compound]);
+
+    const { error } = await supabase
+      .from('compounds')
+      .insert({
+        id: compound.id,
+        name: compound.name,
+        category: compound.category,
+        unit_size: compound.unitSize,
+        unit_label: compound.unitLabel,
+        unit_price: compound.unitPrice,
+        kit_price: compound.kitPrice ?? null,
+        dose_per_use: compound.dosePerUse,
+        dose_label: compound.doseLabel,
+        bacstat_per_vial: compound.bacstatPerVial ?? null,
+        recon_volume: compound.reconVolume ?? null,
+        doses_per_day: compound.dosesPerDay,
+        days_per_week: compound.daysPerWeek,
+        timing_note: compound.timingNote ?? null,
+        cycling_note: compound.cyclingNote ?? null,
+        current_quantity: compound.currentQuantity,
+        purchase_date: compound.purchaseDate || null,
+        reorder_quantity: compound.reorderQuantity,
+        notes: compound.notes ?? null,
+      });
+
+    if (error) {
+      console.error('Failed to add compound:', error);
+      fetchCompounds();
+    }
+  }, [fetchCompounds]);
+
+  const deleteCompound = useCallback(async (id: string) => {
+    setCompounds(prev => prev.filter(c => c.id !== id));
+
+    const { error } = await supabase
+      .from('compounds')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Failed to delete compound:', error);
+      fetchCompounds();
+    }
+  }, [fetchCompounds]);
+
+  return { compounds, loading, updateCompound, addCompound, deleteCompound, refetch: fetchCompounds };
+}

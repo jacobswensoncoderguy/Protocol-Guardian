@@ -1,17 +1,7 @@
-import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar, Package, DollarSign, LayoutDashboard } from 'lucide-react';
-import { defaultCompounds, Compound } from '@/data/compounds';
-
-const STORAGE_KEY = 'superhuman-compounds';
-
-const loadCompounds = (): Compound[] => {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) return JSON.parse(saved);
-  } catch {}
-  return defaultCompounds;
-};
+import { Compound } from '@/data/compounds';
+import { useCompounds } from '@/hooks/useCompounds';
 
 import DashboardView from '@/components/DashboardView';
 import WeeklyScheduleView from '@/components/WeeklyScheduleView';
@@ -19,15 +9,19 @@ import InventoryView from '@/components/InventoryView';
 import CostProjectionView from '@/components/CostProjectionView';
 
 const Index = () => {
-  const [compounds, setCompounds] = useState<Compound[]>(loadCompounds);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(compounds));
-  }, [compounds]);
+  const { compounds, loading, updateCompound } = useCompounds();
 
   const handleUpdateCompound = (id: string, updates: Partial<Compound>) => {
-    setCompounds(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+    updateCompound(id, updates);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground animate-pulse">Loading inventory...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
