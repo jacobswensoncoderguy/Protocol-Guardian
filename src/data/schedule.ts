@@ -23,14 +23,20 @@ const nightlyPeptides: DayDose[] = [
   { compoundId: 'bpc-157', dose: '10 IU', timing: 'evening', category: 'peptide' },
 ];
 
-// Common morning peptides (Mon-Sat)
-const commonMorningPeptides: DayDose[] = [
+// Common morning peptides (Mon-Fri, includes CJC)
+const commonMorningPeptidesMF: DayDose[] = [
   { compoundId: 'cjc-1295', dose: '10 IU', timing: 'morning', category: 'peptide' },
   { compoundId: 'semax', dose: '10 IU', timing: 'morning', category: 'peptide' },
   { compoundId: 'cerebroprotein', dose: '30 IU', timing: 'morning', category: 'peptide' },
 ];
 
-// Evening CJC (every day)
+// Saturday morning peptides (no CJC)
+const saturdayMorningPeptides: DayDose[] = [
+  { compoundId: 'semax', dose: '10 IU', timing: 'morning', category: 'peptide' },
+  { compoundId: 'cerebroprotein', dose: '30 IU', timing: 'morning', category: 'peptide' },
+];
+
+// Evening CJC (Mon-Fri only)
 const eveningCJC: DayDose = { compoundId: 'cjc-1295', dose: '10 IU', timing: 'evening', category: 'peptide' };
 
 // Full peptide day extras (M/W/F)
@@ -111,7 +117,6 @@ export const weeklySchedule: DaySchedule[] = [
       ...morningOrals,
       ...morningPowders,
       ...afternoonPowders,
-      eveningCJC,
       ...nightlyPeptides,
       tesamorelin,
       retatrutide,
@@ -125,7 +130,7 @@ export const weeklySchedule: DaySchedule[] = [
     dayName: DAYS[1],
     shortName: SHORT_DAYS[1],
     doses: [
-      ...commonMorningPeptides,
+      ...commonMorningPeptidesMF,
       ...fullDayExtras,
       testCyp,
       deca,
@@ -146,7 +151,7 @@ export const weeklySchedule: DaySchedule[] = [
     dayName: DAYS[2],
     shortName: SHORT_DAYS[2],
     doses: [
-      ...commonMorningPeptides,
+      ...commonMorningPeptidesMF,
       testCyp,
       b12,
       igf1,
@@ -167,7 +172,7 @@ export const weeklySchedule: DaySchedule[] = [
     dayName: DAYS[3],
     shortName: SHORT_DAYS[3],
     doses: [
-      ...commonMorningPeptides,
+      ...commonMorningPeptidesMF,
       ...fullDayExtras,
       testCyp,
       deca,
@@ -188,7 +193,7 @@ export const weeklySchedule: DaySchedule[] = [
     dayName: DAYS[4],
     shortName: SHORT_DAYS[4],
     doses: [
-      ...commonMorningPeptides,
+      ...commonMorningPeptidesMF,
       testCyp,
       igf1,
       ...morningOrals,
@@ -208,7 +213,7 @@ export const weeklySchedule: DaySchedule[] = [
     dayName: DAYS[5],
     shortName: SHORT_DAYS[5],
     doses: [
-      ...commonMorningPeptides,
+      ...commonMorningPeptidesMF,
       ...fullDayExtras,
       testCyp,
       deca,
@@ -229,13 +234,12 @@ export const weeklySchedule: DaySchedule[] = [
     dayName: DAYS[6],
     shortName: SHORT_DAYS[6],
     doses: [
-      ...commonMorningPeptides,
+      ...saturdayMorningPeptides,
       testCyp,
       igf1,
       ...morningOrals,
       ...morningPowders,
       ...afternoonPowders,
-      eveningCJC,
       ...nightlyPeptides,
       tesamorelin,
       cabergoline,
