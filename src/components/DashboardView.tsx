@@ -1,4 +1,5 @@
-import { Compound, getDaysRemaining, getStatus, getReorderCost } from '@/data/compounds';
+import { Compound, getStatus, getReorderCost } from '@/data/compounds';
+import { getDaysRemainingWithCycling, getEffectiveDailyConsumption } from '@/lib/cycling';
 import { AlertTriangle, TrendingUp, DollarSign, Package } from 'lucide-react';
 
 interface DashboardViewProps {
@@ -6,15 +7,14 @@ interface DashboardViewProps {
 }
 
 function getAnnualProjectedCost(compounds: Compound[]): number {
-  const now = new Date();
   let total = 0;
 
   compounds.forEach(compound => {
-    const daysLeft = getDaysRemaining(compound);
+    const daysLeft = getDaysRemainingWithCycling(compound);
     const cost = getReorderCost(compound);
 
-    const dailyConsumption = (compound.dosePerUse * compound.dosesPerDay * compound.daysPerWeek) / 7;
-    if (dailyConsumption === 0) return;
+    const effectiveDaily = getEffectiveDailyConsumption(compound);
+    if (effectiveDaily === 0) return;
 
     const reorderUnits = compound.category === 'peptide'
       ? compound.reorderQuantity * 10
@@ -22,7 +22,8 @@ function getAnnualProjectedCost(compounds: Compound[]): number {
     const unitsPerUnit = compound.category === 'peptide' && compound.bacstatPerVial
       ? compound.bacstatPerVial
       : compound.unitSize;
-    const supplyDays = (reorderUnits * unitsPerUnit) / dailyConsumption;
+    // Supply days adjusted for cycling (effective daily already accounts for ON fraction)
+    const supplyDays = (reorderUnits * unitsPerUnit) / effectiveDaily;
 
     let nextReorderDay = daysLeft;
     while (nextReorderDay < 365) {
@@ -37,12 +38,12 @@ function getAnnualProjectedCost(compounds: Compound[]): number {
 
 const DashboardView = ({ compounds }: DashboardViewProps) => {
   const totalAnnualCost = getAnnualProjectedCost(compounds);
-  const criticalCompounds = compounds.filter(c => getStatus(getDaysRemaining(c)) === 'critical');
-  const warningCompounds = compounds.filter(c => getStatus(getDaysRemaining(c)) === 'warning');
-  const goodCompounds = compounds.filter(c => getStatus(getDaysRemaining(c)) === 'good');
+  const criticalCompounds = compounds.filter(c => getStatus(getDaysRemainingWithCycling(c)) === 'critical');
+  const warningCompounds = compounds.filter(c => getStatus(getDaysRemainingWithCycling(c)) === 'warning');
+  const goodCompounds = compounds.filter(c => getStatus(getDaysRemainingWithCycling(c)) === 'good');
 
   const nextReorder = compounds
-    .map(c => ({ name: c.name, days: getDaysRemaining(c) }))
+    .map(c => ({ name: c.name, days: getDaysRemainingWithCycling(c) }))
     .sort((a, b) => a.days - b.days)
     .slice(0, 5);
 
@@ -122,7 +123,7 @@ const DashboardView = ({ compounds }: DashboardViewProps) => {
             {criticalCompounds.map(c => (
               <div key={c.id} className="text-sm flex justify-between">
                 <span className="text-foreground/80">{c.name}</span>
-                <span className="font-mono text-status-critical">{getDaysRemaining(c)}d left</span>
+                <span className="font-mono text-status-critical">{getDaysRemainingWithCycling(c)}d left</span>
               </div>
             ))}
           </div>
