@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Compound, getDaysRemaining, getMonthlyConsumptionCost, getReorderCost } from '@/data/compounds';
+import { Compound, getReorderCost, getMonthlyConsumptionCost } from '@/data/compounds';
+import { getDaysRemainingWithCycling, getEffectiveDailyConsumption } from '@/lib/cycling';
 
 interface CostProjectionViewProps {
   compounds: Compound[];
@@ -8,7 +9,7 @@ interface CostProjectionViewProps {
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 interface MonthData {
-  month: number; // 0-11 actual calendar month
+  month: number;
   year: number;
   name: string;
   compounds: { name: string; qty: string; unitPrice: number; cost: number }[];
@@ -16,16 +17,16 @@ interface MonthData {
 }
 
 function getReorderSupplyDays(compound: Compound): number {
-  const dailyConsumption = (compound.dosePerUse * compound.dosesPerDay * compound.daysPerWeek) / 7;
-  if (dailyConsumption === 0) return 9999;
+  const effectiveDaily = getEffectiveDailyConsumption(compound);
+  if (effectiveDaily === 0) return 9999;
 
   const reorderUnits = compound.category === 'peptide'
-    ? compound.reorderQuantity * 10 // kits → vials
+    ? compound.reorderQuantity * 10
     : compound.reorderQuantity;
   const unitsPerUnit = compound.category === 'peptide' && compound.bacstatPerVial
     ? compound.bacstatPerVial
     : compound.unitSize;
-  return (reorderUnits * unitsPerUnit) / dailyConsumption;
+  return (reorderUnits * unitsPerUnit) / effectiveDaily;
 }
 
 function buildProjection(compounds: Compound[]): MonthData[] {
@@ -33,7 +34,6 @@ function buildProjection(compounds: Compound[]): MonthData[] {
   const startMonth = now.getMonth();
   const startYear = now.getFullYear();
 
-  // Build 12 months forward from current month
   const months: MonthData[] = Array.from({ length: 12 }, (_, i) => {
     const m = (startMonth + i) % 12;
     const y = startYear + Math.floor((startMonth + i) / 12);
@@ -44,7 +44,7 @@ function buildProjection(compounds: Compound[]): MonthData[] {
   endDate.setFullYear(endDate.getFullYear() + 1);
 
   compounds.forEach(compound => {
-    const daysLeft = getDaysRemaining(compound);
+    const daysLeft = getDaysRemainingWithCycling(compound);
     const cost = getReorderCost(compound);
     const displayQty = compound.category === 'peptide'
       ? `${compound.reorderQuantity} kit${compound.reorderQuantity !== 1 ? 's' : ''}`
@@ -56,12 +56,10 @@ function buildProjection(compounds: Compound[]): MonthData[] {
     const supplyDays = getReorderSupplyDays(compound);
     let nextReorderDay = daysLeft;
 
-    // Loop: add all reorders that fall within the next 12 months
     while (nextReorderDay < 365) {
       const reorderDate = new Date(now.getTime() + nextReorderDay * 24 * 60 * 60 * 1000);
       if (reorderDate >= endDate) break;
 
-      // Find which of our 12 month slots this falls into
       const rm = reorderDate.getMonth();
       const ry = reorderDate.getFullYear();
       const slotIndex = months.findIndex(s => s.month === rm && s.year === ry);
@@ -77,7 +75,7 @@ function buildProjection(compounds: Compound[]): MonthData[] {
       }
 
       nextReorderDay += supplyDays;
-      if (supplyDays > 9000) break; // no consumption
+      if (supplyDays > 9000) break;
     }
   });
 

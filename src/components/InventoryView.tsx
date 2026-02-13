@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Compound, getDaysRemaining, getStatus, getReorderDateString, CompoundCategory } from '@/data/compounds';
-import { Pencil, Check, X } from 'lucide-react';
+import { Compound, getStatus, getReorderDateString, CompoundCategory } from '@/data/compounds';
+import { getCycleStatus, getDaysRemainingWithCycling } from '@/lib/cycling';
+import { Pencil, Check, X, PauseCircle } from 'lucide-react';
 
 interface InventoryViewProps {
   compounds: Compound[];
@@ -22,7 +23,7 @@ const InventoryView = ({ compounds, onUpdateCompound }: InventoryViewProps) => {
 
   const filtered = filter === 'all' ? compounds : compounds.filter(c => c.category === filter);
   const sorted = [...filtered].sort((a, b) => {
-    if (sortBy === 'days') return getDaysRemaining(a) - getDaysRemaining(b);
+    if (sortBy === 'days') return getDaysRemainingWithCycling(a) - getDaysRemainingWithCycling(b);
     return a.name.localeCompare(b.name);
   });
 
@@ -83,8 +84,9 @@ const CompoundCard = ({ compound, onUpdate }: { compound: Compound; onUpdate: (i
   const [editing, setEditing] = useState(false);
   const [editState, setEditState] = useState<Record<string, string>>({});
 
-  const days = getDaysRemaining(compound);
+  const days = getDaysRemainingWithCycling(compound);
   const status = getStatus(days);
+  const cycleStatus = getCycleStatus(compound);
   const maxDays = 90;
   const progress = Math.min(100, (days / maxDays) * 100);
   const isPeptide = compound.category === 'peptide';
@@ -105,6 +107,11 @@ const CompoundCard = ({ compound, onUpdate }: { compound: Compound; onUpdate: (i
     }
     if (!isPeptide && !isOil) {
       state.purchaseDate = compound.purchaseDate;
+    }
+    if (compound.cycleOnDays) {
+      state.cycleOnDays = compound.cycleOnDays.toString();
+      state.cycleOffDays = (compound.cycleOffDays || 0).toString();
+      state.cycleStartDate = compound.cycleStartDate || '';
     }
     setEditState(state);
     setEditing(true);
@@ -138,6 +145,16 @@ const CompoundCard = ({ compound, onUpdate }: { compound: Compound; onUpdate: (i
       updates.purchaseDate = editState.purchaseDate;
     }
 
+    if (editState.cycleOnDays !== undefined) {
+      const on = parseInt(editState.cycleOnDays);
+      const off = parseInt(editState.cycleOffDays);
+      if (!isNaN(on) && on > 0 && !isNaN(off) && off > 0) {
+        updates.cycleOnDays = on;
+        updates.cycleOffDays = off;
+        updates.cycleStartDate = editState.cycleStartDate || undefined;
+      }
+    }
+
     onUpdate(compound.id, updates);
     setEditing(false);
   };
@@ -160,6 +177,15 @@ const CompoundCard = ({ compound, onUpdate }: { compound: Compound; onUpdate: (i
           <p className="text-[10px] text-muted-foreground truncate">{compound.timingNote}</p>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+          {cycleStatus.hasCycle && (
+            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
+              cycleStatus.isOn
+                ? 'bg-status-good/15 text-status-good'
+                : 'bg-muted text-muted-foreground'
+            }`}>
+              {cycleStatus.isOn ? `ON ${cycleStatus.daysLeftInPhase}d` : `OFF ${cycleStatus.daysLeftInPhase}d`}
+            </span>
+          )}
           <span className={`text-xs font-mono px-2 py-0.5 rounded-full ${
             status === 'critical' ? 'bg-destructive/20 text-status-critical' :
             status === 'warning' ? 'bg-accent/20 text-status-warning' :
@@ -212,6 +238,16 @@ const CompoundCard = ({ compound, onUpdate }: { compound: Compound; onUpdate: (i
             onChange={v => setEditState(s => ({ ...s, reorderQuantity: v }))}
             type="number"
           />
+          {editState.cycleOnDays !== undefined && (
+            <>
+              <EditRow label="Cycle ON" value={editState.cycleOnDays} suffix="days"
+                onChange={v => setEditState(s => ({ ...s, cycleOnDays: v }))} type="number" />
+              <EditRow label="Cycle OFF" value={editState.cycleOffDays} suffix="days"
+                onChange={v => setEditState(s => ({ ...s, cycleOffDays: v }))} type="number" />
+              <EditRow label="Cycle Start" value={editState.cycleStartDate}
+                onChange={v => setEditState(s => ({ ...s, cycleStartDate: v }))} type="date" />
+            </>
+          )}
           <div className="flex justify-end gap-1 pt-1">
             <button onClick={cancelEdit} className="p-1 rounded bg-secondary hover:bg-secondary/80 text-muted-foreground">
               <X className="w-3.5 h-3.5" />

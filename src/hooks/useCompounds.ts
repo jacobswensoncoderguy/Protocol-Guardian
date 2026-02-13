@@ -22,6 +22,9 @@ interface DbCompound {
   purchase_date: string | null;
   reorder_quantity: number;
   notes: string | null;
+  cycle_on_days: number | null;
+  cycle_off_days: number | null;
+  cycle_start_date: string | null;
 }
 
 function dbToCompound(row: DbCompound): Compound {
@@ -45,6 +48,9 @@ function dbToCompound(row: DbCompound): Compound {
     purchaseDate: row.purchase_date ?? '',
     reorderQuantity: row.reorder_quantity,
     notes: row.notes ?? undefined,
+    cycleOnDays: row.cycle_on_days ?? undefined,
+    cycleOffDays: row.cycle_off_days ?? undefined,
+    cycleStartDate: row.cycle_start_date ?? undefined,
   };
 }
 
@@ -93,6 +99,9 @@ export function useCompounds() {
     if (updates.daysPerWeek !== undefined) dbUpdates.days_per_week = updates.daysPerWeek;
     if (updates.timingNote !== undefined) dbUpdates.timing_note = updates.timingNote;
     if (updates.cyclingNote !== undefined) dbUpdates.cycling_note = updates.cyclingNote;
+    if (updates.cycleOnDays !== undefined) dbUpdates.cycle_on_days = updates.cycleOnDays;
+    if (updates.cycleOffDays !== undefined) dbUpdates.cycle_off_days = updates.cycleOffDays;
+    if (updates.cycleStartDate !== undefined) dbUpdates.cycle_start_date = updates.cycleStartDate;
     if (updates.currentQuantity !== undefined) dbUpdates.current_quantity = updates.currentQuantity;
     if (updates.purchaseDate !== undefined) dbUpdates.purchase_date = updates.purchaseDate;
     if (updates.reorderQuantity !== undefined) dbUpdates.reorder_quantity = updates.reorderQuantity;
@@ -131,6 +140,9 @@ export function useCompounds() {
         days_per_week: compound.daysPerWeek,
         timing_note: compound.timingNote ?? null,
         cycling_note: compound.cyclingNote ?? null,
+        cycle_on_days: compound.cycleOnDays ?? null,
+        cycle_off_days: compound.cycleOffDays ?? null,
+        cycle_start_date: compound.cycleStartDate ?? null,
         current_quantity: compound.currentQuantity,
         purchase_date: compound.purchaseDate || null,
         reorder_quantity: compound.reorderQuantity,

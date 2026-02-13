@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { weeklySchedule, DayDose } from '@/data/schedule';
 import { Compound } from '@/data/compounds';
-import { Sun, Moon, Dumbbell } from 'lucide-react';
+import { getCycleStatus } from '@/lib/cycling';
+import { Sun, Moon, Dumbbell, PauseCircle } from 'lucide-react';
 
 interface WeeklyScheduleViewProps {
   compounds: Compound[];
@@ -14,9 +15,22 @@ const WeeklyScheduleView = ({ compounds }: WeeklyScheduleViewProps) => {
   const schedule = weeklySchedule[selectedDay];
   const compoundMap = new Map(compounds.map(c => [c.id, c]));
 
-  const morningDoses = schedule.doses.filter(d => d.timing === 'morning');
-  const afternoonDoses = schedule.doses.filter(d => d.timing === 'afternoon');
-  const eveningDoses = schedule.doses.filter(d => d.timing === 'evening');
+  // Filter out compounds that are currently OFF-cycle
+  const offCycleIds = new Set(
+    compounds
+      .filter(c => {
+        const status = getCycleStatus(c);
+        return status.hasCycle && !status.isOn;
+      })
+      .map(c => c.id)
+  );
+
+  const activeDoses = schedule.doses.filter(d => !offCycleIds.has(d.compoundId));
+  const pausedDoses = schedule.doses.filter(d => offCycleIds.has(d.compoundId));
+
+  const morningDoses = activeDoses.filter(d => d.timing === 'morning');
+  const afternoonDoses = activeDoses.filter(d => d.timing === 'afternoon');
+  const eveningDoses = activeDoses.filter(d => d.timing === 'evening');
 
   return (
     <div className="space-y-4">
@@ -72,6 +86,35 @@ const WeeklyScheduleView = ({ compounds }: WeeklyScheduleViewProps) => {
         doses={eveningDoses}
         compoundMap={compoundMap}
       />
+
+      {/* Off-Cycle Section */}
+      {pausedDoses.length > 0 && (
+        <div className="rounded-lg border p-3 bg-muted/30 border-border/30">
+          <h3 className="text-sm font-semibold mb-2 flex items-center gap-2 text-muted-foreground">
+            <PauseCircle className="w-4 h-4" />
+            Off-Cycle
+            <span className="font-normal">({pausedDoses.length} paused)</span>
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+            {[...new Set(pausedDoses.map(d => d.compoundId))].map(id => {
+              const compound = compoundMap.get(id);
+              const status = compound ? getCycleStatus(compound) : null;
+              return (
+                <div key={id} className="flex items-center justify-between bg-card/30 rounded px-2.5 py-1.5">
+                  <span className="text-xs text-muted-foreground truncate mr-2">
+                    {compound?.name || id}
+                  </span>
+                  {status?.hasCycle && (
+                    <span className="text-[10px] font-mono text-muted-foreground flex-shrink-0">
+                      {status.phaseLabel}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

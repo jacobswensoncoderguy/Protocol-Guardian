@@ -22,6 +22,10 @@ export interface Compound {
   daysPerWeek: number;
   timingNote?: string;
   cyclingNote?: string;
+  // Cycling ON/OFF
+  cycleOnDays?: number;
+  cycleOffDays?: number;
+  cycleStartDate?: string; // ISO date when current cycle started
   // Inventory
   currentQuantity: number;
   purchaseDate: string; // ISO date (used for orals/powders only)
@@ -152,6 +156,9 @@ export const defaultCompounds: Compound[] = [
     currentQuantity: 5,
     purchaseDate: daysAgo(5),
     reorderQuantity: 10,
+    cycleOnDays: 28,
+    cycleOffDays: 21,
+    cycleStartDate: daysAgo(0),
   },
   {
     id: 'cerebroprotein',
@@ -172,6 +179,9 @@ export const defaultCompounds: Compound[] = [
     currentQuantity: 3,
     purchaseDate: daysAgo(10),
     reorderQuantity: 5,
+    cycleOnDays: 30,
+    cycleOffDays: 21,
+    cycleStartDate: daysAgo(0),
   },
   {
     id: 'cjc-1295',
@@ -360,6 +370,9 @@ export const defaultCompounds: Compound[] = [
     currentQuantity: 2,
     purchaseDate: daysAgo(2),
     reorderQuantity: 4,
+    cycleOnDays: 28,
+    cycleOffDays: 21,
+    cycleStartDate: daysAgo(0),
   },
   {
     id: 'tesamorelin',

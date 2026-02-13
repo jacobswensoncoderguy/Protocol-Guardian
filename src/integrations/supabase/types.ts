@@ -20,6 +20,9 @@ export type Database = {
           category: string
           created_at: string
           current_quantity: number
+          cycle_off_days: number | null
+          cycle_on_days: number | null
+          cycle_start_date: string | null
           cycling_note: string | null
           days_per_week: number
           dose_label: string
@@ -43,6 +46,9 @@ export type Database = {
           category: string
           created_at?: string
           current_quantity?: number
+          cycle_off_days?: number | null
+          cycle_on_days?: number | null
+          cycle_start_date?: string | null
           cycling_note?: string | null
           days_per_week: number
           dose_label: string
@@ -66,6 +72,9 @@ export type Database = {
           category?: string
           created_at?: string
           current_quantity?: number
+          cycle_off_days?: number | null
+          cycle_on_days?: number | null
+          cycle_start_date?: string | null
           cycling_note?: string | null
           days_per_week?: number
           dose_label?: string
