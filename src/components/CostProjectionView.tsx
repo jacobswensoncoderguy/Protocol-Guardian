@@ -85,7 +85,7 @@ function buildProjection(compounds: Compound[]): MonthData[] {
 }
 
 const CostProjectionView = ({ compounds }: CostProjectionViewProps) => {
-  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const projection = buildProjection(compounds);
   const totalAnnual = projection.reduce((sum, m) => sum + m.total, 0);
   const monthlyAvg = compounds.reduce((sum, c) => sum + getMonthlyConsumptionCost(c), 0);
@@ -106,7 +106,7 @@ const CostProjectionView = ({ compounds }: CostProjectionViewProps) => {
 
       {/* Month Grid */}
       <div className="grid grid-cols-4 sm:grid-cols-4 lg:grid-cols-6 gap-1.5 sm:gap-2">
-        {projection.map((month) => {
+        {projection.map((month, idx) => {
           const color = month.total === 0 ? 'bg-secondary' :
             month.total < 200 ? 'bg-status-good/15 border-status-good/30' :
             month.total < 500 ? 'bg-accent/15 border-accent/30' :
@@ -114,10 +114,10 @@ const CostProjectionView = ({ compounds }: CostProjectionViewProps) => {
 
           return (
             <button
-              key={month.month}
-              onClick={() => setSelectedMonth(selectedMonth === month.month ? null : month.month)}
+              key={idx}
+              onClick={() => setSelectedIndex(selectedIndex === idx ? null : idx)}
               className={`rounded-lg border p-2 sm:p-2.5 text-center transition-all active:scale-95 touch-manipulation ${color} ${
-                selectedMonth === month.month ? 'ring-1 ring-primary' : 'border-border/50'
+                selectedIndex === idx ? 'ring-1 ring-primary' : 'border-border/50'
               }`}
             >
               <p className="text-[11px] sm:text-xs font-semibold text-foreground">{month.name}</p>
@@ -138,16 +138,16 @@ const CostProjectionView = ({ compounds }: CostProjectionViewProps) => {
       </div>
 
       {/* Month Detail */}
-      {selectedMonth !== null && (
+      {selectedIndex !== null && (
         <div className="bg-card rounded-lg border border-border/50 p-4 animate-slide-up">
           <h3 className="text-sm font-semibold text-foreground mb-3">
-            {MONTHS[selectedMonth]} Reorder Breakdown
+            {projection[selectedIndex].name} Reorder Breakdown
           </h3>
-          {projection[selectedMonth].compounds.length === 0 ? (
+          {projection[selectedIndex].compounds.length === 0 ? (
             <p className="text-sm text-muted-foreground">No reorders projected this month.</p>
           ) : (
             <div className="space-y-1.5">
-              {projection[selectedMonth].compounds.map((item, i) => (
+              {projection[selectedIndex].compounds.map((item, i) => (
                 <div key={i} className="flex items-center justify-between text-sm bg-secondary/50 rounded px-3 py-1.5">
                   <span className="text-foreground/80 truncate mr-2">{item.name}</span>
                   <div className="flex items-center gap-3 text-xs font-mono flex-shrink-0">
@@ -159,7 +159,7 @@ const CostProjectionView = ({ compounds }: CostProjectionViewProps) => {
               ))}
               <div className="flex justify-between pt-2 border-t border-border/50 text-sm font-semibold">
                 <span className="text-foreground">Total</span>
-                <span className="font-mono text-primary">${Math.round(projection[selectedMonth].total)}</span>
+                <span className="font-mono text-primary">${Math.round(projection[selectedIndex].total)}</span>
               </div>
             </div>
           )}
