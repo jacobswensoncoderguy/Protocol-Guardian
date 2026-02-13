@@ -40,6 +40,7 @@ const fullDayExtras: DayDose[] = [
   { compoundId: 'mots-c', dose: '50 IU', timing: 'morning', category: 'peptide' },
 ];
 
+// TB-500 T/Th evenings
 const tb500Evening: DayDose = { compoundId: 'tb-500', dose: '100 IU', timing: 'evening', category: 'peptide' };
 
 // Daily orals - morning
@@ -87,7 +88,7 @@ const deca: DayDose = { compoundId: 'deca', dose: '83mg', timing: 'morning', cat
 // IGF-1 post-workout
 const igf1: DayDose = { compoundId: 'igf1-lr3', dose: '15 IU', timing: 'afternoon', category: 'peptide' };
 
-// Tesamorelin T/Th/Sa
+// Tesamorelin daily
 const tesamorelin: DayDose = { compoundId: 'tesamorelin', dose: '20 IU', timing: 'evening', category: 'peptide' };
 
 // B12 Tuesday
@@ -112,6 +113,7 @@ export const weeklySchedule: DaySchedule[] = [
       ...afternoonPowders,
       eveningCJC,
       ...nightlyPeptides,
+      tesamorelin,
       retatrutide,
       ...eveningOrals,
       ...eveningPowders,
@@ -133,12 +135,12 @@ export const weeklySchedule: DaySchedule[] = [
       ...afternoonPowders,
       eveningCJC,
       ...nightlyPeptides,
-      tb500Evening,
+      tesamorelin,
       ...eveningOrals,
       ...eveningPowders,
     ],
   },
-  // Tuesday (2) - Light
+  // Tuesday (2) - Light + TB-500
   {
     dayIndex: 2,
     dayName: DAYS[2],
@@ -154,6 +156,7 @@ export const weeklySchedule: DaySchedule[] = [
       eveningCJC,
       ...nightlyPeptides,
       tesamorelin,
+      tb500Evening,
       ...eveningOrals,
       ...eveningPowders,
     ],
@@ -174,12 +177,12 @@ export const weeklySchedule: DaySchedule[] = [
       ...afternoonPowders,
       eveningCJC,
       ...nightlyPeptides,
-      tb500Evening,
+      tesamorelin,
       ...eveningOrals,
       ...eveningPowders,
     ],
   },
-  // Thursday (4) - Light
+  // Thursday (4) - Light + TB-500
   {
     dayIndex: 4,
     dayName: DAYS[4],
@@ -194,6 +197,7 @@ export const weeklySchedule: DaySchedule[] = [
       eveningCJC,
       ...nightlyPeptides,
       tesamorelin,
+      tb500Evening,
       ...eveningOrals,
       ...eveningPowders,
     ],
@@ -214,7 +218,7 @@ export const weeklySchedule: DaySchedule[] = [
       ...afternoonPowders,
       eveningCJC,
       ...nightlyPeptides,
-      tb500Evening,
+      tesamorelin,
       ...eveningOrals,
       ...eveningPowders,
     ],
