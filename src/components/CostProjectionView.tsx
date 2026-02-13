@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Compound, getReorderCost } from '@/data/compounds';
-import { getDaysRemainingWithCycling, getEffectiveDailyConsumption } from '@/lib/cycling';
+import { getDaysRemainingWithCycling, getEffectiveDailyConsumption, getCycleStatus } from '@/lib/cycling';
+import { TrendingDown } from 'lucide-react';
 
 interface CostProjectionViewProps {
   compounds: Compound[];
@@ -84,6 +85,7 @@ function buildProjection(compounds: Compound[]): MonthData[] {
 
 const CostProjectionView = ({ compounds }: CostProjectionViewProps) => {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [showSavings, setShowSavings] = useState(false);
   const projection = buildProjection(compounds);
   const totalAnnual = projection.reduce((sum, m) => sum + m.total, 0);
   const monthlyAvg = compounds.reduce((sum, c) => {
@@ -176,6 +178,91 @@ const CostProjectionView = ({ compounds }: CostProjectionViewProps) => {
           )}
         </div>
       )}
+
+      {/* Cycling Savings Breakdown */}
+      {(() => {
+        const cyclingCompounds = compounds.filter(c => {
+          const status = getCycleStatus(c);
+          return status.hasCycle && status.onFraction < 1;
+        });
+        if (cyclingCompounds.length === 0) return null;
+
+        const savings = cyclingCompounds.map(c => {
+          const status = getCycleStatus(c);
+          const rawDaily = (c.dosePerUse * c.dosesPerDay * c.daysPerWeek) / 7;
+          const monthlyRaw = rawDaily * 30;
+          const monthlyCycled = monthlyRaw * status.onFraction;
+
+          const calcMonthlyCost = (monthly: number) => {
+            if (c.category === 'peptide' && c.bacstatPerVial) {
+              const vialsPerMonth = monthly / c.bacstatPerVial;
+              const kitsPerMonth = vialsPerMonth / 10;
+              return kitsPerMonth * (c.kitPrice || 0);
+            }
+            const unitsPerMonth = monthly / c.unitSize;
+            return unitsPerMonth * c.unitPrice;
+          };
+
+          const continuousCost = calcMonthlyCost(monthlyRaw);
+          const cycledCost = calcMonthlyCost(monthlyCycled);
+          const saved = continuousCost - cycledCost;
+
+          return {
+            name: c.name,
+            onFraction: status.onFraction,
+            cyclePattern: `${c.cycleOnDays}/${c.cycleOffDays}`,
+            continuousCost,
+            cycledCost,
+            saved,
+            annualSaved: saved * 12,
+          };
+        }).sort((a, b) => b.annualSaved - a.annualSaved);
+
+        const totalAnnualSaved = savings.reduce((sum, s) => sum + s.annualSaved, 0);
+
+        return (
+          <div className="bg-card rounded-lg border border-border/50 overflow-hidden">
+            <button
+              onClick={() => setShowSavings(!showSavings)}
+              className="w-full flex items-center justify-between p-3 text-left active:bg-secondary/30 touch-manipulation"
+            >
+              <div className="flex items-center gap-2">
+                <TrendingDown className="w-4 h-4 text-status-good" />
+                <span className="text-sm font-semibold text-foreground">Cycling Savings</span>
+                <span className="text-xs text-muted-foreground">({savings.length} compounds)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold font-mono text-status-good">
+                  -${Math.round(totalAnnualSaved).toLocaleString()}/yr
+                </span>
+                <span className="text-muted-foreground text-xs">{showSavings ? '▲' : '▼'}</span>
+              </div>
+            </button>
+
+            {showSavings && (
+              <div className="border-t border-border/50 p-3 space-y-1.5">
+                {savings.map((s, i) => (
+                  <div key={i} className="flex items-center justify-between bg-secondary/30 rounded px-3 py-2">
+                    <div className="truncate mr-2">
+                      <span className="text-xs text-foreground/80">{s.name}</span>
+                      <span className="text-[10px] text-muted-foreground ml-1.5">{s.cyclePattern} days</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs font-mono flex-shrink-0">
+                      <span className="text-muted-foreground line-through">${Math.round(s.continuousCost)}</span>
+                      <span className="text-foreground">${Math.round(s.cycledCost)}</span>
+                      <span className="text-status-good font-semibold">-${Math.round(s.saved)}/mo</span>
+                    </div>
+                  </div>
+                ))}
+                <div className="flex justify-between pt-2 border-t border-border/50 text-sm font-semibold">
+                  <span className="text-foreground">Total Annual Savings</span>
+                  <span className="font-mono text-status-good">-${Math.round(totalAnnualSaved).toLocaleString()}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 };
