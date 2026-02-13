@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { Compound, getStatus, getReorderCost } from '@/data/compounds';
 import { getDaysRemainingWithCycling, getEffectiveDailyConsumption } from '@/lib/cycling';
-import { AlertTriangle, TrendingUp, DollarSign, Package } from 'lucide-react';
+import { AlertTriangle, TrendingUp, DollarSign, Package, X } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import CompoundInfoDrawer from '@/components/CompoundInfoDrawer';
 
 interface DashboardViewProps {
   compounds: Compound[];
@@ -22,7 +25,6 @@ function getAnnualProjectedCost(compounds: Compound[]): number {
     const unitsPerUnit = compound.category === 'peptide' && compound.bacstatPerVial
       ? compound.bacstatPerVial
       : compound.unitSize;
-    // Supply days adjusted for cycling (effective daily already accounts for ON fraction)
     const supplyDays = (reorderUnits * unitsPerUnit) / effectiveDaily;
 
     let nextReorderDay = daysLeft;
@@ -36,16 +38,112 @@ function getAnnualProjectedCost(compounds: Compound[]): number {
   return total;
 }
 
+type TileType = 'cost' | 'total' | 'reorder' | 'low' | null;
+
 const DashboardView = ({ compounds }: DashboardViewProps) => {
+  const [activeTile, setActiveTile] = useState<TileType>(null);
+  const [selectedCompound, setSelectedCompound] = useState<Compound | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
   const totalAnnualCost = getAnnualProjectedCost(compounds);
   const criticalCompounds = compounds.filter(c => getStatus(getDaysRemainingWithCycling(c)) === 'critical');
   const warningCompounds = compounds.filter(c => getStatus(getDaysRemainingWithCycling(c)) === 'warning');
   const goodCompounds = compounds.filter(c => getStatus(getDaysRemainingWithCycling(c)) === 'good');
 
   const nextReorder = compounds
-    .map(c => ({ name: c.name, days: getDaysRemainingWithCycling(c) }))
+    .map(c => ({ compound: c, name: c.name, days: getDaysRemainingWithCycling(c) }))
     .sort((a, b) => a.days - b.days)
     .slice(0, 5);
+
+  const handleCompoundClick = (compound: Compound) => {
+    setSelectedCompound(compound);
+    setDrawerOpen(true);
+  };
+
+  const tileDialogContent = () => {
+    switch (activeTile) {
+      case 'cost':
+        const costBreakdown = compounds
+          .map(c => {
+            const effectiveDaily = getEffectiveDailyConsumption(c);
+            if (effectiveDaily === 0) return null;
+            const daysLeft = getDaysRemainingWithCycling(c);
+            const cost = getReorderCost(c);
+            const reorderUnits = c.category === 'peptide' ? c.reorderQuantity * 10 : c.reorderQuantity;
+            const unitsPerUnit = c.category === 'peptide' && c.bacstatPerVial ? c.bacstatPerVial : c.unitSize;
+            const supplyDays = (reorderUnits * unitsPerUnit) / effectiveDaily;
+            let annual = 0;
+            let nextDay = daysLeft;
+            while (nextDay < 365) { annual += cost; nextDay += supplyDays; if (supplyDays > 9000) break; }
+            return { compound: c, annual };
+          })
+          .filter(Boolean)
+          .sort((a, b) => b!.annual - a!.annual) as { compound: Compound; annual: number }[];
+        return (
+          <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+            {costBreakdown.map(item => (
+              <button key={item.compound.id} onClick={() => handleCompoundClick(item.compound)} className="flex justify-between w-full text-sm hover:bg-secondary/50 rounded px-2 py-1.5 transition-colors text-left">
+                <span className="text-foreground/80 truncate mr-2">{item.compound.name}</span>
+                <span className="font-mono text-primary flex-shrink-0">${Math.round(item.annual).toLocaleString()}</span>
+              </button>
+            ))}
+          </div>
+        );
+      case 'total':
+        const grouped = {
+          peptide: compounds.filter(c => c.category === 'peptide'),
+          'injectable-oil': compounds.filter(c => c.category === 'injectable-oil'),
+          oral: compounds.filter(c => c.category === 'oral'),
+          powder: compounds.filter(c => c.category === 'powder'),
+        };
+        return (
+          <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+            {Object.entries(grouped).map(([cat, items]) => items.length > 0 && (
+              <div key={cat}>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">{cat.replace('-', ' ')}s ({items.length})</p>
+                {items.map(c => (
+                  <button key={c.id} onClick={() => handleCompoundClick(c)} className="flex justify-between w-full text-sm hover:bg-secondary/50 rounded px-2 py-1 transition-colors text-left">
+                    <span className="text-foreground/80 truncate mr-2">{c.name}</span>
+                    <span className={`font-mono text-xs ${getStatus(getDaysRemainingWithCycling(c)) === 'critical' ? 'text-status-critical' : getStatus(getDaysRemainingWithCycling(c)) === 'warning' ? 'text-status-warning' : 'text-status-good'}`}>{getDaysRemainingWithCycling(c)}d</span>
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+        );
+      case 'reorder':
+        return (
+          <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+            {criticalCompounds.length === 0 && <p className="text-sm text-muted-foreground">No compounds need reordering 🎉</p>}
+            {criticalCompounds.map(c => (
+              <button key={c.id} onClick={() => handleCompoundClick(c)} className="flex justify-between w-full text-sm hover:bg-secondary/50 rounded px-2 py-1.5 transition-colors text-left">
+                <span className="text-foreground/80 truncate mr-2">{c.name}</span>
+                <div className="flex gap-2 flex-shrink-0">
+                  <span className="font-mono text-status-critical text-xs">{getDaysRemainingWithCycling(c)}d left</span>
+                  <span className="font-mono text-primary text-xs">${getReorderCost(c)}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        );
+      case 'low':
+        return (
+          <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+            {warningCompounds.length === 0 && <p className="text-sm text-muted-foreground">All compounds well stocked 🎉</p>}
+            {warningCompounds.map(c => (
+              <button key={c.id} onClick={() => handleCompoundClick(c)} className="flex justify-between w-full text-sm hover:bg-secondary/50 rounded px-2 py-1.5 transition-colors text-left">
+                <span className="text-foreground/80 truncate mr-2">{c.name}</span>
+                <span className="font-mono text-status-warning text-xs">{getDaysRemainingWithCycling(c)}d left</span>
+              </button>
+            ))}
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  const tileTitle = activeTile === 'cost' ? 'Annual Cost Breakdown' : activeTile === 'total' ? 'All Compounds' : activeTile === 'reorder' ? 'Need Reorder (<7 days)' : 'Running Low (7-30 days)';
 
   return (
     <div className="space-y-4">
@@ -56,24 +154,28 @@ const DashboardView = ({ compounds }: DashboardViewProps) => {
           label="Est. Annual Cost"
           value={`$${Math.round(totalAnnualCost).toLocaleString()}`}
           accent="cyan"
+          onClick={() => setActiveTile('cost')}
         />
         <MetricCard
           icon={<Package className="w-4 h-4" />}
           label="Total Compounds"
           value={compounds.length.toString()}
           accent="cyan"
+          onClick={() => setActiveTile('total')}
         />
         <MetricCard
           icon={<AlertTriangle className="w-4 h-4" />}
           label="Need Reorder"
           value={criticalCompounds.length.toString()}
           accent={criticalCompounds.length > 0 ? 'red' : 'green'}
+          onClick={() => setActiveTile('reorder')}
         />
         <MetricCard
           icon={<TrendingUp className="w-4 h-4" />}
           label="Running Low"
           value={warningCompounds.length.toString()}
           accent={warningCompounds.length > 0 ? 'orange' : 'green'}
+          onClick={() => setActiveTile('low')}
         />
       </div>
 
@@ -86,7 +188,7 @@ const DashboardView = ({ compounds }: DashboardViewProps) => {
             {nextReorder.map((item) => {
               const status = getStatus(item.days);
               return (
-                <div key={item.name} className="flex items-center justify-between text-sm">
+                <button key={item.name} onClick={() => handleCompoundClick(item.compound)} className="flex items-center justify-between text-sm w-full hover:bg-secondary/50 rounded px-2 py-1 transition-colors text-left">
                   <span className="text-foreground/80 truncate mr-2">{item.name}</span>
                   <span className={`font-mono text-xs px-2 py-0.5 rounded-full ${
                     status === 'critical' ? 'bg-destructive/20 text-status-critical' :
@@ -95,7 +197,7 @@ const DashboardView = ({ compounds }: DashboardViewProps) => {
                   }`}>
                     {item.days}d
                   </span>
-                </div>
+                </button>
               );
             })}
           </div>
@@ -121,20 +223,36 @@ const DashboardView = ({ compounds }: DashboardViewProps) => {
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {criticalCompounds.map(c => (
-              <div key={c.id} className="text-sm flex justify-between">
+              <button key={c.id} onClick={() => handleCompoundClick(c)} className="text-sm flex justify-between hover:bg-destructive/10 rounded px-2 py-1 transition-colors text-left">
                 <span className="text-foreground/80">{c.name}</span>
                 <span className="font-mono text-status-critical">{getDaysRemainingWithCycling(c)}d left</span>
-              </div>
+              </button>
             ))}
           </div>
         </div>
       )}
+
+      {/* Tile Detail Dialog */}
+      <Dialog open={activeTile !== null} onOpenChange={(open) => !open && setActiveTile(null)}>
+        <DialogContent className="bg-card border-border max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">{tileTitle}</DialogTitle>
+          </DialogHeader>
+          {tileDialogContent()}
+        </DialogContent>
+      </Dialog>
+
+      <CompoundInfoDrawer
+        compound={selectedCompound}
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+      />
     </div>
   );
 };
 
-const MetricCard = ({ icon, label, value, accent }: { icon: React.ReactNode; label: string; value: string; accent: string }) => (
-  <div className="bg-card rounded-lg border border-border/50 p-3 card-glow">
+const MetricCard = ({ icon, label, value, accent, onClick }: { icon: React.ReactNode; label: string; value: string; accent: string; onClick: () => void }) => (
+  <button onClick={onClick} className="bg-card rounded-lg border border-border/50 p-3 card-glow text-left w-full cursor-pointer">
     <div className={`flex items-center gap-1.5 text-xs mb-1 ${
       accent === 'cyan' ? 'text-primary' :
       accent === 'orange' ? 'text-accent' :
@@ -145,7 +263,7 @@ const MetricCard = ({ icon, label, value, accent }: { icon: React.ReactNode; lab
       {label}
     </div>
     <div className="text-xl font-bold font-mono text-foreground">{value}</div>
-  </div>
+  </button>
 );
 
 const HealthBar = ({ label, count, total, color }: { label: string; count: number; total: number; color: string }) => (

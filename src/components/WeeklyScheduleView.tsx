@@ -2,15 +2,29 @@ import { useState } from 'react';
 import { weeklySchedule, DayDose } from '@/data/schedule';
 import { Compound } from '@/data/compounds';
 import { getCycleStatus } from '@/lib/cycling';
-import { Sun, Moon, Dumbbell } from 'lucide-react';
+import { PROTOCOL_GROUPS } from '@/data/compoundBenefits';
+import { Sun, Moon, Dumbbell, Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import CompoundInfoDrawer from '@/components/CompoundInfoDrawer';
 
 interface WeeklyScheduleViewProps {
   compounds: Compound[];
 }
 
+function getResumeDate(daysLeft: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + daysLeft);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${months[d.getMonth()]} ${d.getDate()}`;
+}
+
+const DICK_PROTOCOL_IDS = new Set(PROTOCOL_GROUPS.dickProtocol.compoundIds);
+
 const WeeklyScheduleView = ({ compounds }: WeeklyScheduleViewProps) => {
   const today = new Date().getDay();
   const [selectedDay, setSelectedDay] = useState(today);
+  const [selectedCompound, setSelectedCompound] = useState<Compound | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const schedule = weeklySchedule[selectedDay];
   const compoundMap = new Map(compounds.map(c => [c.id, c]));
@@ -28,64 +42,96 @@ const WeeklyScheduleView = ({ compounds }: WeeklyScheduleViewProps) => {
   const afternoonDoses = schedule.doses.filter(d => d.timing === 'afternoon');
   const eveningDoses = schedule.doses.filter(d => d.timing === 'evening');
 
+  const handleCompoundClick = (compoundId: string) => {
+    const compound = compoundMap.get(compoundId);
+    if (compound) {
+      setSelectedCompound(compound);
+      setDrawerOpen(true);
+    }
+  };
+
   return (
-    <div className="space-y-4">
-      {/* Day Selector */}
-      <div className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-thin">
-        {weeklySchedule.map((day) => (
-          <button
-            key={day.dayIndex}
-            onClick={() => setSelectedDay(day.dayIndex)}
-            className={`flex-shrink-0 px-3 py-2.5 sm:py-2 rounded-lg text-xs font-medium transition-all touch-manipulation ${
-              selectedDay === day.dayIndex
-                ? 'bg-primary text-primary-foreground glow-cyan'
-                : day.dayIndex === today
-                  ? 'bg-secondary border border-primary/30 text-primary'
-                  : 'bg-secondary text-secondary-foreground active:bg-secondary/60'
-            }`}
-          >
-            {day.shortName}
-          </button>
-        ))}
-      </div>
+    <TooltipProvider>
+      <div className="space-y-4">
+        {/* Day Selector */}
+        <div className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-thin">
+          {weeklySchedule.map((day) => (
+            <button
+              key={day.dayIndex}
+              onClick={() => setSelectedDay(day.dayIndex)}
+              className={`flex-shrink-0 px-3 py-2.5 sm:py-2 rounded-lg text-xs font-medium transition-all touch-manipulation ${
+                selectedDay === day.dayIndex
+                  ? 'bg-primary text-primary-foreground glow-cyan'
+                  : day.dayIndex === today
+                    ? 'bg-secondary border border-primary/30 text-primary'
+                    : 'bg-secondary text-secondary-foreground active:bg-secondary/60'
+              }`}
+            >
+              {day.shortName}
+            </button>
+          ))}
+        </div>
 
-      <h2 className="text-lg font-bold text-foreground">{schedule.dayName}</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-bold text-foreground">{schedule.dayName}</h2>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button className="text-muted-foreground hover:text-primary transition-colors">
+                <Info className="w-4 h-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-[280px] text-xs leading-relaxed">
+              <p className="font-semibold mb-1">Cycling ON/OFF</p>
+              <p>Some compounds follow cycling protocols to maintain effectiveness and reduce tolerance. <span className="text-status-warning">OFF</span> items show their resume date. <span className="text-status-good">Active</span> items show days remaining in the current ON phase. Tap any compound for details.</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
 
-      {/* Morning */}
-      <DoseSection
-        icon={<Sun className="w-4 h-4" />}
-        title="Morning Protocol"
-        accent="text-primary"
-        bgAccent="bg-primary/5 border-primary/20"
-        doses={morningDoses}
-        compoundMap={compoundMap}
-        offCycleIds={offCycleIds}
-      />
-
-      {/* Afternoon */}
-      {afternoonDoses.length > 0 && (
+        {/* Morning */}
         <DoseSection
-          icon={<Dumbbell className="w-4 h-4" />}
-          title="Afternoon / Pre-Workout"
+          icon={<Sun className="w-4 h-4" />}
+          title="Morning Protocol"
           accent="text-primary"
           bgAccent="bg-primary/5 border-primary/20"
-          doses={afternoonDoses}
+          doses={morningDoses}
           compoundMap={compoundMap}
           offCycleIds={offCycleIds}
+          onCompoundClick={handleCompoundClick}
         />
-      )}
 
-      {/* Evening */}
-      <DoseSection
-        icon={<Moon className="w-4 h-4" />}
-        title="Evening Protocol"
-        accent="text-accent"
-        bgAccent="bg-accent/5 border-accent/20"
-        doses={eveningDoses}
-        compoundMap={compoundMap}
-        offCycleIds={offCycleIds}
-      />
-    </div>
+        {/* Afternoon */}
+        {afternoonDoses.length > 0 && (
+          <DoseSection
+            icon={<Dumbbell className="w-4 h-4" />}
+            title="Afternoon / Pre-Workout"
+            accent="text-primary"
+            bgAccent="bg-primary/5 border-primary/20"
+            doses={afternoonDoses}
+            compoundMap={compoundMap}
+            offCycleIds={offCycleIds}
+            onCompoundClick={handleCompoundClick}
+          />
+        )}
+
+        {/* Evening */}
+        <DoseSection
+          icon={<Moon className="w-4 h-4" />}
+          title="Evening Protocol"
+          accent="text-accent"
+          bgAccent="bg-accent/5 border-accent/20"
+          doses={eveningDoses}
+          compoundMap={compoundMap}
+          offCycleIds={offCycleIds}
+          onCompoundClick={handleCompoundClick}
+        />
+
+        <CompoundInfoDrawer
+          compound={selectedCompound}
+          open={drawerOpen}
+          onOpenChange={setDrawerOpen}
+        />
+      </div>
+    </TooltipProvider>
   );
 };
 
@@ -98,6 +144,7 @@ const DoseSection = ({
   doses,
   compoundMap,
   offCycleIds,
+  onCompoundClick,
 }: {
   icon: React.ReactNode;
   title: string;
@@ -106,10 +153,16 @@ const DoseSection = ({
   doses: DayDose[];
   compoundMap: Map<string, Compound>;
   offCycleIds: Set<string>;
+  onCompoundClick: (id: string) => void;
 }) => {
   const allPeptides = doses.filter(d => d.category === 'peptide' || d.category === 'injectable-oil');
   const allOrals = doses.filter(d => d.category === 'oral');
   const allPowders = doses.filter(d => d.category === 'powder');
+
+  // Identify dick protocol compounds in this section
+  const dickProtocolDoses = doses.filter(d => DICK_PROTOCOL_IDS.has(d.compoundId));
+  const nonDickOrals = allOrals.filter(d => !DICK_PROTOCOL_IDS.has(d.compoundId));
+  const nonDickPowders = allPowders.filter(d => !DICK_PROTOCOL_IDS.has(d.compoundId));
 
   const totalActive = doses.filter(d => !offCycleIds.has(d.compoundId)).length;
 
@@ -123,13 +176,16 @@ const DoseSection = ({
 
       <div className="space-y-3">
         {allPeptides.length > 0 && (
-          <DoseGroup label="Injectables" doses={allPeptides} compoundMap={compoundMap} offCycleIds={offCycleIds} />
+          <DoseGroup label="Injectables" doses={allPeptides} compoundMap={compoundMap} offCycleIds={offCycleIds} onCompoundClick={onCompoundClick} />
         )}
-        {allOrals.length > 0 && (
-          <DoseGroup label="Oral Supplements" doses={allOrals} compoundMap={compoundMap} offCycleIds={offCycleIds} />
+        {dickProtocolDoses.length > 0 && (
+          <DoseGroup label="🍆 Dick Protocol" doses={dickProtocolDoses} compoundMap={compoundMap} offCycleIds={offCycleIds} onCompoundClick={onCompoundClick} />
         )}
-        {allPowders.length > 0 && (
-          <DoseGroup label="Powders" doses={allPowders} compoundMap={compoundMap} offCycleIds={offCycleIds} />
+        {nonDickOrals.length > 0 && (
+          <DoseGroup label="Oral Supplements" doses={nonDickOrals} compoundMap={compoundMap} offCycleIds={offCycleIds} onCompoundClick={onCompoundClick} />
+        )}
+        {nonDickPowders.length > 0 && (
+          <DoseGroup label="Powders" doses={nonDickPowders} compoundMap={compoundMap} offCycleIds={offCycleIds} onCompoundClick={onCompoundClick} />
         )}
       </div>
     </div>
@@ -141,13 +197,15 @@ const DoseGroup = ({
   doses,
   compoundMap,
   offCycleIds,
+  onCompoundClick,
 }: {
   label: string;
   doses: DayDose[];
   compoundMap: Map<string, Compound>;
   offCycleIds: Set<string>;
+  onCompoundClick: (id: string) => void;
 }) => {
-  // Deduplicate off-cycle compounds (e.g. taurine appears in morning + evening)
+  // Deduplicate off-cycle compounds
   const seenOff = new Set<string>();
   const filteredDoses = doses.filter(d => {
     if (offCycleIds.has(d.compoundId)) {
@@ -167,20 +225,24 @@ const DoseGroup = ({
           const isOff = offCycleIds.has(dose.compoundId);
           const showCycleDays = status?.hasCycle && status.isOn;
           return (
-            <div key={`${dose.compoundId}-${i}`} className={`flex items-center justify-between rounded px-2.5 py-1.5 ${isOff ? 'bg-card/20 opacity-50' : 'bg-card/50'}`}>
+            <button
+              key={`${dose.compoundId}-${i}`}
+              onClick={() => onCompoundClick(dose.compoundId)}
+              className={`flex items-center justify-between rounded px-2.5 py-1.5 text-left transition-colors hover:bg-card/80 active:bg-card ${isOff ? 'bg-card/20 opacity-50' : 'bg-card/50'}`}
+            >
               <span className={`text-xs truncate mr-2 ${isOff ? 'text-muted-foreground' : 'text-foreground/90'}`}>
                 {compound?.name || dose.compoundId}
               </span>
               <div className="flex items-center gap-1.5 flex-shrink-0">
                 {isOff && status?.hasCycle && (
-                  <span className="text-[10px] font-mono text-orange-400">OFF {status.daysLeftInPhase}d</span>
+                  <span className="text-[10px] font-mono text-status-warning">OFF → {getResumeDate(status.daysLeftInPhase)}</span>
                 )}
                 {showCycleDays && (
                   <span className="text-[10px] font-mono text-muted-foreground">{status.daysLeftInPhase}d</span>
                 )}
                 {!isOff && <span className="text-xs font-mono text-primary">{dose.dose}</span>}
               </div>
-            </div>
+            </button>
           );
         })}
       </div>
