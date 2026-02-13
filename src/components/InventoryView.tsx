@@ -34,18 +34,18 @@ const InventoryView = ({ compounds, onUpdateCompound }: InventoryViewProps) => {
     : [{ category: 'all' as const, items: sorted }];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Filters */}
-      <div className="flex flex-wrap gap-2">
-        <div className="flex gap-1 overflow-x-auto">
+      <div className="flex flex-wrap gap-1.5 sm:gap-2">
+        <div className="flex gap-1 overflow-x-auto scrollbar-thin -mx-1 px-1">
           {(['all', ...categoryOrder] as const).map(cat => (
             <button
               key={cat}
               onClick={() => setFilter(cat)}
-              className={`px-2.5 py-1 rounded-md text-xs transition-all whitespace-nowrap ${
+              className={`px-2.5 py-1.5 sm:py-1 rounded-md text-[11px] sm:text-xs transition-all whitespace-nowrap touch-manipulation ${
                 filter === cat
                   ? 'bg-primary/15 text-primary border border-primary/30'
-                  : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                  : 'bg-secondary text-secondary-foreground active:bg-secondary/60'
               }`}
             >
               {cat === 'all' ? 'All' : categoryLabels[cat]}
@@ -54,16 +54,11 @@ const InventoryView = ({ compounds, onUpdateCompound }: InventoryViewProps) => {
         </div>
         <button
           onClick={() => setSortBy(s => s === 'days' ? 'name' : 'days')}
-          className="ml-auto px-2.5 py-1 rounded-md text-xs bg-secondary text-secondary-foreground hover:bg-secondary/80"
+          className="ml-auto px-2.5 py-1.5 sm:py-1 rounded-md text-[11px] sm:text-xs bg-secondary text-secondary-foreground active:bg-secondary/60 touch-manipulation"
         >
-          Sort: {sortBy === 'days' ? '⏰ Days Left' : '🔤 Name'}
+          {sortBy === 'days' ? '⏰ Days' : '🔤 Name'}
         </button>
       </div>
-
-      {/* Info note */}
-      <p className="text-[10px] text-muted-foreground italic">
-        Tap ✏️ on any card to edit inventory. Peptide reorder qty = kits of 10 vials each.
-      </p>
 
       {/* Compound Cards */}
       {grouped.map(group => (
@@ -71,7 +66,7 @@ const InventoryView = ({ compounds, onUpdateCompound }: InventoryViewProps) => {
           {group.category !== 'all' && (
             <h3 className="text-sm font-semibold text-foreground mb-2">{categoryLabels[group.category as CompoundCategory]}</h3>
           )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {group.items.map(compound => (
               <CompoundCard key={compound.id} compound={compound} onUpdate={onUpdateCompound} />
             ))}
@@ -154,7 +149,7 @@ const CompoundCard = ({ compound, onUpdate }: { compound: Compound; onUpdate: (i
     : `${compound.reorderQuantity}`;
 
   return (
-    <div className={`bg-card rounded-lg border p-3 card-glow ${
+    <div className={`bg-card rounded-lg border p-2.5 sm:p-3 card-glow ${
       status === 'critical' ? 'border-destructive/40' :
       status === 'warning' ? 'border-accent/30' :
       'border-border/50'
@@ -173,8 +168,8 @@ const CompoundCard = ({ compound, onUpdate }: { compound: Compound; onUpdate: (i
             {days}d
           </span>
           {!editing && (
-            <button onClick={startEdit} className="p-1 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground">
-              <Pencil className="w-3 h-3" />
+            <button onClick={startEdit} className="p-1.5 rounded active:bg-secondary/80 transition-colors text-muted-foreground touch-manipulation">
+              <Pencil className="w-3.5 h-3.5" />
             </button>
           )}
         </div>

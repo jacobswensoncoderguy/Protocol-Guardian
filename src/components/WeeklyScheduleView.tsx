@@ -21,17 +21,17 @@ const WeeklyScheduleView = ({ compounds }: WeeklyScheduleViewProps) => {
   return (
     <div className="space-y-4">
       {/* Day Selector */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1">
+      <div className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-thin">
         {weeklySchedule.map((day) => (
           <button
             key={day.dayIndex}
             onClick={() => setSelectedDay(day.dayIndex)}
-            className={`flex-shrink-0 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+            className={`flex-shrink-0 px-3 py-2.5 sm:py-2 rounded-lg text-xs font-medium transition-all touch-manipulation ${
               selectedDay === day.dayIndex
                 ? 'bg-primary text-primary-foreground glow-cyan'
                 : day.dayIndex === today
                   ? 'bg-secondary border border-primary/30 text-primary'
-                  : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                  : 'bg-secondary text-secondary-foreground active:bg-secondary/60'
             }`}
           >
             {day.shortName}
