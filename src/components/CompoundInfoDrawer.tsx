@@ -45,10 +45,21 @@ const TimelineViz = ({ events }: { events: TimelineEvent[] }) => {
   );
 };
 
+// Normalize compound name to match benefit keys (e.g. "Anavar 10mg" → "anavar", "BPC-157" → "bpc-157")
+function toBenefitKey(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\s*\d+\s*mg$/i, '') // strip trailing dose like "10mg"
+    .replace(/\s*\(.*\)$/, '')     // strip parentheticals like "(Nandrolone)"
+    .replace(/\s+/g, '-')
+    .trim();
+}
+
 const CompoundInfoDrawer = ({ compound, open, onOpenChange }: CompoundInfoDrawerProps) => {
   if (!compound) return null;
 
-  const benefits = compoundBenefits[compound.id];
+  const key = toBenefitKey(compound.name);
+  const benefits = compoundBenefits[key];
   const cycleStatus = getCycleStatus(compound);
   const daysLeft = getDaysRemainingWithCycling(compound);
   const status = getStatus(daysLeft);
