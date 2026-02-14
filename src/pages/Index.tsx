@@ -200,6 +200,7 @@ const Index = () => {
           onDeleteProtocol={deleteProtocol}
           onAddCompound={addCompoundToProtocol}
           onRemoveCompound={removeCompoundFromProtocol}
+          onUpdateCompound={handleUpdateCompound}
         />
       </main>
     </div>

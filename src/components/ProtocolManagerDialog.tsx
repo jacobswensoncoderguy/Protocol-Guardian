@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { UserProtocol, SUGGESTED_PROTOCOLS } from '@/hooks/useProtocols';
 import { Compound } from '@/data/compounds';
-import { Plus, Trash2, ChevronRight, ArrowLeft, Check, X, Sparkles } from 'lucide-react';
+import { Plus, Trash2, ChevronRight, ArrowLeft, Check, X, Sparkles, Pencil } from 'lucide-react';
 
 interface ProtocolManagerDialogProps {
   open: boolean;
@@ -13,9 +13,43 @@ interface ProtocolManagerDialogProps {
   onDeleteProtocol: (id: string) => Promise<void>;
   onAddCompound: (protocolId: string, compoundId: string) => Promise<void>;
   onRemoveCompound: (protocolId: string, compoundId: string) => Promise<void>;
+  onUpdateCompound?: (id: string, updates: Partial<Compound>) => void;
 }
 
-type View = 'list' | 'create' | 'detail' | 'assign';
+type View = 'list' | 'create' | 'detail' | 'assign' | 'bulk-edit';
+
+const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+
+function parseDaysFromNote(note: string, daysPerWeek: number): Set<number> {
+  const lower = note.toLowerCase();
+  const days = new Set<number>();
+  const patterns: [RegExp, number[]][] = [
+    [/\bm[\/-]f\b|mon[\s-]*fri/i, [1,2,3,4,5]],
+    [/\bm\/w\/f\b/i, [1,3,5]],
+    [/\bt\/th\b/i, [2,4]],
+  ];
+  for (const [pat, idxs] of patterns) {
+    if (pat.test(lower)) { idxs.forEach(i => days.add(i)); return days; }
+  }
+  const dayMap: Record<string, number> = { su: 0, sun: 0, mo: 1, mon: 1, tu: 2, tue: 2, tues: 2, we: 3, wed: 3, th: 4, thu: 4, thurs: 4, fr: 5, fri: 5, sa: 6, sat: 6 };
+  const matches = lower.match(/\b(su(?:n(?:day)?)?|mo(?:n(?:day)?)?|tu(?:e(?:s(?:day)?)?)?|we(?:d(?:nesday)?)?|th(?:u(?:rs(?:day)?)?)?|fr(?:i(?:day)?)?|sa(?:t(?:urday)?)?)\b/gi);
+  if (matches) matches.forEach(m => { const i = dayMap[m.toLowerCase()]; if (i !== undefined) days.add(i); });
+  if (days.size === 0 && (/\bdaily\b|\bnightly\b|\bevery\s*day\b/i.test(lower) || daysPerWeek === 7)) {
+    [0,1,2,3,4,5,6].forEach(i => days.add(i));
+  }
+  return days;
+}
+
+function buildDayString(days: Set<number>): string {
+  if (days.size === 7) return 'daily';
+  if (days.size === 0) return '';
+  const sorted = Array.from(days).sort();
+  if (sorted.join(',') === '1,2,3,4,5') return 'M-F';
+  if (sorted.join(',') === '1,3,5') return 'M/W/F';
+  if (sorted.join(',') === '2,4') return 'T/Th';
+  return sorted.map(d => DAY_KEYS[d]).join('/');
+}
 
 const ProtocolManagerDialog = ({
   open,
@@ -26,6 +60,7 @@ const ProtocolManagerDialog = ({
   onDeleteProtocol,
   onAddCompound,
   onRemoveCompound,
+  onUpdateCompound,
 }: ProtocolManagerDialogProps) => {
   const [view, setView] = useState<View>('list');
   const [selectedProtocol, setSelectedProtocol] = useState<UserProtocol | null>(null);
@@ -33,6 +68,11 @@ const ProtocolManagerDialog = ({
   const [newIcon, setNewIcon] = useState('💊');
   const [newDesc, setNewDesc] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+
+  // Bulk edit state
+  const [bulkTiming, setBulkTiming] = useState<Set<string>>(new Set());
+  const [bulkDays, setBulkDays] = useState<Set<number>>(new Set());
+  const [bulkApplied, setBulkApplied] = useState(false);
 
   const handleClose = (o: boolean) => {
     if (!o) {
@@ -42,6 +82,7 @@ const ProtocolManagerDialog = ({
       setNewIcon('💊');
       setNewDesc('');
       setConfirmDelete(null);
+      setBulkApplied(false);
     }
     onOpenChange(o);
   };
@@ -65,6 +106,77 @@ const ProtocolManagerDialog = ({
   const openDetail = (p: UserProtocol) => {
     setSelectedProtocol(p);
     setView('detail');
+  };
+
+  const openBulkEdit = () => {
+    setBulkTiming(new Set());
+    setBulkDays(new Set());
+    setBulkApplied(false);
+    setView('bulk-edit');
+  };
+
+  const toggleBulkTiming = (t: string) => {
+    setBulkTiming(prev => {
+      const next = new Set(prev);
+      if (next.has(t)) next.delete(t); else next.add(t);
+      return next;
+    });
+  };
+
+  const toggleBulkDay = (d: number) => {
+    setBulkDays(prev => {
+      const next = new Set(prev);
+      if (next.has(d)) next.delete(d); else next.add(d);
+      return next;
+    });
+  };
+
+  const applyBulkEdit = () => {
+    if (!selectedProtocol || !onUpdateCompound) return;
+    const hasTiming = bulkTiming.size > 0;
+    const hasDays = bulkDays.size > 0;
+    if (!hasTiming && !hasDays) return;
+
+    selectedProtocol.compoundIds.forEach(cId => {
+      const compound = compoundMap.get(cId);
+      if (!compound) return;
+
+      const updates: Partial<Compound> = {};
+
+      if (hasDays) {
+        const dayStr = buildDayString(bulkDays);
+        // Build new timing note: keep timing keywords, replace day part
+        const existingNote = compound.timingNote || '';
+        // Extract timing words from existing note
+        const timingWords: string[] = [];
+        if (/\bmorning\b/i.test(existingNote)) timingWords.push('morning');
+        if (/\bafternoon\b/i.test(existingNote)) timingWords.push('afternoon');
+        if (/\bevening\b/i.test(existingNote)) timingWords.push('evening');
+
+        // If we're also setting timing, use that instead
+        const finalTimingWords = hasTiming ? Array.from(bulkTiming) : timingWords;
+
+        const parts = [dayStr, ...finalTimingWords].filter(Boolean);
+        updates.timingNote = parts.join(', ') || undefined;
+        updates.daysPerWeek = bulkDays.size;
+      } else if (hasTiming) {
+        // Only updating timing, keep existing day info
+        const existingNote = compound.timingNote || '';
+        // Remove existing timing keywords
+        let cleaned = existingNote
+          .replace(/\b(morning|afternoon|evening|am|pm|nightly|night)\b/gi, '')
+          .replace(/[,]\s*[,]/g, ',')
+          .replace(/^[,\s]+|[,\s]+$/g, '')
+          .trim();
+        const timingStr = Array.from(bulkTiming).join(', ');
+        updates.timingNote = cleaned ? `${cleaned}, ${timingStr}` : timingStr;
+      }
+
+      onUpdateCompound(cId, updates);
+    });
+
+    setBulkApplied(true);
+    setTimeout(() => setBulkApplied(false), 2000);
   };
 
   const compoundMap = new Map(compounds.map(c => [c.id, c]));
@@ -107,6 +219,14 @@ const ProtocolManagerDialog = ({
                   <ArrowLeft className="w-4 h-4" />
                 </button>
                 Add Compounds
+              </>
+            )}
+            {view === 'bulk-edit' && selectedProtocol && (
+              <>
+                <button onClick={() => setView('detail')} className="p-1 rounded hover:bg-secondary transition-colors">
+                  <ArrowLeft className="w-4 h-4" />
+                </button>
+                Bulk Edit — {selectedProtocol.icon} {selectedProtocol.name}
               </>
             )}
           </DialogTitle>
@@ -263,13 +383,24 @@ const ProtocolManagerDialog = ({
                 <p className="text-sm text-muted-foreground text-center py-4">No compounds assigned yet.</p>
               )}
 
-              <button
-                onClick={() => setView('assign')}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors text-primary text-sm font-medium"
-              >
-                <Plus className="w-4 h-4" />
-                Add Compounds
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setView('assign')}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors text-primary text-sm font-medium"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Compounds
+                </button>
+                {onUpdateCompound && selectedProtocol.compoundIds.length > 0 && (
+                  <button
+                    onClick={openBulkEdit}
+                    className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-dashed border-accent/30 bg-accent/5 hover:bg-accent/10 transition-colors text-accent text-sm font-medium"
+                  >
+                    <Pencil className="w-4 h-4" />
+                    Bulk Edit
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
@@ -292,6 +423,113 @@ const ProtocolManagerDialog = ({
                   </button>
                 ))
               )}
+            </div>
+          )}
+
+          {view === 'bulk-edit' && selectedProtocol && (
+            <div className="space-y-4">
+              <p className="text-[11px] text-muted-foreground">
+                Set timing and/or days for all {selectedProtocol.compoundIds.length} compounds in this protocol. Only selected options will be applied.
+              </p>
+
+              {/* Timing */}
+              <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Timing</p>
+                <div className="flex gap-1.5">
+                  {(['morning', 'afternoon', 'evening'] as const).map(t => (
+                    <button
+                      key={t}
+                      onClick={() => toggleBulkTiming(t)}
+                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                        bulkTiming.has(t)
+                          ? 'bg-primary/15 text-primary border border-primary/30'
+                          : 'bg-secondary text-muted-foreground border border-border/50'
+                      }`}
+                    >
+                      {t === 'morning' ? '☀️ AM' : t === 'afternoon' ? '💪 Mid' : '🌙 PM'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Days */}
+              <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Days of Week</p>
+                <div className="flex gap-1">
+                  {DAY_LABELS.map((label, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => toggleBulkDay(idx)}
+                      className={`w-9 h-9 rounded-lg text-xs font-medium transition-all ${
+                        bulkDays.has(idx)
+                          ? 'bg-primary/15 text-primary border border-primary/30'
+                          : 'bg-secondary text-muted-foreground border border-border/50'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {/* Quick presets */}
+                <div className="flex gap-1.5 mt-2">
+                  {[
+                    { label: 'Daily', days: [0,1,2,3,4,5,6] },
+                    { label: 'M-F', days: [1,2,3,4,5] },
+                    { label: 'M/W/F', days: [1,3,5] },
+                    { label: 'T/Th', days: [2,4] },
+                  ].map(preset => (
+                    <button
+                      key={preset.label}
+                      onClick={() => setBulkDays(new Set(preset.days))}
+                      className="px-2 py-1 rounded text-[10px] font-medium bg-secondary text-muted-foreground hover:bg-secondary/80 border border-border/50 transition-colors"
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Preview */}
+              <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                  Will apply to ({selectedProtocol.compoundIds.length} compounds)
+                </p>
+                <div className="space-y-1 max-h-32 overflow-y-auto">
+                  {selectedProtocol.compoundIds.map(cId => {
+                    const c = compoundMap.get(cId);
+                    if (!c) return null;
+                    return (
+                      <div key={cId} className="flex items-center justify-between px-3 py-1.5 rounded bg-secondary/50 text-xs">
+                        <span className="text-foreground/80 truncate">{c.name}</span>
+                        <span className="text-muted-foreground text-[10px]">{c.timingNote || `${c.daysPerWeek}d/wk`}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Apply */}
+              <button
+                onClick={applyBulkEdit}
+                disabled={bulkTiming.size === 0 && bulkDays.size === 0}
+                className={`w-full py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-all ${
+                  bulkApplied
+                    ? 'bg-status-good/15 text-status-good border border-status-good/30'
+                    : 'bg-primary text-primary-foreground disabled:opacity-50'
+                }`}
+              >
+                {bulkApplied ? (
+                  <>
+                    <Check className="w-4 h-4" />
+                    Applied to {selectedProtocol.compoundIds.length} compounds
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4" />
+                    Apply to All ({selectedProtocol.compoundIds.length})
+                  </>
+                )}
+              </button>
             </div>
           )}
         </div>
