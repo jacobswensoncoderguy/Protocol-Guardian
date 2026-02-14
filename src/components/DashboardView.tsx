@@ -5,9 +5,16 @@ import { AlertTriangle, TrendingUp, DollarSign, Package, X } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import CompoundInfoDrawer from '@/components/CompoundInfoDrawer';
 import ProtocolOutcomesCard from '@/components/ProtocolOutcomesCard';
+import ProtocolIntelligenceCard from '@/components/ProtocolIntelligenceCard';
+import { StackAnalysis } from '@/hooks/useProtocolAnalysis';
 
 interface DashboardViewProps {
   compounds: Compound[];
+  stackAnalysis?: StackAnalysis | null;
+  aiLoading?: boolean;
+  needsRefresh?: boolean;
+  onAnalyzeStack?: () => void;
+  onViewAIInsights?: () => void;
 }
 
 function getAnnualProjectedCost(compounds: Compound[]): number {
@@ -41,7 +48,7 @@ function getAnnualProjectedCost(compounds: Compound[]): number {
 
 type TileType = 'cost' | 'total' | 'reorder' | 'low' | null;
 
-const DashboardView = ({ compounds }: DashboardViewProps) => {
+const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, onAnalyzeStack, onViewAIInsights }: DashboardViewProps) => {
   const [activeTile, setActiveTile] = useState<TileType>(null);
   const [selectedCompound, setSelectedCompound] = useState<Compound | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -214,6 +221,17 @@ const DashboardView = ({ compounds }: DashboardViewProps) => {
           </div>
         </div>
       </div>
+
+      {/* Protocol Intelligence */}
+      {onAnalyzeStack && (
+        <ProtocolIntelligenceCard
+          analysis={stackAnalysis ?? null}
+          loading={aiLoading ?? false}
+          needsRefresh={needsRefresh ?? false}
+          onRefresh={onAnalyzeStack}
+          onViewDetails={onViewAIInsights ?? (() => {})}
+        />
+      )}
 
       {/* Protocol Outcomes */}
       <ProtocolOutcomesCard />
