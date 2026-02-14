@@ -170,6 +170,7 @@ const Index = () => {
               onUpdateCompound={handleUpdateCompound}
               onDeleteCompound={deleteCompound}
               onAddCompound={() => setShowAddDialog(true)}
+              protocols={protocols}
             />
           </TabsContent>
           <TabsContent value="reorders" className="animate-slide-up">

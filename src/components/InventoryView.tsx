@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Compound, getStatus, getReorderDateString, CompoundCategory } from '@/data/compounds';
 import { getCycleStatus, getDaysRemainingWithCycling } from '@/lib/cycling';
+import { UserProtocol } from '@/hooks/useProtocols';
 import { Pencil, Check, X, Trash2, Plus } from 'lucide-react';
 
 interface InventoryViewProps {
@@ -8,6 +9,7 @@ interface InventoryViewProps {
   onUpdateCompound: (id: string, updates: Partial<Compound>) => void;
   onDeleteCompound?: (id: string) => void;
   onAddCompound?: () => void;
+  protocols?: UserProtocol[];
 }
 
 const categoryLabels: Record<CompoundCategory, string> = {
@@ -19,7 +21,7 @@ const categoryLabels: Record<CompoundCategory, string> = {
 
 const categoryOrder: CompoundCategory[] = ['peptide', 'injectable-oil', 'oral', 'powder'];
 
-const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCompound }: InventoryViewProps) => {
+const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCompound, protocols = [] }: InventoryViewProps) => {
   const [filter, setFilter] = useState<CompoundCategory | 'all'>('all');
   const [sortBy, setSortBy] = useState<'name' | 'days'>('name');
 
@@ -29,12 +31,34 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
     return a.name.localeCompare(b.name);
   });
 
-  const grouped = sortBy === 'name'
-    ? categoryOrder.map(cat => ({
-        category: cat,
-        items: sorted.filter(c => c.category === cat),
-      })).filter(g => g.items.length > 0)
-    : [{ category: 'all' as const, items: sorted }];
+  // Build protocol groups + ungrouped by category
+  const buildGroups = () => {
+    if (sortBy === 'days') return [{ label: 'all', items: sorted }];
+
+    const groups: { label: string; items: Compound[] }[] = [];
+    const protocolCompoundIds = new Set<string>();
+
+    // Protocol groups first
+    protocols.forEach(p => {
+      const pItems = sorted.filter(c => p.compoundIds.includes(c.id));
+      if (pItems.length > 0) {
+        groups.push({ label: `${p.icon} ${p.name}`, items: pItems });
+        pItems.forEach(c => protocolCompoundIds.add(c.id));
+      }
+    });
+
+    // Then category groups for ungrouped compounds
+    categoryOrder.forEach(cat => {
+      const items = sorted.filter(c => c.category === cat && !protocolCompoundIds.has(c.id));
+      if (items.length > 0) {
+        groups.push({ label: categoryLabels[cat], items });
+      }
+    });
+
+    return groups;
+  };
+
+  const groups = buildGroups();
 
   return (
     <div className="space-y-3">
@@ -75,10 +99,10 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
       )}
 
       {/* Compound Cards */}
-      {grouped.map(group => (
-        <div key={group.category}>
-          {group.category !== 'all' && (
-            <h3 className="text-sm font-semibold text-foreground mb-2">{categoryLabels[group.category as CompoundCategory]}</h3>
+      {groups.map(group => (
+        <div key={group.label}>
+          {group.label !== 'all' && (
+            <h3 className="text-sm font-semibold text-foreground mb-2">{group.label}</h3>
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {group.items.map(compound => (
