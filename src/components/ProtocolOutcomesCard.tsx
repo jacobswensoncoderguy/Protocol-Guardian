@@ -70,11 +70,18 @@ const ProtocolOutcomesCard = () => {
         onClick={() => setOpen(!open)}
         className="w-full flex items-center justify-between p-4 text-left"
       >
-        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-          <TrendingUp className="w-4 h-4 text-primary" />
-          Combined Protocol Outcomes
-        </h3>
-        <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-primary" />
+            Combined Protocol Outcomes
+          </h3>
+          {!open && (
+            <p className="text-[10px] text-muted-foreground mt-1 ml-6 truncate">
+              +15-28 lb lean mass · 15-24% fat loss · girth +0.5" · 30-50% faster healing
+            </p>
+          )}
+        </div>
+        <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 flex-shrink-0 ${open ? 'rotate-180' : ''}`} />
       </button>
       <div
         className={`grid transition-[grid-template-rows] duration-300 ease-out ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
