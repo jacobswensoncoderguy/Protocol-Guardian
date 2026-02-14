@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Compound, getStatus, getReorderDateString, CompoundCategory } from '@/data/compounds';
 import { getCycleStatus, getDaysRemainingWithCycling } from '@/lib/cycling';
-import { Pencil, Check, X, PauseCircle } from 'lucide-react';
+import { Pencil, Check, X, Trash2, Plus } from 'lucide-react';
 
 interface InventoryViewProps {
   compounds: Compound[];
   onUpdateCompound: (id: string, updates: Partial<Compound>) => void;
+  onDeleteCompound?: (id: string) => void;
+  onAddCompound?: () => void;
 }
 
 const categoryLabels: Record<CompoundCategory, string> = {
@@ -17,7 +19,7 @@ const categoryLabels: Record<CompoundCategory, string> = {
 
 const categoryOrder: CompoundCategory[] = ['peptide', 'injectable-oil', 'oral', 'powder'];
 
-const InventoryView = ({ compounds, onUpdateCompound }: InventoryViewProps) => {
+const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCompound }: InventoryViewProps) => {
   const [filter, setFilter] = useState<CompoundCategory | 'all'>('all');
   const [sortBy, setSortBy] = useState<'name' | 'days'>('name');
 
@@ -61,6 +63,17 @@ const InventoryView = ({ compounds, onUpdateCompound }: InventoryViewProps) => {
         </button>
       </div>
 
+      {/* Add button */}
+      {onAddCompound && (
+        <button
+          onClick={onAddCompound}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors text-primary text-sm font-medium"
+        >
+          <Plus className="w-4 h-4" />
+          Add Compound from Library
+        </button>
+      )}
+
       {/* Compound Cards */}
       {grouped.map(group => (
         <div key={group.category}>
@@ -69,7 +82,7 @@ const InventoryView = ({ compounds, onUpdateCompound }: InventoryViewProps) => {
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {group.items.map(compound => (
-              <CompoundCard key={compound.id} compound={compound} onUpdate={onUpdateCompound} />
+              <CompoundCard key={compound.id} compound={compound} onUpdate={onUpdateCompound} onDelete={onDeleteCompound} />
             ))}
           </div>
         </div>
@@ -80,7 +93,8 @@ const InventoryView = ({ compounds, onUpdateCompound }: InventoryViewProps) => {
 
 // --- Compound Card ---
 
-const CompoundCard = ({ compound, onUpdate }: { compound: Compound; onUpdate: (id: string, updates: Partial<Compound>) => void }) => {
+const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; onUpdate: (id: string, updates: Partial<Compound>) => void; onDelete?: (id: string) => void }) => {
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editState, setEditState] = useState<Record<string, string>>({});
 
@@ -194,12 +208,34 @@ const CompoundCard = ({ compound, onUpdate }: { compound: Compound; onUpdate: (i
             {days}d
           </span>
           {!editing && (
-            <button onClick={startEdit} className="p-1.5 rounded active:bg-secondary/80 transition-colors text-muted-foreground touch-manipulation">
-              <Pencil className="w-3.5 h-3.5" />
-            </button>
+            <div className="flex items-center gap-0.5">
+              <button onClick={startEdit} className="p-1.5 rounded active:bg-secondary/80 transition-colors text-muted-foreground touch-manipulation">
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
+              {onDelete && !confirmDelete && (
+                <button onClick={() => setConfirmDelete(true)} className="p-1.5 rounded active:bg-secondary/80 transition-colors text-muted-foreground touch-manipulation">
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>
+
+      {/* Delete confirmation */}
+      {confirmDelete && (
+        <div className="flex items-center justify-between bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2 mb-2">
+          <span className="text-[11px] text-destructive font-medium">Remove from protocol?</span>
+          <div className="flex gap-1">
+            <button onClick={() => setConfirmDelete(false)} className="px-2 py-1 rounded text-[10px] bg-secondary text-muted-foreground">
+              Cancel
+            </button>
+            <button onClick={() => onDelete?.(compound.id)} className="px-2 py-1 rounded text-[10px] bg-destructive text-destructive-foreground font-medium">
+              Remove
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Progress bar */}
       <div className="h-1 bg-secondary rounded-full overflow-hidden mb-2">

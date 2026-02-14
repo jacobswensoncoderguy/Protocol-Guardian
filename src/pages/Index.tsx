@@ -8,6 +8,7 @@ import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCallback, useState } from 'react';
 import Onboarding from './Onboarding';
+import AddCompoundDialog from '@/components/AddCompoundDialog';
 
 import DashboardView from '@/components/DashboardView';
 import WeeklyScheduleView from '@/components/WeeklyScheduleView';
@@ -42,9 +43,10 @@ const LoadingSkeleton = () => (
 
 const Index = () => {
   const { user, signOut } = useAuth();
-  const { compounds, loading, hasCompounds, updateCompound, refetch } = useCompounds(user?.id);
+  const { compounds, loading, hasCompounds, updateCompound, addCompound, deleteCompound, refetch } = useCompounds(user?.id);
   const { isDark, toggle } = useTheme();
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showAddDialog, setShowAddDialog] = useState(false);
 
   const handleRefresh = useCallback(async () => {
     await refetch();
@@ -153,7 +155,12 @@ const Index = () => {
             <WeeklyScheduleView compounds={compounds} />
           </TabsContent>
           <TabsContent value="inventory" className="animate-slide-up">
-            <InventoryView compounds={compounds} onUpdateCompound={handleUpdateCompound} />
+            <InventoryView
+              compounds={compounds}
+              onUpdateCompound={handleUpdateCompound}
+              onDeleteCompound={deleteCompound}
+              onAddCompound={() => setShowAddDialog(true)}
+            />
           </TabsContent>
           <TabsContent value="reorders" className="animate-slide-up">
             <ReorderView compounds={compounds} onUpdateCompound={handleUpdateCompound} userId={user?.id} />
@@ -162,6 +169,16 @@ const Index = () => {
             <CostProjectionView compounds={compounds} />
           </TabsContent>
         </Tabs>
+
+        <AddCompoundDialog
+          open={showAddDialog}
+          onOpenChange={setShowAddDialog}
+          existingCompoundIds={compounds.map(c => c.name)}
+          onAdd={async (compound) => {
+            await addCompound(compound);
+            await refetch();
+          }}
+        />
       </main>
     </div>
   );
