@@ -161,6 +161,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_compound_protocols: {
+        Row: {
+          created_at: string
+          id: string
+          user_compound_id: string
+          user_protocol_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          user_compound_id: string
+          user_protocol_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          user_compound_id?: string
+          user_protocol_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_compound_protocols_user_compound_id_fkey"
+            columns: ["user_compound_id"]
+            isOneToOne: false
+            referencedRelation: "user_compounds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_compound_protocols_user_protocol_id_fkey"
+            columns: ["user_protocol_id"]
+            isOneToOne: false
+            referencedRelation: "user_protocols"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_compounds: {
         Row: {
           bacstat_per_vial: number | null
@@ -243,6 +279,36 @@ export type Database = {
           unit_label?: string
           unit_price?: number
           unit_size?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_protocols: {
+        Row: {
+          created_at: string
+          description: string | null
+          icon: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          icon?: string
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          icon?: string
+          id?: string
+          name?: string
           updated_at?: string
           user_id?: string
         }

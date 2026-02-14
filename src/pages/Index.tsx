@@ -1,7 +1,8 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Package, DollarSign, LayoutDashboard, ShoppingCart, Sun, Moon, RefreshCw, LogOut } from 'lucide-react';
+import { Calendar, Package, DollarSign, LayoutDashboard, ShoppingCart, Sun, Moon, RefreshCw, LogOut, Sparkles } from 'lucide-react';
 import { Compound } from '@/data/compounds';
 import { useCompounds } from '@/hooks/useCompounds';
+import { useProtocols } from '@/hooks/useProtocols';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
@@ -9,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useCallback, useState } from 'react';
 import Onboarding from './Onboarding';
 import AddCompoundDialog from '@/components/AddCompoundDialog';
+import ProtocolManagerDialog from '@/components/ProtocolManagerDialog';
 
 import DashboardView from '@/components/DashboardView';
 import WeeklyScheduleView from '@/components/WeeklyScheduleView';
@@ -47,9 +49,14 @@ const Index = () => {
   const { isDark, toggle } = useTheme();
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showProtocolManager, setShowProtocolManager] = useState(false);
+  const {
+    protocols, createProtocol, deleteProtocol,
+    addCompoundToProtocol, removeCompoundFromProtocol, refetch: refetchProtocols,
+  } = useProtocols(user?.id);
 
   const handleRefresh = useCallback(async () => {
-    await refetch();
+    await Promise.all([refetch(), refetchProtocols()]);
   }, [refetch]);
 
   const { containerRef, pullDistance, refreshing, isTriggered } = usePullToRefresh({
@@ -115,6 +122,9 @@ const Index = () => {
             <button onClick={signOut} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground" title="Sign out">
               <LogOut className="w-4 h-4" />
             </button>
+            <button onClick={() => setShowProtocolManager(true)} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground" title="Protocol Groups">
+              <Sparkles className="w-4 h-4" />
+            </button>
             <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground font-mono">
               <span className="inline-block w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-status-good animate-pulse-glow" />
               {compounds.length}
@@ -152,7 +162,7 @@ const Index = () => {
             <DashboardView compounds={compounds} />
           </TabsContent>
           <TabsContent value="schedule" className="animate-slide-up">
-            <WeeklyScheduleView compounds={compounds} />
+            <WeeklyScheduleView compounds={compounds} protocols={protocols} />
           </TabsContent>
           <TabsContent value="inventory" className="animate-slide-up">
             <InventoryView
@@ -178,6 +188,17 @@ const Index = () => {
             await addCompound(compound);
             await refetch();
           }}
+        />
+
+        <ProtocolManagerDialog
+          open={showProtocolManager}
+          onOpenChange={setShowProtocolManager}
+          protocols={protocols}
+          compounds={compounds}
+          onCreateProtocol={createProtocol}
+          onDeleteProtocol={deleteProtocol}
+          onAddCompound={addCompoundToProtocol}
+          onRemoveCompound={removeCompoundFromProtocol}
         />
       </main>
     </div>

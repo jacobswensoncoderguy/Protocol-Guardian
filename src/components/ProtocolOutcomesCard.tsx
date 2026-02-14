@@ -28,11 +28,11 @@ const outcomes: OutcomeCategory[] = [
     ],
   },
   {
-    icon: '🍆',
+    icon: '🔥',
     label: 'Vascular & Sexual Health',
     items: [
       'Penile blood flow +25-40% (Tadalafil)',
-      'Girth +0.2-0.5" over 6-12 months (full Dick Protocol)',
+      'Girth +0.2-0.5" over 6-12 months (full libido protocol)',
       '92% normal erectile function (Arginine + Pycnogenol)',
       'Endothelial function +30-40%',
     ],
