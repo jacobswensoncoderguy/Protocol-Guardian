@@ -1,7 +1,8 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Package, DollarSign, LayoutDashboard, ShoppingCart } from 'lucide-react';
+import { Calendar, Package, DollarSign, LayoutDashboard, ShoppingCart, Sun, Moon } from 'lucide-react';
 import { Compound } from '@/data/compounds';
 import { useCompounds } from '@/hooks/useCompounds';
+import { useTheme } from '@/hooks/useTheme';
 
 import DashboardView from '@/components/DashboardView';
 import WeeklyScheduleView from '@/components/WeeklyScheduleView';
@@ -11,6 +12,7 @@ import ReorderView from '@/components/ReorderView';
 
 const Index = () => {
   const { compounds, loading, updateCompound } = useCompounds();
+  const { isDark, toggle } = useTheme();
 
   const handleUpdateCompound = (id: string, updates: Partial<Compound>) => {
     updateCompound(id, updates);
@@ -34,9 +36,14 @@ const Index = () => {
               <span className="text-muted-foreground font-medium ml-1.5 sm:ml-2 text-sm sm:text-xl">Tracker</span>
             </h1>
           </div>
-          <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground font-mono flex-shrink-0">
-            <span className="inline-block w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-status-good animate-pulse-glow" />
-            {compounds.length}
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <button onClick={toggle} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground">
+              {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+            <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground font-mono">
+              <span className="inline-block w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-status-good animate-pulse-glow" />
+              {compounds.length}
+            </div>
           </div>
         </div>
       </header>
