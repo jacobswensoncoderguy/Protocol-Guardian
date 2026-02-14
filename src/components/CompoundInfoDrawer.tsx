@@ -45,14 +45,75 @@ const TimelineViz = ({ events }: { events: TimelineEvent[] }) => {
   );
 };
 
-// Normalize compound name to match benefit keys (e.g. "Anavar 10mg" → "anavar", "BPC-157" → "bpc-157")
+// Map user-facing compound names → compoundBenefits keys
+const NAME_TO_BENEFIT_KEY: Record<string, string> = {
+  '5-amino-1mq': '5-amino-1mq',
+  'b12': 'b12',
+  'bpc-157': 'bpc-157',
+  'cerebroprotein': 'cerebroprotein',
+  'cjc-1295': 'cjc-1295',
+  'ghk-cu': 'ghk-cu',
+  'igf-1 lr3': 'igf1-lr3',
+  'ipamorelin': 'ipamorelin',
+  'mots-c': 'mots-c',
+  'nad+': 'nad-plus',
+  'retatrutide': 'retatrutide',
+  'selank': 'selank',
+  'semax': 'semax',
+  'tb-500': 'tb-500',
+  'tesamorelin': 'tesamorelin',
+  'thymosin alpha-1': 'thymosin-a1',
+  'deca': 'deca',
+  'test cypionate': 'test-cyp',
+  'anavar': 'anavar',
+  'ashwagandha': 'ashwagandha',
+  'ksm-66 ashwagandha': 'ashwagandha',
+  'bergamot': 'bergamot',
+  'citrus bergamot': 'bergamot',
+  'cabergoline': 'cabergoline',
+  'hawthorn': 'hawthorn',
+  'hawthorn berry': 'hawthorn',
+  'l-arginine': 'l-arginine',
+  'magnesium': 'magnesium',
+  'magnesium glycinate': 'magnesium',
+  'milk thistle': 'milk-thistle',
+  'nac': 'nac',
+  'omega-3': 'omega3',
+  'omega3': 'omega3',
+  'super omega-3 fish oil': 'omega3',
+  'fish oil': 'omega3',
+  'pycnogenol': 'pycnogenol',
+  'tadalafil': 'tadalafil',
+  'tudca': 'tudca',
+  'ubiquinol': 'ubiquinol',
+  'coq10': 'ubiquinol',
+  'qunol/coq10': 'ubiquinol',
+  'qunol': 'ubiquinol',
+  'collagen': 'collagen',
+  'collagen peptides': 'collagen',
+  'citrulline': 'citrulline',
+  'l-citrulline': 'citrulline',
+  'l-citrulline malate': 'citrulline',
+  'l-citrulline malate 2:1': 'citrulline',
+  'taurine': 'taurine',
+  'vitamin c': 'vitamin-c',
+  'vitamin-c': 'vitamin-c',
+};
+
 function toBenefitKey(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/\s*\d+\s*mg$/i, '') // strip trailing dose like "10mg"
-    .replace(/\s*\(.*\)$/, '')     // strip parentheticals like "(Nandrolone)"
-    .replace(/\s+/g, '-')
-    .trim();
+  // Strip trailing doses/sizes (e.g. "10mg", "500mg", "1,000mg", "1g", "200mg", "250mcg", "5mg")
+  const stripped = name
+    .replace(/\s*\d[\d,]*\s*(mg|mcg|g)\s*$/i, '')
+    .replace(/\s*\(.*\)$/, '')
+    .trim()
+    .toLowerCase();
+
+  if (NAME_TO_BENEFIT_KEY[stripped]) return NAME_TO_BENEFIT_KEY[stripped];
+
+  const full = name.toLowerCase().replace(/\s*\(.*\)$/, '').trim();
+  if (NAME_TO_BENEFIT_KEY[full]) return NAME_TO_BENEFIT_KEY[full];
+
+  return stripped.replace(/\s+/g, '-');
 }
 
 const CompoundInfoDrawer = ({ compound, open, onOpenChange }: CompoundInfoDrawerProps) => {
