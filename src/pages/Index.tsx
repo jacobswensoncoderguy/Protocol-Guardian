@@ -1,11 +1,13 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Package, DollarSign, LayoutDashboard, ShoppingCart, Sun, Moon, RefreshCw } from 'lucide-react';
+import { Calendar, Package, DollarSign, LayoutDashboard, ShoppingCart, Sun, Moon, RefreshCw, LogOut } from 'lucide-react';
 import { Compound } from '@/data/compounds';
 import { useCompounds } from '@/hooks/useCompounds';
+import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
+import Onboarding from './Onboarding';
 
 import DashboardView from '@/components/DashboardView';
 import WeeklyScheduleView from '@/components/WeeklyScheduleView';
@@ -39,8 +41,10 @@ const LoadingSkeleton = () => (
 );
 
 const Index = () => {
-  const { compounds, loading, updateCompound, refetch } = useCompounds();
+  const { user, signOut } = useAuth();
+  const { compounds, loading, hasCompounds, updateCompound, refetch } = useCompounds(user?.id);
   const { isDark, toggle } = useTheme();
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const handleRefresh = useCallback(async () => {
     await refetch();
@@ -56,6 +60,18 @@ const Index = () => {
 
   if (loading) {
     return <LoadingSkeleton />;
+  }
+
+  // Show onboarding if user has no compounds
+  if (hasCompounds === false || showOnboarding) {
+    return (
+      <Onboarding
+        onComplete={() => {
+          setShowOnboarding(false);
+          refetch();
+        }}
+      />
+    );
   }
 
   return (
@@ -90,9 +106,12 @@ const Index = () => {
               <span className="text-muted-foreground font-medium ml-1.5 sm:ml-2 text-sm sm:text-xl">Tracker</span>
             </h1>
           </div>
-          <div className="flex items-center gap-3 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <button onClick={toggle} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground">
               {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+            <button onClick={signOut} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground" title="Sign out">
+              <LogOut className="w-4 h-4" />
             </button>
             <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground font-mono">
               <span className="inline-block w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-status-good animate-pulse-glow" />
@@ -137,7 +156,7 @@ const Index = () => {
             <InventoryView compounds={compounds} onUpdateCompound={handleUpdateCompound} />
           </TabsContent>
           <TabsContent value="reorders" className="animate-slide-up">
-            <ReorderView compounds={compounds} onUpdateCompound={handleUpdateCompound} />
+            <ReorderView compounds={compounds} onUpdateCompound={handleUpdateCompound} userId={user?.id} />
           </TabsContent>
           <TabsContent value="costs" className="animate-slide-up">
             <CostProjectionView compounds={compounds} />

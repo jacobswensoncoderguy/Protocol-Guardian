@@ -106,6 +106,7 @@ export type Database = {
           quantity: number
           received_at: string | null
           status: string
+          user_id: string | null
         }
         Insert: {
           compound_id: string
@@ -117,6 +118,7 @@ export type Database = {
           quantity: number
           received_at?: string | null
           status?: string
+          user_id?: string | null
         }
         Update: {
           compound_id?: string
@@ -128,6 +130,121 @@ export type Database = {
           quantity?: number
           received_at?: string | null
           status?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_compounds: {
+        Row: {
+          bacstat_per_vial: number | null
+          category: string
+          compound_id: string
+          created_at: string
+          current_quantity: number
+          cycle_off_days: number | null
+          cycle_on_days: number | null
+          cycle_start_date: string | null
+          cycling_note: string | null
+          days_per_week: number
+          dose_label: string
+          dose_per_use: number
+          doses_per_day: number
+          id: string
+          kit_price: number | null
+          name: string
+          notes: string | null
+          purchase_date: string | null
+          recon_volume: number | null
+          reorder_quantity: number
+          timing_note: string | null
+          unit_label: string
+          unit_price: number
+          unit_size: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bacstat_per_vial?: number | null
+          category: string
+          compound_id: string
+          created_at?: string
+          current_quantity?: number
+          cycle_off_days?: number | null
+          cycle_on_days?: number | null
+          cycle_start_date?: string | null
+          cycling_note?: string | null
+          days_per_week: number
+          dose_label: string
+          dose_per_use: number
+          doses_per_day: number
+          id?: string
+          kit_price?: number | null
+          name: string
+          notes?: string | null
+          purchase_date?: string | null
+          recon_volume?: number | null
+          reorder_quantity?: number
+          timing_note?: string | null
+          unit_label: string
+          unit_price: number
+          unit_size: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bacstat_per_vial?: number | null
+          category?: string
+          compound_id?: string
+          created_at?: string
+          current_quantity?: number
+          cycle_off_days?: number | null
+          cycle_on_days?: number | null
+          cycle_start_date?: string | null
+          cycling_note?: string | null
+          days_per_week?: number
+          dose_label?: string
+          dose_per_use?: number
+          doses_per_day?: number
+          id?: string
+          kit_price?: number | null
+          name?: string
+          notes?: string | null
+          purchase_date?: string | null
+          recon_volume?: number | null
+          reorder_quantity?: number
+          timing_note?: string | null
+          unit_label?: string
+          unit_price?: number
+          unit_size?: number
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

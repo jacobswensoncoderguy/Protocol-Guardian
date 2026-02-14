@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Compound, CompoundCategory, defaultCompounds } from '@/data/compounds';
+import { Compound, CompoundCategory } from '@/data/compounds';
 
-interface DbCompound {
+interface DbUserCompound {
   id: string;
+  user_id: string;
+  compound_id: string;
   name: string;
   category: string;
   unit_size: number;
@@ -27,9 +29,9 @@ interface DbCompound {
   cycle_start_date: string | null;
 }
 
-function dbToCompound(row: DbCompound): Compound {
+function dbToCompound(row: DbUserCompound): Compound {
   return {
-    id: row.id,
+    id: row.id, // use user_compound UUID as the compound id
     name: row.name,
     category: row.category as CompoundCategory,
     unitSize: row.unit_size,
@@ -54,36 +56,45 @@ function dbToCompound(row: DbCompound): Compound {
   };
 }
 
-export function useCompounds() {
+export function useCompounds(userId: string | undefined) {
   const [compounds, setCompounds] = useState<Compound[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasCompounds, setHasCompounds] = useState<boolean | null>(null);
 
   const fetchCompounds = useCallback(async () => {
+    if (!userId) {
+      setCompounds([]);
+      setLoading(false);
+      setHasCompounds(null);
+      return;
+    }
+
     const { data, error } = await supabase
-      .from('compounds')
-      .select('*');
+      .from('user_compounds')
+      .select('*')
+      .eq('user_id', userId);
 
     if (error) {
       console.error('Failed to fetch compounds:', error);
-      // Fallback to defaults if DB fails
-      setCompounds(defaultCompounds);
+      setCompounds([]);
+      setHasCompounds(false);
     } else if (data && data.length > 0) {
-      setCompounds((data as DbCompound[]).map(dbToCompound));
+      setCompounds((data as DbUserCompound[]).map(dbToCompound));
+      setHasCompounds(true);
     } else {
-      setCompounds(defaultCompounds);
+      setCompounds([]);
+      setHasCompounds(false);
     }
     setLoading(false);
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     fetchCompounds();
   }, [fetchCompounds]);
 
   const updateCompound = useCallback(async (id: string, updates: Partial<Compound>) => {
-    // Optimistic update
     setCompounds(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
 
-    // Map camelCase to snake_case for DB
     const dbUpdates: Record<string, unknown> = {};
     if (updates.name !== undefined) dbUpdates.name = updates.name;
     if (updates.category !== undefined) dbUpdates.category = updates.category;
@@ -108,24 +119,25 @@ export function useCompounds() {
     if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
 
     const { error } = await supabase
-      .from('compounds')
+      .from('user_compounds')
       .update(dbUpdates)
       .eq('id', id);
 
     if (error) {
       console.error('Failed to update compound:', error);
-      // Revert on failure
       fetchCompounds();
     }
   }, [fetchCompounds]);
 
   const addCompound = useCallback(async (compound: Compound) => {
+    if (!userId) return;
     setCompounds(prev => [...prev, compound]);
 
     const { error } = await supabase
-      .from('compounds')
+      .from('user_compounds')
       .insert({
-        id: compound.id,
+        user_id: userId,
+        compound_id: compound.id,
         name: compound.name,
         category: compound.category,
         unit_size: compound.unitSize,
@@ -153,13 +165,13 @@ export function useCompounds() {
       console.error('Failed to add compound:', error);
       fetchCompounds();
     }
-  }, [fetchCompounds]);
+  }, [userId, fetchCompounds]);
 
   const deleteCompound = useCallback(async (id: string) => {
     setCompounds(prev => prev.filter(c => c.id !== id));
 
     const { error } = await supabase
-      .from('compounds')
+      .from('user_compounds')
       .delete()
       .eq('id', id);
 
@@ -169,5 +181,5 @@ export function useCompounds() {
     }
   }, [fetchCompounds]);
 
-  return { compounds, loading, updateCompound, addCompound, deleteCompound, refetch: fetchCompounds };
+  return { compounds, loading, hasCompounds, updateCompound, addCompound, deleteCompound, refetch: fetchCompounds };
 }
