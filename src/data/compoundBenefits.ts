@@ -566,6 +566,41 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       { week: 4, label: 'Collagen synthesis cofactor saturated' },
     ],
   },
+  semaglutide: {
+    icon: '💉',
+    benefits: [
+      'GLP-1 receptor agonist → appetite suppression & metabolic reset',
+      'At therapeutic dose: significant weight loss (12-17% body weight in trials)',
+      'Delays gastric emptying → prolonged satiety between meals',
+      'Improves insulin sensitivity and cardiovascular risk markers',
+      'Reduces visceral adipose tissue and liver fat accumulation',
+      '📊 Projected: 12-17% total body weight loss over 68 weeks; ~2-3 lb fat loss/month; HbA1c reduction of 1-1.5%; waist circumference −3-5 inches over 6 months',
+    ],
+    timeline: [
+      { week: 1, label: 'Appetite suppression begins' },
+      { week: 4, label: '~4-6 lb fat loss' },
+      { week: 12, label: 'Waist circumference −2-3"' },
+      { week: 24, label: '10-12% body weight loss' },
+      { week: 48, label: 'Full 12-17% body weight reduction' },
+    ],
+  },
+  winstrol: {
+    icon: '⚔️',
+    benefits: [
+      'Stanozolol — DHT-derived oral anabolic for cutting & strength',
+      'At 25-50mg daily: dramatic hardening, vascularity & strength within 2 weeks',
+      'Does not aromatize → zero water retention or estrogenic sides',
+      'Lowers SHBG → increases free testosterone bioavailability',
+      'Ideal for pre-competition or cutting phases with lean mass preservation',
+      '📊 Projected: 3-5 lb lean mass gain per 6-week cycle; strength increase of 10-15%; significant muscle hardness & vascularity; 1-3% body fat reduction when diet-compliant',
+    ],
+    timeline: [
+      { week: 1, label: 'Strength & vascularity increase' },
+      { week: 2, label: 'Muscle hardening noticeable' },
+      { week: 4, label: '2-3 lb lean mass gained' },
+      { week: 6, label: 'Full cycle: 3-5 lb lean mass + dramatic definition' },
+    ],
+  },
 };
 
 // Protocol groupings are now user-defined via the user_protocols table.

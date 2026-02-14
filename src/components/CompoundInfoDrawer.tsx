@@ -98,6 +98,9 @@ const NAME_TO_BENEFIT_KEY: Record<string, string> = {
   'taurine': 'taurine',
   'vitamin c': 'vitamin-c',
   'vitamin-c': 'vitamin-c',
+  'semaglutide': 'semaglutide',
+  'winstrol': 'winstrol',
+  'stanozolol': 'winstrol',
 };
 
 function toBenefitKey(name: string): string {
