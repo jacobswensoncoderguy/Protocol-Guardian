@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Compound, getStatus, getReorderDateString, CompoundCategory } from '@/data/compounds';
 import { getCycleStatus, getDaysRemainingWithCycling } from '@/lib/cycling';
 import { UserProtocol } from '@/hooks/useProtocols';
-import { Pencil, Check, X, Trash2, Plus } from 'lucide-react';
+import { Pencil, Check, X, Trash2, Plus, ChevronDown } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface InventoryViewProps {
   compounds: Compound[];
@@ -100,16 +101,22 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
 
       {/* Compound Cards */}
       {groups.map(group => (
-        <div key={group.label}>
+        <Collapsible key={group.label} defaultOpen>
           {group.label !== 'all' && (
-            <h3 className="text-sm font-semibold text-foreground mb-2">{group.label}</h3>
+            <CollapsibleTrigger className="flex items-center gap-1.5 w-full text-left mb-2 group">
+              <ChevronDown className="w-3.5 h-3.5 text-muted-foreground transition-transform duration-200 group-data-[state=closed]:-rotate-90" />
+              <h3 className="text-sm font-semibold text-foreground">{group.label}</h3>
+              <span className="text-[10px] text-muted-foreground font-mono">({group.items.length})</span>
+            </CollapsibleTrigger>
           )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            {group.items.map(compound => (
-              <CompoundCard key={compound.id} compound={compound} onUpdate={onUpdateCompound} onDelete={onDeleteCompound} />
-            ))}
-          </div>
-        </div>
+          <CollapsibleContent className="animate-accordion-down data-[state=closed]:animate-accordion-up">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {group.items.map(compound => (
+                <CompoundCard key={compound.id} compound={compound} onUpdate={onUpdateCompound} onDelete={onDeleteCompound} />
+              ))}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       ))}
     </div>
   );
