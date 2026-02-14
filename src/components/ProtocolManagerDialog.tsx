@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { UserProtocol, SUGGESTED_PROTOCOLS } from '@/hooks/useProtocols';
 import { Compound } from '@/data/compounds';
-import { Plus, Trash2, ChevronRight, ArrowLeft, Check, X, Sparkles, Pencil } from 'lucide-react';
+import { Plus, Trash2, ChevronRight, ArrowLeft, Check, X, Sparkles, Pencil, Copy, StickyNote } from 'lucide-react';
 
 interface ProtocolManagerDialogProps {
   open: boolean;
@@ -11,6 +11,8 @@ interface ProtocolManagerDialogProps {
   compounds: Compound[];
   onCreateProtocol: (name: string, icon: string, description?: string) => Promise<any>;
   onDeleteProtocol: (id: string) => Promise<void>;
+  onCloneProtocol: (id: string) => Promise<any>;
+  onUpdateProtocol: (id: string, updates: { name?: string; icon?: string; description?: string; notes?: string }) => Promise<void>;
   onAddCompound: (protocolId: string, compoundId: string) => Promise<void>;
   onRemoveCompound: (protocolId: string, compoundId: string) => Promise<void>;
   onUpdateCompound?: (id: string, updates: Partial<Compound>) => void;
@@ -58,6 +60,8 @@ const ProtocolManagerDialog = ({
   compounds,
   onCreateProtocol,
   onDeleteProtocol,
+  onCloneProtocol,
+  onUpdateProtocol,
   onAddCompound,
   onRemoveCompound,
   onUpdateCompound,
@@ -74,6 +78,10 @@ const ProtocolManagerDialog = ({
   const [bulkDays, setBulkDays] = useState<Set<number>>(new Set());
   const [bulkApplied, setBulkApplied] = useState(false);
 
+  // Notes state
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [notesValue, setNotesValue] = useState('');
+
   const handleClose = (o: boolean) => {
     if (!o) {
       setView('list');
@@ -83,6 +91,7 @@ const ProtocolManagerDialog = ({
       setNewDesc('');
       setConfirmDelete(null);
       setBulkApplied(false);
+      setEditingNotes(false);
     }
     onOpenChange(o);
   };
@@ -105,6 +114,8 @@ const ProtocolManagerDialog = ({
 
   const openDetail = (p: UserProtocol) => {
     setSelectedProtocol(p);
+    setNotesValue(p.notes || '');
+    setEditingNotes(false);
     setView('detail');
   };
 
@@ -383,6 +394,44 @@ const ProtocolManagerDialog = ({
                 <p className="text-sm text-muted-foreground text-center py-4">No compounds assigned yet.</p>
               )}
 
+              {/* Notes / Goals */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Notes & Goals</p>
+                  {!editingNotes && (
+                    <button onClick={() => { setNotesValue(selectedProtocol.notes || ''); setEditingNotes(true); }} className="text-[10px] text-primary hover:underline">
+                      {selectedProtocol.notes ? 'Edit' : 'Add notes'}
+                    </button>
+                  )}
+                </div>
+                {editingNotes ? (
+                  <div className="space-y-1.5">
+                    <textarea
+                      value={notesValue}
+                      onChange={e => setNotesValue(e.target.value)}
+                      placeholder="Target outcomes, progress notes, goals…"
+                      className="w-full bg-secondary border border-border/50 rounded-lg px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 resize-none h-20"
+                    />
+                    <div className="flex gap-1.5">
+                      <button
+                        onClick={async () => {
+                          await onUpdateProtocol(selectedProtocol.id, { notes: notesValue || undefined });
+                          setEditingNotes(false);
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-[11px] font-medium"
+                      >
+                        Save
+                      </button>
+                      <button onClick={() => setEditingNotes(false)} className="px-3 py-1.5 rounded-lg bg-secondary text-muted-foreground text-[11px]">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : selectedProtocol.notes ? (
+                  <p className="text-xs text-foreground/80 whitespace-pre-wrap bg-secondary/50 rounded-lg px-3 py-2 border border-border/30">{selectedProtocol.notes}</p>
+                ) : null}
+              </div>
+
               <div className="flex gap-2">
                 <button
                   onClick={() => setView('assign')}
@@ -401,6 +450,19 @@ const ProtocolManagerDialog = ({
                   </button>
                 )}
               </div>
+
+              {/* Clone */}
+              <button
+                onClick={async () => {
+                  await onCloneProtocol(selectedProtocol.id);
+                  setView('list');
+                  setSelectedProtocol(null);
+                }}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-border/50 bg-secondary/50 hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground text-xs font-medium"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                Duplicate Protocol
+              </button>
             </div>
           )}
 

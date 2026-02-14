@@ -51,7 +51,7 @@ const Index = () => {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showProtocolManager, setShowProtocolManager] = useState(false);
   const {
-    protocols, createProtocol, deleteProtocol,
+    protocols, createProtocol, deleteProtocol, cloneProtocol, updateProtocol,
     addCompoundToProtocol, removeCompoundFromProtocol, refetch: refetchProtocols,
   } = useProtocols(user?.id);
 
@@ -198,6 +198,8 @@ const Index = () => {
           compounds={compounds}
           onCreateProtocol={createProtocol}
           onDeleteProtocol={deleteProtocol}
+          onCloneProtocol={cloneProtocol}
+          onUpdateProtocol={updateProtocol}
           onAddCompound={addCompoundToProtocol}
           onRemoveCompound={removeCompoundFromProtocol}
           onUpdateCompound={handleUpdateCompound}
