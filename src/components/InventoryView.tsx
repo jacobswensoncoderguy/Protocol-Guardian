@@ -152,8 +152,8 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
     for (const [pat, idxs] of patterns) {
       if (pat.test(lower)) { idxs.forEach(i => days.add(i)); return days; }
     }
-    const dayMap: Record<string, number> = { sun: 0, mon: 1, tue: 2, tues: 2, wed: 3, thu: 4, thurs: 4, fri: 5, sat: 6, sa: 6 };
-    const matches = lower.match(/\b(sun(?:day)?|mon(?:day)?|tue(?:s(?:day)?)?|wed(?:nesday)?|thu(?:rs(?:day)?)?|fri(?:day)?|sat(?:urday)?|sa)\b/gi);
+    const dayMap: Record<string, number> = { su: 0, sun: 0, mo: 1, mon: 1, tu: 2, tue: 2, tues: 2, we: 3, wed: 3, th: 4, thu: 4, thurs: 4, fr: 5, fri: 5, sa: 6, sat: 6 };
+    const matches = lower.match(/\b(su(?:n(?:day)?)?|mo(?:n(?:day)?)?|tu(?:e(?:s(?:day)?)?)?|we(?:d(?:nesday)?)?|th(?:u(?:rs(?:day)?)?)?|fr(?:i(?:day)?)?|sa(?:t(?:urday)?)?)\b/gi);
     if (matches) matches.forEach(m => { const i = dayMap[m.toLowerCase()]; if (i !== undefined) days.add(i); });
     if (days.size === 0 && (/\bdaily\b|\bnightly\b|\bevery\s*day\b/i.test(lower) || compound.daysPerWeek === 7)) {
       [0,1,2,3,4,5,6].forEach(i => days.add(i));
@@ -168,7 +168,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
     if (sorted.join(',') === '1,2,3,4,5') return 'M-F';
     if (sorted.join(',') === '1,3,5') return 'M/W/F';
     if (sorted.join(',') === '2,4') return 'T/Th';
-    return sorted.map(d => DAY_LABELS[d]).join('/');
+    return sorted.map(d => DAY_KEYS[d]).join('/');
   };
 
   const startEdit = () => {

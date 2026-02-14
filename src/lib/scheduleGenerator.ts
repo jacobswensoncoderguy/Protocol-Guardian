@@ -19,17 +19,17 @@ function parseDays(compound: Compound): number[] {
 
   // Check for specific day names
   const dayMap: Record<string, number> = {
-    sun: 0, sunday: 0,
-    mon: 1, monday: 1, 'm': 1,
-    tue: 2, tues: 2, tuesday: 2,
-    wed: 3, wednesday: 3,
-    thu: 4, thurs: 4, thursday: 4,
-    fri: 5, friday: 5,
-    sat: 6, saturday: 6, sa: 6,
+    su: 0, sun: 0, sunday: 0,
+    mo: 1, mon: 1, monday: 1, 'm': 1,
+    tu: 2, tue: 2, tues: 2, tuesday: 2,
+    we: 3, wed: 3, wednesday: 3,
+    th: 4, thu: 4, thurs: 4, thursday: 4,
+    fr: 5, fri: 5, friday: 5,
+    sa: 6, sat: 6, saturday: 6,
   };
 
-  // Pattern like "M/T/W/Th/F/Sa" or individual day mentions
-  const dayPattern = /\b(sun(?:day)?|mon(?:day)?|tue(?:s(?:day)?)?|wed(?:nesday)?|thu(?:rs(?:day)?)?|fri(?:day)?|sat(?:urday)?|sa)\b/gi;
+  // Pattern like "M/T/W/Th/F/Sa" or individual day mentions (including 2-letter abbreviations)
+  const dayPattern = /\b(su(?:n(?:day)?)?|mo(?:n(?:day)?)?|tu(?:e(?:s(?:day)?)?)?|we(?:d(?:nesday)?)?|th(?:u(?:rs(?:day)?)?)?|fr(?:i(?:day)?)?|sa(?:t(?:urday)?)?)\b/gi;
   const matches = note.match(dayPattern);
   if (matches && matches.length > 0) {
     const days = new Set<number>();
