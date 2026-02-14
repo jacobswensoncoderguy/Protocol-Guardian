@@ -1,6 +1,12 @@
+export interface TimelineEvent {
+  week: number;
+  label: string;
+}
+
 export interface CompoundBenefit {
   icon: string; // emoji
   benefits: string[];
+  timeline?: TimelineEvent[];
 }
 
 export const compoundBenefits: Record<string, CompoundBenefit> = {
@@ -14,6 +20,12 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'May improve insulin sensitivity over 30-day ON cycles',
       '📊 Projected: 2-4% body fat reduction per 8-week cycle; ~1-2 lb visceral fat loss/month when paired with training',
     ],
+    timeline: [
+      { week: 1, label: 'NAD+ levels begin rising' },
+      { week: 3, label: 'Increased metabolic rate noticeable' },
+      { week: 6, label: 'Visible body recomposition' },
+      { week: 8, label: '2-4% body fat reduction achieved' },
+    ],
   },
   b12: {
     icon: '⚡',
@@ -22,6 +34,11 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'At 1mg/wk injection: maintains optimal serum B12 (>600 pg/mL)',
       'Enhances energy, mood, and cognitive function',
       'Injectable bypasses absorption issues common with oral B12',
+    ],
+    timeline: [
+      { week: 1, label: 'Energy & mood lift' },
+      { week: 4, label: 'Serum B12 optimized (>600 pg/mL)' },
+      { week: 8, label: 'Sustained cognitive clarity' },
     ],
   },
   'bpc-157': {
@@ -34,6 +51,12 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Synergizes with TB-500 for systemic tissue repair',
       '📊 Projected: 30-50% faster tendon/ligament healing vs baseline; measurable pain reduction (VAS -3 to -5 points) within 3 weeks',
     ],
+    timeline: [
+      { week: 1, label: 'GI lining protection begins' },
+      { week: 2, label: 'Joint/tendon pain reduction' },
+      { week: 3, label: 'Measurable healing acceleration' },
+      { week: 6, label: '30-50% faster tissue repair' },
+    ],
   },
   cerebroprotein: {
     icon: '🧠',
@@ -42,6 +65,11 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'At 30 IU M-F: improved focus, memory & mental clarity in 3-4 weeks',
       'Supports neuroplasticity and learning capacity',
       'May enhance recovery from cognitive fatigue',
+    ],
+    timeline: [
+      { week: 2, label: 'Improved focus & mental stamina' },
+      { week: 4, label: 'Enhanced memory & learning' },
+      { week: 6, label: 'Neuroplasticity gains plateau' },
     ],
   },
   'cjc-1295': {
@@ -54,6 +82,12 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'No DAC version = cleaner pulsatile release pattern',
       '📊 Projected: IGF-1 increase of 50-150 ng/mL; 1-3 lb lean mass gain & 1-2% body fat reduction over 12 weeks with training',
     ],
+    timeline: [
+      { week: 1, label: 'Deeper sleep quality' },
+      { week: 3, label: 'IGF-1 elevation measurable' },
+      { week: 6, label: 'Body composition shifts' },
+      { week: 12, label: '1-3 lb lean mass gain' },
+    ],
   },
   'ghk-cu': {
     icon: '✨',
@@ -65,6 +99,11 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Promotes hair follicle health and wound healing',
       '📊 Projected: ~30% increase in collagen III density at 8 weeks; measurable skin thickness increase of 10-15% via ultrasound',
     ],
+    timeline: [
+      { week: 2, label: 'Wound healing acceleration' },
+      { week: 4, label: 'Visible skin quality improvement' },
+      { week: 8, label: '30% collagen III density increase' },
+    ],
   },
   'igf1-lr3': {
     icon: '💪',
@@ -74,6 +113,12 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Promotes satellite cell activation for muscle repair',
       'Improves nutrient partitioning toward muscle tissue',
       '📊 Projected: 2-5 lb lean muscle gain over 8-12 weeks; localized muscle fullness increase of ~5-10% in injected areas',
+    ],
+    timeline: [
+      { week: 1, label: 'Enhanced post-workout recovery' },
+      { week: 3, label: 'Localized muscle fullness (+5%)' },
+      { week: 8, label: '2-5 lb lean muscle gain' },
+      { week: 12, label: 'Visible hyperplasia in target areas' },
     ],
   },
   ipamorelin: {
@@ -86,6 +131,12 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Stacks perfectly with CJC-1295 for amplified GH output',
       '📊 Projected (with CJC stack): GH output 2-3x above baseline; 1-2% body fat loss & improved skin elasticity over 12 weeks',
     ],
+    timeline: [
+      { week: 1, label: 'Improved sleep depth' },
+      { week: 2, label: 'Recovery speed increase' },
+      { week: 6, label: 'Skin elasticity improvement' },
+      { week: 12, label: '1-2% body fat reduction' },
+    ],
   },
   'mots-c': {
     icon: '⚙️',
@@ -97,6 +148,11 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Anti-aging effects via mitochondrial function preservation',
       '📊 Projected: VO2 max improvement of 5-10% over 8 weeks; fasting glucose reduction of 5-15 mg/dL; 1-2% body fat reduction',
     ],
+    timeline: [
+      { week: 2, label: 'Exercise endurance improves' },
+      { week: 4, label: 'Fasting glucose drops 5-15 mg/dL' },
+      { week: 8, label: 'VO2 max +5-10%' },
+    ],
   },
   'nad-plus': {
     icon: '🔋',
@@ -106,6 +162,11 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Activates sirtuins (longevity genes) and PARP repair enzymes',
       'Supports healthy aging and neuroprotection',
       'Injectable route achieves ~100% bioavailability vs oral (~2%)',
+    ],
+    timeline: [
+      { week: 0.5, label: 'Immediate energy & clarity boost' },
+      { week: 2, label: 'Sustained cognitive improvement' },
+      { week: 8, label: 'Sirtuin-mediated anti-aging effects' },
     ],
   },
   retatrutide: {
@@ -118,6 +179,13 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       '112-day ON cycles allow sustained, progressive fat loss',
       '📊 Projected: 15-24% total body weight loss over 48 weeks; ~2-4 lb fat loss/month; waist circumference reduction of 3-6 inches over 6 months',
     ],
+    timeline: [
+      { week: 1, label: 'Appetite suppression kicks in' },
+      { week: 4, label: '~4-8 lb fat loss' },
+      { week: 12, label: 'Waist circumference −2-3"' },
+      { week: 24, label: '15-20% total body weight loss' },
+      { week: 48, label: 'Up to 24% body weight reduction' },
+    ],
   },
   selank: {
     icon: '🧘',
@@ -128,6 +196,11 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Enhances BDNF expression → neuroplasticity support',
       'Non-sedating and non-addictive anti-anxiety effect',
     ],
+    timeline: [
+      { week: 1, label: 'Anxiety reduction & calm focus' },
+      { week: 2, label: 'Mood stabilization' },
+      { week: 4, label: 'BDNF-driven neuroplasticity gains' },
+    ],
   },
   semax: {
     icon: '🎓',
@@ -137,6 +210,11 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Increases BDNF and NGF (nerve growth factor)',
       'Supports attention, learning, and stress resilience',
       'Synergizes with Selank for balanced cognitive optimization',
+    ],
+    timeline: [
+      { week: 1, label: 'Sharper focus & mental stamina' },
+      { week: 3, label: 'BDNF & NGF upregulation' },
+      { week: 6, label: 'Sustained cognitive enhancement' },
     ],
   },
   'tb-500': {
@@ -149,6 +227,11 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Synergizes with BPC-157 for comprehensive healing',
       '📊 Projected: 40-60% faster soft tissue repair; reduced scar tissue formation by ~20-30%; measurable joint ROM improvement in 4-6 weeks',
     ],
+    timeline: [
+      { week: 1, label: 'Inflammation reduction' },
+      { week: 3, label: 'Accelerated tissue repair' },
+      { week: 6, label: 'Joint ROM improvement & scar reduction' },
+    ],
   },
   tesamorelin: {
     icon: '🏋️',
@@ -160,6 +243,12 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Supports cognitive function via GH pathway activation',
       '📊 Projected: 15-20% visceral fat reduction over 6 months; trunk fat decrease of ~1.5-2.5 cm via CT measurement; IGF-1 increase of 40-100 ng/mL',
     ],
+    timeline: [
+      { week: 2, label: 'IGF-1 begins rising' },
+      { week: 6, label: 'Measurable visceral fat reduction' },
+      { week: 12, label: 'Trunk fat −1.5 cm' },
+      { week: 24, label: '15-20% visceral fat gone' },
+    ],
   },
   'thymosin-a1': {
     icon: '🛡️',
@@ -169,6 +258,11 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Balances Th1/Th2 response for optimal immune regulation',
       'Supports vaccine efficacy and infection resistance',
       'Anti-tumor immune activity documented in clinical trials',
+    ],
+    timeline: [
+      { week: 2, label: 'T-cell & NK cell upregulation' },
+      { week: 4, label: 'Immune surveillance strengthened' },
+      { week: 8, label: 'Full Th1/Th2 balance' },
     ],
   },
   deca: {
@@ -181,6 +275,12 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Supports bone mineral density during intense training',
       '📊 Projected: 4-8 lb lean mass gain per 16-week cycle; collagen synthesis increase of ~200%; bone mineral density +2-3% annually; joint pain reduction of 50-70%',
     ],
+    timeline: [
+      { week: 3, label: 'Joint pain relief (50-70%)' },
+      { week: 6, label: 'Collagen synthesis +200%' },
+      { week: 12, label: '4-6 lb lean mass gain' },
+      { week: 16, label: 'Full cycle: 4-8 lb lean mass' },
+    ],
   },
   'test-cyp': {
     icon: '🐂',
@@ -191,6 +291,13 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Improved mood, motivation, libido & cognitive function',
       'Daily micro-dosing minimizes estrogen conversion vs weekly injections',
       '📊 Projected: 8-15 lb lean mass gain in first 6 months; 2-4% body fat reduction; total T levels 900-1400 ng/dL; strength gains of 15-25% on major lifts',
+    ],
+    timeline: [
+      { week: 1, label: 'Mood & libido improvement' },
+      { week: 3, label: 'Strength gains begin (5-10%)' },
+      { week: 8, label: 'Visible body recomposition' },
+      { week: 16, label: '8-12 lb lean mass gained' },
+      { week: 24, label: 'Full 8-15 lb lean mass + 2-4% BF loss' },
     ],
   },
   anavar: {
@@ -203,6 +310,12 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       '56-day cycles with liver support (TUDCA/NAC) protect hepatic function',
       '📊 Projected: 3-6 lb lean mass gain per 8-week cycle; strength increase of 10-20%; 1-2% body fat reduction with visible muscle hardening & vascularity',
     ],
+    timeline: [
+      { week: 2, label: 'Strength & hardness increase' },
+      { week: 4, label: 'Visible vascularity & muscle definition' },
+      { week: 6, label: '3-4 lb lean mass gained' },
+      { week: 8, label: 'Full cycle: 3-6 lb lean mass + 1-2% BF loss' },
+    ],
   },
   ashwagandha: {
     icon: '🌿',
@@ -211,6 +324,11 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'At 600mg daily: reduced cortisol (14-28%) within 4-8 weeks',
       'Supports testosterone, thyroid function & sleep quality',
       'Enhances endurance, VO2 max & recovery from training',
+    ],
+    timeline: [
+      { week: 2, label: 'Stress & sleep improvement' },
+      { week: 4, label: 'Cortisol reduction 14-28%' },
+      { week: 8, label: 'Testosterone & endurance gains' },
     ],
   },
   bergamot: {
@@ -221,6 +339,11 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Supports healthy HDL/LDL ratio and cardiovascular health',
       'Antioxidant and anti-inflammatory polyphenol profile',
     ],
+    timeline: [
+      { week: 4, label: 'Lipid panel begins improving' },
+      { week: 8, label: 'LDL reduction 15-20%' },
+      { week: 12, label: 'Full 20-30% LDL reduction' },
+    ],
   },
   cabergoline: {
     icon: '⚖️',
@@ -230,6 +353,10 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Prevents gynecomastia and sexual side effects from 19-nors',
       'Synced with Deca cycle (112 on / 56 off) for targeted support',
     ],
+    timeline: [
+      { week: 1, label: 'Prolactin suppression begins' },
+      { week: 2, label: 'Prolactin normalized' },
+    ],
   },
   hawthorn: {
     icon: '❤️',
@@ -238,6 +365,11 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'At 500mg daily: supports healthy blood pressure within 4-6 weeks',
       'Rich in flavonoids → antioxidant protection for heart tissue',
       'Supports healthy cardiac output during intense training',
+    ],
+    timeline: [
+      { week: 2, label: 'Antioxidant protection active' },
+      { week: 4, label: 'Blood pressure support' },
+      { week: 8, label: 'Cardiac output optimization' },
     ],
   },
   'l-arginine': {
@@ -249,6 +381,13 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Supports endothelial function and healthy blood pressure',
       '📊 Projected: NO production increase of 30-50%; penile blood flow improvement contributing to +0.2-0.5" girth over 6-12 months (full protocol); BP reduction of 2-5 mmHg',
     ],
+    timeline: [
+      { week: 1, label: 'Improved pumps & blood flow' },
+      { week: 4, label: 'Erectile quality improvement' },
+      { week: 12, label: 'BP reduction 2-5 mmHg' },
+      { week: 24, label: 'Penile girth +0.2-0.3" (full protocol)' },
+      { week: 48, label: 'Girth gains +0.3-0.5" (full protocol)' },
+    ],
   },
   magnesium: {
     icon: '😴',
@@ -258,6 +397,11 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Supports 300+ enzymatic reactions including ATP production',
       'Prevents cramps and supports recovery from intense training',
     ],
+    timeline: [
+      { week: 0.5, label: 'Improved sleep onset' },
+      { week: 2, label: 'Reduced cramps & tension' },
+      { week: 4, label: 'Full relaxation & recovery support' },
+    ],
   },
   'milk-thistle': {
     icon: '🌼',
@@ -266,6 +410,10 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'At 300mg daily: supports liver detoxification pathways',
       'Essential liver support during Anavar and oral compound use',
       'Anti-inflammatory and antifibrotic effects on liver tissue',
+    ],
+    timeline: [
+      { week: 2, label: 'Liver enzyme support active' },
+      { week: 6, label: 'Hepatoprotection fully established' },
     ],
   },
   nac: {
@@ -277,6 +425,11 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Supports respiratory health and mucus clearance',
       'Neuroprotective via glutamate modulation',
     ],
+    timeline: [
+      { week: 1, label: 'Glutathione production boost' },
+      { week: 4, label: 'Liver protection optimized' },
+      { week: 8, label: 'Systemic antioxidant defense' },
+    ],
   },
   omega3: {
     icon: '🐟',
@@ -285,6 +438,11 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'At 2 softgels daily: reduced inflammation markers in 4-6 weeks',
       'Supports cardiovascular health, joint mobility & brain function',
       'Helps manage lipid profile during anabolic compound use',
+    ],
+    timeline: [
+      { week: 4, label: 'Inflammation markers decrease' },
+      { week: 8, label: 'Joint mobility improvement' },
+      { week: 12, label: 'Lipid profile support' },
     ],
   },
   pycnogenol: {
@@ -297,6 +455,12 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Additional benefits: skin health, joint support & cognitive function',
       '📊 Projected: 92% of men achieve normal erectile function when combined with L-Arginine (Stanislavov study); endothelial function improvement of 30-40%',
     ],
+    timeline: [
+      { week: 2, label: 'NO production boost' },
+      { week: 4, label: 'Erectile function improvement' },
+      { week: 8, label: 'Endothelial function +30-40%' },
+      { week: 12, label: 'Skin & joint benefits' },
+    ],
   },
   tadalafil: {
     icon: '💊',
@@ -308,6 +472,12 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Half-life of 17.5h → smooth, continuous vascular support',
       '📊 Projected: erectile hardness score improvement from 3→4 (EHS scale); penile blood flow increase of 25-40%; systolic BP reduction of 3-5 mmHg',
     ],
+    timeline: [
+      { week: 0.5, label: 'Erectile quality improvement' },
+      { week: 2, label: 'Blood flow increase 25-40%' },
+      { week: 4, label: 'BP reduction 3-5 mmHg' },
+      { week: 12, label: 'Endothelial remodeling benefits' },
+    ],
   },
   tudca: {
     icon: '🫁',
@@ -316,6 +486,10 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'At 500mg daily: superior hepatoprotection during oral anabolic use',
       'Prevents bile acid toxicity and cholestasis',
       'Neuroprotective properties via ER stress reduction',
+    ],
+    timeline: [
+      { week: 1, label: 'Bile acid regulation active' },
+      { week: 4, label: 'Full hepatoprotection' },
     ],
   },
   ubiquinol: {
@@ -326,6 +500,11 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Critical supplement for anyone on statins or bergamot',
       'Powerful antioxidant protecting cell membranes',
     ],
+    timeline: [
+      { week: 2, label: 'Cellular energy improvement' },
+      { week: 4, label: 'Heart function support' },
+      { week: 8, label: 'Mitochondrial optimization' },
+    ],
   },
   collagen: {
     icon: '🦵',
@@ -335,6 +514,12 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Supports tendon, ligament & cartilage repair during heavy training',
       'Synergizes with Vitamin C for optimal collagen synthesis',
       '📊 Projected: skin elasticity improvement of 15-20% at 8 weeks; joint pain reduction of 25-40%; tendon cross-sectional area increase of ~5% over 6 months',
+    ],
+    timeline: [
+      { week: 4, label: 'Skin elasticity improvement' },
+      { week: 6, label: 'Joint comfort & pain reduction' },
+      { week: 8, label: 'Skin elasticity +15-20%' },
+      { week: 24, label: 'Tendon cross-section +5%' },
     ],
   },
   citrulline: {
@@ -347,6 +532,12 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Malate form supports ATP regeneration via Krebs cycle',
       '📊 Projected: plasma arginine increase of 227% (vs 70% from arginine alone); erectile hardness improvement synergistic with full Dick Protocol; exercise endurance +12-15%',
     ],
+    timeline: [
+      { week: 0.5, label: 'Immediate pump & endurance boost' },
+      { week: 2, label: 'Sustained NO production elevated' },
+      { week: 4, label: 'Endurance +12-15%' },
+      { week: 8, label: 'Erectile synergy with full protocol' },
+    ],
   },
   taurine: {
     icon: '⚡',
@@ -356,6 +547,11 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'Prevents taurine depletion caused by androgen receptor activation',
       'Supports electrolyte balance, hydration & muscle contractility',
     ],
+    timeline: [
+      { week: 1, label: 'Electrolyte balance restored' },
+      { week: 3, label: 'Taurine depletion prevented' },
+      { week: 6, label: 'Cardioprotective effects steady' },
+    ],
   },
   'vitamin-c': {
     icon: '🍋',
@@ -364,6 +560,10 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       'At 1g daily: supports immune function & antioxidant defense',
       'Synergizes with collagen peptides for optimal tissue repair',
       'Supports iron absorption and adrenal function',
+    ],
+    timeline: [
+      { week: 1, label: 'Immune defense active' },
+      { week: 4, label: 'Collagen synthesis cofactor saturated' },
     ],
   },
 };
