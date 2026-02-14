@@ -5,11 +5,16 @@ import { getCycleStatus } from '@/lib/cycling';
 import { getDaysRemainingWithCycling } from '@/lib/cycling';
 import { getStatus } from '@/data/compounds';
 import { Info, Clock } from 'lucide-react';
+import CompoundAISection from '@/components/CompoundAISection';
+import { CompoundAnalysis } from '@/hooks/useProtocolAnalysis';
 
 interface CompoundInfoDrawerProps {
   compound: Compound | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  compoundAnalysis?: CompoundAnalysis | null;
+  compoundLoading?: boolean;
+  onAnalyzeCompound?: (compoundId: string) => void;
 }
 
 const TimelineViz = ({ events }: { events: TimelineEvent[] }) => {
@@ -119,7 +124,7 @@ function toBenefitKey(name: string): string {
   return stripped.replace(/\s+/g, '-');
 }
 
-const CompoundInfoDrawer = ({ compound, open, onOpenChange }: CompoundInfoDrawerProps) => {
+const CompoundInfoDrawer = ({ compound, open, onOpenChange, compoundAnalysis, compoundLoading, onAnalyzeCompound }: CompoundInfoDrawerProps) => {
   if (!compound) return null;
 
   const key = toBenefitKey(compound.name);
@@ -203,6 +208,13 @@ const CompoundInfoDrawer = ({ compound, open, onOpenChange }: CompoundInfoDrawer
             </p>
           </div>
         )}
+
+        {/* AI Stack Analysis */}
+        <CompoundAISection
+          analysis={compoundAnalysis ?? null}
+          loading={compoundLoading ?? false}
+          onAnalyze={() => onAnalyzeCompound?.(compound.id)}
+        />
       </SheetContent>
     </Sheet>
   );

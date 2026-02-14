@@ -1,11 +1,12 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Package, DollarSign, LayoutDashboard, ShoppingCart, Sun, Moon, RefreshCw, LogOut, Sparkles } from 'lucide-react';
+import { Calendar, Package, DollarSign, LayoutDashboard, ShoppingCart, Sun, Moon, RefreshCw, LogOut, Sparkles, Brain } from 'lucide-react';
 import { Compound } from '@/data/compounds';
 import { useCompounds } from '@/hooks/useCompounds';
 import { useProtocols } from '@/hooks/useProtocols';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { useProtocolAnalysis } from '@/hooks/useProtocolAnalysis';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCallback, useState } from 'react';
 import Onboarding from './Onboarding';
@@ -17,6 +18,7 @@ import WeeklyScheduleView from '@/components/WeeklyScheduleView';
 import InventoryView from '@/components/InventoryView';
 import CostProjectionView from '@/components/CostProjectionView';
 import ReorderView from '@/components/ReorderView';
+import AIInsightsView from '@/components/AIInsightsView';
 
 const LoadingSkeleton = () => (
   <div className="min-h-screen bg-background">
@@ -54,6 +56,12 @@ const Index = () => {
     protocols, createProtocol, deleteProtocol, cloneProtocol, updateProtocol,
     addCompoundToProtocol, removeCompoundFromProtocol, refetch: refetchProtocols,
   } = useProtocols(user?.id);
+
+  const {
+    stackAnalysis, compoundAnalyses, loading: aiLoading, compoundLoading,
+    toleranceLevel, setToleranceLevel, analyzeStack, analyzeCompound, needsRefresh,
+  } = useProtocolAnalysis(compounds, protocols);
+  const [activeTab, setActiveTab] = useState('dashboard');
 
   const handleRefresh = useCallback(async () => {
     await Promise.all([refetch(), refetchProtocols()]);
@@ -134,7 +142,7 @@ const Index = () => {
       </header>
 
       <main className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
-        <Tabs defaultValue="dashboard" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="w-full bg-secondary/50 border border-border/50 mb-3 sm:mb-4 h-12 sm:h-11">
             <TabsTrigger value="dashboard" className="flex-1 gap-1 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[11px] sm:text-xs py-2.5">
               <LayoutDashboard className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
@@ -156,10 +164,21 @@ const Index = () => {
               <DollarSign className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
               <span className="hidden sm:inline">Costs</span>
             </TabsTrigger>
+            <TabsTrigger value="ai-insights" className="flex-1 gap-1 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[11px] sm:text-xs py-2.5">
+              <Brain className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+              <span className="hidden sm:inline">AI</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="dashboard" className="animate-slide-up">
-            <DashboardView compounds={compounds} />
+            <DashboardView
+              compounds={compounds}
+              stackAnalysis={stackAnalysis}
+              aiLoading={aiLoading}
+              needsRefresh={needsRefresh}
+              onAnalyzeStack={analyzeStack}
+              onViewAIInsights={() => setActiveTab('ai-insights')}
+            />
           </TabsContent>
           <TabsContent value="schedule" className="animate-slide-up">
             <WeeklyScheduleView compounds={compounds} protocols={protocols} />
@@ -178,6 +197,15 @@ const Index = () => {
           </TabsContent>
           <TabsContent value="costs" className="animate-slide-up">
             <CostProjectionView compounds={compounds} protocols={protocols} />
+          </TabsContent>
+          <TabsContent value="ai-insights" className="animate-slide-up">
+            <AIInsightsView
+              analysis={stackAnalysis}
+              loading={aiLoading}
+              toleranceLevel={toleranceLevel}
+              onToleranceChange={setToleranceLevel}
+              onRefresh={analyzeStack}
+            />
           </TabsContent>
         </Tabs>
 
