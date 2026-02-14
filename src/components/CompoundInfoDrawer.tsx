@@ -1,16 +1,49 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Compound } from '@/data/compounds';
-import { compoundBenefits } from '@/data/compoundBenefits';
+import { compoundBenefits, TimelineEvent } from '@/data/compoundBenefits';
 import { getCycleStatus } from '@/lib/cycling';
 import { getDaysRemainingWithCycling } from '@/lib/cycling';
 import { getStatus } from '@/data/compounds';
-import { Info } from 'lucide-react';
+import { Info, Clock } from 'lucide-react';
 
 interface CompoundInfoDrawerProps {
   compound: Compound | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
+
+const TimelineViz = ({ events }: { events: TimelineEvent[] }) => {
+  const maxWeek = Math.max(...events.map(e => e.week));
+
+  return (
+    <div className="mt-4">
+      <div className="flex items-center gap-1.5 mb-3">
+        <Clock className="w-3.5 h-3.5 text-primary" />
+        <span className="text-xs font-semibold text-foreground/80">Benefits Timeline</span>
+      </div>
+      <div className="relative ml-3 border-l-2 border-primary/30 pl-4 space-y-3">
+        {events.map((event, i) => {
+          const pct = maxWeek > 0 ? (event.week / maxWeek) : 0;
+          return (
+            <div key={i} className="relative">
+              {/* dot */}
+              <div
+                className="absolute -left-[calc(1rem+5px)] top-1 w-2.5 h-2.5 rounded-full border-2 border-primary bg-card"
+                style={{ opacity: 0.6 + pct * 0.4 }}
+              />
+              <div className="flex items-baseline gap-2">
+                <span className="text-[10px] font-mono text-primary font-bold min-w-[3rem]">
+                  {event.week < 1 ? `${Math.round(event.week * 7)}d` : event.week === 1 ? 'Wk 1' : `Wk ${event.week}`}
+                </span>
+                <span className="text-xs text-foreground/80 leading-snug">{event.label}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
 const CompoundInfoDrawer = ({ compound, open, onOpenChange }: CompoundInfoDrawerProps) => {
   if (!compound) return null;
@@ -71,6 +104,11 @@ const CompoundInfoDrawer = ({ compound, open, onOpenChange }: CompoundInfoDrawer
             <Info className="w-4 h-4" />
             <span>No benefit data available for this compound yet.</span>
           </div>
+        )}
+
+        {/* Timeline */}
+        {benefits?.timeline && benefits.timeline.length > 0 && (
+          <TimelineViz events={benefits.timeline} />
         )}
 
         {/* Cycling note */}
