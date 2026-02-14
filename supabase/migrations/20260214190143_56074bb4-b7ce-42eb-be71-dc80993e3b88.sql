@@ -1,0 +1,1 @@
+ALTER TABLE public.user_protocols ADD COLUMN IF NOT EXISTS notes text DEFAULT null;

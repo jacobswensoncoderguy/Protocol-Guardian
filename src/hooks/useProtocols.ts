@@ -7,6 +7,7 @@ export interface UserProtocol {
   name: string;
   icon: string;
   description: string | null;
+  notes: string | null;
   compoundIds: string[]; // user_compound IDs
 }
 
@@ -16,6 +17,7 @@ interface DbProtocol {
   name: string;
   icon: string;
   description: string | null;
+  notes: string | null;
 }
 
 interface DbCompoundProtocol {
@@ -75,6 +77,7 @@ export function useProtocols(userId: string | undefined) {
         name: p.name,
         icon: p.icon,
         description: p.description,
+        notes: p.notes,
         compoundIds: linksByProtocol.get(p.id) || [],
       }))
     );
@@ -106,11 +109,31 @@ export function useProtocols(userId: string | undefined) {
     await fetchProtocols();
   }, [fetchProtocols]);
 
-  const updateProtocol = useCallback(async (protocolId: string, updates: { name?: string; icon?: string; description?: string }) => {
+  const updateProtocol = useCallback(async (protocolId: string, updates: { name?: string; icon?: string; description?: string; notes?: string }) => {
     const { error } = await supabase.from('user_protocols').update(updates).eq('id', protocolId);
     if (error) console.error('Failed to update protocol:', error);
     await fetchProtocols();
   }, [fetchProtocols]);
+
+  const cloneProtocol = useCallback(async (protocolId: string) => {
+    if (!userId) return null;
+    const source = protocols.find(p => p.id === protocolId);
+    if (!source) return null;
+    const { data, error } = await supabase
+      .from('user_protocols')
+      .insert({ user_id: userId, name: `${source.name} (Copy)`, icon: source.icon, description: source.description, notes: source.notes })
+      .select()
+      .single();
+    if (error) { console.error('Failed to clone protocol:', error); return null; }
+    // Clone compound links
+    if (source.compoundIds.length > 0) {
+      const links = source.compoundIds.map(cId => ({ user_protocol_id: data.id, user_compound_id: cId }));
+      const { error: linkErr } = await supabase.from('user_compound_protocols').insert(links);
+      if (linkErr) console.error('Failed to clone compound links:', linkErr);
+    }
+    await fetchProtocols();
+    return data;
+  }, [userId, protocols, fetchProtocols]);
 
   const addCompoundToProtocol = useCallback(async (protocolId: string, compoundId: string) => {
     const { error } = await supabase
@@ -136,6 +159,7 @@ export function useProtocols(userId: string | undefined) {
     createProtocol,
     deleteProtocol,
     updateProtocol,
+    cloneProtocol,
     addCompoundToProtocol,
     removeCompoundFromProtocol,
     refetch: fetchProtocols,
