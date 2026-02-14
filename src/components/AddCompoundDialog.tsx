@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Compound, CompoundCategory } from '@/data/compounds';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, Search, ArrowLeft, Loader2, ChevronRight } from 'lucide-react';
+import { Plus, Search, ArrowLeft, Loader2, ChevronRight, PenLine } from 'lucide-react';
 
 interface LibraryCompound {
   id: string;
@@ -69,6 +69,11 @@ const AddCompoundDialog = ({ open, onOpenChange, existingCompoundIds, onAdd }: A
   const [selected, setSelected] = useState<LibraryCompound | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
   const [saving, setSaving] = useState(false);
+  const [view, setView] = useState<'list' | 'custom' | 'configure'>('list');
+  const [customName, setCustomName] = useState('');
+  const [customCategory, setCustomCategory] = useState<string>('oral');
+  const [customUnitLabel, setCustomUnitLabel] = useState('cap');
+  const [customDoseLabel, setCustomDoseLabel] = useState('cap');
 
   useEffect(() => {
     if (!open) return;
@@ -98,8 +103,59 @@ const AddCompoundDialog = ({ open, onOpenChange, existingCompoundIds, onAdd }: A
     .map(cat => ({ category: cat, items: filtered.filter(c => c.category === cat) }))
     .filter(g => g.items.length > 0);
 
+  const startCustom = () => {
+    setView('custom');
+  };
+
+  const confirmCustom = () => {
+    if (!customName.trim()) return;
+    const isPeptide = customCategory === 'peptide';
+    setSelected({
+      id: `custom-${Date.now()}`,
+      name: customName.trim(),
+      category: customCategory,
+      unit_size: isPeptide ? 10 : 1,
+      unit_label: customUnitLabel,
+      unit_price: 0,
+      kit_price: null,
+      dose_per_use: 0,
+      dose_label: customDoseLabel,
+      bacstat_per_vial: isPeptide ? 200 : null,
+      recon_volume: isPeptide ? 2 : null,
+      doses_per_day: 1,
+      days_per_week: 7,
+      timing_note: null,
+      cycling_note: null,
+      cycle_on_days: null,
+      cycle_off_days: null,
+      cycle_start_date: null,
+      current_quantity: 0,
+      reorder_quantity: 1,
+      notes: null,
+    });
+    setForm({
+      currentQuantity: '0',
+      unitSize: isPeptide ? '10' : '1',
+      unitPrice: '0',
+      kitPrice: '0',
+      dosePerUse: '0',
+      dosesPerDay: '1',
+      daysPerWeek: '7',
+      timingNote: '',
+      bacstatPerVial: isPeptide ? '200' : '0',
+      reconVolume: isPeptide ? '2' : '0',
+      cycleOnDays: '',
+      cycleOffDays: '',
+      cycleStartDate: new Date().toISOString().split('T')[0],
+      reorderQuantity: '1',
+      notes: '',
+    });
+    setView('configure');
+  };
+
   const selectCompound = (c: LibraryCompound) => {
     setSelected(c);
+    setView('configure');
     const isPeptide = c.category === 'peptide';
     setForm({
       currentQuantity: c.current_quantity.toString(),
@@ -121,6 +177,11 @@ const AddCompoundDialog = ({ open, onOpenChange, existingCompoundIds, onAdd }: A
   };
 
   const goBack = () => {
+    if (view === 'configure' && customName) {
+      setView('custom');
+    } else {
+      setView('list');
+    }
     setSelected(null);
     setForm(null);
   };
@@ -172,6 +233,11 @@ const AddCompoundDialog = ({ open, onOpenChange, existingCompoundIds, onAdd }: A
     setSelected(null);
     setForm(null);
     setSearch('');
+    setView('list');
+    setCustomName('');
+    setCustomCategory('oral');
+    setCustomUnitLabel('cap');
+    setCustomDoseLabel('cap');
     onOpenChange(false);
   };
 
@@ -180,6 +246,11 @@ const AddCompoundDialog = ({ open, onOpenChange, existingCompoundIds, onAdd }: A
       setSelected(null);
       setForm(null);
       setSearch('');
+      setView('list');
+      setCustomName('');
+      setCustomCategory('oral');
+      setCustomUnitLabel('cap');
+      setCustomDoseLabel('cap');
     }
     onOpenChange(open);
   };
@@ -192,25 +263,42 @@ const AddCompoundDialog = ({ open, onOpenChange, existingCompoundIds, onAdd }: A
       <DialogContent className="max-w-md max-h-[85vh] overflow-hidden flex flex-col p-0">
         <DialogHeader className="px-4 pt-4 pb-2 flex-shrink-0">
           <DialogTitle className="flex items-center gap-2 text-sm">
-            {selected ? (
+            {view === 'configure' && selected ? (
               <>
                 <button onClick={goBack} className="p-1 rounded hover:bg-secondary transition-colors">
                   <ArrowLeft className="w-4 h-4" />
                 </button>
                 <span>Configure {selected.name}</span>
               </>
+            ) : view === 'custom' ? (
+              <>
+                <button onClick={() => setView('list')} className="p-1 rounded hover:bg-secondary transition-colors">
+                  <ArrowLeft className="w-4 h-4" />
+                </button>
+                <PenLine className="w-4 h-4 text-primary" />
+                Create Custom Compound
+              </>
             ) : (
               <>
                 <Plus className="w-4 h-4 text-primary" />
-                Add from Library
+                Add Compound
               </>
             )}
           </DialogTitle>
         </DialogHeader>
 
-        {!selected ? (
+        {view === 'list' && (
           // Pick list view
           <div className="flex-1 overflow-y-auto px-4 pb-4">
+            {/* Create custom button */}
+            <button
+              onClick={startCustom}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2.5 mb-3 rounded-lg border border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors text-primary text-sm font-medium"
+            >
+              <PenLine className="w-4 h-4" />
+              Create Your Own Compound
+            </button>
+
             <div className="relative mb-3 sticky top-0 bg-background pt-1 pb-2 z-10">
               <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input
@@ -262,7 +350,86 @@ const AddCompoundDialog = ({ open, onOpenChange, existingCompoundIds, onAdd }: A
               </div>
             )}
           </div>
-        ) : (
+        )}
+
+        {view === 'custom' && (
+          <div className="flex-1 overflow-y-auto px-4 pb-4">
+            <p className="text-[11px] text-muted-foreground mb-3">
+              Enter the basics, then you'll configure dosing and pricing on the next screen.
+            </p>
+            <div className="space-y-2.5">
+              <div>
+                <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Compound Name</label>
+                <input
+                  type="text"
+                  value={customName}
+                  onChange={e => setCustomName(e.target.value)}
+                  placeholder="e.g. Vitamin D3 5000 IU"
+                  maxLength={100}
+                  className="w-full bg-secondary border border-border/50 rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Category</label>
+                <div className="grid grid-cols-2 gap-1.5 mt-1">
+                  {categoryOrder.map(cat => (
+                    <button
+                      key={cat}
+                      onClick={() => {
+                        setCustomCategory(cat);
+                        if (cat === 'peptide') { setCustomUnitLabel('mg'); setCustomDoseLabel('IU'); }
+                        else if (cat === 'injectable-oil') { setCustomUnitLabel('mL'); setCustomDoseLabel('mg'); }
+                        else if (cat === 'powder') { setCustomUnitLabel('g'); setCustomDoseLabel('serving'); }
+                        else { setCustomUnitLabel('cap'); setCustomDoseLabel('cap'); }
+                      }}
+                      className={`px-2.5 py-2 rounded-lg border text-[11px] font-medium transition-all ${
+                        customCategory === cat
+                          ? 'bg-primary/10 border-primary/30 text-primary'
+                          : 'border-border/50 bg-card text-muted-foreground hover:bg-secondary/50'
+                      }`}
+                    >
+                      {categoryLabels[cat]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Unit Label</label>
+                  <input
+                    type="text"
+                    value={customUnitLabel}
+                    onChange={e => setCustomUnitLabel(e.target.value)}
+                    placeholder="e.g. cap, mL, mg"
+                    maxLength={20}
+                    className="w-full bg-secondary border border-border/50 rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Dose Label</label>
+                  <input
+                    type="text"
+                    value={customDoseLabel}
+                    onChange={e => setCustomDoseLabel(e.target.value)}
+                    placeholder="e.g. IU, cap, serving"
+                    maxLength={20}
+                    className="w-full bg-secondary border border-border/50 rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                  />
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={confirmCustom}
+              disabled={!customName.trim()}
+              className="w-full mt-4 py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              <ChevronRight className="w-4 h-4" />
+              Configure Dosing & Pricing
+            </button>
+          </div>
+        )}
+
+        {view === 'configure' && selected && (
           // Configuration form
           <div className="flex-1 overflow-y-auto px-4 pb-4">
             <p className="text-[11px] text-muted-foreground mb-3">
