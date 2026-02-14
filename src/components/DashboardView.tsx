@@ -4,6 +4,7 @@ import { getDaysRemainingWithCycling, getEffectiveDailyConsumption } from '@/lib
 import { AlertTriangle, TrendingUp, DollarSign, Package, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import CompoundInfoDrawer from '@/components/CompoundInfoDrawer';
+import ProtocolOutcomesCard from '@/components/ProtocolOutcomesCard';
 
 interface DashboardViewProps {
   compounds: Compound[];
@@ -213,6 +214,9 @@ const DashboardView = ({ compounds }: DashboardViewProps) => {
           </div>
         </div>
       </div>
+
+      {/* Protocol Outcomes */}
+      <ProtocolOutcomesCard />
 
       {/* Critical Items */}
       {criticalCompounds.length > 0 && (
