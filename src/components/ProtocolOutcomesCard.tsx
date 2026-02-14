@@ -1,4 +1,5 @@
-import { TrendingUp } from 'lucide-react';
+import { useState } from 'react';
+import { TrendingUp, ChevronDown } from 'lucide-react';
 
 interface OutcomeCategory {
   icon: string;
@@ -61,31 +62,45 @@ const outcomes: OutcomeCategory[] = [
 ];
 
 const ProtocolOutcomesCard = () => {
+  const [open, setOpen] = useState(false);
+
   return (
-    <div className="bg-card rounded-lg border border-border/50 p-4">
-      <h3 className="text-sm font-semibold mb-3 text-foreground flex items-center gap-2">
-        <TrendingUp className="w-4 h-4 text-primary" />
-        Combined Protocol Outcomes
-      </h3>
-      <p className="text-[10px] text-muted-foreground mb-3">
-        Projected aggregate outcomes across your full 38-compound stack at current dosages.
-      </p>
-      <div className="space-y-3">
-        {outcomes.map((cat) => (
-          <div key={cat.label}>
-            <div className="flex items-center gap-1.5 mb-1">
-              <span className="text-sm">{cat.icon}</span>
-              <span className="text-xs font-semibold text-foreground/90">{cat.label}</span>
-            </div>
-            <div className="space-y-0.5 ml-6">
-              {cat.items.map((item, i) => (
-                <p key={i} className="text-[11px] text-muted-foreground leading-relaxed">
-                  <span className="text-primary mr-1">▸</span>{item}
-                </p>
-              ))}
-            </div>
+    <div className="bg-card rounded-lg border border-border/50">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between p-4 text-left"
+      >
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+          <TrendingUp className="w-4 h-4 text-primary" />
+          Combined Protocol Outcomes
+        </h3>
+        <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+      </button>
+      <div
+        className={`grid transition-[grid-template-rows] duration-300 ease-out ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
+      >
+        <div className="overflow-hidden">
+          <div className="px-4 pb-4 space-y-3">
+            <p className="text-[10px] text-muted-foreground">
+              Projected aggregate outcomes across your full 38-compound stack at current dosages.
+            </p>
+            {outcomes.map((cat) => (
+              <div key={cat.label}>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span className="text-sm">{cat.icon}</span>
+                  <span className="text-xs font-semibold text-foreground/90">{cat.label}</span>
+                </div>
+                <div className="space-y-0.5 ml-6">
+                  {cat.items.map((item, i) => (
+                    <p key={i} className="text-[11px] text-muted-foreground leading-relaxed">
+                      <span className="text-primary mr-1">▸</span>{item}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
       </div>
     </div>
   );
