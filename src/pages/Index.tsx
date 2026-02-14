@@ -3,12 +3,38 @@ import { Calendar, Package, DollarSign, LayoutDashboard, ShoppingCart, Sun, Moon
 import { Compound } from '@/data/compounds';
 import { useCompounds } from '@/hooks/useCompounds';
 import { useTheme } from '@/hooks/useTheme';
+import { Skeleton } from '@/components/ui/skeleton';
 
 import DashboardView from '@/components/DashboardView';
 import WeeklyScheduleView from '@/components/WeeklyScheduleView';
 import InventoryView from '@/components/InventoryView';
 import CostProjectionView from '@/components/CostProjectionView';
 import ReorderView from '@/components/ReorderView';
+
+const LoadingSkeleton = () => (
+  <div className="min-h-screen bg-background">
+    <header className="border-b border-border/50 px-4 py-2.5 sm:py-4">
+      <div className="container mx-auto flex items-center justify-between">
+        <Skeleton className="h-6 w-48" />
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-7 w-7 rounded-md" />
+          <Skeleton className="h-4 w-8" />
+        </div>
+      </div>
+    </header>
+    <main className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
+      <Skeleton className="h-12 w-full rounded-lg mb-4" />
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <Skeleton className="h-24 rounded-xl" />
+        <Skeleton className="h-24 rounded-xl" />
+        <Skeleton className="h-24 rounded-xl" />
+        <Skeleton className="h-24 rounded-xl" />
+      </div>
+      <Skeleton className="h-64 w-full rounded-xl mb-4" />
+      <Skeleton className="h-40 w-full rounded-xl" />
+    </main>
+  </div>
+);
 
 const Index = () => {
   const { compounds, loading, updateCompound } = useCompounds();
@@ -19,11 +45,7 @@ const Index = () => {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground animate-pulse">Loading inventory...</p>
-      </div>
-    );
+    return <LoadingSkeleton />;
   }
 
   return (
