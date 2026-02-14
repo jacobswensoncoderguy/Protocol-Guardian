@@ -109,6 +109,8 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
 
   const startEdit = () => {
     const state: Record<string, string> = {
+      name: compound.name,
+      category: compound.category,
       currentQuantity: compound.currentQuantity.toString(),
       unitSize: compound.unitSize.toString(),
       dosePerUse: compound.dosePerUse.toString(),
@@ -139,23 +141,28 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
     if (isNaN(qty) || isNaN(size) || isNaN(dose) || isNaN(reorder) || qty < 0 || size <= 0 || dose < 0 || reorder < 0) return;
 
     const updates: Partial<Compound> = {
+      name: editState.name?.trim() || compound.name,
+      category: (editState.category as CompoundCategory) || compound.category,
       currentQuantity: qty,
       unitSize: size,
       dosePerUse: dose,
       reorderQuantity: reorder,
     };
 
-    if (isPeptide) {
-      const kit = parseFloat(editState.kitPrice);
+    const editIsPeptide = editState.category === 'peptide';
+    const editIsOil = editState.category === 'injectable-oil';
+
+    if (editIsPeptide) {
+      const kit = parseFloat(editState.kitPrice || '0');
       if (isNaN(kit) || kit < 0) return;
       updates.kitPrice = kit;
     } else {
-      const price = parseFloat(editState.unitPrice);
+      const price = parseFloat(editState.unitPrice || '0');
       if (isNaN(price) || price < 0) return;
       updates.unitPrice = price;
     }
 
-    if (!isPeptide && !isOil && editState.purchaseDate) {
+    if (!editIsPeptide && !editIsOil && editState.purchaseDate) {
       updates.purchaseDate = editState.purchaseDate;
     }
 
@@ -251,6 +258,26 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
 
       {editing ? (
         <div className="space-y-1.5">
+          <EditRow label="Name" value={editState.name || compound.name}
+            onChange={v => setEditState(s => ({ ...s, name: v }))} type="text" />
+          <div className="flex items-center gap-2 text-[11px]">
+            <span className="text-muted-foreground w-16 flex-shrink-0">Category</span>
+            <div className="flex gap-1 flex-1 flex-wrap">
+              {categoryOrder.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setEditState(s => ({ ...s, category: cat }))}
+                  className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-all ${
+                    editState.category === cat
+                      ? 'bg-primary/15 text-primary border border-primary/30'
+                      : 'bg-secondary text-muted-foreground border border-border/50'
+                  }`}
+                >
+                  {cat === 'peptide' ? 'Pep' : cat === 'injectable-oil' ? 'Oil' : cat === 'oral' ? 'Oral' : 'Pwd'}
+                </button>
+              ))}
+            </div>
+          </div>
           <EditRow label={isPeptide ? 'Vials' : 'Qty'} value={editState.currentQuantity}
             onChange={v => setEditState(s => ({ ...s, currentQuantity: v }))} type="number" />
           <EditRow label="Per Unit" value={editState.unitSize} suffix={isPeptide ? 'mg' : compound.unitLabel.split(' ')[0]}
