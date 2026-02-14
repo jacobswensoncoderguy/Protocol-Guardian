@@ -1,9 +1,11 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Package, DollarSign, LayoutDashboard, ShoppingCart, Sun, Moon } from 'lucide-react';
+import { Calendar, Package, DollarSign, LayoutDashboard, ShoppingCart, Sun, Moon, RefreshCw } from 'lucide-react';
 import { Compound } from '@/data/compounds';
 import { useCompounds } from '@/hooks/useCompounds';
 import { useTheme } from '@/hooks/useTheme';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useCallback } from 'react';
 
 import DashboardView from '@/components/DashboardView';
 import WeeklyScheduleView from '@/components/WeeklyScheduleView';
@@ -37,8 +39,16 @@ const LoadingSkeleton = () => (
 );
 
 const Index = () => {
-  const { compounds, loading, updateCompound } = useCompounds();
+  const { compounds, loading, updateCompound, refetch } = useCompounds();
   const { isDark, toggle } = useTheme();
+
+  const handleRefresh = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
+
+  const { containerRef, pullDistance, refreshing, isTriggered } = usePullToRefresh({
+    onRefresh: handleRefresh,
+  });
 
   const handleUpdateCompound = (id: string, updates: Partial<Compound>) => {
     updateCompound(id, updates);
@@ -49,7 +59,29 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div ref={containerRef} className="min-h-screen bg-background relative">
+      {/* Pull-to-refresh indicator */}
+      <div
+        className="absolute left-0 right-0 flex items-center justify-center overflow-hidden transition-[height] duration-200 ease-out z-50"
+        style={{ height: pullDistance > 0 ? `${pullDistance}px` : 0 }}
+      >
+        <RefreshCw
+          className={`w-5 h-5 text-primary transition-transform duration-200 ${
+            refreshing ? 'animate-spin' : ''
+          }`}
+          style={{
+            transform: `rotate(${Math.min(pullDistance * 3, 360)}deg)`,
+            opacity: Math.min(pullDistance / 60, 1),
+          }}
+        />
+        {isTriggered && !refreshing && (
+          <span className="ml-2 text-xs text-muted-foreground">Release to refresh</span>
+        )}
+        {refreshing && (
+          <span className="ml-2 text-xs text-muted-foreground">Refreshing…</span>
+        )}
+      </div>
+
       <header className="border-b border-border/50 px-4 py-2.5 sm:py-4">
         <div className="container mx-auto flex items-center justify-between">
           <div className="min-w-0">
