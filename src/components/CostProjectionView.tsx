@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { Compound, getReorderCost } from '@/data/compounds';
 import { getDaysRemainingWithCycling, getEffectiveDailyConsumption, getCycleStatus } from '@/lib/cycling';
-import { TrendingDown } from 'lucide-react';
+import { UserProtocol } from '@/hooks/useProtocols';
+import { TrendingDown, ChevronDown } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface CostProjectionViewProps {
   compounds: Compound[];
+  protocols?: UserProtocol[];
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -13,7 +16,7 @@ interface MonthData {
   month: number;
   year: number;
   name: string;
-  compounds: { name: string; qty: string; unitPrice: number; cost: number }[];
+  compounds: { name: string; qty: string; unitPrice: number; cost: number; compoundId: string }[];
   total: number;
 }
 
@@ -71,6 +74,7 @@ function buildProjection(compounds: Compound[]): MonthData[] {
           qty: displayQty,
           unitPrice: displayPrice,
           cost,
+          compoundId: compound.id,
         });
         months[slotIndex].total += cost;
       }
@@ -83,7 +87,30 @@ function buildProjection(compounds: Compound[]): MonthData[] {
   return months;
 }
 
-const CostProjectionView = ({ compounds }: CostProjectionViewProps) => {
+function groupItemsByProtocol(
+  items: MonthData['compounds'],
+  protocols: UserProtocol[]
+): { label: string; items: MonthData['compounds'] }[] {
+  const groups: { label: string; items: MonthData['compounds'] }[] = [];
+  const protocolIds = new Set<string>();
+
+  protocols.forEach(p => {
+    const pItems = items.filter(item => p.compoundIds.includes(item.compoundId));
+    if (pItems.length > 0) {
+      groups.push({ label: `${p.icon} ${p.name}`, items: pItems });
+      pItems.forEach(item => protocolIds.add(item.compoundId));
+    }
+  });
+
+  const ungrouped = items.filter(item => !protocolIds.has(item.compoundId));
+  if (ungrouped.length > 0) {
+    groups.push({ label: 'Other Compounds', items: ungrouped });
+  }
+
+  return groups.length > 0 ? groups : [{ label: '', items }];
+}
+
+const CostProjectionView = ({ compounds, protocols = [] }: CostProjectionViewProps) => {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [showSavings, setShowSavings] = useState(false);
   const projection = buildProjection(compounds);
@@ -159,14 +186,23 @@ const CostProjectionView = ({ compounds }: CostProjectionViewProps) => {
           {projection[selectedIndex].compounds.length === 0 ? (
             <p className="text-sm text-muted-foreground">No reorders projected this month.</p>
           ) : (
-            <div className="space-y-1.5">
-              {projection[selectedIndex].compounds.map((item, i) => (
-                <div key={i} className="flex items-center justify-between text-sm bg-secondary/50 rounded px-3 py-1.5">
-                  <span className="text-foreground/80 truncate mr-2">{item.name}</span>
-                  <div className="flex items-center gap-3 text-xs font-mono flex-shrink-0">
-                    <span className="text-muted-foreground">{item.qty}</span>
-                    <span className="text-muted-foreground">@${item.unitPrice}</span>
-                    <span className="text-primary font-semibold">${item.cost}</span>
+            <div className="space-y-3">
+              {groupItemsByProtocol(projection[selectedIndex].compounds, protocols).map((group) => (
+                <div key={group.label}>
+                  {group.label && (
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">{group.label}</p>
+                  )}
+                  <div className="space-y-1.5">
+                    {group.items.map((item, i) => (
+                      <div key={i} className="flex items-center justify-between text-sm bg-secondary/50 rounded px-3 py-1.5">
+                        <span className="text-foreground/80 truncate mr-2">{item.name}</span>
+                        <div className="flex items-center gap-3 text-xs font-mono flex-shrink-0">
+                          <span className="text-muted-foreground">{item.qty}</span>
+                          <span className="text-muted-foreground">@${item.unitPrice}</span>
+                          <span className="text-primary font-semibold">${item.cost}</span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               ))}
@@ -209,6 +245,7 @@ const CostProjectionView = ({ compounds }: CostProjectionViewProps) => {
 
           return {
             name: c.name,
+            id: c.id,
             onFraction: status.onFraction,
             cyclePattern: `${c.cycleOnDays}/${c.cycleOffDays}`,
             continuousCost,
@@ -219,6 +256,22 @@ const CostProjectionView = ({ compounds }: CostProjectionViewProps) => {
         }).sort((a, b) => b.annualSaved - a.annualSaved);
 
         const totalAnnualSaved = savings.reduce((sum, s) => sum + s.annualSaved, 0);
+
+        // Group savings by protocol
+        const savingsGroups: { label: string; items: typeof savings }[] = [];
+        const protocolIds = new Set<string>();
+        protocols.forEach(p => {
+          const pItems = savings.filter(s => p.compoundIds.includes(s.id));
+          if (pItems.length > 0) {
+            savingsGroups.push({ label: `${p.icon} ${p.name}`, items: pItems });
+            pItems.forEach(s => protocolIds.add(s.id));
+          }
+        });
+        const ungroupedSavings = savings.filter(s => !protocolIds.has(s.id));
+        if (ungroupedSavings.length > 0) {
+          savingsGroups.push({ label: 'Other', items: ungroupedSavings });
+        }
+        const finalGroups = savingsGroups.length > 0 ? savingsGroups : [{ label: '', items: savings }];
 
         return (
           <div className="bg-card rounded-lg border border-border/50 overflow-hidden">
@@ -240,17 +293,26 @@ const CostProjectionView = ({ compounds }: CostProjectionViewProps) => {
             </button>
 
             {showSavings && (
-              <div className="border-t border-border/50 p-3 space-y-1.5">
-                {savings.map((s, i) => (
-                  <div key={i} className="flex items-center justify-between bg-secondary/30 rounded px-3 py-2">
-                    <div className="truncate mr-2">
-                      <span className="text-xs text-foreground/80">{s.name}</span>
-                      <span className="text-[10px] text-muted-foreground ml-1.5">{s.cyclePattern} days</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs font-mono flex-shrink-0">
-                      <span className="text-muted-foreground line-through">${Math.round(s.continuousCost)}</span>
-                      <span className="text-foreground">${Math.round(s.cycledCost)}</span>
-                      <span className="text-status-good font-semibold">-${Math.round(s.saved)}/mo</span>
+              <div className="border-t border-border/50 p-3 space-y-3">
+                {finalGroups.map((group) => (
+                  <div key={group.label}>
+                    {group.label && (
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">{group.label}</p>
+                    )}
+                    <div className="space-y-1.5">
+                      {group.items.map((s, i) => (
+                        <div key={i} className="flex items-center justify-between bg-secondary/30 rounded px-3 py-2">
+                          <div className="truncate mr-2">
+                            <span className="text-xs text-foreground/80">{s.name}</span>
+                            <span className="text-[10px] text-muted-foreground ml-1.5">{s.cyclePattern} days</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs font-mono flex-shrink-0">
+                            <span className="text-muted-foreground line-through">${Math.round(s.continuousCost)}</span>
+                            <span className="text-foreground">${Math.round(s.cycledCost)}</span>
+                            <span className="text-status-good font-semibold">-${Math.round(s.saved)}/mo</span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 ))}

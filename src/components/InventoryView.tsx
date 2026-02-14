@@ -138,11 +138,45 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
   const isOil = compound.category === 'injectable-oil';
   const reorderDate = getReorderDateString(compound);
 
+  const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+  const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+
+  const parseDaysFromNote = (note: string): Set<number> => {
+    const lower = note.toLowerCase();
+    const days = new Set<number>();
+    const patterns: [RegExp, number[]][] = [
+      [/\bm[\/-]f\b|mon[\s-]*fri/i, [1,2,3,4,5]],
+      [/\bm\/w\/f\b/i, [1,3,5]],
+      [/\bt\/th\b/i, [2,4]],
+    ];
+    for (const [pat, idxs] of patterns) {
+      if (pat.test(lower)) { idxs.forEach(i => days.add(i)); return days; }
+    }
+    const dayMap: Record<string, number> = { sun: 0, mon: 1, tue: 2, tues: 2, wed: 3, thu: 4, thurs: 4, fri: 5, sat: 6, sa: 6 };
+    const matches = lower.match(/\b(sun(?:day)?|mon(?:day)?|tue(?:s(?:day)?)?|wed(?:nesday)?|thu(?:rs(?:day)?)?|fri(?:day)?|sat(?:urday)?|sa)\b/gi);
+    if (matches) matches.forEach(m => { const i = dayMap[m.toLowerCase()]; if (i !== undefined) days.add(i); });
+    if (days.size === 0 && (/\bdaily\b|\bnightly\b|\bevery\s*day\b/i.test(lower) || compound.daysPerWeek === 7)) {
+      [0,1,2,3,4,5,6].forEach(i => days.add(i));
+    }
+    return days;
+  };
+
+  const buildDayString = (days: Set<number>): string => {
+    if (days.size === 7) return 'daily';
+    if (days.size === 0) return '';
+    const sorted = Array.from(days).sort();
+    if (sorted.join(',') === '1,2,3,4,5') return 'M-F';
+    if (sorted.join(',') === '1,3,5') return 'M/W/F';
+    if (sorted.join(',') === '2,4') return 'T/Th';
+    return sorted.map(d => DAY_LABELS[d]).join('/');
+  };
+
   const startEdit = () => {
     const state: Record<string, string> = {
       name: compound.name,
       category: compound.category,
       timing: compound.timingNote || '',
+      daysPerWeek: compound.daysPerWeek.toString(),
       currentQuantity: compound.currentQuantity.toString(),
       unitSize: compound.unitSize.toString(),
       dosePerUse: compound.dosePerUse.toString(),
@@ -210,6 +244,13 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
 
     if (editState.timing !== undefined) {
       updates.timingNote = editState.timing.trim() || undefined;
+    }
+
+    if (editState.daysPerWeek !== undefined) {
+      const dpw = parseInt(editState.daysPerWeek);
+      if (!isNaN(dpw) && dpw >= 0 && dpw <= 7) {
+        updates.daysPerWeek = dpw;
+      }
     }
 
     onUpdate(compound.id, updates);
@@ -344,6 +385,48 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
                     }`}
                   >
                     {t === 'morning' ? '☀️ AM' : t === 'afternoon' ? '💪 Mid' : '🌙 PM'}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-[11px]">
+            <span className="text-muted-foreground w-16 flex-shrink-0">Days</span>
+            <div className="flex gap-0.5 flex-1">
+              {DAY_LABELS.map((label, idx) => {
+                const activeDays = parseDaysFromNote(editState.timing || '');
+                const isActive = activeDays.has(idx);
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      const days = parseDaysFromNote(editState.timing || '');
+                      if (isActive) days.delete(idx);
+                      else days.add(idx);
+                      // Rebuild the timing note: keep non-day parts, replace day pattern
+                      const note = editState.timing || '';
+                      // Remove existing day patterns
+                      let cleaned = note
+                        .replace(/\b(daily|nightly|every\s*day|m[\/-]f|mon[\s-]*fri|m\/w\/f|t\/th)\b/gi, '')
+                        .replace(/\b(sun(?:day)?|mon(?:day)?|tue(?:s(?:day)?)?|wed(?:nesday)?|thu(?:rs(?:day)?)?|fri(?:day)?|sat(?:urday)?|sa)\b/gi, '')
+                        .replace(/[,\/]\s*[,\/]/g, ',')
+                        .replace(/^[,\s]+|[,\s]+$/g, '')
+                        .trim();
+                      const dayStr = buildDayString(days);
+                      const newNote = cleaned ? (dayStr ? `${dayStr}, ${cleaned}` : cleaned) : dayStr;
+                      setEditState(s => ({
+                        ...s,
+                        timing: newNote,
+                        daysPerWeek: days.size.toString(),
+                      }));
+                    }}
+                    className={`w-7 h-7 rounded text-[10px] font-medium transition-all ${
+                      isActive
+                        ? 'bg-primary/15 text-primary border border-primary/30'
+                        : 'bg-secondary text-muted-foreground border border-border/50'
+                    }`}
+                  >
+                    {label}
                   </button>
                 );
               })}

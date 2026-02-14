@@ -174,10 +174,10 @@ const Index = () => {
             />
           </TabsContent>
           <TabsContent value="reorders" className="animate-slide-up">
-            <ReorderView compounds={compounds} onUpdateCompound={handleUpdateCompound} userId={user?.id} />
+            <ReorderView compounds={compounds} onUpdateCompound={handleUpdateCompound} userId={user?.id} protocols={protocols} />
           </TabsContent>
           <TabsContent value="costs" className="animate-slide-up">
-            <CostProjectionView compounds={compounds} />
+            <CostProjectionView compounds={compounds} protocols={protocols} />
           </TabsContent>
         </Tabs>
 
