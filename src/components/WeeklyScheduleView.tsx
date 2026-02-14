@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { weeklySchedule, DayDose } from '@/data/schedule';
+import { useState, useMemo } from 'react';
+import { DayDose } from '@/data/schedule';
 import { Compound } from '@/data/compounds';
 import { getCycleStatus } from '@/lib/cycling';
+import { generateScheduleFromCompounds } from '@/lib/scheduleGenerator';
 import { UserProtocol } from '@/hooks/useProtocols';
 import { Sun, Moon, Dumbbell, Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -25,6 +26,7 @@ const WeeklyScheduleView = ({ compounds, protocols = [] }: WeeklyScheduleViewPro
   const [selectedCompound, setSelectedCompound] = useState<Compound | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
+  const weeklySchedule = useMemo(() => generateScheduleFromCompounds(compounds), [compounds]);
   const schedule = weeklySchedule[selectedDay];
   const compoundMap = new Map(compounds.map(c => [c.id, c]));
 
