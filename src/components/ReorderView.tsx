@@ -7,6 +7,7 @@ import { Check, Package, PackageCheck, ShoppingCart, Undo2, Trash2 } from 'lucid
 interface ReorderViewProps {
   compounds: Compound[];
   onUpdateCompound: (id: string, updates: Partial<Compound>) => void;
+  userId?: string;
 }
 
 interface OrderItem {
@@ -63,7 +64,7 @@ function buildNeededItems(compounds: Compound[]): Omit<OrderItem, 'id' | 'ordere
   });
 }
 
-const ReorderView = ({ compounds, onUpdateCompound }: ReorderViewProps) => {
+const ReorderView = ({ compounds, onUpdateCompound, userId }: ReorderViewProps) => {
   const [tab, setTab] = useState<Tab>('needed');
   const [orders, setOrders] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -103,6 +104,7 @@ const ReorderView = ({ compounds, onUpdateCompound }: ReorderViewProps) => {
         status: 'ordered',
         month_label: monthLabel,
         ordered_at: new Date().toISOString(),
+        user_id: userId,
       }])
       .select()
       .single();
