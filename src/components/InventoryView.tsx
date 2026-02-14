@@ -101,7 +101,7 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
 
       {/* Compound Cards */}
       {groups.map(group => (
-        <Collapsible key={group.label} defaultOpen>
+        <Collapsible key={group.label}>
           {group.label !== 'all' && (
             <CollapsibleTrigger className="flex items-center gap-1.5 w-full text-left mb-2 group">
               <ChevronDown className="w-3.5 h-3.5 text-muted-foreground transition-transform duration-200 group-data-[state=closed]:-rotate-90" />
@@ -142,6 +142,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
     const state: Record<string, string> = {
       name: compound.name,
       category: compound.category,
+      timing: compound.timingNote || '',
       currentQuantity: compound.currentQuantity.toString(),
       unitSize: compound.unitSize.toString(),
       dosePerUse: compound.dosePerUse.toString(),
@@ -205,6 +206,10 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
         updates.cycleOffDays = off;
         updates.cycleStartDate = editState.cycleStartDate || undefined;
       }
+    }
+
+    if (editState.timing !== undefined) {
+      updates.timingNote = editState.timing.trim() || undefined;
     }
 
     onUpdate(compound.id, updates);
@@ -309,6 +314,43 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
               ))}
             </div>
           </div>
+          <div className="flex items-center gap-2 text-[11px]">
+            <span className="text-muted-foreground w-16 flex-shrink-0">Timing</span>
+            <div className="flex gap-1 flex-1 flex-wrap">
+              {(['morning', 'afternoon', 'evening'] as const).map(t => {
+                const current = (editState.timing || '').toLowerCase();
+                const isActive = current.includes(t) || 
+                  (t === 'morning' && (current.includes('am') || current.includes('daily morning'))) ||
+                  (t === 'evening' && (current.includes('pm') || current.includes('nightly') || current.includes('night'))) ||
+                  (t === 'afternoon' && (current.includes('workout')));
+                return (
+                  <button
+                    key={t}
+                    onClick={() => {
+                      // Toggle the timing keyword in the timingNote
+                      const note = editState.timing || '';
+                      if (isActive) {
+                        // Remove timing keyword
+                        const cleaned = note.replace(new RegExp(`\\b${t}\\b`, 'gi'), '').replace(/\s+/g, ' ').trim();
+                        setEditState(s => ({ ...s, timing: cleaned }));
+                      } else {
+                        setEditState(s => ({ ...s, timing: note ? `${note}, ${t}` : t }));
+                      }
+                    }}
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-all ${
+                      isActive
+                        ? 'bg-primary/15 text-primary border border-primary/30'
+                        : 'bg-secondary text-muted-foreground border border-border/50'
+                    }`}
+                  >
+                    {t === 'morning' ? '☀️ AM' : t === 'afternoon' ? '💪 Mid' : '🌙 PM'}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <EditRow label="Note" value={editState.timing || ''}
+            onChange={v => setEditState(s => ({ ...s, timing: v }))} type="text" />
           <EditRow label={isPeptide ? 'Vials' : 'Qty'} value={editState.currentQuantity}
             onChange={v => setEditState(s => ({ ...s, currentQuantity: v }))} type="number" />
           <EditRow label="Per Unit" value={editState.unitSize} suffix={isPeptide ? 'mg' : compound.unitLabel.split(' ')[0]}
