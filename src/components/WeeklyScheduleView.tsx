@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { weeklySchedule, DayDose } from '@/data/schedule';
 import { Compound } from '@/data/compounds';
 import { getCycleStatus } from '@/lib/cycling';
-import { PROTOCOL_GROUPS } from '@/data/compoundBenefits';
+import { UserProtocol } from '@/hooks/useProtocols';
 import { Sun, Moon, Dumbbell, Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import CompoundInfoDrawer from '@/components/CompoundInfoDrawer';
 
 interface WeeklyScheduleViewProps {
   compounds: Compound[];
+  protocols?: UserProtocol[];
 }
 
 function getResumeDate(daysLeft: number): string {
@@ -18,9 +19,7 @@ function getResumeDate(daysLeft: number): string {
   return `${months[d.getMonth()]} ${d.getDate()}`;
 }
 
-const DICK_PROTOCOL_IDS = new Set(PROTOCOL_GROUPS.dickProtocol.compoundIds);
-
-const WeeklyScheduleView = ({ compounds }: WeeklyScheduleViewProps) => {
+const WeeklyScheduleView = ({ compounds, protocols = [] }: WeeklyScheduleViewProps) => {
   const today = new Date().getDay();
   const [selectedDay, setSelectedDay] = useState(today);
   const [selectedCompound, setSelectedCompound] = useState<Compound | null>(null);
@@ -97,6 +96,7 @@ const WeeklyScheduleView = ({ compounds }: WeeklyScheduleViewProps) => {
           compoundMap={compoundMap}
           offCycleIds={offCycleIds}
           onCompoundClick={handleCompoundClick}
+          protocols={protocols}
         />
 
         {/* Afternoon */}
@@ -110,6 +110,7 @@ const WeeklyScheduleView = ({ compounds }: WeeklyScheduleViewProps) => {
             compoundMap={compoundMap}
             offCycleIds={offCycleIds}
             onCompoundClick={handleCompoundClick}
+            protocols={protocols}
           />
         )}
 
@@ -123,6 +124,7 @@ const WeeklyScheduleView = ({ compounds }: WeeklyScheduleViewProps) => {
           compoundMap={compoundMap}
           offCycleIds={offCycleIds}
           onCompoundClick={handleCompoundClick}
+          protocols={protocols}
         />
 
         <CompoundInfoDrawer
@@ -145,6 +147,7 @@ const DoseSection = ({
   compoundMap,
   offCycleIds,
   onCompoundClick,
+  protocols,
 }: {
   icon: React.ReactNode;
   title: string;
@@ -154,15 +157,26 @@ const DoseSection = ({
   compoundMap: Map<string, Compound>;
   offCycleIds: Set<string>;
   onCompoundClick: (id: string) => void;
+  protocols: UserProtocol[];
 }) => {
   const allPeptides = doses.filter(d => d.category === 'peptide' || d.category === 'injectable-oil');
   const allOrals = doses.filter(d => d.category === 'oral');
   const allPowders = doses.filter(d => d.category === 'powder');
 
-  // Identify dick protocol compounds in this section
-  const dickProtocolDoses = doses.filter(d => DICK_PROTOCOL_IDS.has(d.compoundId));
-  const nonDickOrals = allOrals.filter(d => !DICK_PROTOCOL_IDS.has(d.compoundId));
-  const nonDickPowders = allPowders.filter(d => !DICK_PROTOCOL_IDS.has(d.compoundId));
+  // Build protocol groups from user-defined protocols
+  const protocolCompoundIds = new Set<string>();
+  const protocolGroups: { label: string; doses: DayDose[] }[] = [];
+
+  protocols.forEach(p => {
+    const pDoses = doses.filter(d => p.compoundIds.includes(d.compoundId));
+    if (pDoses.length > 0) {
+      protocolGroups.push({ label: `${p.icon} ${p.name}`, doses: pDoses });
+      pDoses.forEach(d => protocolCompoundIds.add(d.compoundId));
+    }
+  });
+
+  const ungroupedOrals = allOrals.filter(d => !protocolCompoundIds.has(d.compoundId));
+  const ungroupedPowders = allPowders.filter(d => !protocolCompoundIds.has(d.compoundId));
 
   const totalActive = doses.filter(d => !offCycleIds.has(d.compoundId)).length;
 
@@ -178,14 +192,14 @@ const DoseSection = ({
         {allPeptides.length > 0 && (
           <DoseGroup label="Injectables" doses={allPeptides} compoundMap={compoundMap} offCycleIds={offCycleIds} onCompoundClick={onCompoundClick} />
         )}
-        {dickProtocolDoses.length > 0 && (
-          <DoseGroup label="🍆 Dick Protocol" doses={dickProtocolDoses} compoundMap={compoundMap} offCycleIds={offCycleIds} onCompoundClick={onCompoundClick} />
+        {protocolGroups.map(pg => (
+          <DoseGroup key={pg.label} label={pg.label} doses={pg.doses} compoundMap={compoundMap} offCycleIds={offCycleIds} onCompoundClick={onCompoundClick} />
+        ))}
+        {ungroupedOrals.length > 0 && (
+          <DoseGroup label="Oral Supplements" doses={ungroupedOrals} compoundMap={compoundMap} offCycleIds={offCycleIds} onCompoundClick={onCompoundClick} />
         )}
-        {nonDickOrals.length > 0 && (
-          <DoseGroup label="Oral Supplements" doses={nonDickOrals} compoundMap={compoundMap} offCycleIds={offCycleIds} onCompoundClick={onCompoundClick} />
-        )}
-        {nonDickPowders.length > 0 && (
-          <DoseGroup label="Powders" doses={nonDickPowders} compoundMap={compoundMap} offCycleIds={offCycleIds} onCompoundClick={onCompoundClick} />
+        {ungroupedPowders.length > 0 && (
+          <DoseGroup label="Powders" doses={ungroupedPowders} compoundMap={compoundMap} offCycleIds={offCycleIds} onCompoundClick={onCompoundClick} />
         )}
       </div>
     </div>

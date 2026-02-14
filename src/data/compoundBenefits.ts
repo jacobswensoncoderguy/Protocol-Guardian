@@ -377,7 +377,7 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
     benefits: [
       'Nitric oxide precursor → vasodilation & blood flow enhancement',
       'At 5g daily: improved pumps, erectile quality & cardiovascular function',
-      'Part of "Dick Protocol" stack with Tadalafil + Pycnogenol + Citrulline',
+      'Part of libido enhancement stack with Tadalafil + Pycnogenol + Citrulline',
       'Supports endothelial function and healthy blood pressure',
       '📊 Projected: NO production increase of 30-50%; penile blood flow improvement contributing to +0.2-0.5" girth over 6-12 months (full protocol); BP reduction of 2-5 mmHg',
     ],
@@ -450,7 +450,7 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
     benefits: [
       'French Maritime Pine Bark — powerful antioxidant & NO booster',
       'At 150mg daily: enhanced erectile function within 4-6 weeks',
-      'Part of "Dick Protocol" — synergizes with L-Arginine for NO production',
+      'Part of libido enhancement protocol — synergizes with L-Arginine for NO production',
       'Supports endothelial function and blood flow',
       'Additional benefits: skin health, joint support & cognitive function',
       '📊 Projected: 92% of men achieve normal erectile function when combined with L-Arginine (Stanislavov study); endothelial function improvement of 30-40%',
@@ -467,7 +467,7 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
     benefits: [
       'PDE5 inhibitor — daily low-dose for vascular & erectile health',
       'At 5mg daily: consistent erectile quality & blood flow improvement',
-      'Part of "Dick Protocol" with L-Arginine, Pycnogenol & Citrulline',
+      'Part of libido enhancement protocol with L-Arginine, Pycnogenol & Citrulline',
       'Cardioprotective: improves endothelial function & reduces blood pressure',
       'Half-life of 17.5h → smooth, continuous vascular support',
       '📊 Projected: erectile hardness score improvement from 3→4 (EHS scale); penile blood flow increase of 25-40%; systolic BP reduction of 3-5 mmHg',
@@ -527,10 +527,10 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
     benefits: [
       'L-Citrulline Malate — superior NO precursor (better than L-Arginine alone)',
       'At 9g pre-workout: massive pumps, improved endurance & reduced soreness',
-      'Part of "Dick Protocol" — converts to L-Arginine for sustained NO production',
+      'Part of libido enhancement protocol — converts to L-Arginine for sustained NO production',
       'Reduces ammonia buildup during intense exercise',
       'Malate form supports ATP regeneration via Krebs cycle',
-      '📊 Projected: plasma arginine increase of 227% (vs 70% from arginine alone); erectile hardness improvement synergistic with full Dick Protocol; exercise endurance +12-15%',
+      '📊 Projected: plasma arginine increase of 227% (vs 70% from arginine alone); erectile hardness improvement synergistic with full protocol; exercise endurance +12-15%',
     ],
     timeline: [
       { week: 0.5, label: 'Immediate pump & endurance boost' },
@@ -568,11 +568,5 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
   },
 };
 
-// Protocol groupings for schedule display
-export const PROTOCOL_GROUPS: Record<string, { label: string; icon: string; compoundIds: string[] }> = {
-  dickProtocol: {
-    label: '🍆 Dick Protocol',
-    icon: '🍆',
-    compoundIds: ['tadalafil', 'l-arginine', 'pycnogenol', 'citrulline'],
-  },
-};
+// Protocol groupings are now user-defined via the user_protocols table.
+// The old hardcoded PROTOCOL_GROUPS has been removed.
