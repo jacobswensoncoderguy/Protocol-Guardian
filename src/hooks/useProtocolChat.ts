@@ -177,10 +177,15 @@ export function useProtocolChat(
                   summary: proposalData.summary,
                 };
                 setProposals(prev => [...prev, proposal]);
-                // Update the assistant message with the proposal attached
-                setMessages(prev => prev.map(m =>
-                  m.id === assistantId ? { ...m, proposal } : m
-                ));
+                // Ensure assistant message exists, then attach proposal
+                setMessages(prev => {
+                  const exists = prev.some(m => m.id === assistantId);
+                  if (exists) {
+                    return prev.map(m => m.id === assistantId ? { ...m, proposal } : m);
+                  }
+                  // Create assistant message with proposal if none exists yet
+                  return [...prev, { id: assistantId, role: 'assistant' as const, content: '', proposal, timestamp: Date.now() }];
+                });
               } catch (parseErr) {
                 console.error('Failed to parse proposal:', parseErr);
               }
