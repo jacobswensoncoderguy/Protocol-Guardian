@@ -75,6 +75,7 @@ const Index = () => {
     compounds, protocols, stackAnalysis, toleranceLevel, updateCompound, deleteCompound, refetch,
     conversationManager.activeConversationId,
     conversationManager.refreshConversation,
+    conversationManager.renameConversation,
   );
 
   const [activeTab, setActiveTab] = useState('dashboard');
