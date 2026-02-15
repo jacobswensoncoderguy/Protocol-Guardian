@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Square, Trash2, Check, X, CheckCheck, Brain, ArrowRight, Mic, MicOff, Maximize2, Minimize2, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
 import { ChatMessage, ChangeProposal, ProposedChange } from '@/hooks/useProtocolChat';
 import { useConversations } from '@/hooks/useConversations';
 import ChatSidebar from '@/components/ChatSidebar';
@@ -365,8 +366,8 @@ const ProtocolChat = ({
                   msg.role === 'user' ? 'bg-primary/15 text-foreground' : 'bg-secondary/50 text-foreground'
                 }`}>
                   {msg.content && (
-                    <div className="text-sm leading-relaxed prose prose-invert prose-sm max-w-none select-text [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0.5 [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_h1]:font-bold [&_h2]:font-semibold [&_h3]:font-semibold [&_strong]:text-foreground [&_a]:text-primary">
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    <div className="chat-markdown text-sm leading-relaxed max-w-none select-text">
+                      <ReactMarkdown rehypePlugins={[rehypeRaw]}>{msg.content}</ReactMarkdown>
                     </div>
                   )}
                   {msg.proposal && (
