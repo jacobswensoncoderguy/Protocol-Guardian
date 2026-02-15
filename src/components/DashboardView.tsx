@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Compound } from '@/data/compounds';
 import { Target, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { StackAnalysis } from '@/hooks/useProtocolAnalysis';
@@ -11,7 +11,6 @@ import { toast } from 'sonner';
 import ProtocolOutcomesCard from '@/components/ProtocolOutcomesCard';
 import ProtocolIntelligenceCard from '@/components/ProtocolIntelligenceCard';
 import MiniSparkline from '@/components/MiniSparkline';
-import RadialProgressRings from '@/components/RadialProgressRings';
 import { computeZoneIntensities, BODY_ZONES, BodyZone } from '@/data/bodyZoneMapping';
 import GeometricBody from '@/components/GeometricBody';
 import ZoneDetailDrawer from '@/components/ZoneDetailDrawer';
@@ -43,7 +42,6 @@ function getProgress(goal: UserGoal, firstReading?: number): number | null {
   return Math.min(100, Math.max(0, Math.round(((current - baseline) / range) * 100)));
 }
 
-// Quick-add reading card with sparkline
 const GoalCard = ({ goal, icon, progress, progressVal, barColor, sparkData, onViewOutcomes, onAddReading }: {
   goal: UserGoal; icon: string; progress: number | null; progressVal: number; barColor: string;
   sparkData: number[]; onViewOutcomes?: () => void; onAddReading: (value: number) => Promise<void>;
@@ -64,7 +62,7 @@ const GoalCard = ({ goal, icon, progress, progressVal, barColor, sparkData, onVi
   };
 
   return (
-    <div className="bg-card/60 backdrop-blur-sm rounded-lg border border-border/30 p-3 hover:border-neon-blue/30 transition-all duration-300">
+    <div className="bg-card/60 backdrop-blur-sm rounded-lg border border-border/30 p-3 hover:border-primary/30 transition-all duration-300">
       <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-2 min-w-0 cursor-pointer hover:opacity-80 transition-opacity" onClick={onViewOutcomes}>
           <span className="text-sm flex-shrink-0">{icon}</span>
@@ -90,11 +88,9 @@ const GoalCard = ({ goal, icon, progress, progressVal, barColor, sparkData, onVi
           </span>
         </div>
       </div>
-      {/* Progress bar */}
       <div className="h-1 bg-secondary/50 rounded-full overflow-hidden">
         <div className={`h-full rounded-full transition-all duration-700 ${barColor}`} style={{ width: `${progressVal}%` }} />
       </div>
-      {/* Subtle value label */}
       {goal.current_value != null && goal.target_unit && (
         <div className="mt-1 text-[9px] font-mono text-muted-foreground/70">
           {goal.current_value}{goal.target_unit}
@@ -105,8 +101,8 @@ const GoalCard = ({ goal, icon, progress, progressVal, barColor, sparkData, onVi
   );
 };
 
-// Zone legend chips
-const ZoneLegend = ({ zoneIntensities }: { zoneIntensities: Record<BodyZone, number> }) => {
+// Zone legend with color-coded labels
+const ZoneLegend = ({ zoneIntensities, onZoneTap }: { zoneIntensities: Record<BodyZone, number>; onZoneTap?: (zone: BodyZone) => void }) => {
   const activeZones = (Object.entries(zoneIntensities) as Array<[BodyZone, number]>)
     .filter(([, v]) => v > 0.1)
     .sort((a, b) => b[1] - a[1]);
@@ -116,18 +112,21 @@ const ZoneLegend = ({ zoneIntensities }: { zoneIntensities: Record<BodyZone, num
   return (
     <div className="flex flex-wrap gap-1.5 justify-center">
       {activeZones.map(([zone, intensity]) => (
-        <div key={zone} className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary/30 border border-border/20">
+        <button
+          key={zone}
+          onClick={() => onZoneTap?.(zone)}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary/40 border border-border/20 hover:border-primary/30 transition-all active:scale-95"
+        >
           <div
-            className="w-1.5 h-1.5 rounded-full"
+            className="w-2 h-2 rounded-full"
             style={{
               backgroundColor: BODY_ZONES[zone].color,
-              opacity: 0.3 + intensity * 0.7,
-              boxShadow: `0 0 ${4 + intensity * 4}px ${BODY_ZONES[zone].color}`,
+              boxShadow: `0 0 ${4 + intensity * 6}px ${BODY_ZONES[zone].color}`,
             }}
           />
-          <span className="text-[9px] text-muted-foreground">{BODY_ZONES[zone].label}</span>
-          <span className="text-[8px] font-mono text-muted-foreground/60">{Math.round(intensity * 100)}%</span>
-        </div>
+          <span className="text-[10px] font-medium text-muted-foreground">{BODY_ZONES[zone].label}</span>
+          <span className="text-[9px] font-mono text-muted-foreground/50">{Math.round(intensity * 100)}%</span>
+        </button>
       ))}
     </div>
   );
@@ -152,17 +151,13 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
     }
   }, [activeGoals.length]);
 
-  // Use compound names (not UUIDs) for zone mapping
-  const compoundNameIds = useMemo(() => 
+  const compoundNameIds = useMemo(() =>
     compounds.map(c => c.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')),
     [compounds]
   );
 
-  const zoneIntensities = useMemo(() => {
-    return computeZoneIntensities(compoundNameIds);
-  }, [compoundNameIds]);
+  const zoneIntensities = useMemo(() => computeZoneIntensities(compoundNameIds), [compoundNameIds]);
 
-  // Body coverage = % of zones with >0.3 intensity
   const bodyCoverage = useMemo(() => {
     const zones = Object.values(zoneIntensities);
     const covered = zones.filter(v => v > 0.3).length;
@@ -208,7 +203,7 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
               key={i}
               onClick={() => setActiveScreen(i)}
               className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
-                activeScreen === i ? 'w-4 bg-primary shadow-[0_0_8px_hsl(230,100%,65%)]' : 'bg-muted-foreground/30'
+                activeScreen === i ? 'w-4 bg-primary shadow-[0_0_8px_hsl(190,100%,50%)]' : 'bg-muted-foreground/30'
               }`}
             />
           ))}
@@ -232,42 +227,29 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
           className="flex transition-transform duration-500 ease-out"
           style={{ transform: `translateX(-${activeScreen * 100}%)` }}
         >
-          {/* Screen 1: 3D Body Hero */}
+          {/* Screen 1: Wireframe Body Map */}
           <div className="w-full flex-shrink-0" style={{ minHeight: 'calc(100vh - 180px)' }}>
             <div className="flex flex-col items-center h-full pt-6 pb-4 px-4">
-              {/* Title */}
-              <h2 className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-1">Protocol Coverage</h2>
-              <p className="text-[10px] text-muted-foreground/60 mb-3">{compounds.length} active compounds</p>
+              <h2 className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-0.5">Protocol Coverage</h2>
+              <p className="text-[10px] text-muted-foreground/60 mb-2">
+                {compounds.length} compounds · {bodyCoverage}% body coverage
+              </p>
 
-              {/* Radial rings + 3D body overlay */}
-              <div className="relative w-full flex-1 flex items-center justify-center" style={{ minHeight: 320 }}>
-                {/* Rings behind the body */}
-                <div className="absolute z-0">
-                  <RadialProgressRings
-                    goalProgress={overallProgress}
-                    protocolScore={protocolScore}
-                    bodyCoverage={bodyCoverage}
-                    size={260}
-                  />
-                </div>
-                {/* 3D Body */}
-                <div className="relative z-10 w-[220px] h-[340px]">
-                  <Suspense fallback={
-                    <div className="w-full h-full flex items-center justify-center">
-                      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                    </div>
-                  }>
-                    <GeometricBody zoneIntensities={zoneIntensities} onZoneTap={handleZoneTap} />
-                  </Suspense>
+              {/* Wireframe body – no 3D, no orbit controls */}
+              <div className="relative w-full flex-1 flex items-center justify-center" style={{ minHeight: 340 }}>
+                <div className="w-[260px] h-[380px]">
+                  <GeometricBody zoneIntensities={zoneIntensities} onZoneTap={handleZoneTap} />
                 </div>
               </div>
+
+              {/* Tap instruction */}
+              <p className="text-[9px] text-muted-foreground/50 mb-3">Tap a zone to view compounds & impact</p>
 
               {/* Zone legend */}
-              <div className="mt-4 w-full">
-                <ZoneLegend zoneIntensities={zoneIntensities} />
+              <div className="w-full">
+                <ZoneLegend zoneIntensities={zoneIntensities} onZoneTap={handleZoneTap} />
               </div>
 
-              {/* Swipe hint */}
               <p className="text-[9px] text-muted-foreground/40 mt-3 animate-pulse">
                 ← Swipe for goals →
               </p>
@@ -277,7 +259,6 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
           {/* Screen 2: Goals + Sparklines */}
           <div className="w-full flex-shrink-0" style={{ minHeight: 'calc(100vh - 180px)' }}>
             <div className="flex flex-col h-full pt-6 pb-4 px-4">
-              {/* Header */}
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
                   <Target className="w-4 h-4 text-primary" />
@@ -289,12 +270,10 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
                 </div>
               </div>
 
-              {/* Overall bar */}
               <div className="h-2 bg-secondary/50 rounded-full overflow-hidden mb-4">
                 <div className="h-full bg-primary rounded-full transition-all duration-700" style={{ width: `${overallProgress}%` }} />
               </div>
 
-              {/* Goal cards */}
               {activeGoals.length > 0 ? (
                 <div className="space-y-2 flex-1 overflow-y-auto scrollbar-thin">
                   {activeGoals.map(goal => {
@@ -355,10 +334,8 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
         />
       )}
 
-      {/* Protocol Outcomes */}
       <ProtocolOutcomesCard />
 
-      {/* Zone Detail Drawer */}
       <ZoneDetailDrawer
         zone={selectedZone}
         open={zoneDrawerOpen}
