@@ -57,6 +57,7 @@ const Index = () => {
   const {
     protocols, createProtocol, deleteProtocol, cloneProtocol, updateProtocol,
     addCompoundToProtocol, removeCompoundFromProtocol, refetch: refetchProtocols,
+    goals, protocolGoalLinks, linkGoalToProtocol, unlinkGoalFromProtocol,
   } = useProtocols(user?.id);
 
   const {
@@ -261,6 +262,10 @@ const Index = () => {
           onAddCompound={addCompoundToProtocol}
           onRemoveCompound={removeCompoundFromProtocol}
           onUpdateCompound={handleUpdateCompound}
+          goals={goals}
+          protocolGoalLinks={protocolGoalLinks}
+          onLinkGoal={linkGoalToProtocol}
+          onUnlinkGoal={unlinkGoalFromProtocol}
         />
       </main>
     </div>

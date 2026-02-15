@@ -1,6 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
+export interface UserGoalSummary {
+  id: string;
+  title: string;
+  goal_type: string;
+  body_area: string | null;
+  status: string;
+}
+
 export interface UserProtocol {
   id: string;
   user_id: string;
@@ -153,6 +161,42 @@ export function useProtocols(userId: string | undefined) {
     await fetchProtocols();
   }, [fetchProtocols]);
 
+  // Goal linking
+  const [goals, setGoals] = useState<UserGoalSummary[]>([]);
+  const [protocolGoalLinks, setProtocolGoalLinks] = useState<Map<string, string[]>>(new Map());
+
+  const fetchGoals = useCallback(async () => {
+    if (!userId) return;
+    const [goalsRes, linksRes] = await Promise.all([
+      (supabase as any).from('user_goals').select('id, title, goal_type, body_area, status').eq('user_id', userId).eq('status', 'active'),
+      (supabase as any).from('user_goal_protocols').select('user_goal_id, user_protocol_id'),
+    ]);
+    if (!goalsRes.error && goalsRes.data) setGoals(goalsRes.data as UserGoalSummary[]);
+    if (!linksRes.error && linksRes.data) {
+      const map = new Map<string, string[]>();
+      (linksRes.data as { user_goal_id: string; user_protocol_id: string }[]).forEach(l => {
+        const arr = map.get(l.user_protocol_id) || [];
+        arr.push(l.user_goal_id);
+        map.set(l.user_protocol_id, arr);
+      });
+      setProtocolGoalLinks(map);
+    }
+  }, [userId]);
+
+  useEffect(() => { fetchGoals(); }, [fetchGoals]);
+
+  const linkGoalToProtocol = useCallback(async (protocolId: string, goalId: string) => {
+    const { error } = await (supabase as any).from('user_goal_protocols').insert({ user_goal_id: goalId, user_protocol_id: protocolId });
+    if (error) console.error('Failed to link goal:', error);
+    await fetchGoals();
+  }, [fetchGoals]);
+
+  const unlinkGoalFromProtocol = useCallback(async (protocolId: string, goalId: string) => {
+    const { error } = await (supabase as any).from('user_goal_protocols').delete().eq('user_goal_id', goalId).eq('user_protocol_id', protocolId);
+    if (error) console.error('Failed to unlink goal:', error);
+    await fetchGoals();
+  }, [fetchGoals]);
+
   return {
     protocols,
     loading,
@@ -163,5 +207,9 @@ export function useProtocols(userId: string | undefined) {
     addCompoundToProtocol,
     removeCompoundFromProtocol,
     refetch: fetchProtocols,
+    goals,
+    protocolGoalLinks,
+    linkGoalToProtocol,
+    unlinkGoalFromProtocol,
   };
 }

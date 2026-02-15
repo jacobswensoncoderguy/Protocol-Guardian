@@ -387,6 +387,220 @@ export type Database = {
         }
         Relationships: []
       }
+      user_goal_protocols: {
+        Row: {
+          created_at: string
+          id: string
+          user_goal_id: string
+          user_protocol_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          user_goal_id: string
+          user_protocol_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          user_goal_id?: string
+          user_protocol_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_goal_protocols_user_goal_id_fkey"
+            columns: ["user_goal_id"]
+            isOneToOne: false
+            referencedRelation: "user_goals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_goal_protocols_user_protocol_id_fkey"
+            columns: ["user_protocol_id"]
+            isOneToOne: false
+            referencedRelation: "user_protocols"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_goal_readings: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          reading_date: string
+          source: string | null
+          unit: string
+          user_goal_id: string
+          user_id: string
+          value: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          reading_date?: string
+          source?: string | null
+          unit: string
+          user_goal_id: string
+          user_id: string
+          value: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          reading_date?: string
+          source?: string | null
+          unit?: string
+          user_goal_id?: string
+          user_id?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_goal_readings_user_goal_id_fkey"
+            columns: ["user_goal_id"]
+            isOneToOne: false
+            referencedRelation: "user_goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_goal_uploads: {
+        Row: {
+          ai_extracted_data: Json | null
+          created_at: string
+          file_name: string
+          file_type: string | null
+          file_url: string
+          id: string
+          notes: string | null
+          reading_date: string | null
+          upload_type: string
+          user_goal_id: string
+          user_id: string
+        }
+        Insert: {
+          ai_extracted_data?: Json | null
+          created_at?: string
+          file_name: string
+          file_type?: string | null
+          file_url: string
+          id?: string
+          notes?: string | null
+          reading_date?: string | null
+          upload_type: string
+          user_goal_id: string
+          user_id: string
+        }
+        Update: {
+          ai_extracted_data?: Json | null
+          created_at?: string
+          file_name?: string
+          file_type?: string | null
+          file_url?: string
+          id?: string
+          notes?: string | null
+          reading_date?: string | null
+          upload_type?: string
+          user_goal_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_goal_uploads_user_goal_id_fkey"
+            columns: ["user_goal_id"]
+            isOneToOne: false
+            referencedRelation: "user_goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_goals: {
+        Row: {
+          baseline_value: number | null
+          body_area: string | null
+          created_at: string
+          current_value: number | null
+          description: string | null
+          goal_type: string
+          id: string
+          priority: number | null
+          status: string
+          target_date: string | null
+          target_unit: string | null
+          target_value: number | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          baseline_value?: number | null
+          body_area?: string | null
+          created_at?: string
+          current_value?: number | null
+          description?: string | null
+          goal_type: string
+          id?: string
+          priority?: number | null
+          status?: string
+          target_date?: string | null
+          target_unit?: string | null
+          target_value?: number | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          baseline_value?: number | null
+          body_area?: string | null
+          created_at?: string
+          current_value?: number | null
+          description?: string | null
+          goal_type?: string
+          id?: string
+          priority?: number | null
+          status?: string
+          target_date?: string | null
+          target_unit?: string | null
+          target_value?: number | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_onboarding: {
+        Row: {
+          ai_conversation: string | null
+          completed_at: string | null
+          created_at: string
+          id: string
+          responses: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_conversation?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          responses?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_conversation?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          responses?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_protocols: {
         Row: {
           created_at: string
