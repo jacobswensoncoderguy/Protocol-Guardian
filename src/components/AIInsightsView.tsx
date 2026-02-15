@@ -6,6 +6,7 @@ import ToleranceSelector from '@/components/ToleranceSelector';
 import MedicalDisclaimer from '@/components/MedicalDisclaimer';
 import ProtocolChat from '@/components/ProtocolChat';
 import { ChatMessage } from '@/hooks/useProtocolChat';
+import { useConversations } from '@/hooks/useConversations';
 
 interface AIInsightsViewProps {
   analysis: StackAnalysis | null;
@@ -24,6 +25,7 @@ interface AIInsightsViewProps {
   toleranceComparison: ToleranceComparison | null;
   compareLoading: boolean;
   onCompareAllLevels: () => void;
+  conversationManager: ReturnType<typeof useConversations>;
 }
 
 const severityBadge = (severity: string) => {
@@ -253,7 +255,7 @@ const ToleranceComparisonCard = ({
   );
 };
 
-const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, onRefresh, chatMessages, isChatStreaming, onChatSend, onChatCancel, onChatClear, onApplyChange, onRejectChange, onApplyAll, toleranceComparison, compareLoading, onCompareAllLevels }: AIInsightsViewProps) => {
+const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, onRefresh, chatMessages, isChatStreaming, onChatSend, onChatCancel, onChatClear, onApplyChange, onRejectChange, onApplyAll, toleranceComparison, compareLoading, onCompareAllLevels, conversationManager }: AIInsightsViewProps) => {
   const sectionScores = analysis ? computeSectionScores(analysis) : [];
 
   const renderSection = (sectionId: string) => {
@@ -429,6 +431,7 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
         onApplyChange={onApplyChange}
         onRejectChange={onRejectChange}
         onApplyAll={onApplyAll}
+        conversationManager={conversationManager}
       />
 
       {/* Header */}
