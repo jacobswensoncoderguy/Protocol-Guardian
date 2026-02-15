@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { Scan, Activity, Bone, Flame, Scale } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, RadialBarChart, RadialBar } from 'recharts';
+import { Scan, Activity, Bone, Flame, Scale, TrendingUp } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, RadialBarChart, RadialBar, LineChart, Line, Legend } from 'recharts';
 import { cn } from '@/lib/utils';
 
 interface DexaUpload {
@@ -160,6 +160,26 @@ export default function DexaScanView({ uploads }: DexaScanViewProps) {
     return regions;
   }, [regionalFat, regionalLean]);
 
+  // Body composition trend data across all DEXA scans
+  const trendData = useMemo(() => {
+    if (dexaUploads.length < 2) return [];
+    return dexaUploads.map(upload => {
+      const m = extractDexaMetrics(upload);
+      const fat = findMetric(m, COMPOSITION_KEYS);
+      const lean = findMetric(m, LEAN_KEYS);
+      const bmdVal = findMetric(m, BMD_KEYS);
+      const vatVal = findMetric(m, VAT_KEYS);
+      const date = new Date(upload.reading_date || upload.created_at);
+      return {
+        date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        'Fat %': fat?.value ?? null,
+        'Lean Mass': lean?.value ?? null,
+        'BMD': bmdVal?.value ?? null,
+        'VAT': vatVal?.value ?? null,
+      };
+    });
+  }, [dexaUploads]);
+
   return (
     <div className="bg-card rounded-xl border border-border/50 overflow-hidden">
       {/* Header */}
@@ -292,6 +312,86 @@ export default function DexaScanView({ uploads }: DexaScanViewProps) {
                 <span className="w-2 h-2 rounded-sm" style={{ backgroundColor: 'hsl(var(--chart-2))' }} />
                 Lean
               </span>
+            </div>
+          </div>
+        )}
+
+        {/* Body Composition Trend */}
+        {trendData.length >= 2 && (
+          <div>
+            <h5 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <TrendingUp className="w-3 h-3" />
+              Composition Trend
+            </h5>
+            <div className="h-44">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={trendData}>
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    yAxisId="left"
+                    tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={30}
+                    label={{ value: '%', position: 'insideTopLeft', fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
+                  />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={35}
+                    label={{ value: 'lbs', position: 'insideTopRight', fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                      fontSize: '11px',
+                    }}
+                    formatter={(value: number, name: string) => {
+                      const unit = name === 'Fat %' ? '%' : name === 'BMD' ? 'g/cm²' : 'lbs';
+                      return [`${value} ${unit}`, name];
+                    }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: '10px' }} iconSize={8} />
+                  <Line
+                    yAxisId="left"
+                    type="monotone"
+                    dataKey="Fat %"
+                    stroke="hsl(var(--chart-4))"
+                    strokeWidth={2}
+                    dot={{ r: 4, fill: 'hsl(var(--chart-4))', strokeWidth: 0 }}
+                    connectNulls
+                  />
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="Lean Mass"
+                    stroke="hsl(var(--chart-2))"
+                    strokeWidth={2}
+                    dot={{ r: 4, fill: 'hsl(var(--chart-2))', strokeWidth: 0 }}
+                    connectNulls
+                  />
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="VAT"
+                    stroke="hsl(var(--destructive))"
+                    strokeWidth={1.5}
+                    strokeDasharray="4 3"
+                    dot={{ r: 3, fill: 'hsl(var(--destructive))', strokeWidth: 0 }}
+                    connectNulls
+                  />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
           </div>
         )}
