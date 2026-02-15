@@ -139,7 +139,7 @@ export function generateScheduleFromCompounds(compounds: Compound[]): DaySchedul
     doses: [],
   }));
 
-  compounds.forEach(compound => {
+  compounds.filter(c => c.daysPerWeek > 0 || (c.cycleOnDays && c.cycleOffDays)).forEach(compound => {
     const days = parseDays(compound);
     const timings = parseTimings(compound);
     const doseStr = formatDose(compound);
