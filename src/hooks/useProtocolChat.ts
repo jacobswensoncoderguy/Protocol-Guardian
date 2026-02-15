@@ -41,6 +41,7 @@ export function useProtocolChat(
   refetch: () => Promise<void>,
   conversationId: string | null,
   onConversationUpdate?: (convId: string, content: string) => void,
+  onAutoTitle?: (convId: string, title: string) => void,
 ) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -265,6 +266,27 @@ export function useProtocolChat(
 
       persistMessage({ id: assistantId, role: 'assistant', content: assistantContent, timestamp: Date.now() });
       onConversationUpdate?.(conversationId, assistantContent);
+
+      // Auto-title: if this is the first exchange (only user + assistant), generate a title
+      if (messages.length === 0 && assistantContent && onAutoTitle) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          const titleToken = session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+          const titleResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-title`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${titleToken}`,
+              apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            },
+            body: JSON.stringify({ userMessage: userInput, assistantMessage: assistantContent }),
+          });
+          if (titleResp.ok) {
+            const { title } = await titleResp.json();
+            if (title) onAutoTitle(conversationId, title);
+          }
+        } catch (e) { console.error('Auto-title failed:', e); }
+      }
     } catch (err: any) {
       if (err.name !== 'AbortError') { console.error('Chat stream error:', err); toast.error('Chat connection failed'); }
     } finally {
