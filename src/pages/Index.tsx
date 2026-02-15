@@ -1,9 +1,10 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Package, DollarSign, LayoutDashboard, ShoppingCart, Sun, Moon, RefreshCw, LogOut, Sparkles, Brain } from 'lucide-react';
+import { Calendar, Package, DollarSign, LayoutDashboard, ShoppingCart, Sun, Moon, RefreshCw, LogOut, Sparkles, Brain, Target } from 'lucide-react';
 import { Compound } from '@/data/compounds';
 import { useCompounds } from '@/hooks/useCompounds';
 import { useProtocols } from '@/hooks/useProtocols';
 import { useAuth } from '@/hooks/useAuth';
+import { useGoals } from '@/hooks/useGoals';
 import { useTheme } from '@/hooks/useTheme';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { useProtocolAnalysis } from '@/hooks/useProtocolAnalysis';
@@ -14,6 +15,7 @@ import { useCallback, useState } from 'react';
 import Onboarding from './Onboarding';
 import AddCompoundDialog from '@/components/AddCompoundDialog';
 import ProtocolManagerDialog from '@/components/ProtocolManagerDialog';
+import GoalExpansionDialog from '@/components/GoalExpansionDialog';
 
 import DashboardView from '@/components/DashboardView';
 import WeeklyScheduleView from '@/components/WeeklyScheduleView';
@@ -51,9 +53,11 @@ const Index = () => {
   const { user, signOut } = useAuth();
   const { compounds, loading, hasCompounds, updateCompound, addCompound, deleteCompound, refetch } = useCompounds(user?.id);
   const { isDark, toggle } = useTheme();
+  const { createGoals } = useGoals(user?.id);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showProtocolManager, setShowProtocolManager] = useState(false);
+  const [showGoalExpansion, setShowGoalExpansion] = useState(false);
   const {
     protocols, createProtocol, deleteProtocol, cloneProtocol, updateProtocol,
     addCompoundToProtocol, removeCompoundFromProtocol, refetch: refetchProtocols,
@@ -150,6 +154,9 @@ const Index = () => {
             </button>
             <button onClick={() => setShowProtocolManager(true)} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground" title="Protocol Groups">
               <Sparkles className="w-4 h-4" />
+            </button>
+            <button onClick={() => setShowGoalExpansion(true)} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground" title="Goal Expansion">
+              <Target className="w-4 h-4" />
             </button>
             <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground font-mono">
               <span className="inline-block w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-status-good animate-pulse-glow" />
@@ -266,6 +273,25 @@ const Index = () => {
           protocolGoalLinks={protocolGoalLinks}
           onLinkGoal={linkGoalToProtocol}
           onUnlinkGoal={unlinkGoalFromProtocol}
+        />
+
+        <GoalExpansionDialog
+          open={showGoalExpansion}
+          onOpenChange={setShowGoalExpansion}
+          goals={goals}
+          protocols={protocols}
+          compounds={compounds}
+          onCreateGoal={async (goal) => {
+            await createGoals([{
+              goal_type: goal.goal_type,
+              title: goal.title,
+              description: goal.description,
+              body_area: goal.body_area,
+              target_value: goal.target_value,
+              target_unit: goal.target_unit,
+              priority: goal.priority || 2,
+            }]);
+          }}
         />
       </main>
     </div>
