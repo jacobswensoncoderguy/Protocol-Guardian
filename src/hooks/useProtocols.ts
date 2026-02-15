@@ -27,14 +27,14 @@ interface DbCompoundProtocol {
 }
 
 export const SUGGESTED_PROTOCOLS = [
-  { name: 'Heart Health Protocol', icon: '❤️', description: 'Cardiovascular protection and blood pressure support' },
-  { name: 'Liver Cleanse Protocol', icon: '🫁', description: 'Hepatoprotection and detoxification support' },
-  { name: 'Cognitive Remodeling Protocol', icon: '🧠', description: 'Neuroprotection, focus and memory enhancement' },
-  { name: 'Libido Enhancement Protocol', icon: '🔥', description: 'Vascular health, blood flow and sexual performance' },
-  { name: 'Recovery & Repair Protocol', icon: '🩹', description: 'Tissue healing, joint support and inflammation control' },
-  { name: 'Body Recomposition Protocol', icon: '💪', description: 'Fat loss, lean mass gain and metabolic optimization' },
-  { name: 'Longevity & Anti-Aging Protocol', icon: '⏳', description: 'Cellular repair, NAD+ and sirtuin activation' },
-  { name: 'Immune Defense Protocol', icon: '🛡️', description: 'Immune system modulation and pathogen resistance' },
+  { name: 'Heart Health Protocol', icon: 'heart-pulse', description: 'Cardiovascular protection and blood pressure support' },
+  { name: 'Liver Cleanse Protocol', icon: 'shield-check', description: 'Hepatoprotection and detoxification support' },
+  { name: 'Cognitive Remodeling Protocol', icon: 'brain', description: 'Neuroprotection, focus and memory enhancement' },
+  { name: 'Libido Enhancement Protocol', icon: 'flame', description: 'Vascular health, blood flow and sexual performance' },
+  { name: 'Recovery & Repair Protocol', icon: 'bandage', description: 'Tissue healing, joint support and inflammation control' },
+  { name: 'Body Recomposition Protocol', icon: 'target', description: 'Fat loss, lean mass gain and metabolic optimization' },
+  { name: 'Longevity & Anti-Aging Protocol', icon: 'sparkles', description: 'Cellular repair, NAD+ and sirtuin activation' },
+  { name: 'Immune Defense Protocol', icon: 'shield-check', description: 'Immune system modulation and pathogen resistance' },
 ];
 
 export function useProtocols(userId: string | undefined) {

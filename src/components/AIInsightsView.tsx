@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Brain, RefreshCw, ShieldAlert, Beaker, BarChart3, DollarSign, Lightbulb, ChevronDown, GitCompare, AlertTriangle, Zap, MessageSquare, Send, X, ThumbsDown, TrendingUp } from 'lucide-react';
+import { Brain, RefreshCw, ShieldAlert, Beaker, BarChart3, DollarSign, Lightbulb, ChevronDown, GitCompare, AlertTriangle, Zap, MessageSquare, Send, X, ThumbsDown, TrendingUp, Shield, Scale, Rocket } from 'lucide-react';
 import { StackAnalysis, ToleranceComparison } from '@/hooks/useProtocolAnalysis';
 import { ToleranceLevel } from '@/hooks/useProtocolAnalysis';
 import ToleranceSelector from '@/components/ToleranceSelector';
@@ -41,18 +41,18 @@ const verdictColor = (verdict: string) => {
   return 'text-status-critical';
 };
 
-const toleranceMeta: Record<string, { icon: string; label: string; color: string }> = {
-  conservative: { icon: '🛡️', label: 'Conservative', color: 'bg-blue-500/15 text-blue-400 border-blue-500/30' },
-  moderate: { icon: '⚖️', label: 'Moderate', color: 'bg-primary/15 text-primary border-primary/30' },
-  aggressive: { icon: '⚡', label: 'Aggressive', color: 'bg-amber-500/15 text-amber-400 border-amber-500/30' },
-  performance: { icon: '🚀', label: 'Performance', color: 'bg-rose-500/15 text-rose-400 border-rose-500/30' },
+const toleranceMeta: Record<string, { Icon: typeof Shield; label: string; color: string }> = {
+  conservative: { Icon: Shield, label: 'Conservative', color: 'bg-blue-500/15 text-blue-400 border-blue-500/30' },
+  moderate: { Icon: Scale, label: 'Moderate', color: 'bg-primary/15 text-primary border-primary/30' },
+  aggressive: { Icon: Zap, label: 'Aggressive', color: 'bg-amber-500/15 text-amber-400 border-amber-500/30' },
+  performance: { Icon: Rocket, label: 'Performance', color: 'bg-rose-500/15 text-rose-400 border-rose-500/30' },
 };
 
 const ToleranceBadge = ({ level }: { level: string }) => {
   const meta = toleranceMeta[level] || toleranceMeta.moderate;
   return (
     <span className={`inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-full border ${meta.color}`}>
-      <span>{meta.icon}</span>
+      <meta.Icon className="w-3 h-3" />
       <span>{meta.label}</span>
     </span>
   );
@@ -294,8 +294,8 @@ const ToleranceComparisonCard = ({
                 style={{ userSelect: 'text', WebkitUserSelect: 'text' }}
               >
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[10px] font-mono text-muted-foreground">
-                    {meta.icon} {meta.label}
+                  <span className="text-[10px] font-mono text-muted-foreground flex items-center gap-1">
+                    <meta.Icon className="w-3 h-3" /> {meta.label}
                   </span>
                   {isActive && (
                     <span className="text-[8px] font-mono px-1 py-0.5 rounded bg-primary/15 text-primary">ACTIVE</span>

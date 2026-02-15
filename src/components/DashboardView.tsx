@@ -123,7 +123,7 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
       case 'reorder':
         return (
           <div className="space-y-2 max-h-[60vh] overflow-y-auto">
-            {criticalCompounds.length === 0 && <p className="text-sm text-muted-foreground">No compounds need reordering 🎉</p>}
+            {criticalCompounds.length === 0 && <p className="text-sm text-muted-foreground">No compounds need reordering</p>}
             {criticalCompounds.map(c => (
               <button key={c.id} onClick={() => handleCompoundClick(c)} className="flex justify-between w-full text-sm hover:bg-secondary/50 rounded px-2 py-1.5 transition-colors text-left">
                 <span className="text-foreground/80 truncate mr-2">{c.name}</span>
@@ -138,7 +138,7 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
       case 'low':
         return (
           <div className="space-y-2 max-h-[60vh] overflow-y-auto">
-            {warningCompounds.length === 0 && <p className="text-sm text-muted-foreground">All compounds well stocked 🎉</p>}
+            {warningCompounds.length === 0 && <p className="text-sm text-muted-foreground">All compounds well stocked</p>}
             {warningCompounds.map(c => (
               <button key={c.id} onClick={() => handleCompoundClick(c)} className="flex justify-between w-full text-sm hover:bg-secondary/50 rounded px-2 py-1.5 transition-colors text-left">
                 <span className="text-foreground/80 truncate mr-2">{c.name}</span>

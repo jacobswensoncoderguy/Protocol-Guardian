@@ -1,4 +1,4 @@
-import { Brain, Loader2 } from 'lucide-react';
+import { Brain, Loader2, Lightbulb, RefreshCw } from 'lucide-react';
 import { CompoundAnalysis } from '@/hooks/useProtocolAnalysis';
 
 interface CompoundAISectionProps {
@@ -74,8 +74,9 @@ const CompoundAISection = ({ analysis, loading, onAnalyze }: CompoundAISectionPr
         {analysis.bioavailability.alternatives.length > 0 && (
           <div className="mt-1.5 space-y-1">
             {analysis.bioavailability.alternatives.map((alt, i) => (
-              <p key={i} className="text-[10px] text-primary">
-                🔄 {alt.method}: {alt.improvement} — {alt.description}
+              <p key={i} className="text-[10px] text-primary flex items-center gap-1">
+                <RefreshCw className="w-3 h-3 flex-shrink-0" />
+                {alt.method}: {alt.improvement} — {alt.description}
               </p>
             ))}
           </div>
@@ -86,8 +87,9 @@ const CompoundAISection = ({ analysis, loading, onAnalyze }: CompoundAISectionPr
       {analysis.suggestions.length > 0 && (
         <div className="space-y-1">
           {analysis.suggestions.map((s, i) => (
-            <p key={i} className="text-[10px] text-foreground/70 flex gap-1.5">
-              <span className="text-primary">💡</span> {s}
+            <p key={i} className="text-[10px] text-foreground/70 flex items-center gap-1.5">
+              <Lightbulb className="w-3 h-3 text-primary flex-shrink-0" />
+              {s}
             </p>
           ))}
         </div>

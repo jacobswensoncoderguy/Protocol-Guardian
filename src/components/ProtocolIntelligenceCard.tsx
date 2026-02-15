@@ -1,5 +1,7 @@
-import { Brain, RefreshCw, ChevronRight, AlertTriangle, TrendingUp } from 'lucide-react';
+import { Brain, RefreshCw, ChevronRight, TrendingUp, AlertCircle, CircleAlert, Info } from 'lucide-react';
+import { Shield, Scale, Zap, Rocket } from 'lucide-react';
 import { StackAnalysis } from '@/hooks/useProtocolAnalysis';
+import type { LucideIcon } from 'lucide-react';
 
 interface ProtocolIntelligenceCardProps {
   analysis: StackAnalysis | null;
@@ -17,17 +19,17 @@ const gradeColor = (grade: string) => {
   return 'text-status-critical';
 };
 
-const severityIcon = (severity: string) => {
-  if (severity === 'danger') return '🔴';
-  if (severity === 'warning') return '🟡';
-  return '🔵';
+const severityIconMap: Record<string, { Icon: LucideIcon; color: string }> = {
+  danger: { Icon: AlertCircle, color: 'text-status-critical' },
+  warning: { Icon: CircleAlert, color: 'text-status-warning' },
+  info: { Icon: Info, color: 'text-primary' },
 };
 
-const toleranceLabels: Record<string, { icon: string; label: string }> = {
-  conservative: { icon: '🛡️', label: 'Conservative' },
-  moderate: { icon: '⚖️', label: 'Moderate' },
-  aggressive: { icon: '⚡', label: 'Aggressive' },
-  performance: { icon: '🚀', label: 'Performance' },
+const toleranceLabels: Record<string, { Icon: LucideIcon; label: string }> = {
+  conservative: { Icon: Shield, label: 'Conservative' },
+  moderate: { Icon: Scale, label: 'Moderate' },
+  aggressive: { Icon: Zap, label: 'Aggressive' },
+  performance: { Icon: Rocket, label: 'Performance' },
 };
 
 const ProtocolIntelligenceCard = ({ analysis, loading, needsRefresh, toleranceLevel, onRefresh, onViewDetails }: ProtocolIntelligenceCardProps) => {
@@ -83,7 +85,8 @@ const ProtocolIntelligenceCard = ({ analysis, loading, needsRefresh, toleranceLe
             <div className="flex-1">
               {toleranceLevel && toleranceLabels[toleranceLevel] && (
                 <span className="inline-flex items-center gap-1 text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground mb-1">
-                  {toleranceLabels[toleranceLevel].icon} {toleranceLabels[toleranceLevel].label}
+                  {(() => { const { Icon } = toleranceLabels[toleranceLevel]; return <Icon className="w-2.5 h-2.5" />; })()}
+                  {toleranceLabels[toleranceLevel].label}
                 </span>
               )}
               <p className="text-xs text-muted-foreground leading-snug">{analysis.overallSummary}</p>
@@ -92,12 +95,15 @@ const ProtocolIntelligenceCard = ({ analysis, loading, needsRefresh, toleranceLe
 
           {/* Top findings */}
           <div className="space-y-1.5">
-            {analysis.contraindications.filter(c => c.severity !== 'info').slice(0, 3).map((c, i) => (
-              <div key={i} className="flex items-start gap-2 text-xs">
-                <span className="flex-shrink-0">{severityIcon(c.severity)}</span>
-                <span className="text-foreground/80 leading-snug">{c.description}</span>
-              </div>
-            ))}
+            {analysis.contraindications.filter(c => c.severity !== 'info').slice(0, 3).map((c, i) => {
+              const sev = severityIconMap[c.severity] || severityIconMap.info;
+              return (
+                <div key={i} className="flex items-start gap-2 text-xs">
+                  <sev.Icon className={`w-3 h-3 flex-shrink-0 mt-0.5 ${sev.color}`} />
+                  <span className="text-foreground/80 leading-snug">{c.description}</span>
+                </div>
+              );
+            })}
             {analysis.topRecommendations.slice(0, 2).map((r, i) => (
               <div key={`rec-${i}`} className="flex items-start gap-2 text-xs">
                 <TrendingUp className="w-3 h-3 text-primary flex-shrink-0 mt-0.5" />
