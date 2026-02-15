@@ -40,12 +40,12 @@ const GenderSelector = ({ currentGender, onGenderChange, locked = false }: Gende
 
   return (
     <>
-      <div className="flex flex-col gap-1.5">
+      <div className="flex gap-1.5">
         {genders.map(g => (
           <button
             key={g.id}
             onClick={() => handleSelect(g.id)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all ${
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border transition-all ${
               currentGender === g.id
                 ? 'bg-primary/15 border-primary/40 text-primary'
                 : 'bg-secondary/30 border-border/30 text-muted-foreground hover:border-primary/30'

@@ -18,7 +18,7 @@ import { computeZoneIntensities, BODY_ZONES, BodyZone } from '@/data/bodyZoneMap
 import GeometricBody from '@/components/GeometricBody';
 import ZoneDetailDrawer from '@/components/ZoneDetailDrawer';
 import GenderSelector from '@/components/GenderSelector';
-// ToleranceSelector no longer needed on coverage page — shown on Compounds tab
+import ToleranceSelector from '@/components/ToleranceSelector';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import bodyMaleImg from '@/assets/body-male.jpeg';
 import bodyFemaleImg from '@/assets/body-female.jpeg';
@@ -206,8 +206,8 @@ const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpda
 
   return (
     <div className="w-full space-y-2 mb-3">
-      {/* Compact layout: Gender (vertical) | divider | Tolerance (single badge) */}
-      <div className="flex gap-3 mb-2 items-start">
+      {/* Compact horizontal layout: Gender tabs | divider | Tolerance selector */}
+      <div className="flex items-start gap-3 mb-2">
         {onGenderChange && (
           <div className="flex-shrink-0">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Gender</p>
@@ -218,27 +218,34 @@ const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpda
             />
           </div>
         )}
-        {onGenderChange && (
+        {onGenderChange && toleranceLevel && (
           <div className="w-px bg-border/40 self-stretch min-h-[48px]" />
         )}
-        {toleranceLevel && (
-          <div className="flex-1">
+        {toleranceLevel && onToleranceChange && (
+          <div className="flex-1 min-w-0">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Dosing Tolerance</p>
-            <div className="flex items-center gap-2">
-              {(() => {
-                const meta = toleranceMeta[toleranceLevel] || toleranceMeta.moderate;
+            <div className="flex flex-wrap gap-1">
+              {(['conservative', 'moderate', 'aggressive', 'performance'] as ToleranceLevel[]).map(level => {
+                const meta = toleranceMeta[level];
+                const isActive = toleranceLevel === level;
                 return (
-                  <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1.5 rounded-lg border ${
-                    toleranceLevel === 'conservative' ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' :
-                    toleranceLevel === 'aggressive' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' :
-                    toleranceLevel === 'performance' ? 'bg-rose-500/10 border-rose-500/30 text-rose-400' :
-                    'bg-primary/10 border-primary/30 text-primary'
-                  }`}>
-                    <meta.Icon className="w-3.5 h-3.5" />
-                    {meta.label}
-                  </span>
+                  <button
+                    key={level}
+                    onClick={() => handleToleranceSelect(level)}
+                    className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-1.5 rounded-lg border transition-all ${
+                      isActive
+                        ? level === 'conservative' ? 'bg-blue-500/10 border-blue-500/30 text-blue-400'
+                        : level === 'aggressive' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                        : level === 'performance' ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+                        : 'bg-primary/10 border-primary/30 text-primary'
+                        : 'bg-secondary/50 border-border/50 text-muted-foreground hover:bg-secondary'
+                    }`}
+                  >
+                    <meta.Icon className="w-3 h-3" />
+                    <span className="hidden xs:inline">{meta.label}</span>
+                  </button>
                 );
-              })()}
+              })}
             </div>
             {latestTolerance && (
               <p className="text-[9px] text-muted-foreground/60 font-mono mt-1">
