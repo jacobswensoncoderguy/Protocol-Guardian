@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.generate-body-illustration]
 verify_jwt = false
+
+[functions.parse-biomarkers]
+verify_jwt = false
