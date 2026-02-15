@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Compound } from '@/data/compounds';
 import { Target, Plus, ChevronLeft, ChevronRight, Shield, Scale, Zap, Rocket, Ruler, Weight, Percent, Calendar as CalendarIcon, Check, ToggleLeft } from 'lucide-react';
+import { kgToLbs, lbsToKg } from '@/lib/measurements';
 import { StackAnalysis } from '@/hooks/useProtocolAnalysis';
 import { ToleranceLevel } from '@/hooks/useProtocolAnalysis';
 import { UserGoal } from '@/hooks/useGoals';
@@ -163,25 +164,46 @@ const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpda
   measurementSystem?: MeasurementSystem;
 }) => {
   const [editing, setEditing] = useState(false);
-  const [height, setHeight] = useState(profile?.height_cm?.toString() || '');
-  const [weight, setWeight] = useState(profile?.weight_kg?.toString() || '');
+  const [height, setHeight] = useState('');
+  const [weight, setWeight] = useState('');
   const [bodyFat, setBodyFat] = useState(profile?.body_fat_pct?.toString() || '');
   const [age, setAge] = useState(profile?.age?.toString() || '');
   const [showToleranceConfirm, setShowToleranceConfirm] = useState(false);
   const [pendingTolerance, setPendingTolerance] = useState<ToleranceLevel | null>(null);
 
+  // Convert stored metric values to display units
+  const toDisplayHeight = useCallback((cm: number | null | undefined) => {
+    if (!cm) return '';
+    return measurementSystem === 'imperial' ? (cm / 2.54).toFixed(1) : cm.toString();
+  }, [measurementSystem]);
+
+  const toDisplayWeight = useCallback((kg: number | null | undefined) => {
+    if (!kg) return '';
+    return measurementSystem === 'imperial' ? kgToLbs(kg).toString() : kg.toString();
+  }, [measurementSystem]);
+
+  // Re-sync form values when profile or measurement system changes
   useEffect(() => {
-    setHeight(profile?.height_cm?.toString() || '');
-    setWeight(profile?.weight_kg?.toString() || '');
+    setHeight(toDisplayHeight(profile?.height_cm));
+    setWeight(toDisplayWeight(profile?.weight_kg));
     setBodyFat(profile?.body_fat_pct?.toString() || '');
     setAge(profile?.age?.toString() || '');
-  }, [profile]);
+  }, [profile, measurementSystem, toDisplayHeight, toDisplayWeight]);
 
   const handleSave = async () => {
     if (!onUpdateProfile) return;
+    const heightVal = height ? parseFloat(height) : null;
+    const weightVal = weight ? parseFloat(weight) : null;
+    // Convert back to metric for storage
+    const heightCm = heightVal != null
+      ? (measurementSystem === 'imperial' ? Math.round(heightVal * 2.54) : heightVal)
+      : null;
+    const weightKg = weightVal != null
+      ? (measurementSystem === 'imperial' ? lbsToKg(weightVal) : weightVal)
+      : null;
     await onUpdateProfile({
-      height_cm: height ? parseFloat(height) : null,
-      weight_kg: weight ? parseFloat(weight) : null,
+      height_cm: heightCm,
+      weight_kg: weightKg,
       body_fat_pct: bodyFat ? parseFloat(bodyFat) : null,
       age: age ? parseInt(age) : null,
     });
@@ -590,6 +612,8 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
         onOpenChange={setZoneDrawerOpen}
         compounds={activeCompounds}
         toleranceLevel={toleranceLevel}
+        measurementSystem={measurementSystem}
+        profile={profile}
       />
     </div>
   );

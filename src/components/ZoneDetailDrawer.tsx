@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Sparkles, Loader2, Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
+import { MeasurementSystem, displayHeight, displayWeight } from '@/lib/measurements';
+import { UserProfile } from '@/hooks/useProfile';
 
 interface ZoneDetailDrawerProps {
   zone: BodyZone | null;
@@ -14,6 +16,8 @@ interface ZoneDetailDrawerProps {
   onOpenChange: (open: boolean) => void;
   compounds: Compound[];
   toleranceLevel?: string;
+  measurementSystem?: MeasurementSystem;
+  profile?: UserProfile | null;
 }
 
 function normalizeBenefitKey(name: string): string {
@@ -27,7 +31,7 @@ function normalizeBenefitKey(name: string): string {
     .replace(/^-|-$/g, '');
 }
 
-const ZoneDetailDrawer = ({ zone, open, onOpenChange, compounds, toleranceLevel = 'moderate' }: ZoneDetailDrawerProps) => {
+const ZoneDetailDrawer = ({ zone, open, onOpenChange, compounds, toleranceLevel = 'moderate', measurementSystem = 'metric', profile }: ZoneDetailDrawerProps) => {
   const [aiSuggestion, setAiSuggestion] = useState<string>('');
   const [aiLoading, setAiLoading] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -102,6 +106,8 @@ const ZoneDetailDrawer = ({ zone, open, onOpenChange, compounds, toleranceLevel 
               role: 'user',
               content: `I want to MAXIMIZE the impact on my "${info.label}" zone (${info.description}). Currently affecting this zone: ${zoneCompoundNames || 'nothing'}.
 
+${profile ? `My profile: ${profile.gender || 'unspecified'} · ${profile.height_cm ? displayHeight(profile.height_cm, measurementSystem) : 'height unknown'} · ${profile.weight_kg ? displayWeight(profile.weight_kg, measurementSystem) : 'weight unknown'}${profile.body_fat_pct != null ? ` · ${profile.body_fat_pct}% BF` : ''}${profile.age ? ` · ${profile.age}y` : ''}` : ''}
+
 My full stack:
 ${stackDesc}
 
@@ -111,7 +117,7 @@ Give me specific, actionable suggestions to increase ${info.label} impact — co
 3. Lifestyle or behavioral optimizations (sleep, training, nutrition)
 4. Any compounds in my stack that might be antagonizing ${info.label} goals
 
-Keep it concise and practical. Calibrate to my ${toleranceLevel} tolerance level.`
+Keep it concise and practical. Calibrate to my ${toleranceLevel} tolerance level.${measurementSystem === 'imperial' ? ' Use imperial units (lb, ft/in) in your response.' : ' Use metric units (kg, cm) in your response.'}`
             }],
           }),
           signal: abortRef.current.signal,
