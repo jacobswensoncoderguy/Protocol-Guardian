@@ -7,6 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import BiomarkerComparisonChart from './BiomarkerComparisonChart';
+import DexaScanView from './DexaScanView';
 
 interface BiomarkerHistoryProps {
   userId?: string;
@@ -261,6 +262,9 @@ export default function BiomarkerHistoryView({ userId, onUploadClick }: Biomarke
           </button>
         )}
       </div>
+
+      {/* DEXA Scan Body Composition */}
+      <DexaScanView uploads={filteredUploads} />
 
       {/* Key Marker Trend Cards */}
       {keyMarkers.length > 0 && (
