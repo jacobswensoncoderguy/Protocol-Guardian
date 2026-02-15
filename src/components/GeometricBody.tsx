@@ -153,7 +153,7 @@ const GeometricBody = ({ zoneIntensities, onZoneTap, className = '' }: Geometric
             alt={`${gender} body map`}
             className="relative w-full h-auto object-contain transition-opacity duration-500"
             style={{
-              filter: 'drop-shadow(0 8px 24px hsl(0 0% 0% / 0.5))',
+              filter: 'drop-shadow(4px 6px 12px hsl(0 0% 0% / 0.6))',
             }}
             draggable={false}
           />
