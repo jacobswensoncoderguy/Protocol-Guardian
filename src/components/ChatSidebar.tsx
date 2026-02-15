@@ -20,6 +20,7 @@ interface ChatSidebarProps {
   onRenameConversation: (id: string, title: string) => void;
   onCreateProject: (name: string) => void;
   onDeleteProject: (id: string) => void;
+  onMoveConversation: (convId: string, projectId: string | null) => void;
   onSearch: (query: string) => void;
   onSearchResultClick: (conversationId: string) => void;
   onClose?: () => void;
@@ -29,7 +30,7 @@ const ChatSidebar = ({
   projects, conversations, activeConversationId,
   searchQuery, searchResults,
   onSelectConversation, onNewConversation, onDeleteConversation,
-  onRenameConversation, onCreateProject, onDeleteProject,
+  onRenameConversation, onCreateProject, onDeleteProject, onMoveConversation,
   onSearch, onSearchResultClick, onClose,
 }: ChatSidebarProps) => {
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
@@ -219,12 +220,14 @@ const ChatSidebar = ({
                         editingId={editingId}
                         editTitle={editTitle}
                         contextMenuId={contextMenuId}
+                        projects={projects}
                         onSelect={() => onSelectConversation(conv.id)}
                         onStartRename={() => startRename(conv.id, conv.title)}
                         onCommitRename={commitRename}
                         onEditTitleChange={setEditTitle}
                         onDelete={() => onDeleteConversation(conv.id)}
                         onContextMenu={() => setContextMenuId(contextMenuId === conv.id ? null : conv.id)}
+                        onMoveToProject={(projectId) => onMoveConversation(conv.id, projectId)}
                       />
                     ))}
                   </div>
@@ -250,12 +253,14 @@ const ChatSidebar = ({
                     editingId={editingId}
                     editTitle={editTitle}
                     contextMenuId={contextMenuId}
+                    projects={projects}
                     onSelect={() => onSelectConversation(conv.id)}
                     onStartRename={() => startRename(conv.id, conv.title)}
                     onCommitRename={commitRename}
                     onEditTitleChange={setEditTitle}
                     onDelete={() => onDeleteConversation(conv.id)}
                     onContextMenu={() => setContextMenuId(contextMenuId === conv.id ? null : conv.id)}
+                    onMoveToProject={(projectId) => onMoveConversation(conv.id, projectId)}
                   />
                 ))}
               </div>
@@ -281,21 +286,23 @@ const ChatSidebar = ({
 };
 
 const ConversationRow = ({
-  conv, isActive, editingId, editTitle, contextMenuId,
+  conv, isActive, editingId, editTitle, contextMenuId, projects,
   onSelect, onStartRename, onCommitRename, onEditTitleChange,
-  onDelete, onContextMenu,
+  onDelete, onContextMenu, onMoveToProject,
 }: {
   conv: ChatConversation;
   isActive: boolean;
   editingId: string | null;
   editTitle: string;
   contextMenuId: string | null;
+  projects: ChatProject[];
   onSelect: () => void;
   onStartRename: () => void;
   onCommitRename: () => void;
   onEditTitleChange: (v: string) => void;
   onDelete: () => void;
   onContextMenu: () => void;
+  onMoveToProject: (projectId: string | null) => void;
 }) => {
   const isEditing = editingId === conv.id;
   const showMenu = contextMenuId === conv.id;
@@ -343,10 +350,36 @@ const ConversationRow = ({
       </button>
 
       {showMenu && (
-        <div className="absolute right-0 top-full z-10 bg-card border border-border rounded-md shadow-lg py-0.5 min-w-[100px]">
+        <div className="absolute right-0 top-full z-10 bg-card border border-border rounded-md shadow-lg py-0.5 min-w-[140px]">
           <button onClick={onStartRename} className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-secondary/50 flex items-center gap-2">
             <Edit2 className="w-3 h-3" /> Rename
           </button>
+          {projects.length > 0 && (
+            <>
+              <div className="border-t border-border/50 my-0.5" />
+              <span className="text-[9px] uppercase tracking-wider text-muted-foreground px-3 py-1 block">Move to</span>
+              {projects.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => onMoveToProject(p.id)}
+                  className={`w-full text-left px-3 py-1.5 text-[11px] hover:bg-secondary/50 flex items-center gap-2 ${conv.project_id === p.id ? 'text-primary' : ''}`}
+                >
+                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
+                  {p.name}
+                  {conv.project_id === p.id && <span className="text-[9px] ml-auto">✓</span>}
+                </button>
+              ))}
+              {conv.project_id && (
+                <button
+                  onClick={() => onMoveToProject(null)}
+                  className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-secondary/50 flex items-center gap-2 text-muted-foreground"
+                >
+                  <X className="w-3 h-3" /> Ungroup
+                </button>
+              )}
+            </>
+          )}
+          <div className="border-t border-border/50 my-0.5" />
           <button onClick={onDelete} className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-destructive/10 text-destructive flex items-center gap-2">
             <Trash2 className="w-3 h-3" /> Delete
           </button>

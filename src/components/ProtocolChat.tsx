@@ -148,7 +148,7 @@ const ProtocolChat = ({
     searchQuery, searchResults,
     setActiveConversationId,
     createProject, deleteProject,
-    createConversation, deleteConversation, renameConversation,
+    createConversation, deleteConversation, renameConversation, moveConversation,
     searchMessages,
   } = conversationManager;
 
@@ -275,6 +275,7 @@ const ProtocolChat = ({
             onRenameConversation={renameConversation}
             onCreateProject={(name) => createProject(name)}
             onDeleteProject={deleteProject}
+            onMoveConversation={moveConversation}
             onSearch={searchMessages}
             onSearchResultClick={(convId) => handleSelectConversation(convId)}
             onClose={isMobile ? () => setShowSidebar(false) : undefined}
