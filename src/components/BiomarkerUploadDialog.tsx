@@ -109,20 +109,41 @@ export default function BiomarkerUploadDialog({
     });
   };
 
-  const parseContent = useCallback(async (content: string, fileType?: string) => {
+  const readFileAsBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Strip data URL prefix to get raw base64
+        const base64 = result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const parseContent = useCallback(async (content: string, fileType?: string, pdfBase64?: string) => {
     setStep('parsing');
     try {
+      const body: any = {
+        fileType: fileType || 'medical document',
+        goalContext: goals.filter(g => g.status === 'active').map(g => ({
+          title: g.title,
+          goal_type: g.goal_type,
+          target_value: g.target_value,
+          target_unit: g.target_unit,
+        })),
+      };
+
+      if (pdfBase64) {
+        body.pdfBase64 = pdfBase64;
+      } else {
+        body.fileContent = content.substring(0, 30000);
+      }
+
       const { data, error } = await supabase.functions.invoke('parse-biomarkers', {
-        body: {
-          fileContent: content.substring(0, 30000), // Limit content size
-          fileType: fileType || 'medical document',
-          goalContext: goals.filter(g => g.status === 'active').map(g => ({
-            title: g.title,
-            goal_type: g.goal_type,
-            target_value: g.target_value,
-            target_unit: g.target_unit,
-          })),
-        },
+        body,
       });
 
       if (error) throw error;
@@ -145,18 +166,25 @@ export default function BiomarkerUploadDialog({
   }, [goals]);
 
   const handleFileUpload = async (file: File) => {
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('File too large. Maximum 5MB.');
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File too large. Maximum 10MB.');
       return;
     }
     try {
-      const text = await readFileAsText(file);
       const ext = file.name.split('.').pop()?.toLowerCase();
       let fileType = 'medical document';
       if (file.name.toLowerCase().includes('dexa')) fileType = 'DEXA scan';
       else if (file.name.toLowerCase().includes('blood')) fileType = 'bloodwork';
       else if (ext === 'csv') fileType = 'CSV lab data';
-      await parseContent(text, fileType);
+      else if (ext === 'pdf') fileType = file.name.toLowerCase().includes('dexa') ? 'DEXA scan' : 'PDF lab report';
+
+      if (ext === 'pdf') {
+        const base64 = await readFileAsBase64(file);
+        await parseContent('', fileType, base64);
+      } else {
+        const text = await readFileAsText(file);
+        await parseContent(text, fileType);
+      }
     } catch {
       toast.error('Could not read file. Try pasting the text instead.');
     }
@@ -291,11 +319,11 @@ export default function BiomarkerUploadDialog({
             >
               <Upload className={`w-8 h-8 mx-auto mb-3 ${dragOver ? 'text-primary' : 'text-muted-foreground'}`} />
               <p className="text-sm font-medium text-foreground">Drop file here or click to browse</p>
-              <p className="text-xs text-muted-foreground mt-1">Supports .txt, .csv, or text-based files</p>
+              <p className="text-xs text-muted-foreground mt-1">Supports PDF, .txt, .csv, or text-based files</p>
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".txt,.csv,.tsv,.text,.md"
+                accept=".pdf,.txt,.csv,.tsv,.text,.md"
                 className="hidden"
                 onChange={e => {
                   const file = e.target.files?.[0];

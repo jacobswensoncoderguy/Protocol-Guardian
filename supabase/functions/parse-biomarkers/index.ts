@@ -9,11 +9,11 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { fileContent, fileType, goalContext } = await req.json();
+    const { fileContent, fileType, goalContext, pdfBase64 } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    if (!fileContent) {
+    if (!fileContent && !pdfBase64) {
       return new Response(JSON.stringify({ error: "No file content provided" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -37,6 +37,27 @@ For bloodwork, extract: CBC, CMP, lipid panel, thyroid panel, hormone levels (te
 
 Use the extract_biomarkers tool to return structured results.`;
 
+    // Build messages with optional PDF image content
+    const userContent: any[] = [];
+    
+    if (pdfBase64) {
+      userContent.push({
+        type: "image_url",
+        image_url: {
+          url: `data:application/pdf;base64,${pdfBase64}`,
+        },
+      });
+      userContent.push({
+        type: "text",
+        text: `Parse this ${fileType || 'medical document'} PDF and extract all biomarkers.${goalContext ? `\n\nUser's current health goals for context:\n${JSON.stringify(goalContext)}` : ''}`,
+      });
+    } else {
+      userContent.push({
+        type: "text",
+        text: `Parse the following ${fileType || 'medical document'} and extract all biomarkers:\n\n${fileContent}\n\n${goalContext ? `\nUser's current health goals for context:\n${JSON.stringify(goalContext)}` : ''}`,
+      });
+    }
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -44,12 +65,12 @@ Use the extract_biomarkers tool to return structured results.`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
           {
             role: "user",
-            content: `Parse the following ${fileType || 'medical document'} and extract all biomarkers:\n\n${fileContent}\n\n${goalContext ? `\nUser's current health goals for context:\n${JSON.stringify(goalContext)}` : ''}`,
+            content: userContent,
           },
         ],
         tools: [
