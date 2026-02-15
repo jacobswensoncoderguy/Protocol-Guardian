@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { BodyZone, BODY_ZONES } from '@/data/bodyZoneMapping';
-import bodyMale from '@/assets/body-male.jpeg';
-import bodyFemale from '@/assets/body-female.jpeg';
+import bodyMale from '@/assets/body-male.png';
+import bodyFemale from '@/assets/body-female.png';
 
 interface GeometricBodyProps {
   zoneIntensities: Record<BodyZone, number>;
