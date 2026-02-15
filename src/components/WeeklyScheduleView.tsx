@@ -5,6 +5,34 @@ import { getCycleStatus } from '@/lib/cycling';
 import { generateScheduleFromCompounds } from '@/lib/scheduleGenerator';
 import { UserProtocol } from '@/hooks/useProtocols';
 import { Sun, Moon, Dumbbell, Info } from 'lucide-react';
+
+function getFrequencyLabel(compound: Compound): string {
+  const dpw = compound.daysPerWeek;
+  const note = (compound.timingNote || '').toLowerCase();
+
+  if (dpw === 7 || /\bdaily\b|\bnightly\b|\bevery\s*day\b/.test(note)) return 'Daily';
+  if (/\bm[\/-]f\b|mon[\s-]*fri/i.test(note) || dpw === 5) return 'M-F';
+  if (/\bm\/w\/f\b/i.test(note) || dpw === 3) return 'M/W/F';
+  if (/\bt\/th\b|tues.*thurs|tue.*thu/i.test(note) || dpw === 2) return 'T/Th';
+  if (/\bm\/f\b/i.test(note)) return 'M/F';
+
+  // Try to extract specific short day names from timingNote
+  const dayPattern = /\b(sun|mon|tue|wed|thu|fri|sat)\b/gi;
+  const matches = note.match(dayPattern);
+  if (matches && matches.length > 0 && matches.length <= 4) {
+    return matches.map(d => d.charAt(0).toUpperCase() + d.slice(1, 3)).join('/');
+  }
+
+  if (dpw === 6) return '6x/wk';
+  if (dpw === 4) return '4x/wk';
+  if (dpw === 1) {
+    // Check for specific day
+    const singleDay = note.match(/\b(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/i);
+    if (singleDay) return singleDay[1].charAt(0).toUpperCase() + singleDay[1].slice(1, 3);
+    return '1x/wk';
+  }
+  return `${dpw}x/wk`;
+}
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import CompoundInfoDrawer from '@/components/CompoundInfoDrawer';
 
@@ -248,6 +276,11 @@ const DoseGroup = ({
             >
               <span className={`text-xs truncate mr-2 ${isOff ? 'text-muted-foreground' : 'text-foreground/90'}`}>
                 {compound?.name || dose.compoundId}
+                {compound && (
+                  <span className="ml-1.5 text-[10px] text-muted-foreground font-normal">
+                    ({getFrequencyLabel(compound)})
+                  </span>
+                )}
               </span>
               <div className="flex items-center gap-1.5 flex-shrink-0">
                 {isOff && status?.hasCycle && (
