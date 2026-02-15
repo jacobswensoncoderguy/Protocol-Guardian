@@ -127,9 +127,21 @@ IMPORTANT RULES:
 - Use tables when comparing 2+ compounds or options side-by-side`;
 
 function formatStackForChat(compounds: any[], protocols: any[], toleranceLevel: string, analysis: any) {
-  const stackDesc = compounds.map((c: any) =>
-    `- ${c.name} (${c.category}): ${c.dosePerUse} ${c.doseLabel} × ${c.dosesPerDay}/day × ${c.daysPerWeek}d/wk${c.cyclingNote ? ` [Cycling: ${c.cyclingNote}]` : ''}${c.timingNote ? ` [Timing: ${c.timingNote}]` : ''} | Price: $${c.unitPrice}/unit`
-  ).join('\n');
+  const stackDesc = compounds.map((c: any) => {
+    let line = `- ${c.name} (${c.category}): ${c.dosePerUse} ${c.doseLabel} × ${c.dosesPerDay}/day × ${c.daysPerWeek}d/wk`;
+    if (c.cycleOnDays && c.cycleOffDays) {
+      line += ` [ACTIVE CYCLING: ${c.cycleOnDays} days ON / ${c.cycleOffDays} days OFF`;
+      if (c.cycleStartDate) line += `, started ${c.cycleStartDate}`;
+      line += `]`;
+    } else if (c.cyclingNote) {
+      line += ` [Cycling note: ${c.cyclingNote}]`;
+    } else {
+      line += ` [No cycling configured — continuous use]`;
+    }
+    if (c.timingNote) line += ` [Timing: ${c.timingNote}]`;
+    line += ` | Price: $${c.unitPrice}/unit`;
+    return line;
+  }).join('\n');
 
   const protocolDesc = protocols?.length > 0
     ? '\n\nProtocol Groups:\n' + protocols.map((p: any) =>
@@ -143,7 +155,7 @@ Summary: ${analysis.overallSummary}
 Contraindications: ${analysis.contraindications?.map((c: any) => `[${c.severity}] ${c.description}`).join('; ') || 'None'}
 Top Recommendations: ${analysis.topRecommendations?.join('; ') || 'None'}` : '';
 
-  return `Current Stack (Tolerance: ${toleranceLevel}):\n${stackDesc}${protocolDesc}${analysisDesc}`;
+  return `Current Stack (Tolerance: ${toleranceLevel}):\n${stackDesc}${protocolDesc}${analysisDesc}\n\nIMPORTANT: Before suggesting cycling changes, CHECK the cycling data above. Many compounds already have active ON/OFF cycling schedules configured. Do NOT recommend cycling if the compound is already being cycled — instead acknowledge the existing schedule and evaluate whether the cycle parameters are appropriate.`;
 }
 
 serve(async (req) => {
@@ -236,9 +248,17 @@ serve(async (req) => {
 
     // ── COMPARE MODE: grades across all tolerance levels in one call ──
     if (analysisType === 'compare') {
-      const stackDescription = compounds.map((c: any) =>
-        `- ${c.name} (${c.category}): ${c.dosePerUse} ${c.doseLabel} × ${c.dosesPerDay}/day × ${c.daysPerWeek}d/wk${c.cyclingNote ? ` [Cycling: ${c.cyclingNote}]` : ''}${c.timingNote ? ` [Timing: ${c.timingNote}]` : ''} | Price: $${c.unitPrice}/unit`
-      ).join('\n');
+      const stackDescription = compounds.map((c: any) => {
+        let line = `- ${c.name} (${c.category}): ${c.dosePerUse} ${c.doseLabel} × ${c.dosesPerDay}/day × ${c.daysPerWeek}d/wk`;
+        if (c.cycleOnDays && c.cycleOffDays) {
+          line += ` [ACTIVE CYCLING: ${c.cycleOnDays}d ON / ${c.cycleOffDays}d OFF]`;
+        } else if (c.cyclingNote) {
+          line += ` [Cycling: ${c.cyclingNote}]`;
+        }
+        if (c.timingNote) line += ` [Timing: ${c.timingNote}]`;
+        line += ` | Price: $${c.unitPrice}/unit`;
+        return line;
+      }).join('\n');
 
       const protocolDescription = protocols?.length > 0
         ? '\n\nProtocol Groups:\n' + protocols.map((p: any) =>
@@ -370,9 +390,17 @@ Remember the grading calibration rules — conservative grades harshly, performa
     }
 
     // ── STRUCTURED ANALYSIS MODES (stack / compound) ──
-    const stackDescription = compounds.map((c: any) =>
-      `- ${c.name} (${c.category}): ${c.dosePerUse} ${c.doseLabel} × ${c.dosesPerDay}/day × ${c.daysPerWeek}d/wk${c.cyclingNote ? ` [Cycling: ${c.cyclingNote}]` : ''}${c.timingNote ? ` [Timing: ${c.timingNote}]` : ''} | Price: $${c.unitPrice}/unit`
-    ).join('\n');
+    const stackDescription = compounds.map((c: any) => {
+      let line = `- ${c.name} (${c.category}): ${c.dosePerUse} ${c.doseLabel} × ${c.dosesPerDay}/day × ${c.daysPerWeek}d/wk`;
+      if (c.cycleOnDays && c.cycleOffDays) {
+        line += ` [ACTIVE CYCLING: ${c.cycleOnDays}d ON / ${c.cycleOffDays}d OFF]`;
+      } else if (c.cyclingNote) {
+        line += ` [Cycling: ${c.cyclingNote}]`;
+      }
+      if (c.timingNote) line += ` [Timing: ${c.timingNote}]`;
+      line += ` | Price: $${c.unitPrice}/unit`;
+      return line;
+    }).join('\n');
 
     const protocolDescription = protocols?.length > 0
       ? '\n\nProtocol Groups:\n' + protocols.map((p: any) =>

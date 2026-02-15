@@ -137,7 +137,9 @@ export function useProtocolChat(
     const compoundData = compounds.map(c => ({
       name: c.name, category: c.category, dosePerUse: c.dosePerUse,
       doseLabel: c.doseLabel, dosesPerDay: c.dosesPerDay, daysPerWeek: c.daysPerWeek,
-      timingNote: c.timingNote, cyclingNote: c.cyclingNote, unitPrice: c.unitPrice, kitPrice: c.kitPrice,
+      timingNote: c.timingNote, cyclingNote: c.cyclingNote,
+      cycleOnDays: c.cycleOnDays, cycleOffDays: c.cycleOffDays, cycleStartDate: c.cycleStartDate,
+      unitPrice: c.unitPrice, kitPrice: c.kitPrice,
     }));
 
     const protocolData = protocols.map(p => ({
