@@ -13,6 +13,7 @@ interface DashboardViewProps {
   stackAnalysis?: StackAnalysis | null;
   aiLoading?: boolean;
   needsRefresh?: boolean;
+  toleranceLevel?: string;
   onAnalyzeStack?: () => void;
   onViewAIInsights?: () => void;
 }
@@ -48,7 +49,7 @@ function getAnnualProjectedCost(compounds: Compound[]): number {
 
 type TileType = 'cost' | 'total' | 'reorder' | 'low' | null;
 
-const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, onAnalyzeStack, onViewAIInsights }: DashboardViewProps) => {
+const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, toleranceLevel, onAnalyzeStack, onViewAIInsights }: DashboardViewProps) => {
   const [activeTile, setActiveTile] = useState<TileType>(null);
   const [selectedCompound, setSelectedCompound] = useState<Compound | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -228,6 +229,7 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, onAn
           analysis={stackAnalysis ?? null}
           loading={aiLoading ?? false}
           needsRefresh={needsRefresh ?? false}
+          toleranceLevel={toleranceLevel}
           onRefresh={onAnalyzeStack}
           onViewDetails={onViewAIInsights ?? (() => {})}
         />

@@ -184,6 +184,7 @@ const Index = () => {
               stackAnalysis={stackAnalysis}
               aiLoading={aiLoading}
               needsRefresh={needsRefresh}
+              toleranceLevel={toleranceLevel}
               onAnalyzeStack={analyzeStack}
               onViewAIInsights={() => setActiveTab('ai-insights')}
             />
