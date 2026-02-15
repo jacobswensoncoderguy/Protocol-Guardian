@@ -47,6 +47,13 @@ export interface StackAnalysis {
   topRecommendations: string[];
 }
 
+export interface ToleranceComparison {
+  conservative: { grade: string; summary: string; topRisk: string; topStrength: string };
+  moderate: { grade: string; summary: string; topRisk: string; topStrength: string };
+  aggressive: { grade: string; summary: string; topRisk: string; topStrength: string };
+  performance: { grade: string; summary: string; topRisk: string; topStrength: string };
+}
+
 export interface CompoundAnalysis {
   interactions: {
     withCompound: string;
@@ -69,6 +76,8 @@ export interface CompoundAnalysis {
 export function useProtocolAnalysis(compounds: Compound[], protocols: UserProtocol[]) {
   const [stackAnalysis, setStackAnalysis] = useState<StackAnalysis | null>(null);
   const [compoundAnalyses, setCompoundAnalyses] = useState<Record<string, CompoundAnalysis>>({});
+  const [toleranceComparison, setToleranceComparison] = useState<ToleranceComparison | null>(null);
+  const [compareLoading, setCompareLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [compoundLoading, setCompoundLoading] = useState<string | null>(null);
   const [toleranceLevel, setToleranceLevel] = useState<ToleranceLevel>('moderate');
@@ -184,6 +193,50 @@ export function useProtocolAnalysis(compounds: Compound[], protocols: UserProtoc
     };
   }, [stackHash, lastAnalyzedHash, compounds.length, analyzeStack]);
 
+  const compareAllLevels = useCallback(async () => {
+    if (compounds.length === 0) return;
+    setCompareLoading(true);
+
+    try {
+      const protocolsWithNames = protocols.map(p => ({
+        ...p,
+        compoundNames: p.compoundIds.map(id => compounds.find(c => c.id === id)?.name).filter(Boolean),
+      }));
+
+      const { data, error } = await supabase.functions.invoke('analyze-protocol', {
+        body: {
+          compounds: compounds.map(c => ({
+            name: c.name,
+            category: c.category,
+            dosePerUse: c.dosePerUse,
+            doseLabel: c.doseLabel,
+            dosesPerDay: c.dosesPerDay,
+            daysPerWeek: c.daysPerWeek,
+            timingNote: c.timingNote,
+            cyclingNote: c.cyclingNote,
+            unitPrice: c.unitPrice,
+            kitPrice: c.kitPrice,
+          })),
+          protocols: protocolsWithNames,
+          analysisType: 'compare',
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) {
+        toast.error(data.error);
+        return;
+      }
+
+      setToleranceComparison(data.comparison);
+    } catch (err) {
+      console.error('Comparison failed:', err);
+      toast.error('Grade comparison failed. Please try again.');
+    } finally {
+      setCompareLoading(false);
+    }
+  }, [compounds, protocols]);
+
   return {
     stackAnalysis,
     compoundAnalyses,
@@ -194,5 +247,8 @@ export function useProtocolAnalysis(compounds: Compound[], protocols: UserProtoc
     analyzeStack,
     analyzeCompound,
     needsRefresh: stackHash !== lastAnalyzedHash,
+    toleranceComparison,
+    compareLoading,
+    compareAllLevels,
   };
 }

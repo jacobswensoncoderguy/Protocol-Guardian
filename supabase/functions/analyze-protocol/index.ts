@@ -174,6 +174,141 @@ serve(async (req) => {
       });
     }
 
+    // ── COMPARE MODE: grades across all tolerance levels in one call ──
+    if (analysisType === 'compare') {
+      const stackDescription = compounds.map((c: any) =>
+        `- ${c.name} (${c.category}): ${c.dosePerUse} ${c.doseLabel} × ${c.dosesPerDay}/day × ${c.daysPerWeek}d/wk${c.cyclingNote ? ` [Cycling: ${c.cyclingNote}]` : ''}${c.timingNote ? ` [Timing: ${c.timingNote}]` : ''} | Price: $${c.unitPrice}/unit`
+      ).join('\n');
+
+      const protocolDescription = protocols?.length > 0
+        ? '\n\nProtocol Groups:\n' + protocols.map((p: any) =>
+          `- ${p.name}: ${p.compoundNames?.join(', ') || 'No compounds assigned'}`
+        ).join('\n')
+        : '';
+
+      const comparePrompt = `Analyze this complete stack and grade it at ALL FOUR tolerance levels simultaneously:
+
+${stackDescription}
+${protocolDescription}
+
+For EACH tolerance level (conservative, moderate, aggressive, performance), provide:
+1. The letter grade (A+ through F) calibrated properly for that level
+2. A brief 1-2 sentence summary explaining why this grade was given at that level
+3. The top risk or concern at that level
+4. The top strength or advantage at that level
+
+Remember the grading calibration rules — conservative grades harshly, performance grades on goal alignment.`;
+
+      const compareTools = [{
+        type: "function",
+        function: {
+          name: "tolerance_comparison",
+          description: "Return grades and summaries for all four tolerance levels",
+          parameters: {
+            type: "object",
+            properties: {
+              conservative: {
+                type: "object",
+                properties: {
+                  grade: { type: "string" },
+                  summary: { type: "string" },
+                  topRisk: { type: "string" },
+                  topStrength: { type: "string" }
+                },
+                required: ["grade", "summary", "topRisk", "topStrength"],
+                additionalProperties: false
+              },
+              moderate: {
+                type: "object",
+                properties: {
+                  grade: { type: "string" },
+                  summary: { type: "string" },
+                  topRisk: { type: "string" },
+                  topStrength: { type: "string" }
+                },
+                required: ["grade", "summary", "topRisk", "topStrength"],
+                additionalProperties: false
+              },
+              aggressive: {
+                type: "object",
+                properties: {
+                  grade: { type: "string" },
+                  summary: { type: "string" },
+                  topRisk: { type: "string" },
+                  topStrength: { type: "string" }
+                },
+                required: ["grade", "summary", "topRisk", "topStrength"],
+                additionalProperties: false
+              },
+              performance: {
+                type: "object",
+                properties: {
+                  grade: { type: "string" },
+                  summary: { type: "string" },
+                  topRisk: { type: "string" },
+                  topStrength: { type: "string" }
+                },
+                required: ["grade", "summary", "topRisk", "topStrength"],
+                additionalProperties: false
+              }
+            },
+            required: ["conservative", "moderate", "aggressive", "performance"],
+            additionalProperties: false
+          }
+        }
+      }];
+
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: SYSTEM_PROMPT },
+            { role: "user", content: comparePrompt },
+          ],
+          tools: compareTools,
+          tool_choice: { type: "function", function: { name: "tolerance_comparison" } },
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }), {
+            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (response.status === 402) {
+          return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits in Settings." }), {
+            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const t = await response.text();
+        console.error("AI gateway error:", response.status, t);
+        return new Response(JSON.stringify({ error: "AI comparison failed" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const data = await response.json();
+      const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+
+      if (!toolCall) {
+        return new Response(JSON.stringify({ error: "AI did not return comparison data" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const comparisonResult = JSON.parse(toolCall.function.arguments);
+
+      return new Response(JSON.stringify({ comparison: comparisonResult, analysisType: 'compare' }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // ── STRUCTURED ANALYSIS MODES (stack / compound) ──
     const stackDescription = compounds.map((c: any) =>
       `- ${c.name} (${c.category}): ${c.dosePerUse} ${c.doseLabel} × ${c.dosesPerDay}/day × ${c.daysPerWeek}d/wk${c.cyclingNote ? ` [Cycling: ${c.cyclingNote}]` : ''}${c.timingNote ? ` [Timing: ${c.timingNote}]` : ''} | Price: $${c.unitPrice}/unit`

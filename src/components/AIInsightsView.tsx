@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Brain, RefreshCw, ShieldAlert, Beaker, BarChart3, DollarSign, Lightbulb, ChevronDown } from 'lucide-react';
-import { StackAnalysis } from '@/hooks/useProtocolAnalysis';
+import { Brain, RefreshCw, ShieldAlert, Beaker, BarChart3, DollarSign, Lightbulb, ChevronDown, GitCompare, AlertTriangle, Zap } from 'lucide-react';
+import { StackAnalysis, ToleranceComparison } from '@/hooks/useProtocolAnalysis';
 import { ToleranceLevel } from '@/hooks/useProtocolAnalysis';
 import ToleranceSelector from '@/components/ToleranceSelector';
 import MedicalDisclaimer from '@/components/MedicalDisclaimer';
@@ -21,6 +21,9 @@ interface AIInsightsViewProps {
   onApplyChange: (proposalId: string, changeIndex: number) => void;
   onRejectChange: (proposalId: string, changeIndex: number) => void;
   onApplyAll: (proposalId: string) => void;
+  toleranceComparison: ToleranceComparison | null;
+  compareLoading: boolean;
+  onCompareAllLevels: () => void;
 }
 
 const severityBadge = (severity: string) => {
@@ -160,7 +163,97 @@ const CollapsibleSection = ({
   );
 };
 
-const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, onRefresh, chatMessages, isChatStreaming, onChatSend, onChatCancel, onChatClear, onApplyChange, onRejectChange, onApplyAll }: AIInsightsViewProps) => {
+const ToleranceComparisonCard = ({
+  comparison,
+  loading,
+  onCompare,
+  currentLevel,
+}: {
+  comparison: ToleranceComparison | null;
+  loading: boolean;
+  onCompare: () => void;
+  currentLevel: string;
+}) => {
+  const levels = ['conservative', 'moderate', 'aggressive', 'performance'] as const;
+
+  return (
+    <div className="bg-card rounded-lg border border-border/50 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <GitCompare className="w-4 h-4 text-primary" />
+          <h3 className="text-sm font-semibold text-foreground">Grade Comparison</h3>
+        </div>
+        <button
+          onClick={onCompare}
+          disabled={loading}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/10 text-primary text-[10px] font-medium hover:bg-primary/20 transition-colors disabled:opacity-50"
+        >
+          <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
+          {loading ? 'Comparing…' : comparison ? 'Refresh' : 'Compare All'}
+        </button>
+      </div>
+
+      {loading && !comparison ? (
+        <div className="grid grid-cols-2 gap-2">
+          {[1,2,3,4].map(i => (
+            <div key={i} className="p-3 rounded-lg bg-secondary/30 animate-pulse">
+              <div className="h-6 bg-secondary/50 rounded w-8 mb-2" />
+              <div className="h-3 bg-secondary/50 rounded w-full" />
+            </div>
+          ))}
+        </div>
+      ) : comparison ? (
+        <div className="grid grid-cols-2 gap-2">
+          {levels.map(level => {
+            const data = comparison[level];
+            const meta = toleranceMeta[level];
+            const isActive = level === currentLevel;
+
+            return (
+              <div
+                key={level}
+                className={`p-3 rounded-lg border transition-all ${
+                  isActive
+                    ? 'border-primary/40 bg-primary/5 ring-1 ring-primary/20'
+                    : 'border-border/30 bg-secondary/20'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[10px] font-mono text-muted-foreground">
+                    {meta.icon} {meta.label}
+                  </span>
+                  {isActive && (
+                    <span className="text-[8px] font-mono px-1 py-0.5 rounded bg-primary/15 text-primary">ACTIVE</span>
+                  )}
+                </div>
+                <div className={`text-2xl font-black font-mono mb-1.5 ${gradeColor(data.grade)}`}>
+                  {data.grade}
+                </div>
+                <p className="text-[10px] text-muted-foreground leading-snug mb-2">{data.summary}</p>
+                <div className="space-y-1">
+                  <div className="flex items-start gap-1.5">
+                    <AlertTriangle className="w-3 h-3 text-status-warning flex-shrink-0 mt-0.5" />
+                    <p className="text-[9px] text-muted-foreground leading-snug">{data.topRisk}</p>
+                  </div>
+                  <div className="flex items-start gap-1.5">
+                    <Zap className="w-3 h-3 text-status-good flex-shrink-0 mt-0.5" />
+                    <p className="text-[9px] text-muted-foreground leading-snug">{data.topStrength}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground text-center py-3">
+          Compare how your stack grades across all tolerance levels in one view.
+        </p>
+      )}
+    </div>
+  );
+};
+
+const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, onRefresh, chatMessages, isChatStreaming, onChatSend, onChatCancel, onChatClear, onApplyChange, onRejectChange, onApplyAll, toleranceComparison, compareLoading, onCompareAllLevels }: AIInsightsViewProps) => {
   const sectionScores = analysis ? computeSectionScores(analysis) : [];
 
   const renderSection = (sectionId: string) => {
@@ -387,6 +480,14 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
               </div>
             </div>
           </div>
+
+          {/* Tolerance Comparison */}
+          <ToleranceComparisonCard
+            comparison={toleranceComparison}
+            loading={compareLoading}
+            onCompare={onCompareAllLevels}
+            currentLevel={toleranceLevel}
+          />
 
           {/* Sections ranked by discrepancy score */}
           {sectionScores.map(s => renderSection(s.id))}
