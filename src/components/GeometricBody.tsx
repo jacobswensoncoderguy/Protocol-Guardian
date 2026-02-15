@@ -76,9 +76,7 @@ const GeometricBody = ({ zoneIntensities, onZoneTap, className = '' }: Geometric
             alt={`${gender} body map`}
             className="w-full h-auto rounded-xl object-cover transition-opacity duration-500"
             style={{
-              filter: 'brightness(0.7) contrast(1.1)',
-              maskImage: 'linear-gradient(to bottom, black 85%, transparent 100%)',
-              WebkitMaskImage: 'linear-gradient(to bottom, black 85%, transparent 100%)',
+              filter: 'brightness(1) contrast(1.05)',
             }}
             draggable={false}
           />
