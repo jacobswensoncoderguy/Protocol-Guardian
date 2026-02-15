@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Package, DollarSign, LayoutDashboard, ShoppingCart, Sun, Moon, RefreshCw, LogOut, Sparkles, Brain, Target, Activity } from 'lucide-react';
+import { Calendar, Package, DollarSign, LayoutDashboard, ShoppingCart, Sun, Moon, RefreshCw, LogOut, Sparkles, Brain, Target, Activity, FileText } from 'lucide-react';
 import { Compound } from '@/data/compounds';
 import { useCompounds } from '@/hooks/useCompounds';
 import { useProtocols } from '@/hooks/useProtocols';
@@ -16,6 +16,7 @@ import Onboarding from './Onboarding';
 import AddCompoundDialog from '@/components/AddCompoundDialog';
 import ProtocolManagerDialog from '@/components/ProtocolManagerDialog';
 import GoalExpansionDialog from '@/components/GoalExpansionDialog';
+import BiomarkerUploadDialog from '@/components/BiomarkerUploadDialog';
 
 import DashboardView from '@/components/DashboardView';
 import WeeklyScheduleView from '@/components/WeeklyScheduleView';
@@ -61,6 +62,7 @@ const Index = () => {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showProtocolManager, setShowProtocolManager] = useState(false);
   const [showGoalExpansion, setShowGoalExpansion] = useState(false);
+  const [showBiomarkerUpload, setShowBiomarkerUpload] = useState(false);
   const {
     protocols, createProtocol, deleteProtocol, cloneProtocol, updateProtocol,
     addCompoundToProtocol, removeCompoundFromProtocol, refetch: refetchProtocols,
@@ -160,6 +162,9 @@ const Index = () => {
             </button>
             <button onClick={() => setShowGoalExpansion(true)} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground" title="Goal Expansion">
               <Target className="w-4 h-4" />
+            </button>
+            <button onClick={() => setShowBiomarkerUpload(true)} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground" title="Upload Lab Results">
+              <FileText className="w-4 h-4" />
             </button>
             <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground font-mono">
               <span className="inline-block w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-status-good animate-pulse-glow" />
@@ -303,6 +308,14 @@ const Index = () => {
             }]);
             await refetchGoals();
           }}
+        />
+
+        <BiomarkerUploadDialog
+          open={showBiomarkerUpload}
+          onOpenChange={setShowBiomarkerUpload}
+          userId={user?.id}
+          goals={fullGoals}
+          onReadingsCreated={() => fetchFullGoals()}
         />
       </main>
     </div>
