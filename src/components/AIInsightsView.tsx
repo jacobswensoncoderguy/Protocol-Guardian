@@ -570,10 +570,13 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
         </button>
       </div>
 
-      {/* Tolerance selector */}
+      {/* Tolerance selector — reference only, with prompt to log */}
       <div>
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Dosing Tolerance Level</p>
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Dosing Tolerance Level <span className="text-muted-foreground/50">(reference view)</span></p>
         <ToleranceSelector value={toleranceLevel} onChange={onToleranceChange} />
+        <p className="text-[9px] text-muted-foreground/60 mt-1.5">
+          Compare grades across tolerance levels below, then tap a level above to log it as your active tolerance. This will update all pages.
+        </p>
       </div>
 
       {loading && !analysis ? (

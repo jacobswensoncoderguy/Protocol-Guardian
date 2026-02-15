@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Compound } from '@/data/compounds';
-import { Target, Plus, ChevronLeft, ChevronRight, Shield, Scale, Zap, Rocket, Ruler, Weight, Percent, Calendar as CalendarIcon } from 'lucide-react';
+import { Target, Plus, ChevronLeft, ChevronRight, Shield, Scale, Zap, Rocket, Ruler, Weight, Percent, Calendar as CalendarIcon, Check } from 'lucide-react';
 import { StackAnalysis } from '@/hooks/useProtocolAnalysis';
+import { ToleranceLevel } from '@/hooks/useProtocolAnalysis';
 import { UserGoal } from '@/hooks/useGoals';
 import { UserProfile, ToleranceEntry } from '@/hooks/useProfile';
 import { useGoalReadings } from '@/hooks/useGoalReadings';
@@ -15,6 +16,9 @@ import MiniSparkline from '@/components/MiniSparkline';
 import { computeZoneIntensities, BODY_ZONES, BodyZone } from '@/data/bodyZoneMapping';
 import GeometricBody from '@/components/GeometricBody';
 import ZoneDetailDrawer from '@/components/ZoneDetailDrawer';
+import GenderSelector from '@/components/GenderSelector';
+import ToleranceSelector from '@/components/ToleranceSelector';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import bodyMaleImg from '@/assets/body-male.jpeg';
 import bodyFemaleImg from '@/assets/body-female.jpeg';
 
@@ -32,6 +36,7 @@ interface DashboardViewProps {
   profile?: UserProfile | null;
   toleranceHistory?: ToleranceEntry[];
   onUpdateProfile?: (updates: Partial<UserProfile>) => Promise<void>;
+  onToleranceChange?: (level: ToleranceLevel) => void;
 }
 
 const toleranceMeta: Record<string, { Icon: typeof Shield; label: string; color: string }> = {
@@ -145,17 +150,21 @@ const ZoneLegend = ({ zoneIntensities, onZoneTap }: { zoneIntensities: Record<Bo
   );
 };
 // Profile & Tolerance info bar for Protocol Coverage screen
-const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpdateProfile }: {
+const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpdateProfile, onToleranceChange, onGenderChange }: {
   profile?: UserProfile | null;
   toleranceLevel?: string;
   toleranceHistory?: ToleranceEntry[];
   onUpdateProfile?: (updates: Partial<UserProfile>) => Promise<void>;
+  onToleranceChange?: (level: ToleranceLevel) => void;
+  onGenderChange?: (gender: string, temporary: boolean) => void;
 }) => {
   const [editing, setEditing] = useState(false);
   const [height, setHeight] = useState(profile?.height_cm?.toString() || '');
   const [weight, setWeight] = useState(profile?.weight_kg?.toString() || '');
   const [bodyFat, setBodyFat] = useState(profile?.body_fat_pct?.toString() || '');
   const [age, setAge] = useState(profile?.age?.toString() || '');
+  const [showToleranceConfirm, setShowToleranceConfirm] = useState(false);
+  const [pendingTolerance, setPendingTolerance] = useState<ToleranceLevel | null>(null);
 
   useEffect(() => {
     setHeight(profile?.height_cm?.toString() || '');
@@ -176,24 +185,50 @@ const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpda
     toast.success('Profile updated');
   };
 
-  const tolMeta = toleranceMeta[toleranceLevel || 'moderate'] || toleranceMeta.moderate;
-  const TolIcon = tolMeta.Icon;
+  const handleToleranceSelect = (level: ToleranceLevel) => {
+    setPendingTolerance(level);
+    setShowToleranceConfirm(true);
+  };
+
+  const confirmTolerance = () => {
+    if (pendingTolerance && onToleranceChange) {
+      onToleranceChange(pendingTolerance);
+      toast.success(`Tolerance locked to ${pendingTolerance}`);
+    }
+    setShowToleranceConfirm(false);
+  };
+
   const latestTolerance = toleranceHistory?.[0];
 
   return (
     <div className="w-full space-y-2 mb-3">
-      {/* Tolerance reminder */}
-      <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-secondary/40 border border-border/30">
-        <div className="flex items-center gap-2">
-          <TolIcon className={`w-3.5 h-3.5 ${tolMeta.color}`} />
-          <span className="text-[11px] font-medium text-foreground">{tolMeta.label} Tolerance</span>
+      {/* Gender selector */}
+      {onGenderChange && (
+        <div className="mb-2">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Profile Gender</p>
+          <GenderSelector
+            currentGender={profile?.gender}
+            onGenderChange={onGenderChange}
+            locked={!!profile?.gender}
+          />
         </div>
-        {latestTolerance && (
-          <span className="text-[9px] text-muted-foreground/60 font-mono">
-            Set {new Date(latestTolerance.created_at).toLocaleDateString()}
-          </span>
-        )}
-      </div>
+      )}
+
+      {/* Dynamic Tolerance selector */}
+      {onToleranceChange && (
+        <div className="mb-2">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Dosing Tolerance Level</p>
+          <ToleranceSelector
+            value={(toleranceLevel || 'moderate') as ToleranceLevel}
+            onChange={handleToleranceSelect}
+          />
+          {latestTolerance && (
+            <p className="text-[9px] text-muted-foreground/60 font-mono mt-1">
+              Set {new Date(latestTolerance.created_at).toLocaleDateString()} at {new Date(latestTolerance.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Profile metrics row */}
       {!editing ? (
@@ -201,9 +236,6 @@ const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpda
           onClick={() => setEditing(true)}
           className="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-secondary/30 border border-border/20 hover:border-primary/30 transition-all"
         >
-          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-            {profile?.gender === 'male' ? '♂' : profile?.gender === 'female' ? '♀' : '—'}
-          </span>
           <div className="flex items-center gap-3 flex-1 text-[10px] text-muted-foreground">
             {profile?.height_cm && <span className="flex items-center gap-0.5"><Ruler className="w-3 h-3" />{profile.height_cm}cm</span>}
             {profile?.weight_kg && <span className="flex items-center gap-0.5"><Weight className="w-3 h-3" />{profile.weight_kg}kg</span>}
@@ -238,15 +270,39 @@ const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpda
           </div>
         </div>
       )}
+
+      {/* Tolerance confirmation dialog */}
+      <ConfirmDialog
+        open={showToleranceConfirm}
+        onOpenChange={setShowToleranceConfirm}
+        title="Confirm Tolerance Level"
+        description={`Lock your dosing tolerance to "${pendingTolerance}"? This will update all pages with this tolerance level.`}
+        confirmLabel="Lock It In"
+        onConfirm={confirmTolerance}
+      />
     </div>
   );
 };
 
-const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, toleranceLevel, onAnalyzeStack, onViewAIInsights, onViewOutcomes, goals = [], userId, profile, toleranceHistory = [], onUpdateProfile }: DashboardViewProps) => {
+const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, toleranceLevel, onAnalyzeStack, onViewAIInsights, onViewOutcomes, goals = [], userId, profile, toleranceHistory = [], onUpdateProfile, onToleranceChange }: DashboardViewProps) => {
   const { readings, fetchReadings, addReading } = useGoalReadings(userId);
   const [activeScreen, setActiveScreen] = useState(0);
   const [selectedZone, setSelectedZone] = useState<BodyZone | null>(null);
   const [zoneDrawerOpen, setZoneDrawerOpen] = useState(false);
+  const [tempGender, setTempGender] = useState<string | null>(null);
+
+  const handleGenderChange = async (gender: string, temporary: boolean) => {
+    if (temporary) {
+      setTempGender(gender);
+      toast.info(`Viewing as ${gender} temporarily`);
+    } else {
+      setTempGender(null);
+      await onUpdateProfile?.({ gender });
+      toast.success(`Gender updated to ${gender}`);
+    }
+  };
+
+  const displayGender = tempGender || profile?.gender;
 
   const handleZoneTap = (zone: BodyZone) => {
     setSelectedZone(zone);
@@ -347,16 +403,18 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
 
               {/* Profile & Tolerance Info Bar */}
               <ProfileToleranceBar
-                profile={profile}
+                profile={{ ...profile, gender: displayGender }}
                 toleranceLevel={toleranceLevel}
                 toleranceHistory={toleranceHistory}
                 onUpdateProfile={onUpdateProfile}
+                onToleranceChange={onToleranceChange}
+                onGenderChange={handleGenderChange}
               />
 
               {/* Wireframe body – no 3D, no orbit controls */}
               <div className="relative w-full flex-1 flex items-center justify-center" style={{ minHeight: 340 }}>
                 <div className="w-[260px] h-[380px]">
-                  <GeometricBody zoneIntensities={zoneIntensities} onZoneTap={handleZoneTap} />
+                  <GeometricBody zoneIntensities={zoneIntensities} onZoneTap={handleZoneTap} gender={displayGender === 'female' ? 'female' : 'male'} />
                 </div>
               </div>
 

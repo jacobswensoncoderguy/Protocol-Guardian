@@ -18,6 +18,7 @@ import AddCompoundDialog from '@/components/AddCompoundDialog';
 import ProtocolManagerDialog from '@/components/ProtocolManagerDialog';
 import GoalExpansionDialog from '@/components/GoalExpansionDialog';
 import BiomarkerUploadDialog from '@/components/BiomarkerUploadDialog';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 import DashboardView from '@/components/DashboardView';
 import WeeklyScheduleView from '@/components/WeeklyScheduleView';
@@ -104,6 +105,7 @@ const Index = () => {
   );
 
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
 
   const handleRefresh = useCallback(async () => {
     await Promise.all([refetch(), refetchProtocols()]);
@@ -169,7 +171,7 @@ const Index = () => {
             <button onClick={toggle} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground">
               {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
-            <button onClick={signOut} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground" title="Sign out">
+            <button onClick={() => setShowSignOutConfirm(true)} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground" title="Sign out">
               <LogOut className="w-4 h-4" />
             </button>
             <button onClick={() => setShowProtocolManager(true)} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground" title="Protocol Groups">
@@ -237,6 +239,7 @@ const Index = () => {
               profile={profile}
               toleranceHistory={toleranceHistory}
               onUpdateProfile={updateProfile}
+              onToleranceChange={handleToleranceChange}
             />
           </TabsContent>
           <TabsContent value="schedule" className="animate-slide-up">
@@ -337,6 +340,16 @@ const Index = () => {
           userId={user?.id}
           goals={fullGoals}
           onReadingsCreated={() => fetchFullGoals()}
+        />
+
+        <ConfirmDialog
+          open={showSignOutConfirm}
+          onOpenChange={setShowSignOutConfirm}
+          title="Sign Out"
+          description="Are you sure you want to sign out? You'll need to log back in to access your protocols."
+          confirmLabel="Sign Out"
+          onConfirm={signOut}
+          destructive
         />
       </main>
     </div>
