@@ -11,61 +11,64 @@ interface GeometricBodyProps {
 
 type Gender = 'male' | 'female';
 
-// Each zone: { top, left, width, height } in %, plus a borderRadius for organic shape
-interface ZoneRegion {
-  top: number; left: number; width: number; height: number;
-  borderRadius: string;
-}
-
-const ZONE_REGIONS: Record<Gender, Record<BodyZone, ZoneRegion[]>> = {
+// SVG polygon points (percentage-based, 0-100 coordinate space)
+const ZONE_PATHS: Record<Gender, Record<BodyZone, string[]>> = {
   male: {
     brain: [
-      { top: 1, left: 32, width: 36, height: 14, borderRadius: '50% 50% 40% 40%' },
+      'M 39,1 C 33,2 30,6 30,10 30,14 33,17 38,17 L 62,17 C 67,17 70,14 70,10 70,6 67,2 61,1 Z',
     ],
     immune: [
-      { top: 15, left: 34, width: 32, height: 5, borderRadius: '30%' },
+      'M 38,17 C 36,18 35,19 36,21 L 64,21 C 65,19 64,18 62,17 Z',
     ],
     heart: [
-      { top: 20, left: 26, width: 48, height: 14, borderRadius: '40% 40% 50% 50%' },
+      'M 30,21 C 28,22 26,24 26,27 26,30 28,33 30,34 L 70,34 C 72,33 74,30 74,27 74,24 72,22 70,21 Z',
     ],
     arms: [
-      { top: 20, left: 6, width: 18, height: 22, borderRadius: '40% 30% 50% 40%' },
-      { top: 20, left: 76, width: 18, height: 22, borderRadius: '30% 40% 40% 50%' },
+      // Left arm
+      'M 8,22 C 6,24 5,28 6,32 7,36 9,40 12,42 L 24,42 C 26,38 26,34 25,30 24,26 22,23 20,21 Z',
+      // Right arm
+      'M 92,22 C 94,24 95,28 94,32 93,36 91,40 88,42 L 76,42 C 74,38 74,34 75,30 76,26 78,23 80,21 Z',
     ],
     core: [
-      { top: 34, left: 28, width: 44, height: 14, borderRadius: '20% 20% 30% 30%' },
+      'M 30,34 C 29,36 28,40 28,44 28,47 29,48 30,48 L 70,48 C 71,48 72,47 72,44 72,40 71,36 70,34 Z',
     ],
     hormonal: [
-      { top: 48, left: 30, width: 40, height: 8, borderRadius: '30% 30% 40% 40%' },
+      'M 30,48 C 29,50 28,52 29,55 L 71,55 C 72,52 71,50 70,48 Z',
     ],
     legs: [
-      { top: 56, left: 20, width: 24, height: 38, borderRadius: '30% 30% 20% 40%' },
-      { top: 56, left: 56, width: 24, height: 38, borderRadius: '30% 30% 40% 20%' },
+      // Left leg
+      'M 29,55 C 27,60 25,68 24,76 23,84 22,90 22,96 L 42,96 C 42,90 43,84 44,76 44,68 43,60 42,55 Z',
+      // Right leg
+      'M 71,55 C 73,60 75,68 76,76 77,84 78,90 78,96 L 58,96 C 58,90 57,84 56,76 56,68 57,60 58,55 Z',
     ],
   },
   female: {
     brain: [
-      { top: 2, left: 33, width: 34, height: 14, borderRadius: '50% 50% 40% 40%' },
+      'M 40,2 C 35,3 32,7 32,11 32,15 35,18 40,18 L 60,18 C 65,18 68,15 68,11 68,7 65,3 60,2 Z',
     ],
     immune: [
-      { top: 16, left: 36, width: 28, height: 5, borderRadius: '30%' },
+      'M 40,18 C 38,19 37,20 38,22 L 62,22 C 63,20 62,19 60,18 Z',
     ],
     heart: [
-      { top: 21, left: 28, width: 44, height: 12, borderRadius: '40% 40% 50% 50%' },
+      'M 30,22 C 28,23 26,26 26,29 26,32 28,34 30,35 L 70,35 C 72,34 74,32 74,29 74,26 72,23 70,22 Z',
     ],
     arms: [
-      { top: 21, left: 10, width: 16, height: 18, borderRadius: '40% 30% 50% 40%' },
-      { top: 21, left: 74, width: 16, height: 18, borderRadius: '30% 40% 40% 50%' },
+      // Left arm
+      'M 12,23 C 10,25 8,29 9,33 10,37 12,40 14,42 L 26,40 C 27,36 27,32 26,28 25,25 23,23 22,22 Z',
+      // Right arm
+      'M 88,23 C 90,25 92,29 91,33 90,37 88,40 86,42 L 74,40 C 73,36 73,32 74,28 75,25 77,23 78,22 Z',
     ],
     core: [
-      { top: 33, left: 30, width: 40, height: 12, borderRadius: '20% 20% 30% 30%' },
+      'M 32,35 C 31,37 30,41 30,45 30,47 31,48 32,48 L 68,48 C 69,48 70,47 70,45 70,41 69,37 68,35 Z',
     ],
     hormonal: [
-      { top: 45, left: 32, width: 36, height: 7, borderRadius: '30% 30% 40% 40%' },
+      'M 32,48 C 31,50 30,52 31,55 L 69,55 C 70,52 69,50 68,48 Z',
     ],
     legs: [
-      { top: 52, left: 22, width: 22, height: 40, borderRadius: '30% 30% 20% 40%' },
-      { top: 52, left: 56, width: 22, height: 40, borderRadius: '30% 30% 40% 20%' },
+      // Left leg
+      'M 31,55 C 29,60 27,68 26,76 25,84 25,90 25,96 L 43,96 C 43,90 44,84 44,76 44,68 43,60 42,55 Z',
+      // Right leg
+      'M 69,55 C 71,60 73,68 74,76 75,84 75,90 75,96 L 57,96 C 57,90 56,84 56,76 56,68 57,60 58,55 Z',
     ],
   },
 };
@@ -76,72 +79,12 @@ const GeometricBody = ({ zoneIntensities, onZoneTap, className = '' }: Geometric
   const [pulsingZone, setPulsingZone] = useState<BodyZone | null>(null);
 
   const bodyImage = gender === 'male' ? bodyMale : bodyFemale;
-  const regions = ZONE_REGIONS[gender];
+  const paths = ZONE_PATHS[gender];
 
   const handleZoneTap = (zone: BodyZone) => {
     setPulsingZone(zone);
     setTimeout(() => setPulsingZone(null), 800);
     onZoneTap?.(zone);
-  };
-
-  const renderHitArea = (zone: BodyZone, region: ZoneRegion, idx: number) => {
-    const info = BODY_ZONES[zone];
-    const isHovered = hoveredZone === zone;
-    const isPulsing = pulsingZone === zone;
-    const intensity = zoneIntensities[zone];
-    const isActive = intensity > 0.1;
-
-    // Subtle idle glow for active zones, brighter on hover, pulse on tap
-    const borderColor = isPulsing || isHovered
-      ? info.color
-      : isActive
-        ? `${info.color}`
-        : 'transparent';
-
-    const borderOpacity = isPulsing ? 1 : isHovered ? 0.8 : isActive ? 0.15 + intensity * 0.2 : 0;
-
-    return (
-      <div
-        key={`${zone}-${idx}`}
-        className="absolute cursor-pointer"
-        style={{
-          top: `${region.top}%`,
-          left: `${region.left}%`,
-          width: `${region.width}%`,
-          height: `${region.height}%`,
-          borderRadius: region.borderRadius,
-          border: `1.5px solid ${borderColor}`,
-          borderColor: borderColor,
-          opacity: borderOpacity > 0 ? 1 : 1, // always present for click
-          boxShadow: isPulsing
-            ? `0 0 24px ${info.color}90, 0 0 48px ${info.color}40, inset 0 0 16px ${info.color}25`
-            : isHovered
-              ? `0 0 18px ${info.color}60, inset 0 0 10px ${info.color}15`
-              : isActive
-                ? `0 0 8px ${info.color}${Math.round(intensity * 30).toString(16).padStart(2, '0')}`
-                : 'none',
-          backgroundColor: isHovered
-            ? `${info.color}0A`
-            : 'transparent',
-          transition: 'all 0.3s ease',
-          animation: isPulsing ? 'zonePulseGlow 0.8s ease-out' : undefined,
-          // Make the border itself transparent when inactive
-          ...((!isHovered && !isPulsing && !isActive) && { borderColor: 'transparent' }),
-          ...((isActive && !isHovered && !isPulsing) && {
-            borderColor: info.color,
-            borderWidth: '1px',
-            opacity: borderOpacity,
-          }),
-          ...((isHovered || isPulsing) && {
-            borderColor: info.color,
-            borderWidth: isPulsing ? '2px' : '1.5px',
-          }),
-        }}
-        onClick={() => handleZoneTap(zone)}
-        onPointerEnter={() => setHoveredZone(zone)}
-        onPointerLeave={() => setHoveredZone(null)}
-      />
-    );
   };
 
   return (
@@ -170,10 +113,9 @@ const GeometricBody = ({ zoneIntensities, onZoneTap, className = '' }: Geometric
         </button>
       </div>
 
-      {/* Body figure floating on dark bg */}
+      {/* Body figure */}
       <div className="relative w-full flex-1 flex items-center justify-center">
         <div className="relative max-w-[220px] w-full">
-          {/* The cartoon figure — screen blend makes black bg transparent */}
           <img
             src={bodyImage}
             alt={`${gender} body map`}
@@ -185,17 +127,72 @@ const GeometricBody = ({ zoneIntensities, onZoneTap, className = '' }: Geometric
             draggable={false}
           />
 
-          {/* Organic-shaped zone hit areas */}
-          {(Object.entries(regions) as Array<[BodyZone, ZoneRegion[]]>).map(([zone, regs]) =>
-            regs.map((reg, idx) => renderHitArea(zone as BodyZone, reg, idx))
-          )}
+          {/* SVG overlay with contour-tracing hit areas */}
+          <svg
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            className="absolute inset-0 w-full h-full"
+            style={{ pointerEvents: 'none' }}
+          >
+            <defs>
+              {(Object.keys(paths) as BodyZone[]).map((zone) => (
+                <filter key={`glow-${zone}`} id={`glow-${zone}`} x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur stdDeviation="1.5" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+              ))}
+            </defs>
+
+            {(Object.entries(paths) as Array<[BodyZone, string[]]>).map(([zone, zonePaths]) =>
+              zonePaths.map((d, idx) => {
+                const info = BODY_ZONES[zone];
+                const isHovered = hoveredZone === zone;
+                const isPulsing = pulsingZone === zone;
+                const intensity = zoneIntensities[zone];
+                const isActive = intensity > 0.1;
+
+                return (
+                  <path
+                    key={`${zone}-${idx}`}
+                    d={d}
+                    fill={isHovered ? `${info.color}12` : 'transparent'}
+                    stroke={
+                      isPulsing || isHovered
+                        ? info.color
+                        : isActive
+                          ? info.color
+                          : 'transparent'
+                    }
+                    strokeWidth={isPulsing ? 1.2 : isHovered ? 0.8 : isActive ? 0.4 : 0}
+                    strokeOpacity={isPulsing ? 1 : isHovered ? 0.85 : isActive ? 0.2 + intensity * 0.3 : 0}
+                    filter={isPulsing || isHovered ? `url(#glow-${zone})` : undefined}
+                    style={{
+                      pointerEvents: 'all',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease',
+                      animation: isPulsing ? 'zonePulse 0.8s ease-out' : undefined,
+                    }}
+                    onClick={() => handleZoneTap(zone as BodyZone)}
+                    onPointerEnter={() => setHoveredZone(zone as BodyZone)}
+                    onPointerLeave={() => setHoveredZone(null)}
+                  />
+                );
+              })
+            )}
+          </svg>
 
           {/* Hover tooltip */}
           {hoveredZone && (() => {
             const info = BODY_ZONES[hoveredZone];
             const intensity = zoneIntensities[hoveredZone];
-            const firstRegion = regions[hoveredZone][0];
-            const tooltipTop = firstRegion.top > 12 ? firstRegion.top - 7 : firstRegion.top + firstRegion.height + 1;
+            // Parse first path to find approximate top position
+            const firstPath = paths[hoveredZone][0];
+            const yMatch = firstPath.match(/[\s,](\d+)/);
+            const approxTop = yMatch ? parseInt(yMatch[1]) : 50;
+            const tooltipTop = approxTop > 12 ? approxTop - 8 : approxTop + 12;
 
             return (
               <div
@@ -220,10 +217,10 @@ const GeometricBody = ({ zoneIntensities, onZoneTap, className = '' }: Geometric
       </div>
 
       <style>{`
-        @keyframes zonePulseGlow {
-          0% { transform: scale(1.03); opacity: 1; }
-          50% { transform: scale(1.01); opacity: 0.7; }
-          100% { transform: scale(1); opacity: 0.5; }
+        @keyframes zonePulse {
+          0% { stroke-width: 1.5; stroke-opacity: 1; }
+          50% { stroke-width: 2.5; stroke-opacity: 0.6; }
+          100% { stroke-width: 0.8; stroke-opacity: 0.3; }
         }
       `}</style>
     </div>
