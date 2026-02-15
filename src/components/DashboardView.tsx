@@ -14,6 +14,7 @@ import MiniSparkline from '@/components/MiniSparkline';
 import RadialProgressRings from '@/components/RadialProgressRings';
 import { computeZoneIntensities, BODY_ZONES, BodyZone } from '@/data/bodyZoneMapping';
 import GeometricBody from '@/components/GeometricBody';
+import ZoneDetailDrawer from '@/components/ZoneDetailDrawer';
 
 interface DashboardViewProps {
   compounds: Compound[];
@@ -134,7 +135,14 @@ const ZoneLegend = ({ zoneIntensities }: { zoneIntensities: Record<BodyZone, num
 
 const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, toleranceLevel, onAnalyzeStack, onViewAIInsights, onViewOutcomes, goals = [], userId }: DashboardViewProps) => {
   const { readings, fetchReadings, addReading } = useGoalReadings(userId);
-  const [activeScreen, setActiveScreen] = useState(0); // 0 = body hero, 1 = goals
+  const [activeScreen, setActiveScreen] = useState(0);
+  const [selectedZone, setSelectedZone] = useState<BodyZone | null>(null);
+  const [zoneDrawerOpen, setZoneDrawerOpen] = useState(false);
+
+  const handleZoneTap = (zone: BodyZone) => {
+    setSelectedZone(zone);
+    setZoneDrawerOpen(true);
+  };
 
   const activeGoals = goals.filter(g => g.status === 'active');
 
@@ -144,11 +152,15 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
     }
   }, [activeGoals.length]);
 
-  // Compute zone intensities from active compounds
+  // Use compound names (not UUIDs) for zone mapping
+  const compoundNameIds = useMemo(() => 
+    compounds.map(c => c.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')),
+    [compounds]
+  );
+
   const zoneIntensities = useMemo(() => {
-    const ids = compounds.map(c => c.id || c.name.toLowerCase().replace(/\s+/g, '-'));
-    return computeZoneIntensities(ids);
-  }, [compounds]);
+    return computeZoneIntensities(compoundNameIds);
+  }, [compoundNameIds]);
 
   // Body coverage = % of zones with >0.3 intensity
   const bodyCoverage = useMemo(() => {
@@ -245,7 +257,7 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
                       <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                     </div>
                   }>
-                    <GeometricBody zoneIntensities={zoneIntensities} />
+                    <GeometricBody zoneIntensities={zoneIntensities} onZoneTap={handleZoneTap} />
                   </Suspense>
                 </div>
               </div>
@@ -345,6 +357,14 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
 
       {/* Protocol Outcomes */}
       <ProtocolOutcomesCard />
+
+      {/* Zone Detail Drawer */}
+      <ZoneDetailDrawer
+        zone={selectedZone}
+        open={zoneDrawerOpen}
+        onOpenChange={setZoneDrawerOpen}
+        compounds={compounds}
+      />
     </div>
   );
 };

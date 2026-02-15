@@ -82,3 +82,19 @@ export function computeZoneIntensities(compoundIds: string[]): Record<BodyZone, 
 
   return zones;
 }
+
+/**
+ * Get compounds affecting a specific zone with their weight.
+ */
+export function getCompoundsForZone(zone: BodyZone, compoundIds: string[]): Array<{ id: string; weight: number }> {
+  const normalize = (id: string) => id.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+  const results: Array<{ id: string; weight: number }> = [];
+  for (const rawId of compoundIds) {
+    const nId = normalize(rawId);
+    const mapping = COMPOUND_ZONE_MAP[nId];
+    if (mapping && mapping[zone]) {
+      results.push({ id: rawId, weight: mapping[zone]! });
+    }
+  }
+  return results.sort((a, b) => b.weight - a.weight);
+}
