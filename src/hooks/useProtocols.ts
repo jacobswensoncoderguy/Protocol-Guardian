@@ -211,5 +211,6 @@ export function useProtocols(userId: string | undefined) {
     protocolGoalLinks,
     linkGoalToProtocol,
     unlinkGoalFromProtocol,
+    refetchGoals: fetchGoals,
   };
 }
