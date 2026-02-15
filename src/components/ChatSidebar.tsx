@@ -22,6 +22,7 @@ interface ChatSidebarProps {
   onDeleteProject: (id: string) => void;
   onSearch: (query: string) => void;
   onSearchResultClick: (conversationId: string) => void;
+  onClose?: () => void;
 }
 
 const ChatSidebar = ({
@@ -29,7 +30,7 @@ const ChatSidebar = ({
   searchQuery, searchResults,
   onSelectConversation, onNewConversation, onDeleteConversation,
   onRenameConversation, onCreateProject, onDeleteProject,
-  onSearch, onSearchResultClick,
+  onSearch, onSearchResultClick, onClose,
 }: ChatSidebarProps) => {
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -80,8 +81,17 @@ const ChatSidebar = ({
       {/* Header */}
       <div className="px-3 py-2.5 border-b border-border/50 space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-foreground">Chats</span>
+          <span className="text-sm font-semibold text-foreground">Chats</span>
           <div className="flex items-center gap-1">
+            {onClose && (
+              <button
+                onClick={onClose}
+                className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                title="Close sidebar"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
             <button
               onClick={() => setShowNewProject(true)}
               className="p-1 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
