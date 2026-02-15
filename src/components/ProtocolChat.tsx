@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
-import { Send, Square, Trash2, Check, X, CheckCheck, Brain, ArrowRight } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { Send, Square, Trash2, Check, X, CheckCheck, Brain, ArrowRight, Mic, MicOff } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { ChatMessage, ChangeProposal, ProposedChange } from '@/hooks/useProtocolChat';
 
@@ -145,8 +145,46 @@ const ProtocolChat = ({
   onApplyAll,
 }: ProtocolChatProps) => {
   const [input, setInput] = useState('');
+  const [isListening, setIsListening] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const recognitionRef = useRef<any>(null);
+
+  const hasSpeechRecognition = typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
+
+  const toggleListening = useCallback(() => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const SpeechRecognitionCtor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognitionCtor) return;
+
+    const recognition = new SpeechRecognitionCtor();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onresult = (event: any) => {
+      let transcript = '';
+      for (let i = 0; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      setInput(prev => {
+        // Replace with latest full transcript from this session
+        return transcript;
+      });
+    };
+
+    recognition.onerror = () => setIsListening(false);
+    recognition.onend = () => setIsListening(false);
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setIsListening(true);
+  }, [isListening]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
@@ -268,7 +306,24 @@ const ProtocolChat = ({
             className="flex-1 bg-transparent text-xs text-foreground placeholder:text-muted-foreground resize-none outline-none max-h-[120px] py-1.5"
             rows={1}
             disabled={isStreaming}
+            spellCheck
+            autoCorrect="on"
+            autoCapitalize="sentences"
           />
+          {hasSpeechRecognition && (
+            <button
+              onClick={toggleListening}
+              className={`p-2 rounded-lg transition-colors flex-shrink-0 ${
+                isListening
+                  ? 'bg-destructive/15 text-status-critical animate-pulse'
+                  : 'bg-secondary/50 text-muted-foreground hover:text-foreground hover:bg-secondary'
+              }`}
+              title={isListening ? 'Stop listening' : 'Voice input'}
+              disabled={isStreaming}
+            >
+              {isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+            </button>
+          )}
           {isStreaming ? (
             <button
               onClick={onCancel}

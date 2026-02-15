@@ -63,6 +63,18 @@ const gradeColor = (grade: string) => {
 const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, onRefresh, chatMessages, isChatStreaming, onChatSend, onChatCancel, onChatClear, onApplyChange, onRejectChange, onApplyAll }: AIInsightsViewProps) => {
   return (
     <div className="space-y-4">
+      {/* Interactive Chat - always at top */}
+      <ProtocolChat
+        messages={chatMessages}
+        isStreaming={isChatStreaming}
+        onSend={onChatSend}
+        onCancel={onChatCancel}
+        onClear={onChatClear}
+        onApplyChange={onApplyChange}
+        onRejectChange={onRejectChange}
+        onApplyAll={onApplyAll}
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -249,20 +261,6 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
           <Brain className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
           <p className="text-sm text-muted-foreground">Tap "Re-analyze" to run AI analysis on your stack.</p>
         </div>
-      )}
-
-      {/* Interactive Chat */}
-      {analysis && (
-        <ProtocolChat
-          messages={chatMessages}
-          isStreaming={isChatStreaming}
-          onSend={onChatSend}
-          onCancel={onChatCancel}
-          onClear={onChatClear}
-          onApplyChange={onApplyChange}
-          onRejectChange={onRejectChange}
-          onApplyAll={onApplyAll}
-        />
       )}
 
       <MedicalDisclaimer />
