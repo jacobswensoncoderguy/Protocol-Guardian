@@ -55,7 +55,7 @@ const LoadingSkeleton = () => (
 
 const Index = () => {
   const { user, signOut } = useAuth();
-  const { profile, currentTolerance, setTolerance, toleranceHistory, updateProfile } = useProfile(user?.id);
+  const { profile, currentTolerance, setTolerance, toleranceHistory, updateProfile, measurementSystem, doseUnitPreference } = useProfile(user?.id);
   const { compounds, loading, hasCompounds, updateCompound, addCompound, deleteCompound, refetch } = useCompounds(user?.id);
   const { isDark, toggle } = useTheme();
   const { createGoals, goals: fullGoals, fetchGoals: fetchFullGoals } = useGoals(user?.id);
@@ -240,6 +240,8 @@ const Index = () => {
               toleranceHistory={toleranceHistory}
               onUpdateProfile={updateProfile}
               onToleranceChange={handleToleranceChange}
+              measurementSystem={measurementSystem}
+              doseUnitPreference={doseUnitPreference}
             />
           </TabsContent>
           <TabsContent value="schedule" className="animate-slide-up">
