@@ -54,6 +54,11 @@ export default {
         },
         morning: "hsl(var(--morning))",
         evening: "hsl(var(--evening))",
+        neon: {
+          blue: "hsl(230, 100%, 65%)",
+          magenta: "hsl(330, 100%, 60%)",
+          gold: "hsl(45, 100%, 55%)",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
