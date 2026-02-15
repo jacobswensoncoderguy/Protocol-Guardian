@@ -61,7 +61,7 @@ const Index = () => {
   const {
     protocols, createProtocol, deleteProtocol, cloneProtocol, updateProtocol,
     addCompoundToProtocol, removeCompoundFromProtocol, refetch: refetchProtocols,
-    goals, protocolGoalLinks, linkGoalToProtocol, unlinkGoalFromProtocol,
+    goals, protocolGoalLinks, linkGoalToProtocol, unlinkGoalFromProtocol, refetchGoals,
   } = useProtocols(user?.id);
 
   const {
@@ -291,6 +291,7 @@ const Index = () => {
               target_unit: goal.target_unit,
               priority: goal.priority || 2,
             }]);
+            await refetchGoals();
           }}
         />
       </main>
