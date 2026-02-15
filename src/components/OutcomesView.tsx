@@ -4,11 +4,13 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Area, Area
 import { UserGoal } from '@/hooks/useGoals';
 import { GoalReading, useGoalReadings } from '@/hooks/useGoalReadings';
 import { supabase } from '@/integrations/supabase/client';
+import BiomarkerHistoryView from './BiomarkerHistoryView';
 
 interface OutcomesViewProps {
   userId?: string;
   goals: UserGoal[];
   onRefreshGoals: () => void;
+  onUploadClick?: () => void;
 }
 
 const GOAL_TYPE_COLORS: Record<string, string> = {
@@ -54,7 +56,7 @@ function getStatusColor(progress: number | null): string {
   return 'bg-muted-foreground/40';
 }
 
-const OutcomesView = ({ userId, goals, onRefreshGoals }: OutcomesViewProps) => {
+const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick }: OutcomesViewProps) => {
   const { readings, loading: readingsLoading, fetchReadings, addReading } = useGoalReadings(userId);
   const [bodyImage, setBodyImage] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
@@ -436,6 +438,9 @@ const OutcomesView = ({ userId, goals, onRefreshGoals }: OutcomesViewProps) => {
           </div>
         ))}
       </div>
+
+      {/* Biomarker History */}
+      <BiomarkerHistoryView userId={userId} onUploadClick={onUploadClick || (() => {})} />
     </div>
   );
 };

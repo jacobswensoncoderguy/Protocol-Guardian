@@ -237,7 +237,7 @@ const Index = () => {
             <CostProjectionView compounds={compounds} protocols={protocols} />
           </TabsContent>
           <TabsContent value="outcomes" className="animate-slide-up">
-            <OutcomesView userId={user?.id} goals={fullGoals} onRefreshGoals={fetchFullGoals} />
+            <OutcomesView userId={user?.id} goals={fullGoals} onRefreshGoals={fetchFullGoals} onUploadClick={() => setShowBiomarkerUpload(true)} />
           </TabsContent>
           <TabsContent value="ai-insights" className="animate-slide-up">
             <AIInsightsView
