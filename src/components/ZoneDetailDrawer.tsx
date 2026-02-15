@@ -240,6 +240,23 @@ Keep it concise and practical. Calibrate to my ${toleranceLevel} tolerance level
             </Button>
           </div>
 
+          {/* AI Loading Skeleton */}
+          {aiLoading && !aiSuggestion && (
+            <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 space-y-3 animate-fade-in">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles className="w-3.5 h-3.5 text-primary animate-pulse" />
+                <span className="text-[10px] uppercase tracking-wider text-primary font-semibold">Generating suggestions…</span>
+              </div>
+              <div className="space-y-2">
+                <div className="h-3 w-3/4 rounded bg-primary/10 animate-pulse" />
+                <div className="h-3 w-full rounded bg-primary/10 animate-pulse" />
+                <div className="h-3 w-5/6 rounded bg-primary/10 animate-pulse" />
+                <div className="h-3 w-2/3 rounded bg-primary/10 animate-pulse" />
+                <div className="h-3 w-4/5 rounded bg-primary/10 animate-pulse" />
+              </div>
+            </div>
+          )}
+
           {/* AI Suggestion Result */}
           {aiSuggestion && (
             <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 space-y-2 animate-fade-in">
