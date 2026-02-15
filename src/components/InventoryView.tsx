@@ -567,39 +567,52 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
               </button>
             </div>
           )}
-          {isPeptide ? (
-            <div className="grid grid-cols-2 gap-x-3 text-[10px]">
-              <div>
-                <span className="text-muted-foreground">Vials:</span>{' '}
-                <span className="font-mono text-foreground">{compound.currentQuantity}</span>
+          {isPeptide ? (() => {
+            const storedIsIu = compound.doseLabel.toLowerCase().includes('iu');
+            const storedIsMg = compound.doseLabel.toLowerCase().includes('mg') || compound.doseLabel.toLowerCase().includes('mcg');
+            const reconVolIU = (compound.reconVolume || 2) * 100; // mL → IU (1mL = 100 IU)
+            const vialMg = compound.unitSize;
+
+            let displayDose = `${compound.dosePerUse} ${compound.doseLabel}`;
+            if (doseUnit === 'iu' && storedIsMg && vialMg > 0) {
+              // Convert mg → IU: (mg / vialMg) * reconVolIU
+              const iu = Math.round((compound.dosePerUse / vialMg) * reconVolIU * 100) / 100;
+              displayDose = `${iu} IU`;
+            } else if (doseUnit === 'mg' && storedIsIu && vialMg > 0) {
+              // Convert IU → mg: (IU / reconVolIU) * vialMg
+              const mg = Math.round((compound.dosePerUse / reconVolIU) * vialMg * 1000) / 1000;
+              displayDose = `${mg} mg`;
+            }
+
+            return (
+              <div className="grid grid-cols-2 gap-x-3 text-[10px]">
+                <div>
+                  <span className="text-muted-foreground">Vials:</span>{' '}
+                  <span className="font-mono text-foreground">{compound.currentQuantity}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Per Vial:</span>{' '}
+                  <span className="font-mono text-foreground">{compound.unitSize} mg</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Dose:</span>{' '}
+                  <span className="font-mono text-foreground">{displayDose}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Kit Price:</span>{' '}
+                  <span className="font-mono text-foreground">${compound.kitPrice || 0}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Reorder:</span>{' '}
+                  <span className="font-mono text-foreground">{reorderLabel}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Reorder:</span>{' '}
+                  <span className="font-mono text-accent">{reorderDate}</span>
+                </div>
               </div>
-              <div>
-                <span className="text-muted-foreground">Per Vial:</span>{' '}
-                <span className="font-mono text-foreground">{compound.unitSize} mg</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Dose:</span>{' '}
-                <span className="font-mono text-foreground">
-                  {doseUnit === 'iu' && compound.unitSize && compound.reconVolume
-                    ? `${Math.round((compound.dosePerUse / compound.unitSize) * (compound.reconVolume || 200) * 100) / 100} IU`
-                    : `${compound.dosePerUse} ${compound.doseLabel}`
-                  }
-                </span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Kit Price:</span>{' '}
-                <span className="font-mono text-foreground">${compound.kitPrice || 0}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Reorder:</span>{' '}
-                <span className="font-mono text-foreground">{reorderLabel}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Reorder:</span>{' '}
-                <span className="font-mono text-accent">{reorderDate}</span>
-              </div>
-            </div>
-          ) : (
+            );
+          })() : (
             <div className="grid grid-cols-2 gap-x-3 text-[10px]">
               <div>
                 <span className="text-muted-foreground">Qty:</span>{' '}
@@ -612,10 +625,16 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
               <div>
                 <span className="text-muted-foreground">Dose:</span>{' '}
                 <span className="font-mono text-foreground">
-                  {doseUnit === 'iu' && isOil && compound.unitSize
-                    ? `${Math.round((compound.dosePerUse / compound.unitSize) * 200 * 100) / 100} IU`
-                    : `${compound.dosePerUse} ${compound.doseLabel}`
-                  }
+                  {(() => {
+                    if (!isOil || doseUnit === 'mg') return `${compound.dosePerUse} ${compound.doseLabel}`;
+                    const storedIsIu = compound.doseLabel.toLowerCase().includes('iu');
+                    if (storedIsIu) return `${compound.dosePerUse} ${compound.doseLabel}`;
+                    // mg → IU for oils
+                    const iu = compound.unitSize > 0
+                      ? Math.round((compound.dosePerUse / compound.unitSize) * 200 * 100) / 100
+                      : compound.dosePerUse;
+                    return `${iu} IU`;
+                  })()}
                 </span>
               </div>
               <div>
