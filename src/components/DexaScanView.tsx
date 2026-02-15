@@ -44,6 +44,23 @@ function findMetric(metrics: DexaMetric[], keys: string[]): DexaMetric | undefin
   return metrics.find(m => keys.some(k => m.name.toLowerCase().includes(k.toLowerCase())));
 }
 
+function calcRecompScore(current: DexaMetric[], prev: DexaMetric[]): number | null {
+  const fat = findMetric(current, COMPOSITION_KEYS);
+  const prevFat = findMetric(prev, COMPOSITION_KEYS);
+  const lean = findMetric(current, LEAN_KEYS);
+  const prevLean = findMetric(prev, LEAN_KEYS);
+  if (!fat || !prevFat || !lean || !prevLean) return null;
+  const fatDelta = prevFat.value - fat.value;
+  const leanDelta = lean.value - prevLean.value;
+  const vatCur = findMetric(current, VAT_KEYS);
+  const vatPrev = findMetric(prev, VAT_KEYS);
+  const vatDelta = vatCur && vatPrev ? vatPrev.value - vatCur.value : 0;
+  const fatScore = Math.min(50, Math.max(-25, fatDelta * 10));
+  const leanScore = Math.min(50, Math.max(-25, leanDelta * 5));
+  const vatScore = vatCur && vatPrev ? Math.min(20, Math.max(-10, vatDelta * 20)) : 0;
+  return Math.round(Math.min(100, Math.max(0, 50 + fatScore + leanScore + vatScore)));
+}
+
 function findAllMetrics(metrics: DexaMetric[], keys: string[]): DexaMetric[] {
   return metrics.filter(m => keys.some(k => m.name.toLowerCase().includes(k.toLowerCase())));
 }
@@ -163,19 +180,26 @@ export default function DexaScanView({ uploads }: DexaScanViewProps) {
   // Body composition trend data across all DEXA scans
   const trendData = useMemo(() => {
     if (dexaUploads.length < 2) return [];
-    return dexaUploads.map(upload => {
+    return dexaUploads.map((upload, idx) => {
       const m = extractDexaMetrics(upload);
       const fat = findMetric(m, COMPOSITION_KEYS);
       const lean = findMetric(m, LEAN_KEYS);
       const bmdVal = findMetric(m, BMD_KEYS);
       const vatVal = findMetric(m, VAT_KEYS);
       const date = new Date(upload.reading_date || upload.created_at);
+      // Calculate recomp score vs previous scan
+      let recompScore: number | null = null;
+      if (idx > 0) {
+        const prevM = extractDexaMetrics(dexaUploads[idx - 1]);
+        recompScore = calcRecompScore(m, prevM);
+      }
       return {
         date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
         'Fat %': fat?.value ?? null,
         'Lean Mass': lean?.value ?? null,
         'BMD': bmdVal?.value ?? null,
         'VAT': vatVal?.value ?? null,
+        'Recomp': recompScore,
       };
     });
   }, [dexaUploads]);
@@ -407,7 +431,7 @@ export default function DexaScanView({ uploads }: DexaScanViewProps) {
                       fontSize: '11px',
                     }}
                     formatter={(value: number, name: string) => {
-                      const unit = name === 'Fat %' ? '%' : name === 'BMD' ? 'g/cm²' : 'lbs';
+                      const unit = name === 'Fat %' ? '%' : name === 'BMD' ? 'g/cm²' : name === 'Recomp' ? '/100' : 'lbs';
                       return [`${value} ${unit}`, name];
                     }}
                   />
@@ -419,6 +443,16 @@ export default function DexaScanView({ uploads }: DexaScanViewProps) {
                     stroke="hsl(var(--chart-4))"
                     strokeWidth={2}
                     dot={{ r: 4, fill: 'hsl(var(--chart-4))', strokeWidth: 0 }}
+                    connectNulls
+                  />
+                  <Line
+                    yAxisId="left"
+                    type="monotone"
+                    dataKey="Recomp"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={2.5}
+                    strokeDasharray="6 3"
+                    dot={{ r: 4, fill: 'hsl(var(--primary))', strokeWidth: 2, stroke: 'hsl(var(--card))' }}
                     connectNulls
                   />
                   <Line
