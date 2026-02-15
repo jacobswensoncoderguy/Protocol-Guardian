@@ -1,1 +1,4 @@
 project_id = "cjaqpvstvvgkuilgnmtp"
+
+[functions.goal-interview]
+verify_jwt = false
