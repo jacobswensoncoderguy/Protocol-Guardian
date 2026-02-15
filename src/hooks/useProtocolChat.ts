@@ -1,7 +1,8 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { Compound } from '@/data/compounds';
 import { UserProtocol } from '@/hooks/useProtocols';
 import { StackAnalysis, ToleranceLevel } from '@/hooks/useProtocolAnalysis';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 export interface ProposedChange {
@@ -42,7 +43,70 @@ export function useProtocolChat(
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [proposals, setProposals] = useState<ChangeProposal[]>([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+
+  // Load chat history from DB on mount
+  useEffect(() => {
+    if (historyLoaded) return;
+    const loadHistory = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('protocol_chat_messages')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Failed to load chat history:', error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        const loaded: ChatMessage[] = data.map(row => ({
+          id: row.id,
+          role: row.role as 'user' | 'assistant',
+          content: row.content,
+          proposal: row.proposal as unknown as ChangeProposal | undefined,
+          timestamp: new Date(row.created_at).getTime(),
+        }));
+        setMessages(loaded);
+
+        // Restore proposals from messages
+        const loadedProposals = loaded
+          .filter(m => m.proposal)
+          .map(m => m.proposal!);
+        setProposals(loadedProposals);
+      }
+      setHistoryLoaded(true);
+    };
+    loadHistory();
+  }, [historyLoaded]);
+
+  // Save a message to DB
+  const persistMessage = useCallback(async (msg: ChatMessage) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    await supabase.from('protocol_chat_messages').insert({
+      id: msg.id,
+      user_id: user.id,
+      role: msg.role,
+      content: msg.content,
+      proposal: msg.proposal ? (msg.proposal as any) : null,
+    });
+  }, []);
+
+  // Update a message in DB (for proposals attached after streaming)
+  const updatePersistedMessage = useCallback(async (msgId: string, updates: { content?: string; proposal?: ChangeProposal | null }) => {
+    const updateData: Record<string, any> = {};
+    if (updates.content !== undefined) updateData.content = updates.content;
+    if (updates.proposal !== undefined) updateData.proposal = updates.proposal as any;
+    
+    await supabase.from('protocol_chat_messages').update(updateData).eq('id', msgId);
+  }, []);
 
   const sendMessage = useCallback(async (userInput: string) => {
     const userMsg: ChatMessage = {
@@ -52,18 +116,17 @@ export function useProtocolChat(
       timestamp: Date.now(),
     };
     setMessages(prev => [...prev, userMsg]);
+    persistMessage(userMsg);
     setIsStreaming(true);
 
     const controller = new AbortController();
     abortRef.current = controller;
 
-    // Build conversation history for the API (without proposals/metadata)
     const apiMessages = [...messages, userMsg].map(m => ({
       role: m.role,
       content: m.content,
     }));
 
-    // Prepare compound data for context
     const compoundData = compounds.map(c => ({
       name: c.name,
       category: c.category,
@@ -148,13 +211,11 @@ export function useProtocolChat(
             const parsed = JSON.parse(jsonStr);
             const delta = parsed.choices?.[0]?.delta;
 
-            // Handle regular text content
             if (delta?.content) {
               assistantContent += delta.content;
               upsertAssistant(assistantContent);
             }
 
-            // Handle tool calls (propose_changes)
             if (delta?.tool_calls) {
               for (const tc of delta.tool_calls) {
                 if (tc.function?.name === 'propose_changes') {
@@ -166,7 +227,6 @@ export function useProtocolChat(
               }
             }
 
-            // Check finish reason
             const finishReason = parsed.choices?.[0]?.finish_reason;
             if (finishReason === 'tool_calls' && toolCallActive && toolCallBuffer) {
               try {
@@ -177,15 +237,15 @@ export function useProtocolChat(
                   summary: proposalData.summary,
                 };
                 setProposals(prev => [...prev, proposal]);
-                // Ensure assistant message exists, then attach proposal
                 setMessages(prev => {
                   const exists = prev.some(m => m.id === assistantId);
                   if (exists) {
                     return prev.map(m => m.id === assistantId ? { ...m, proposal } : m);
                   }
-                  // Create assistant message with proposal if none exists yet
                   return [...prev, { id: assistantId, role: 'assistant' as const, content: '', proposal, timestamp: Date.now() }];
                 });
+                // Persist assistant message with proposal
+                updatePersistedMessage(assistantId, { content: assistantContent, proposal });
               } catch (parseErr) {
                 console.error('Failed to parse proposal:', parseErr);
               }
@@ -218,6 +278,14 @@ export function useProtocolChat(
           } catch { /* ignore */ }
         }
       }
+
+      // Persist the final assistant message
+      persistMessage({
+        id: assistantId,
+        role: 'assistant',
+        content: assistantContent,
+        timestamp: Date.now(),
+      });
     } catch (err: any) {
       if (err.name !== 'AbortError') {
         console.error('Chat stream error:', err);
@@ -227,7 +295,7 @@ export function useProtocolChat(
       setIsStreaming(false);
       abortRef.current = null;
     }
-  }, [messages, compounds, protocols, toleranceLevel, analysis]);
+  }, [messages, compounds, protocols, toleranceLevel, analysis, persistMessage, updatePersistedMessage]);
 
   const applyChange = useCallback((proposalId: string, changeIndex: number) => {
     const proposal = proposals.find(p => p.id === proposalId);
@@ -251,57 +319,49 @@ export function useProtocolChat(
     }
 
     // Mark change as accepted
-    setProposals(prev => prev.map(p =>
-      p.id === proposalId
-        ? {
-          ...p,
-          changes: p.changes.map((c, i) =>
-            i === changeIndex ? { ...c, status: 'accepted' as const } : c
-          ),
-        }
-        : p
-    ));
-    // Also update in messages
+    const updateProposalStatus = (p: ChangeProposal) => ({
+      ...p,
+      changes: p.changes.map((c, i) =>
+        i === changeIndex ? { ...c, status: 'accepted' as const } : c
+      ),
+    });
+
+    setProposals(prev => prev.map(p => p.id === proposalId ? updateProposalStatus(p) : p));
     setMessages(prev => prev.map(m =>
       m.proposal?.id === proposalId
-        ? {
-          ...m,
-          proposal: {
-            ...m.proposal,
-            changes: m.proposal.changes.map((c, i) =>
-              i === changeIndex ? { ...c, status: 'accepted' as const } : c
-            ),
-          },
-        }
+        ? { ...m, proposal: updateProposalStatus(m.proposal!) }
         : m
     ));
-  }, [proposals, compounds, updateCompound, deleteCompound]);
+
+    // Persist the updated proposal status
+    const msg = messages.find(m => m.proposal?.id === proposalId);
+    if (msg) {
+      const updated = updateProposalStatus(msg.proposal!);
+      updatePersistedMessage(msg.id, { proposal: updated });
+    }
+  }, [proposals, compounds, updateCompound, deleteCompound, messages, updatePersistedMessage]);
 
   const rejectChange = useCallback((proposalId: string, changeIndex: number) => {
-    setProposals(prev => prev.map(p =>
-      p.id === proposalId
-        ? {
-          ...p,
-          changes: p.changes.map((c, i) =>
-            i === changeIndex ? { ...c, status: 'rejected' as const } : c
-          ),
-        }
-        : p
-    ));
+    const updateProposalStatus = (p: ChangeProposal) => ({
+      ...p,
+      changes: p.changes.map((c, i) =>
+        i === changeIndex ? { ...c, status: 'rejected' as const } : c
+      ),
+    });
+
+    setProposals(prev => prev.map(p => p.id === proposalId ? updateProposalStatus(p) : p));
     setMessages(prev => prev.map(m =>
       m.proposal?.id === proposalId
-        ? {
-          ...m,
-          proposal: {
-            ...m.proposal,
-            changes: m.proposal.changes.map((c, i) =>
-              i === changeIndex ? { ...c, status: 'rejected' as const } : c
-            ),
-          },
-        }
+        ? { ...m, proposal: updateProposalStatus(m.proposal!) }
         : m
     ));
-  }, []);
+
+    const msg = messages.find(m => m.proposal?.id === proposalId);
+    if (msg) {
+      const updated = updateProposalStatus(msg.proposal!);
+      updatePersistedMessage(msg.id, { proposal: updated });
+    }
+  }, [messages, updatePersistedMessage]);
 
   const applyAllPending = useCallback((proposalId: string) => {
     const proposal = proposals.find(p => p.id === proposalId);
@@ -315,9 +375,14 @@ export function useProtocolChat(
     abortRef.current?.abort();
   }, []);
 
-  const clearChat = useCallback(() => {
+  const clearChat = useCallback(async () => {
     setMessages([]);
     setProposals([]);
+    // Delete all chat messages from DB for this user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase.from('protocol_chat_messages').delete().eq('user_id', user.id);
+    }
   }, []);
 
   return {
