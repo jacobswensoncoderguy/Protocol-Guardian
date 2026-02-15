@@ -254,6 +254,8 @@ const Index = () => {
               onDeleteCompound={deleteCompound}
               onAddCompound={() => setShowAddDialog(true)}
               protocols={protocols}
+              toleranceLevel={toleranceLevel}
+              onToleranceChange={handleToleranceChange}
             />
           </TabsContent>
           <TabsContent value="reorders" className="animate-slide-up">
@@ -270,7 +272,7 @@ const Index = () => {
               analysis={stackAnalysis}
               loading={aiLoading}
               toleranceLevel={toleranceLevel}
-              onToleranceChange={handleToleranceChange}
+              onToleranceChange={() => setActiveTab('inventory')}
               onRefresh={analyzeStack}
               chatMessages={chatMessages}
               isChatStreaming={isChatStreaming}

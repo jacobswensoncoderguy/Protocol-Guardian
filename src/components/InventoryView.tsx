@@ -5,6 +5,8 @@ import { UserProtocol } from '@/hooks/useProtocols';
 import { Pencil, Check, X, Trash2, Plus, ChevronDown, Syringe } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import ToleranceSelector from '@/components/ToleranceSelector';
+import { ToleranceLevel } from '@/hooks/useProtocolAnalysis';
 
 interface InventoryViewProps {
   compounds: Compound[];
@@ -12,6 +14,8 @@ interface InventoryViewProps {
   onDeleteCompound?: (id: string) => void;
   onAddCompound?: () => void;
   protocols?: UserProtocol[];
+  toleranceLevel?: string;
+  onToleranceChange?: (level: ToleranceLevel) => void;
 }
 
 const categoryLabels: Record<CompoundCategory, string> = {
@@ -23,7 +27,7 @@ const categoryLabels: Record<CompoundCategory, string> = {
 
 const categoryOrder: CompoundCategory[] = ['peptide', 'injectable-oil', 'oral', 'powder'];
 
-const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCompound, protocols = [] }: InventoryViewProps) => {
+const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCompound, protocols = [], toleranceLevel, onToleranceChange }: InventoryViewProps) => {
   const [filter, setFilter] = useState<CompoundCategory | 'all'>('all');
   const [sortBy, setSortBy] = useState<'name' | 'days'>('name');
   const activeCompounds = compounds.filter(c => !c.notes?.includes('[DORMANT]'));
@@ -65,10 +69,25 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
 
   return (
     <div className="space-y-3">
-      {/* Header */}
+      {/* Header with tolerance selector */}
       <div className="flex items-center justify-between mb-1">
         <h2 className="text-sm font-semibold text-foreground">Compounds</h2>
       </div>
+
+      {/* Tolerance selector — full comparison view */}
+      {onToleranceChange && (
+        <div className="bg-card/60 rounded-lg border border-border/30 p-3 mb-3">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Dosing Tolerance Level</p>
+          <ToleranceSelector
+            value={(toleranceLevel || 'moderate') as ToleranceLevel}
+            onChange={onToleranceChange}
+          />
+          <p className="text-[9px] text-muted-foreground/50 mt-1.5">
+            Compare options side-by-side. Your selection applies across all pages.
+          </p>
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-1.5 sm:gap-2">
         <div className="flex gap-1 overflow-x-auto scrollbar-thin -mx-1 px-1">
           {(['all', ...categoryOrder] as const).map(cat => (
@@ -560,7 +579,12 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
               </div>
               <div>
                 <span className="text-muted-foreground">Dose:</span>{' '}
-                <span className="font-mono text-foreground">{compound.dosePerUse} {compound.doseLabel}</span>
+                <span className="font-mono text-foreground">
+                  {doseUnit === 'iu' && compound.unitSize && compound.reconVolume
+                    ? `${Math.round((compound.dosePerUse / compound.unitSize) * (compound.reconVolume || 200) * 100) / 100} IU`
+                    : `${compound.dosePerUse} ${compound.doseLabel}`
+                  }
+                </span>
               </div>
               <div>
                 <span className="text-muted-foreground">Kit Price:</span>{' '}
@@ -587,7 +611,12 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
               </div>
               <div>
                 <span className="text-muted-foreground">Dose:</span>{' '}
-                <span className="font-mono text-foreground">{compound.dosePerUse} {compound.doseLabel}</span>
+                <span className="font-mono text-foreground">
+                  {doseUnit === 'iu' && isOil && compound.unitSize
+                    ? `${Math.round((compound.dosePerUse / compound.unitSize) * 200 * 100) / 100} IU`
+                    : `${compound.dosePerUse} ${compound.doseLabel}`
+                  }
+                </span>
               </div>
               <div>
                 <span className="text-muted-foreground">Reorder:</span>{' '}

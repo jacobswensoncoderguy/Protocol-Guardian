@@ -570,13 +570,25 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
         </button>
       </div>
 
-      {/* Tolerance selector — reference only, with prompt to log */}
+      {/* Tolerance badge — read-only, links to Inventory for full selector */}
       <div>
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Dosing Tolerance Level <span className="text-muted-foreground/50">(reference view)</span></p>
-        <ToleranceSelector value={toleranceLevel} onChange={onToleranceChange} />
-        <p className="text-[9px] text-muted-foreground/60 mt-1.5">
-          Compare grades across tolerance levels below, then tap a level above to log it as your active tolerance. This will update all pages.
-        </p>
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Dosing Tolerance Level</p>
+        <div className="flex items-center gap-2">
+          {(() => {
+            const meta = toleranceMeta[toleranceLevel] || toleranceMeta.moderate;
+            return (
+              <button
+                onClick={() => onToleranceChange(toleranceLevel)}
+                className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1.5 rounded-lg border ${meta.color} cursor-pointer hover:opacity-80 transition-opacity`}
+                title="Go to Compounds tab to change tolerance level"
+              >
+                <meta.Icon className="w-3.5 h-3.5" />
+                {meta.label}
+              </button>
+            );
+          })()}
+          <span className="text-[9px] text-muted-foreground/50">Tap to update on Compounds tab</span>
+        </div>
       </div>
 
       {loading && !analysis ? (
