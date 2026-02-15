@@ -254,6 +254,8 @@ const Index = () => {
               onDeleteCompound={deleteCompound}
               onAddCompound={() => setShowAddDialog(true)}
               protocols={protocols}
+              doseUnitPreference={doseUnitPreference}
+              onToggleDoseUnit={() => updateProfile({ dose_unit_preference: doseUnitPreference === 'mg' ? 'iu' : 'mg' } as any)}
             />
           </TabsContent>
           <TabsContent value="reorders" className="animate-slide-up">

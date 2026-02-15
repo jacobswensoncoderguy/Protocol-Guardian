@@ -78,7 +78,10 @@ export function computeZoneIntensities(compoundIds: string[]): Record<BodyZone, 
     brain: 0, heart: 0, arms: 0, core: 0, legs: 0, immune: 0, hormonal: 0,
   };
 
-  // Normalize compound IDs to match our mapping keys
+  // Track per-zone: max weight and count of contributing compounds
+  const zoneMax: Record<BodyZone, number> = { ...zones };
+  const zoneCount: Record<BodyZone, number> = { ...zones };
+
   const normalize = (id: string) => id.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
   for (const rawId of compoundIds) {
@@ -86,13 +89,21 @@ export function computeZoneIntensities(compoundIds: string[]): Record<BodyZone, 
     const mapping = COMPOUND_ZONE_MAP[id];
     if (!mapping) continue;
     for (const [zone, weight] of Object.entries(mapping)) {
-      zones[zone as BodyZone] = Math.min(1, zones[zone as BodyZone] + (weight as number));
+      const z = zone as BodyZone;
+      zoneMax[z] = Math.max(zoneMax[z], weight as number);
+      zoneCount[z] += 1;
     }
   }
 
-  // Cap all at 1
+  // Intensity = strongest compound weight + diminishing bonus for additional compounds
+  // This prevents every zone from hitting 100% while rewarding breadth
   for (const key of Object.keys(zones) as BodyZone[]) {
-    zones[key] = Math.min(1, zones[key]);
+    const max = zoneMax[key];
+    const count = zoneCount[key];
+    if (count === 0) { zones[key] = 0; continue; }
+    // Bonus: each additional compound adds 5% of max, capped so total <= 1
+    const bonus = Math.min(0.15, (count - 1) * 0.05) * max;
+    zones[key] = Math.min(1, max + bonus);
   }
 
   return zones;

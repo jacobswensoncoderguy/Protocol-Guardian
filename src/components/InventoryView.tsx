@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { Compound, getStatus, getReorderDateString, CompoundCategory } from '@/data/compounds';
 import { getCycleStatus, getDaysRemainingWithCycling } from '@/lib/cycling';
 import { UserProtocol } from '@/hooks/useProtocols';
-import { Pencil, Check, X, Trash2, Plus, ChevronDown } from 'lucide-react';
+import { Pencil, Check, X, Trash2, Plus, ChevronDown, Moon, Syringe } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { DoseUnitPreference } from '@/lib/measurements';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 interface InventoryViewProps {
   compounds: Compound[];
@@ -11,6 +13,8 @@ interface InventoryViewProps {
   onDeleteCompound?: (id: string) => void;
   onAddCompound?: () => void;
   protocols?: UserProtocol[];
+  doseUnitPreference?: DoseUnitPreference;
+  onToggleDoseUnit?: () => void;
 }
 
 const categoryLabels: Record<CompoundCategory, string> = {
@@ -22,11 +26,12 @@ const categoryLabels: Record<CompoundCategory, string> = {
 
 const categoryOrder: CompoundCategory[] = ['peptide', 'injectable-oil', 'oral', 'powder'];
 
-const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCompound, protocols = [] }: InventoryViewProps) => {
+const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCompound, protocols = [], doseUnitPreference = 'mg', onToggleDoseUnit }: InventoryViewProps) => {
   const [filter, setFilter] = useState<CompoundCategory | 'all'>('all');
   const [sortBy, setSortBy] = useState<'name' | 'days'>('name');
-
-  const filtered = filter === 'all' ? compounds : compounds.filter(c => c.category === filter);
+  const activeCompounds = compounds.filter(c => !c.notes?.includes('[DORMANT]'));
+  const dormantCompounds = compounds.filter(c => c.notes?.includes('[DORMANT]'));
+  const filtered = filter === 'all' ? activeCompounds : activeCompounds.filter(c => c.category === filter);
   const sorted = [...filtered].sort((a, b) => {
     if (sortBy === 'days') return getDaysRemainingWithCycling(a) - getDaysRemainingWithCycling(b);
     return a.name.localeCompare(b.name);
@@ -63,7 +68,19 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
 
   return (
     <div className="space-y-3">
-      {/* Filters */}
+      {/* Header with filters + dose unit toggle */}
+      <div className="flex items-center justify-between mb-1">
+        <h2 className="text-sm font-semibold text-foreground">Compounds</h2>
+        {onToggleDoseUnit && (
+          <button
+            onClick={onToggleDoseUnit}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 transition-colors"
+          >
+            <Syringe className="w-3 h-3" />
+            {doseUnitPreference === 'mg' ? 'mg/mcg' : 'IU'}
+          </button>
+        )}
+      </div>
       <div className="flex flex-wrap gap-1.5 sm:gap-2">
         <div className="flex gap-1 overflow-x-auto scrollbar-thin -mx-1 px-1">
           {(['all', ...categoryOrder] as const).map(cat => (
@@ -118,6 +135,25 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
           </CollapsibleContent>
         </Collapsible>
       ))}
+
+      {/* Dormant Compounds */}
+      {dormantCompounds.length > 0 && (
+        <Collapsible>
+          <CollapsibleTrigger className="flex items-center gap-1.5 w-full text-left mb-2 group">
+            <ChevronDown className="w-3.5 h-3.5 text-muted-foreground transition-transform duration-200 group-data-[state=closed]:-rotate-90" />
+            <Moon className="w-3.5 h-3.5 text-muted-foreground" />
+            <h3 className="text-sm font-semibold text-muted-foreground">Dormant</h3>
+            <span className="text-[10px] text-muted-foreground font-mono">({dormantCompounds.length})</span>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="animate-accordion-down data-[state=closed]:animate-accordion-up">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 opacity-60">
+              {dormantCompounds.map(compound => (
+                <CompoundCard key={compound.id} compound={compound} onUpdate={onUpdateCompound} onDelete={onDeleteCompound} />
+              ))}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      )}
     </div>
   );
 };
@@ -292,13 +328,27 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
             {days}d
           </span>
           {!editing && (
-            <div className="flex items-center">
+            <div className="flex items-center gap-1">
               <button onClick={startEdit} className="p-1.5 rounded active:bg-secondary/80 transition-colors text-muted-foreground touch-manipulation">
                 <Pencil className="w-3.5 h-3.5" />
               </button>
-              {/* Spacer to separate edit from delete */}
+              {/* Dormant toggle */}
+              <button
+                onClick={() => {
+                  const isDormant = compound.notes?.includes('[DORMANT]');
+                  const newNotes = isDormant
+                    ? (compound.notes || '').replace('[DORMANT]', '').trim()
+                    : `[DORMANT] ${compound.notes || ''}`.trim();
+                  onUpdate(compound.id, { notes: newNotes });
+                }}
+                className="p-1.5 rounded active:bg-secondary/80 transition-colors text-muted-foreground touch-manipulation"
+                title={compound.notes?.includes('[DORMANT]') ? 'Reactivate compound' : 'Set dormant'}
+              >
+                <Moon className="w-3.5 h-3.5" />
+              </button>
+              {/* Delete — spaced away from other actions */}
               {onDelete && !confirmDelete && (
-                <button onClick={() => setConfirmDelete(true)} className="p-1.5 rounded active:bg-secondary/80 transition-colors text-muted-foreground touch-manipulation ml-3">
+                <button onClick={() => setConfirmDelete(true)} className="p-1.5 rounded active:bg-secondary/80 transition-colors text-muted-foreground touch-manipulation ml-4">
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
               )}
