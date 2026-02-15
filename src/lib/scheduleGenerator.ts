@@ -65,35 +65,36 @@ function parseTimings(compound: Compound): ('morning' | 'afternoon' | 'evening')
   const note = (compound.timingNote || '').toLowerCase();
 
   // Check for explicit timing keywords
-  const hasMorning = /\bmorning\b|\bam\b|\bdaily\b/.test(note);
-  const hasEvening = /\bevening\b|\bpm\b|\bnightly\b|\bnight\b/.test(note);
+  const hasMorningExplicit = /\bmorning\b|\bam\b/.test(note);
+  const hasEveningExplicit = /\bevening\b|\bpm\b|\bnightly\b|\bnight\b/.test(note);
   const hasAfternoon = /\bafternoon\b|\bpost[- ]?workout\b|\bpre[- ]?workout\b/.test(note);
+  const hasDaily = /\bdaily\b|\bevery\s*day\b/.test(note);
 
-  if (hasMorning || hasEvening || hasAfternoon) {
+  // If note says "daily" but also specifies a specific time (e.g. "daily evening"),
+  // only use the specific time — don't auto-add morning
+  if (hasMorningExplicit || hasEveningExplicit || hasAfternoon) {
     const timings: ('morning' | 'afternoon' | 'evening')[] = [];
-    if (hasMorning) timings.push('morning');
+    if (hasMorningExplicit) timings.push('morning');
     if (hasAfternoon) timings.push('afternoon');
-    if (hasEvening) timings.push('evening');
+    if (hasEveningExplicit) timings.push('evening');
     return timings;
   }
 
-  // If dosesPerDay >= 2, split morning + evening
+  // "daily" without a specific AM/PM — use dosesPerDay to infer
+  if (hasDaily) {
+    if (compound.dosesPerDay >= 2) {
+      return ['morning', 'evening'];
+    }
+    return ['morning'];
+  }
+
+  // If dosesPerDay >= 2 and no explicit timing, split morning + evening
   if (compound.dosesPerDay >= 2) {
     return ['morning', 'evening'];
   }
 
-  // Default by category
-  switch (compound.category) {
-    case 'peptide':
-    case 'injectable-oil':
-      return ['morning'];
-    case 'oral':
-      return ['morning'];
-    case 'powder':
-      return ['morning'];
-    default:
-      return ['morning'];
-  }
+  // Default: morning
+  return ['morning'];
 }
 
 /**
