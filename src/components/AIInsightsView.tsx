@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Brain, RefreshCw, ShieldAlert, Beaker, BarChart3, DollarSign, Lightbulb, ChevronDown, GitCompare, AlertTriangle, Zap } from 'lucide-react';
+import { Brain, RefreshCw, ShieldAlert, Beaker, BarChart3, DollarSign, Lightbulb, ChevronDown, GitCompare, AlertTriangle, Zap, MessageSquare, Send, X } from 'lucide-react';
 import { StackAnalysis, ToleranceComparison } from '@/hooks/useProtocolAnalysis';
 import { ToleranceLevel } from '@/hooks/useProtocolAnalysis';
 import ToleranceSelector from '@/components/ToleranceSelector';
@@ -116,6 +116,51 @@ const impactBadge = (score: number) => {
   if (score >= 3) return { label: 'Medium', color: 'bg-accent/15 text-status-warning' };
   if (score > 0) return { label: 'Low', color: 'bg-primary/10 text-primary' };
   return { label: 'None', color: 'bg-secondary text-muted-foreground' };
+};
+
+// Inline reply component for insight cards
+const InlineReply = ({ context, onSend }: { context: string; onSend: (message: string) => void }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [reply, setReply] = useState('');
+
+  const handleSend = () => {
+    if (!reply.trim()) return;
+    onSend(`Regarding: "${context.slice(0, 120)}${context.length > 120 ? '…' : ''}"\n\n${reply}`);
+    setReply('');
+    setIsOpen(false);
+  };
+
+  if (!isOpen) {
+    return (
+      <button
+        onClick={() => setIsOpen(true)}
+        className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-colors mt-1.5 group"
+      >
+        <MessageSquare className="w-3 h-3 group-hover:text-primary" />
+        <span>Reply</span>
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-2 flex items-center gap-1.5 animate-fade-in">
+      <input
+        type="text"
+        value={reply}
+        onChange={(e) => setReply(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+        placeholder="Correct or ask about this…"
+        className="flex-1 text-xs bg-secondary/50 border border-border/50 rounded-md px-2.5 py-1.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40"
+        autoFocus
+      />
+      <button onClick={handleSend} disabled={!reply.trim()} className="p-1.5 rounded-md bg-primary/10 text-primary hover:bg-primary/20 disabled:opacity-30 transition-colors">
+        <Send className="w-3 h-3" />
+      </button>
+      <button onClick={() => { setIsOpen(false); setReply(''); }} className="p-1.5 rounded-md text-muted-foreground hover:text-foreground transition-colors">
+        <X className="w-3 h-3" />
+      </button>
+    </div>
+  );
 };
 
 const CollapsibleSection = ({
@@ -291,6 +336,7 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
                       <span className="font-semibold text-foreground/70">Compounds:</span> {c.compounds.join(', ')}
                     </p>
                     <p className="text-[11px] text-primary mt-1">💡 {c.recommendation}</p>
+                    <InlineReply context={c.description} onSend={onChatSend} />
                   </div>
                 ))}
               </div>
@@ -319,6 +365,7 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
                     </div>
                     <p className="text-xs text-foreground/80 mb-1">{b.issue}</p>
                     <p className="text-[11px] text-primary">🔄 {b.suggestion} ({b.improvementEstimate})</p>
+                    <InlineReply context={`${b.compound}: ${b.issue}`} onSend={onChatSend} />
                   </div>
                 ))}
               </div>
@@ -361,6 +408,7 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
                       <span className="text-[11px] text-foreground/70">{p.gaps.join(' • ')}</span>
                     </div>
                   )}
+                  <InlineReply context={`${p.protocolName} protocol graded ${p.grade}`} onSend={onChatSend} />
                 </div>
               ))}
             </div>
@@ -388,6 +436,7 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
                     {c.alternative && c.alternative !== 'N/A' && (
                       <p className="text-[11px] text-primary mt-0.5">→ {c.alternative}</p>
                     )}
+                    <InlineReply context={`${c.compound} cost: ${c.reasoning}`} onSend={onChatSend} />
                   </div>
                 </div>
               ))}
@@ -406,9 +455,14 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
           >
             <div className="space-y-2">
               {analysis.topRecommendations.map((r, i) => (
-                <div key={i} className="flex gap-2.5 items-start">
-                  <span className="text-primary text-xs mt-0.5 font-bold">{i + 1}.</span>
-                  <p className="text-xs text-foreground/85 leading-relaxed">{r}</p>
+                <div key={i}>
+                  <div className="flex gap-2.5 items-start">
+                    <span className="text-primary text-xs mt-0.5 font-bold">{i + 1}.</span>
+                    <p className="text-xs text-foreground/85 leading-relaxed">{r}</p>
+                  </div>
+                  <div className="pl-5">
+                    <InlineReply context={r} onSend={onChatSend} />
+                  </div>
                 </div>
               ))}
             </div>
