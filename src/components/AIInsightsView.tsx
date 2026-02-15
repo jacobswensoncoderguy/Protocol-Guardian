@@ -36,6 +36,23 @@ const verdictColor = (verdict: string) => {
   return 'text-status-critical';
 };
 
+const toleranceMeta: Record<string, { icon: string; label: string; color: string }> = {
+  conservative: { icon: '🛡️', label: 'Conservative', color: 'bg-blue-500/15 text-blue-400 border-blue-500/30' },
+  moderate: { icon: '⚖️', label: 'Moderate', color: 'bg-primary/15 text-primary border-primary/30' },
+  aggressive: { icon: '⚡', label: 'Aggressive', color: 'bg-amber-500/15 text-amber-400 border-amber-500/30' },
+  performance: { icon: '🚀', label: 'Performance', color: 'bg-rose-500/15 text-rose-400 border-rose-500/30' },
+};
+
+const ToleranceBadge = ({ level }: { level: string }) => {
+  const meta = toleranceMeta[level] || toleranceMeta.moderate;
+  return (
+    <span className={`inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-full border ${meta.color}`}>
+      <span>{meta.icon}</span>
+      <span>{meta.label}</span>
+    </span>
+  );
+};
+
 const gradeColor = (grade: string) => {
   if (grade.startsWith('A')) return 'text-status-good';
   if (grade.startsWith('B')) return 'text-primary';
@@ -87,8 +104,11 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
                 {analysis.overallGrade}
               </div>
               <div className="flex-1">
-                <p className="text-sm font-semibold text-foreground">Overall Stack Grade</p>
-                <p className="text-xs text-muted-foreground leading-relaxed mt-1">{analysis.overallSummary}</p>
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="text-sm font-semibold text-foreground">Overall Stack Grade</p>
+                  <ToleranceBadge level={toleranceLevel} />
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">{analysis.overallSummary}</p>
               </div>
             </div>
           </div>

@@ -5,6 +5,7 @@ interface ProtocolIntelligenceCardProps {
   analysis: StackAnalysis | null;
   loading: boolean;
   needsRefresh: boolean;
+  toleranceLevel?: string;
   onRefresh: () => void;
   onViewDetails: () => void;
 }
@@ -22,7 +23,14 @@ const severityIcon = (severity: string) => {
   return '🔵';
 };
 
-const ProtocolIntelligenceCard = ({ analysis, loading, needsRefresh, onRefresh, onViewDetails }: ProtocolIntelligenceCardProps) => {
+const toleranceLabels: Record<string, { icon: string; label: string }> = {
+  conservative: { icon: '🛡️', label: 'Conservative' },
+  moderate: { icon: '⚖️', label: 'Moderate' },
+  aggressive: { icon: '⚡', label: 'Aggressive' },
+  performance: { icon: '🚀', label: 'Performance' },
+};
+
+const ProtocolIntelligenceCard = ({ analysis, loading, needsRefresh, toleranceLevel, onRefresh, onViewDetails }: ProtocolIntelligenceCardProps) => {
   if (!analysis && !loading) {
     return (
       <button
@@ -72,7 +80,14 @@ const ProtocolIntelligenceCard = ({ analysis, loading, needsRefresh, onRefresh, 
             <span className={`text-2xl font-bold font-mono ${gradeColor(analysis.overallGrade)}`}>
               {analysis.overallGrade}
             </span>
-            <p className="text-xs text-muted-foreground leading-snug flex-1">{analysis.overallSummary}</p>
+            <div className="flex-1">
+              {toleranceLevel && toleranceLabels[toleranceLevel] && (
+                <span className="inline-flex items-center gap-1 text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground mb-1">
+                  {toleranceLabels[toleranceLevel].icon} {toleranceLabels[toleranceLevel].label}
+                </span>
+              )}
+              <p className="text-xs text-muted-foreground leading-snug">{analysis.overallSummary}</p>
+            </div>
           </div>
 
           {/* Top findings */}
