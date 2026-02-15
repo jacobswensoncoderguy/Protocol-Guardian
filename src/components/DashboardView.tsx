@@ -18,7 +18,7 @@ import { computeZoneIntensities, BODY_ZONES, BodyZone } from '@/data/bodyZoneMap
 import GeometricBody from '@/components/GeometricBody';
 import ZoneDetailDrawer from '@/components/ZoneDetailDrawer';
 import GenderSelector from '@/components/GenderSelector';
-import ToleranceSelector from '@/components/ToleranceSelector';
+// ToleranceSelector no longer needed on coverage page — shown on Compounds tab
 import ConfirmDialog from '@/components/ConfirmDialog';
 import bodyMaleImg from '@/assets/body-male.jpeg';
 import bodyFemaleImg from '@/assets/body-female.jpeg';
@@ -206,10 +206,10 @@ const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpda
 
   return (
     <div className="w-full space-y-2 mb-3">
-      {/* Compact layout: Gender + Tolerance side by side */}
-      <div className="flex gap-2 mb-2">
+      {/* Compact layout: Gender (vertical) | divider | Tolerance (single badge) */}
+      <div className="flex gap-3 mb-2 items-start">
         {onGenderChange && (
-          <div className="flex-1">
+          <div className="flex-shrink-0">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Gender</p>
             <GenderSelector
               currentGender={profile?.gender}
@@ -218,16 +218,28 @@ const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpda
             />
           </div>
         )}
-        {onGenderChange && onToleranceChange && (
-          <div className="w-px bg-border/30 self-stretch" />
+        {onGenderChange && (
+          <div className="w-px bg-border/40 self-stretch min-h-[48px]" />
         )}
-        {onToleranceChange && (
+        {toleranceLevel && (
           <div className="flex-1">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Tolerance</p>
-            <ToleranceSelector
-              value={(toleranceLevel || 'moderate') as ToleranceLevel}
-              onChange={handleToleranceSelect}
-            />
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Dosing Tolerance</p>
+            <div className="flex items-center gap-2">
+              {(() => {
+                const meta = toleranceMeta[toleranceLevel] || toleranceMeta.moderate;
+                return (
+                  <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1.5 rounded-lg border ${
+                    toleranceLevel === 'conservative' ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' :
+                    toleranceLevel === 'aggressive' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' :
+                    toleranceLevel === 'performance' ? 'bg-rose-500/10 border-rose-500/30 text-rose-400' :
+                    'bg-primary/10 border-primary/30 text-primary'
+                  }`}>
+                    <meta.Icon className="w-3.5 h-3.5" />
+                    {meta.label}
+                  </span>
+                );
+              })()}
+            </div>
             {latestTolerance && (
               <p className="text-[9px] text-muted-foreground/60 font-mono mt-1">
                 Set {new Date(latestTolerance.created_at).toLocaleDateString()}
@@ -339,9 +351,15 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
     }
   }, [activeGoals.length]);
 
-  const compoundNameIds = useMemo(() =>
-    compounds.map(c => c.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')),
+  // Filter out dormant compounds from coverage calculations
+  const activeCompounds = useMemo(() =>
+    compounds.filter(c => !c.notes?.includes('[DORMANT]')),
     [compounds]
+  );
+
+  const compoundNameIds = useMemo(() =>
+    activeCompounds.map(c => c.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')),
+    [activeCompounds]
   );
 
   const zoneIntensities = useMemo(() => computeZoneIntensities(compoundNameIds), [compoundNameIds]);
@@ -441,7 +459,7 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
             <div className="flex flex-col items-center h-full pt-6 pb-4 px-4">
               <h2 className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-0.5">Protocol Coverage</h2>
               <p className="text-[10px] text-muted-foreground/60 mb-1">
-                {compounds.length} compounds · {bodyCoverage}% avg coverage
+                {activeCompounds.length} active compounds · {bodyCoverage}% avg coverage
               </p>
               <p className="text-[9px] text-muted-foreground/40 mb-2 text-center max-w-[280px] leading-snug">
                 {coverageRationale}
@@ -563,7 +581,7 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
         zone={selectedZone}
         open={zoneDrawerOpen}
         onOpenChange={setZoneDrawerOpen}
-        compounds={compounds}
+        compounds={activeCompounds}
         toleranceLevel={toleranceLevel}
       />
     </div>

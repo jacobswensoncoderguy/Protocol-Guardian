@@ -36,11 +36,13 @@ const ZoneDetailDrawer = ({ zone, open, onOpenChange, compounds, toleranceLevel 
   if (!zone) return null;
 
   const info = BODY_ZONES[zone];
-  const compoundNameIds = compounds.map(c => c.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''));
+  // Only include active (non-dormant) compounds
+  const activeCompounds = compounds.filter(c => !c.notes?.includes('[DORMANT]'));
+  const compoundNameIds = activeCompounds.map(c => c.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''));
   const zoneCompounds = getCompoundsForZone(zone, compoundNameIds);
 
   const compoundDetails = zoneCompounds.map(zc => {
-    const compound = compounds.find(c =>
+    const compound = activeCompounds.find(c =>
       c.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') === zc.id
     );
     const benefitKey = compound ? normalizeBenefitKey(compound.name) : zc.id;
@@ -48,8 +50,21 @@ const ZoneDetailDrawer = ({ zone, open, onOpenChange, compounds, toleranceLevel 
     return { ...zc, compound, benefits };
   });
 
-  const intensityLabel = (w: number) => w >= 0.8 ? 'Primary' : w >= 0.5 ? 'Strong' : 'Supporting';
-  const intensityColor = (w: number) => w >= 0.8 ? 'text-emerald-400' : w >= 0.5 ? 'text-primary' : 'text-muted-foreground';
+  const intensityLabel = (w: number) => w >= 0.8 ? 'Primary' : w >= 0.5 ? 'Strong' : w >= 0.3 ? 'Supporting' : 'Minimal';
+  const intensityColor = (w: number) => w >= 0.8 ? 'text-emerald-400' : w >= 0.5 ? 'text-primary' : w >= 0.3 ? 'text-muted-foreground' : 'text-muted-foreground/50';
+
+  // Compute what's keeping this zone from being stronger
+  const zoneGapAnalysis = (() => {
+    const currentIntensity = compoundDetails.reduce((max, cd) => Math.max(max, cd.weight), 0);
+    const pct = Math.round(currentIntensity * 100);
+    const compoundCount = compoundDetails.length;
+    
+    if (pct >= 90) return `${pct}% — Near maximum. ${compoundCount} compound${compoundCount > 1 ? 's' : ''} driving this zone at peak efficacy.`;
+    if (pct >= 70) return `${pct}% — Strong coverage. Adding a synergistic compound or increasing frequency could push toward primary.`;
+    if (pct >= 40) return `${pct}% — Moderate coverage. ${compoundCount === 0 ? 'No compounds target this zone directly.' : `${compoundCount} compound${compoundCount > 1 ? 's' : ''} contribute but at sub-optimal intensity.`} Consider higher doses or additional compounds.`;
+    if (pct > 0) return `${pct}% — Low coverage. Current compounds provide only supporting impact. A dedicated compound for this zone would significantly improve coverage.`;
+    return '0% — No active compounds target this zone. Add a compound to begin coverage.';
+  })();
 
   const handleImproveImpact = async () => {
     setAiLoading(true);
@@ -166,6 +181,11 @@ Keep it concise and practical. Calibrate to my ${toleranceLevel} tolerance level
         </DrawerHeader>
 
         <div className="px-4 pb-6 overflow-y-auto scrollbar-thin space-y-3">
+          {/* Zone gap analysis — always visible */}
+          <div className="bg-secondary/30 rounded-lg border border-border/20 p-2.5">
+            <p className="text-[11px] text-muted-foreground leading-snug">{zoneGapAnalysis}</p>
+          </div>
+
           {compoundDetails.length === 0 ? (
             <div className="text-center py-6">
               <p className="text-sm text-muted-foreground">No compounds targeting this zone</p>
