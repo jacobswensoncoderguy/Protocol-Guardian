@@ -4,7 +4,7 @@ import { BodyZone, BODY_ZONES, getCompoundsForZone } from '@/data/bodyZoneMappin
 import { Compound } from '@/data/compounds';
 import { compoundBenefits } from '@/data/compoundBenefits';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Loader2 } from 'lucide-react';
+import { Sparkles, Loader2, Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 
@@ -30,6 +30,7 @@ function normalizeBenefitKey(name: string): string {
 const ZoneDetailDrawer = ({ zone, open, onOpenChange, compounds, toleranceLevel = 'moderate' }: ZoneDetailDrawerProps) => {
   const [aiSuggestion, setAiSuggestion] = useState<string>('');
   const [aiLoading, setAiLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   if (!zone) return null;
@@ -242,9 +243,24 @@ Keep it concise and practical. Calibrate to my ${toleranceLevel} tolerance level
           {/* AI Suggestion Result */}
           {aiSuggestion && (
             <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 space-y-2 animate-fade-in">
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles className="w-3.5 h-3.5 text-primary" />
-                <span className="text-[10px] uppercase tracking-wider text-primary font-semibold">AI Suggestions</span>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-3.5 h-3.5 text-primary" />
+                  <span className="text-[10px] uppercase tracking-wider text-primary font-semibold">AI Suggestions</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-primary"
+                  onClick={() => {
+                    navigator.clipboard.writeText(aiSuggestion);
+                    setCopied(true);
+                    toast.success('Copied to clipboard');
+                    setTimeout(() => setCopied(false), 2000);
+                  }}
+                >
+                  {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                </Button>
               </div>
               <div className="prose prose-sm prose-invert max-w-none text-xs leading-relaxed text-foreground/90 [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:text-foreground [&_h3]:mt-3 [&_h3]:mb-1 [&_ul]:pl-4 [&_li]:my-0.5 [&_strong]:text-foreground [&_blockquote]:border-primary/30 [&_blockquote]:text-muted-foreground [&_hr]:border-border/30">
                 <ReactMarkdown>{aiSuggestion}</ReactMarkdown>
