@@ -3,6 +3,8 @@ import { StackAnalysis } from '@/hooks/useProtocolAnalysis';
 import { ToleranceLevel } from '@/hooks/useProtocolAnalysis';
 import ToleranceSelector from '@/components/ToleranceSelector';
 import MedicalDisclaimer from '@/components/MedicalDisclaimer';
+import ProtocolChat from '@/components/ProtocolChat';
+import { ChatMessage } from '@/hooks/useProtocolChat';
 
 interface AIInsightsViewProps {
   analysis: StackAnalysis | null;
@@ -10,6 +12,15 @@ interface AIInsightsViewProps {
   toleranceLevel: ToleranceLevel;
   onToleranceChange: (level: ToleranceLevel) => void;
   onRefresh: () => void;
+  // Chat props
+  chatMessages: ChatMessage[];
+  isChatStreaming: boolean;
+  onChatSend: (message: string) => void;
+  onChatCancel: () => void;
+  onChatClear: () => void;
+  onApplyChange: (proposalId: string, changeIndex: number) => void;
+  onRejectChange: (proposalId: string, changeIndex: number) => void;
+  onApplyAll: (proposalId: string) => void;
 }
 
 const severityBadge = (severity: string) => {
@@ -32,7 +43,7 @@ const gradeColor = (grade: string) => {
   return 'text-status-critical';
 };
 
-const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, onRefresh }: AIInsightsViewProps) => {
+const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, onRefresh, chatMessages, isChatStreaming, onChatSend, onChatCancel, onChatClear, onApplyChange, onRejectChange, onApplyAll }: AIInsightsViewProps) => {
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -218,6 +229,20 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
           <Brain className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
           <p className="text-sm text-muted-foreground">Tap "Re-analyze" to run AI analysis on your stack.</p>
         </div>
+      )}
+
+      {/* Interactive Chat */}
+      {analysis && (
+        <ProtocolChat
+          messages={chatMessages}
+          isStreaming={isChatStreaming}
+          onSend={onChatSend}
+          onCancel={onChatCancel}
+          onClear={onChatClear}
+          onApplyChange={onApplyChange}
+          onRejectChange={onRejectChange}
+          onApplyAll={onApplyAll}
+        />
       )}
 
       <MedicalDisclaimer />

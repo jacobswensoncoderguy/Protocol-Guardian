@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { useProtocolAnalysis } from '@/hooks/useProtocolAnalysis';
+import { useProtocolChat } from '@/hooks/useProtocolChat';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCallback, useState } from 'react';
 import Onboarding from './Onboarding';
@@ -61,6 +62,13 @@ const Index = () => {
     stackAnalysis, compoundAnalyses, loading: aiLoading, compoundLoading,
     toleranceLevel, setToleranceLevel, analyzeStack, analyzeCompound, needsRefresh,
   } = useProtocolAnalysis(compounds, protocols);
+
+  const {
+    messages: chatMessages, isStreaming: isChatStreaming,
+    sendMessage: onChatSend, cancelStream: onChatCancel, clearChat: onChatClear,
+    applyChange: onApplyChange, rejectChange: onRejectChange, applyAllPending: onApplyAll,
+  } = useProtocolChat(compounds, protocols, stackAnalysis, toleranceLevel, updateCompound, deleteCompound, refetch);
+
   const [activeTab, setActiveTab] = useState('dashboard');
 
   const handleRefresh = useCallback(async () => {
@@ -205,6 +213,14 @@ const Index = () => {
               toleranceLevel={toleranceLevel}
               onToleranceChange={setToleranceLevel}
               onRefresh={analyzeStack}
+              chatMessages={chatMessages}
+              isChatStreaming={isChatStreaming}
+              onChatSend={onChatSend}
+              onChatCancel={onChatCancel}
+              onChatClear={onChatClear}
+              onApplyChange={onApplyChange}
+              onRejectChange={onRejectChange}
+              onApplyAll={onApplyAll}
             />
           </TabsContent>
         </Tabs>
