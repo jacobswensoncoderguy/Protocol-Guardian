@@ -2,9 +2,12 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useGoals } from '@/hooks/useGoals';
-import { CheckCircle, Circle, Loader2, Zap, Target, ArrowLeft } from 'lucide-react';
+import { useProfile } from '@/hooks/useProfile';
+import { CheckCircle, Circle, Loader2, Zap, Target, ArrowLeft, User } from 'lucide-react';
 import GoalInterview, { OnboardingResponse } from '@/components/GoalInterview';
 import GoalAIChat, { ExtractedGoal } from '@/components/GoalAIChat';
+import bodyMaleImg from '@/assets/body-male.jpeg';
+import bodyFemaleImg from '@/assets/body-female.jpeg';
 
 interface LibraryCompound {
   id: string;
@@ -40,7 +43,7 @@ const categoryLabels: Record<string, string> = {
 
 const categoryOrder = ['peptide', 'injectable-oil', 'oral', 'powder'];
 
-type OnboardingPhase = 'goals' | 'ai-chat' | 'compounds';
+type OnboardingPhase = 'gender' | 'goals' | 'ai-chat' | 'compounds';
 
 interface OnboardingProps {
   onComplete: () => void;
@@ -49,7 +52,9 @@ interface OnboardingProps {
 const Onboarding = ({ onComplete }: OnboardingProps) => {
   const { user } = useAuth();
   const { createGoals, saveOnboarding } = useGoals(user?.id);
-  const [phase, setPhase] = useState<OnboardingPhase>('goals');
+  const { updateProfile } = useProfile(user?.id);
+  const [phase, setPhase] = useState<OnboardingPhase>('gender');
+  const [selectedGender, setSelectedGender] = useState<string | null>(null);
   const [interviewResponses, setInterviewResponses] = useState<OnboardingResponse | null>(null);
   const [library, setLibrary] = useState<LibraryCompound[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -69,6 +74,12 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
     }
     fetchLibrary();
   }, []);
+
+  const handleGenderSelect = async (gender: string) => {
+    setSelectedGender(gender);
+    await updateProfile({ gender });
+    setPhase('goals');
+  };
 
   const handleInterviewComplete = (responses: OnboardingResponse) => {
     setInterviewResponses(responses);
@@ -166,6 +177,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
 
   // Phase indicators
   const phases = [
+    { key: 'gender', label: 'Profile', icon: User },
     { key: 'goals', label: 'Goals', icon: Target },
     { key: 'ai-chat', label: 'Refine', icon: Zap },
     { key: 'compounds', label: 'Protocol', icon: CheckCircle },
@@ -209,6 +221,36 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
       </header>
 
       <main className="container mx-auto max-w-lg px-4 py-4 pb-24">
+        {phase === 'gender' && (
+          <div className="space-y-6">
+            <div className="text-center mb-4">
+              <h2 className="text-lg font-bold text-foreground">Select Your Profile</h2>
+              <p className="text-sm text-muted-foreground">This personalizes your protocol coverage analysis</p>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              {[
+                { id: 'male', label: 'Male', img: bodyMaleImg },
+                { id: 'female', label: 'Female', img: bodyFemaleImg },
+              ].map(option => (
+                <button
+                  key={option.id}
+                  onClick={() => handleGenderSelect(option.id)}
+                  className={`relative flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all hover:border-primary/50 ${
+                    selectedGender === option.id
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border/50 bg-card'
+                  }`}
+                >
+                  <div className="w-full aspect-[3/4] rounded-lg overflow-hidden bg-secondary/30">
+                    <img src={option.img} alt={option.label} className="w-full h-full object-cover" />
+                  </div>
+                  <span className="text-sm font-semibold text-foreground">{option.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {phase === 'goals' && (
           <GoalInterview onComplete={handleInterviewComplete} />
         )}

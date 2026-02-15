@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Compound } from '@/data/compounds';
-import { Target, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Target, Plus, ChevronLeft, ChevronRight, Shield, Scale, Zap, Rocket, Ruler, Weight, Percent, Calendar as CalendarIcon } from 'lucide-react';
 import { StackAnalysis } from '@/hooks/useProtocolAnalysis';
 import { UserGoal } from '@/hooks/useGoals';
+import { UserProfile, ToleranceEntry } from '@/hooks/useProfile';
 import { useGoalReadings } from '@/hooks/useGoalReadings';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
@@ -14,6 +15,8 @@ import MiniSparkline from '@/components/MiniSparkline';
 import { computeZoneIntensities, BODY_ZONES, BodyZone } from '@/data/bodyZoneMapping';
 import GeometricBody from '@/components/GeometricBody';
 import ZoneDetailDrawer from '@/components/ZoneDetailDrawer';
+import bodyMaleImg from '@/assets/body-male.jpeg';
+import bodyFemaleImg from '@/assets/body-female.jpeg';
 
 interface DashboardViewProps {
   compounds: Compound[];
@@ -26,7 +29,17 @@ interface DashboardViewProps {
   onViewOutcomes?: () => void;
   goals?: UserGoal[];
   userId?: string;
+  profile?: UserProfile | null;
+  toleranceHistory?: ToleranceEntry[];
+  onUpdateProfile?: (updates: Partial<UserProfile>) => Promise<void>;
 }
+
+const toleranceMeta: Record<string, { Icon: typeof Shield; label: string; color: string }> = {
+  conservative: { Icon: Shield, label: 'Conservative', color: 'text-blue-400' },
+  moderate: { Icon: Scale, label: 'Moderate', color: 'text-primary' },
+  aggressive: { Icon: Zap, label: 'Aggressive', color: 'text-amber-400' },
+  performance: { Icon: Rocket, label: 'Performance', color: 'text-rose-400' },
+};
 
 const GOAL_TYPE_ICONS: Record<string, string> = {
   muscle_gain: '💪', fat_loss: '🔥', cardiovascular: '❤️', cognitive: '🧠',
@@ -131,8 +144,105 @@ const ZoneLegend = ({ zoneIntensities, onZoneTap }: { zoneIntensities: Record<Bo
     </div>
   );
 };
+// Profile & Tolerance info bar for Protocol Coverage screen
+const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpdateProfile }: {
+  profile?: UserProfile | null;
+  toleranceLevel?: string;
+  toleranceHistory?: ToleranceEntry[];
+  onUpdateProfile?: (updates: Partial<UserProfile>) => Promise<void>;
+}) => {
+  const [editing, setEditing] = useState(false);
+  const [height, setHeight] = useState(profile?.height_cm?.toString() || '');
+  const [weight, setWeight] = useState(profile?.weight_kg?.toString() || '');
+  const [bodyFat, setBodyFat] = useState(profile?.body_fat_pct?.toString() || '');
+  const [age, setAge] = useState(profile?.age?.toString() || '');
 
-const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, toleranceLevel, onAnalyzeStack, onViewAIInsights, onViewOutcomes, goals = [], userId }: DashboardViewProps) => {
+  useEffect(() => {
+    setHeight(profile?.height_cm?.toString() || '');
+    setWeight(profile?.weight_kg?.toString() || '');
+    setBodyFat(profile?.body_fat_pct?.toString() || '');
+    setAge(profile?.age?.toString() || '');
+  }, [profile]);
+
+  const handleSave = async () => {
+    if (!onUpdateProfile) return;
+    await onUpdateProfile({
+      height_cm: height ? parseFloat(height) : null,
+      weight_kg: weight ? parseFloat(weight) : null,
+      body_fat_pct: bodyFat ? parseFloat(bodyFat) : null,
+      age: age ? parseInt(age) : null,
+    });
+    setEditing(false);
+    toast.success('Profile updated');
+  };
+
+  const tolMeta = toleranceMeta[toleranceLevel || 'moderate'] || toleranceMeta.moderate;
+  const TolIcon = tolMeta.Icon;
+  const latestTolerance = toleranceHistory?.[0];
+
+  return (
+    <div className="w-full space-y-2 mb-3">
+      {/* Tolerance reminder */}
+      <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-secondary/40 border border-border/30">
+        <div className="flex items-center gap-2">
+          <TolIcon className={`w-3.5 h-3.5 ${tolMeta.color}`} />
+          <span className="text-[11px] font-medium text-foreground">{tolMeta.label} Tolerance</span>
+        </div>
+        {latestTolerance && (
+          <span className="text-[9px] text-muted-foreground/60 font-mono">
+            Set {new Date(latestTolerance.created_at).toLocaleDateString()}
+          </span>
+        )}
+      </div>
+
+      {/* Profile metrics row */}
+      {!editing ? (
+        <button
+          onClick={() => setEditing(true)}
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-secondary/30 border border-border/20 hover:border-primary/30 transition-all"
+        >
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+            {profile?.gender === 'male' ? '♂' : profile?.gender === 'female' ? '♀' : '—'}
+          </span>
+          <div className="flex items-center gap-3 flex-1 text-[10px] text-muted-foreground">
+            {profile?.height_cm && <span className="flex items-center gap-0.5"><Ruler className="w-3 h-3" />{profile.height_cm}cm</span>}
+            {profile?.weight_kg && <span className="flex items-center gap-0.5"><Weight className="w-3 h-3" />{profile.weight_kg}kg</span>}
+            {profile?.body_fat_pct != null && <span className="flex items-center gap-0.5"><Percent className="w-3 h-3" />{profile.body_fat_pct}%</span>}
+            {profile?.age && <span className="flex items-center gap-0.5"><CalendarIcon className="w-3 h-3" />{profile.age}y</span>}
+            {!profile?.height_cm && !profile?.weight_kg && <span className="text-muted-foreground/50">Tap to add measurements</span>}
+          </div>
+        </button>
+      ) : (
+        <div className="px-3 py-3 rounded-lg bg-secondary/30 border border-primary/30 space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-[9px] text-muted-foreground block mb-0.5">Height (cm)</label>
+              <Input type="number" value={height} onChange={e => setHeight(e.target.value)} className="h-7 text-xs" placeholder="175" />
+            </div>
+            <div>
+              <label className="text-[9px] text-muted-foreground block mb-0.5">Weight (kg)</label>
+              <Input type="number" value={weight} onChange={e => setWeight(e.target.value)} className="h-7 text-xs" placeholder="82" />
+            </div>
+            <div>
+              <label className="text-[9px] text-muted-foreground block mb-0.5">Body Fat %</label>
+              <Input type="number" value={bodyFat} onChange={e => setBodyFat(e.target.value)} className="h-7 text-xs" placeholder="15" />
+            </div>
+            <div>
+              <label className="text-[9px] text-muted-foreground block mb-0.5">Age</label>
+              <Input type="number" value={age} onChange={e => setAge(e.target.value)} className="h-7 text-xs" placeholder="35" />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" className="h-7 text-xs flex-1" onClick={handleSave}>Save</Button>
+            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditing(false)}>Cancel</Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, toleranceLevel, onAnalyzeStack, onViewAIInsights, onViewOutcomes, goals = [], userId, profile, toleranceHistory = [], onUpdateProfile }: DashboardViewProps) => {
   const { readings, fetchReadings, addReading } = useGoalReadings(userId);
   const [activeScreen, setActiveScreen] = useState(0);
   const [selectedZone, setSelectedZone] = useState<BodyZone | null>(null);
@@ -234,6 +344,14 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
               <p className="text-[10px] text-muted-foreground/60 mb-2">
                 {compounds.length} compounds · {bodyCoverage}% body coverage
               </p>
+
+              {/* Profile & Tolerance Info Bar */}
+              <ProfileToleranceBar
+                profile={profile}
+                toleranceLevel={toleranceLevel}
+                toleranceHistory={toleranceHistory}
+                onUpdateProfile={onUpdateProfile}
+              />
 
               {/* Wireframe body – no 3D, no orbit controls */}
               <div className="relative w-full flex-1 flex items-center justify-center" style={{ minHeight: 340 }}>
