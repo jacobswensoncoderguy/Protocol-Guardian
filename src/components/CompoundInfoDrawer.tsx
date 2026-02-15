@@ -7,6 +7,7 @@ import { getStatus } from '@/data/compounds';
 import { Info, Clock, Pill, BarChart3 } from 'lucide-react';
 import { getCompoundIcon } from '@/lib/iconMap';
 import CompoundAISection from '@/components/CompoundAISection';
+import CycleTimelineBar from '@/components/CycleTimelineBar';
 import { CompoundAnalysis } from '@/hooks/useProtocolAnalysis';
 
 interface CompoundInfoDrawerProps {
@@ -204,9 +205,14 @@ const CompoundInfoDrawer = ({ compound, open, onOpenChange, compoundAnalysis, co
           <TimelineViz events={benefits.timeline} />
         )}
 
+        {/* Cycle timeline bar */}
+        <div className="mt-4">
+          <CycleTimelineBar compound={compound} />
+        </div>
+
         {/* Cycling note */}
         {compound.cyclingNote && (
-          <div className="mt-4 p-3 rounded-lg bg-secondary/50 border border-border/50">
+          <div className="mt-3 p-3 rounded-lg bg-secondary/50 border border-border/50">
             <p className="text-xs text-muted-foreground">
               <span className="font-semibold text-foreground/80">Cycling:</span> {compound.cyclingNote}
             </p>
