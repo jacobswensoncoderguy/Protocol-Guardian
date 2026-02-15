@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Compound } from '@/data/compounds';
-import { Target, Plus, ChevronLeft, ChevronRight, Shield, Scale, Zap, Rocket, Ruler, Weight, Percent, Calendar as CalendarIcon, Check, ToggleLeft, Syringe } from 'lucide-react';
+import { Target, Plus, ChevronLeft, ChevronRight, Shield, Scale, Zap, Rocket, Ruler, Weight, Percent, Calendar as CalendarIcon, Check, ToggleLeft } from 'lucide-react';
 import { StackAnalysis } from '@/hooks/useProtocolAnalysis';
 import { ToleranceLevel } from '@/hooks/useProtocolAnalysis';
 import { UserGoal } from '@/hooks/useGoals';
@@ -153,7 +153,7 @@ const ZoneLegend = ({ zoneIntensities, onZoneTap }: { zoneIntensities: Record<Bo
   );
 };
 // Profile & Tolerance info bar for Protocol Coverage screen
-const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpdateProfile, onToleranceChange, onGenderChange, measurementSystem = 'metric', doseUnitPreference = 'mg' }: {
+const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpdateProfile, onToleranceChange, onGenderChange, measurementSystem = 'metric' }: {
   profile?: UserProfile | null;
   toleranceLevel?: string;
   toleranceHistory?: ToleranceEntry[];
@@ -161,7 +161,6 @@ const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpda
   onToleranceChange?: (level: ToleranceLevel) => void;
   onGenderChange?: (gender: string, temporary: boolean) => void;
   measurementSystem?: MeasurementSystem;
-  doseUnitPreference?: DoseUnitPreference;
 }) => {
   const [editing, setEditing] = useState(false);
   const [height, setHeight] = useState(profile?.height_cm?.toString() || '');
@@ -207,50 +206,35 @@ const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpda
 
   return (
     <div className="w-full space-y-2 mb-3">
-      {/* Gender selector */}
-      {onGenderChange && (
-        <div className="mb-2">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Profile Gender</p>
-          <GenderSelector
-            currentGender={profile?.gender}
-            onGenderChange={onGenderChange}
-            locked={!!profile?.gender}
-          />
-        </div>
-      )}
-
-      {/* Dynamic Tolerance selector */}
-      {onToleranceChange && (
-        <div className="mb-2">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Dosing Tolerance Level</p>
-          <ToleranceSelector
-            value={(toleranceLevel || 'moderate') as ToleranceLevel}
-            onChange={handleToleranceSelect}
-          />
-          {latestTolerance && (
-            <p className="text-[9px] text-muted-foreground/60 font-mono mt-1">
-              Set {new Date(latestTolerance.created_at).toLocaleDateString()} at {new Date(latestTolerance.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* Measurement toggles */}
-      <div className="flex items-center gap-3 px-1">
-        <button
-          onClick={() => onUpdateProfile?.({ measurement_system: measurementSystem === 'metric' ? 'imperial' : 'metric' } as any)}
-          className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-colors"
-        >
-          <ToggleLeft className="w-3 h-3" />
-          <span className="font-medium">{measurementSystem === 'metric' ? 'Metric' : 'Imperial'}</span>
-        </button>
-        <button
-          onClick={() => onUpdateProfile?.({ dose_unit_preference: doseUnitPreference === 'mg' ? 'iu' : 'mg' } as any)}
-          className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-colors"
-        >
-          <Syringe className="w-3 h-3" />
-          <span className="font-medium">{doseUnitPreference === 'mg' ? 'mg/mcg' : 'IU'}</span>
-        </button>
+      {/* Compact layout: Gender + Tolerance side by side */}
+      <div className="flex gap-2 mb-2">
+        {onGenderChange && (
+          <div className="flex-1">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Gender</p>
+            <GenderSelector
+              currentGender={profile?.gender}
+              onGenderChange={onGenderChange}
+              locked={!!profile?.gender}
+            />
+          </div>
+        )}
+        {onGenderChange && onToleranceChange && (
+          <div className="w-px bg-border/30 self-stretch" />
+        )}
+        {onToleranceChange && (
+          <div className="flex-1">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Tolerance</p>
+            <ToleranceSelector
+              value={(toleranceLevel || 'moderate') as ToleranceLevel}
+              onChange={handleToleranceSelect}
+            />
+            {latestTolerance && (
+              <p className="text-[9px] text-muted-foreground/60 font-mono mt-1">
+                Set {new Date(latestTolerance.created_at).toLocaleDateString()}
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Profile metrics row */}
@@ -269,14 +253,29 @@ const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpda
         </button>
       ) : (
         <div className="px-3 py-3 rounded-lg bg-secondary/30 border border-primary/30 space-y-2">
+          {/* Metric/Imperial toggle inside edit card */}
+          <div className="flex items-center justify-between pb-1.5 border-b border-border/20">
+            <span className="text-[9px] uppercase tracking-wider text-muted-foreground">Unit System</span>
+            <button
+              onClick={() => onUpdateProfile?.({ measurement_system: measurementSystem === 'metric' ? 'imperial' : 'metric' } as any)}
+              className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 transition-colors"
+            >
+              <ToggleLeft className="w-3 h-3" />
+              {measurementSystem === 'metric' ? 'Metric (cm/kg)' : 'Imperial (ft/lb)'}
+            </button>
+          </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-[9px] text-muted-foreground block mb-0.5">Height (cm)</label>
-              <Input type="number" value={height} onChange={e => setHeight(e.target.value)} className="h-7 text-xs" placeholder="175" />
+              <label className="text-[9px] text-muted-foreground block mb-0.5">
+                Height ({measurementSystem === 'metric' ? 'cm' : 'in'})
+              </label>
+              <Input type="number" value={height} onChange={e => setHeight(e.target.value)} className="h-7 text-xs" placeholder={measurementSystem === 'metric' ? '175' : '70'} />
             </div>
             <div>
-              <label className="text-[9px] text-muted-foreground block mb-0.5">Weight (kg)</label>
-              <Input type="number" value={weight} onChange={e => setWeight(e.target.value)} className="h-7 text-xs" placeholder="82" />
+              <label className="text-[9px] text-muted-foreground block mb-0.5">
+                Weight ({measurementSystem === 'metric' ? 'kg' : 'lb'})
+              </label>
+              <Input type="number" value={weight} onChange={e => setWeight(e.target.value)} className="h-7 text-xs" placeholder={measurementSystem === 'metric' ? '82' : '180'} />
             </div>
             <div>
               <label className="text-[9px] text-muted-foreground block mb-0.5">Body Fat %</label>
@@ -457,7 +456,6 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
                 onToleranceChange={onToleranceChange}
                 onGenderChange={handleGenderChange}
                 measurementSystem={measurementSystem}
-                doseUnitPreference={doseUnitPreference}
               />
 
               {/* Wireframe body – no 3D, no orbit controls */}
