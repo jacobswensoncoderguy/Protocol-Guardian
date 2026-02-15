@@ -292,12 +292,13 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
             {days}d
           </span>
           {!editing && (
-            <div className="flex items-center gap-0.5">
+            <div className="flex items-center">
               <button onClick={startEdit} className="p-1.5 rounded active:bg-secondary/80 transition-colors text-muted-foreground touch-manipulation">
                 <Pencil className="w-3.5 h-3.5" />
               </button>
+              {/* Spacer to separate edit from delete */}
               {onDelete && !confirmDelete && (
-                <button onClick={() => setConfirmDelete(true)} className="p-1.5 rounded active:bg-secondary/80 transition-colors text-muted-foreground touch-manipulation">
+                <button onClick={() => setConfirmDelete(true)} className="p-1.5 rounded active:bg-secondary/80 transition-colors text-muted-foreground touch-manipulation ml-3">
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
               )}
