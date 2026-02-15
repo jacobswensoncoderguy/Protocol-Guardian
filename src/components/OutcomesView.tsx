@@ -37,12 +37,13 @@ const GOAL_TYPE_ICONS: Record<string, string> = {
   custom: '🎯',
 };
 
-function getProgress(goal: UserGoal): number | null {
-  if (!goal.target_value || goal.baseline_value == null) return null;
-  const current = goal.current_value ?? goal.baseline_value;
-  const range = goal.target_value - goal.baseline_value;
+function getProgress(goal: UserGoal, firstReading?: number): number | null {
+  const baseline = goal.baseline_value ?? firstReading ?? null;
+  if (!goal.target_value || baseline == null) return null;
+  const current = goal.current_value ?? baseline;
+  const range = goal.target_value - baseline;
   if (range === 0) return 100;
-  return Math.min(100, Math.max(0, Math.round(((current - goal.baseline_value) / range) * 100)));
+  return Math.min(100, Math.max(0, Math.round(((current - baseline) / range) * 100)));
 }
 
 function getStatusColor(progress: number | null): string {
@@ -109,7 +110,9 @@ const OutcomesView = ({ userId, goals, onRefreshGoals }: OutcomesViewProps) => {
   };
 
   const overallProgress = activeGoals.reduce((sum, g) => {
-    const p = getProgress(g);
+    const goalReadings = readings.get(g.id!) || [];
+    const firstVal = goalReadings.length > 0 ? goalReadings[0].value : undefined;
+    const p = getProgress(g, firstVal);
     return sum + (p ?? 0);
   }, 0) / (activeGoals.length || 1);
 
@@ -143,7 +146,10 @@ const OutcomesView = ({ userId, goals, onRefreshGoals }: OutcomesViewProps) => {
         <div className="flex items-center justify-between mt-2">
           <span className="text-[10px] text-muted-foreground">{activeGoals.length} active goal{activeGoals.length !== 1 ? 's' : ''}</span>
           <span className="text-[10px] text-muted-foreground">
-            {activeGoals.filter(g => (getProgress(g) ?? 0) >= 75).length} on track
+            {activeGoals.filter(g => {
+              const gr = readings.get(g.id!) || [];
+              return (getProgress(g, gr[0]?.value) ?? 0) >= 75;
+            }).length} on track
           </span>
         </div>
       </div>
@@ -208,8 +214,9 @@ const OutcomesView = ({ userId, goals, onRefreshGoals }: OutcomesViewProps) => {
           </h3>
 
           {activeGoals.map(goal => {
-            const progress = getProgress(goal);
             const goalReadings = readings.get(goal.id!) || [];
+            const firstVal = goalReadings.length > 0 ? goalReadings[0].value : undefined;
+            const progress = getProgress(goal, firstVal);
             const isExpanded = expandedGoal === goal.id;
             const isAdding = addReadingGoal === goal.id;
             const color = GOAL_TYPE_COLORS[goal.goal_type] || GOAL_TYPE_COLORS.custom;
