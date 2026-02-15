@@ -26,9 +26,19 @@ The tolerance level is NOT just a suggestion filter — it fundamentally changes
 
 - "aggressive": Lenient grading for risk. Accept higher doses and shorter cycles. Only penalize for genuinely dangerous combinations (e.g. multiple 17-alpha alkylated orals without liver support, conflicting mechanisms). A well-supported performance stack can earn A-.
 
-- "performance": Grade based on GOAL ALIGNMENT. The user accepts significant risk for supra-human outcomes. Grade based on whether the stack achieves its performance goals effectively, with proper synergies and support. Only penalize for truly reckless combinations (no organ support, contradictory compounds, zero cycling). A well-designed performance stack with good synergies and adequate support SHOULD earn A or A-. The grade reflects efficacy + risk mitigation, not risk avoidance.
+- "performance": Grade based on GOAL ALIGNMENT and EFFICACY, NOT safety margins. The user explicitly accepts significant risk for supra-human outcomes. A well-designed aggressive stack with good synergies and organ support MUST earn A- or higher. Only grade down to B+ or below for truly reckless combinations (zero organ support, contradictory mechanisms, no cycling whatsoever). Do NOT penalize for supra-physiological doses, multiple AAS, aggressive cycling, or hepatotoxic orals IF the user has proper support compounds (TUDCA, NAC, Milk Thistle, etc.). The grade reflects: "How effectively does this stack achieve performance goals while having SOME risk mitigation in place?"
 
-The grade must reflect: "Given that this user has chosen [tolerance level], how well does their stack serve that goal while managing the risks appropriate to that level?"
+GRADING ANCHOR EXAMPLES (use these as calibration):
+- Conservative + aggressive AAS stack = D or F (way outside safety margins)
+- Conservative + clinical-dose peptides + supplements = A- or A
+- Moderate + well-supported AAS stack with cycling = B to B+
+- Moderate + peptides + supplements = A- or A
+- Aggressive + well-supported AAS stack = A- to B+
+- Performance + aggressive stack WITH organ support + cycling = A- or A (goal-aligned, risks managed)
+- Performance + aggressive stack WITHOUT any support = C+ to B- (reckless even for performance)
+- Performance + peptides + supplements only = B+ (underdelivering on performance goals)
+
+The grade MUST reflect: "Given that this user has chosen [tolerance level], how well does their stack serve that goal while managing the risks appropriate to that level?"
 
 IMPORTANT: You are providing analysis for tracking and comparison purposes only. Always note that users should consult healthcare professionals.`;
 
@@ -256,6 +266,16 @@ ${protocolDescription}
 
 Tolerance Level: ${toleranceLevel}
 
+CRITICAL GRADING INSTRUCTION: The tolerance level is "${toleranceLevel}". ${
+  toleranceLevel === 'performance' 
+    ? 'This user accepts high risk for maximum outcomes. Grade based on goal alignment and synergy — a well-structured aggressive stack with organ support should earn A- or A. Only grade below B+ for truly reckless stacks with zero support or contradictory compounds.'
+    : toleranceLevel === 'aggressive'
+    ? 'This user accepts above-average risk. A well-supported aggressive stack can earn A-. Only penalize for genuinely dangerous unsupported combinations.'
+    : toleranceLevel === 'conservative'
+    ? 'Grade HARSHLY. Any supra-physiological dosing or multiple orals should heavily penalize the grade. Even moderate biohacker stacks get B- at best.'
+    : 'Balanced grading. Standard biohacker dosing is acceptable. A well-structured stack with support can earn B+.'
+}
+
 Provide a comprehensive analysis covering:
 1. Contraindications and dangerous interactions
 2. Bioavailability issues and optimization suggestions
@@ -271,7 +291,7 @@ Provide a comprehensive analysis covering:
           parameters: {
             type: "object",
             properties: {
-              overallGrade: { type: "string", enum: ["A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D", "F"] },
+              overallGrade: { type: "string", enum: ["A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D", "F"], description: `Grade calibrated to tolerance level: ${toleranceLevel}` },
               overallSummary: { type: "string" },
               contraindications: {
                 type: "array",
