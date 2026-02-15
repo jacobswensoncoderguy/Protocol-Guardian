@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Compound, getReorderCost } from '@/data/compounds';
+import { Compound, getReorderCost, getStatus } from '@/data/compounds';
 import { getDaysRemainingWithCycling, getEffectiveDailyConsumption } from '@/lib/cycling';
 import { UserProtocol } from '@/hooks/useProtocols';
 import { supabase } from '@/integrations/supabase/client';
-import { Check, Package, PackageCheck, ShoppingCart, Undo2, Trash2, ChevronDown } from 'lucide-react';
+import { Check, Package, PackageCheck, ShoppingCart, Undo2, Trash2, ChevronDown, AlertTriangle, TrendingUp } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface ReorderViewProps {
@@ -216,8 +216,34 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [] }: Re
   const orderedGroups = groupByProtocol(orderedItems, protocols, compoundMap);
   const receivedGroups = groupByProtocol(receivedItems, protocols, compoundMap);
 
+  const criticalCompounds = compounds.filter(c => getStatus(getDaysRemainingWithCycling(c)) === 'critical');
+  const warningCompounds = compounds.filter(c => getStatus(getDaysRemainingWithCycling(c)) === 'warning');
+
   return (
     <div className="space-y-3">
+      {/* Inventory Alert Banner */}
+      {(criticalCompounds.length > 0 || warningCompounds.length > 0) && (
+        <div className="flex gap-2">
+          {criticalCompounds.length > 0 && (
+            <div className="flex-1 bg-destructive/10 border border-destructive/30 rounded-lg p-2.5 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-status-critical flex-shrink-0" />
+              <div>
+                <p className="text-xs font-semibold text-status-critical">{criticalCompounds.length} Need Reorder</p>
+                <p className="text-[10px] text-muted-foreground">Under 7 days supply</p>
+              </div>
+            </div>
+          )}
+          {warningCompounds.length > 0 && (
+            <div className="flex-1 bg-accent/10 border border-accent/30 rounded-lg p-2.5 flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-status-warning flex-shrink-0" />
+              <div>
+                <p className="text-xs font-semibold text-status-warning">{warningCompounds.length} Running Low</p>
+                <p className="text-[10px] text-muted-foreground">7-30 days left</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       {/* Tab Selector */}
       <div className="flex gap-1 bg-secondary/50 rounded-lg p-1 border border-border/50">
         {tabs.map(t => (
