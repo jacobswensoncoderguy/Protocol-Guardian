@@ -216,6 +216,8 @@ const Index = () => {
               toleranceLevel={toleranceLevel}
               onAnalyzeStack={analyzeStack}
               onViewAIInsights={() => setActiveTab('ai-insights')}
+              goals={fullGoals}
+              userId={user?.id}
             />
           </TabsContent>
           <TabsContent value="schedule" className="animate-slide-up">
