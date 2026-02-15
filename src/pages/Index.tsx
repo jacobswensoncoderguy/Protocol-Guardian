@@ -272,7 +272,7 @@ const Index = () => {
               analysis={stackAnalysis}
               loading={aiLoading}
               toleranceLevel={toleranceLevel}
-              onToleranceChange={() => setActiveTab('inventory')}
+              onToleranceChange={handleToleranceChange}
               onRefresh={analyzeStack}
               chatMessages={chatMessages}
               isChatStreaming={isChatStreaming}
