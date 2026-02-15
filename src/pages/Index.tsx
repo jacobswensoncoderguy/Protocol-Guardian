@@ -8,6 +8,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { useProtocolAnalysis } from '@/hooks/useProtocolAnalysis';
 import { useProtocolChat } from '@/hooks/useProtocolChat';
+import { useConversations } from '@/hooks/useConversations';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCallback, useState } from 'react';
 import Onboarding from './Onboarding';
@@ -64,11 +65,17 @@ const Index = () => {
     toleranceComparison, compareLoading, compareAllLevels,
   } = useProtocolAnalysis(compounds, protocols);
 
+  const conversationManager = useConversations(user?.id);
+
   const {
     messages: chatMessages, isStreaming: isChatStreaming,
     sendMessage: onChatSend, cancelStream: onChatCancel, clearChat: onChatClear,
     applyChange: onApplyChange, rejectChange: onRejectChange, applyAllPending: onApplyAll,
-  } = useProtocolChat(compounds, protocols, stackAnalysis, toleranceLevel, updateCompound, deleteCompound, refetch);
+  } = useProtocolChat(
+    compounds, protocols, stackAnalysis, toleranceLevel, updateCompound, deleteCompound, refetch,
+    conversationManager.activeConversationId,
+    conversationManager.refreshConversation,
+  );
 
   const [activeTab, setActiveTab] = useState('dashboard');
 
@@ -223,6 +230,7 @@ const Index = () => {
               onApplyChange={onApplyChange}
               onRejectChange={onRejectChange}
               onApplyAll={onApplyAll}
+              conversationManager={conversationManager}
               toleranceComparison={toleranceComparison}
               compareLoading={compareLoading}
               onCompareAllLevels={compareAllLevels}

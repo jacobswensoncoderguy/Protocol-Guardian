@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Square, Trash2, Check, X, CheckCheck, Brain, ArrowRight, Mic, MicOff, Maximize2, Minimize2 } from 'lucide-react';
+import { Send, Square, Trash2, Check, X, CheckCheck, Brain, ArrowRight, Mic, MicOff, Maximize2, Minimize2, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { ChatMessage, ChangeProposal, ProposedChange } from '@/hooks/useProtocolChat';
+import { useConversations } from '@/hooks/useConversations';
+import ChatSidebar from '@/components/ChatSidebar';
 
 interface ProtocolChatProps {
   messages: ChatMessage[];
@@ -12,6 +14,7 @@ interface ProtocolChatProps {
   onApplyChange: (proposalId: string, changeIndex: number) => void;
   onRejectChange: (proposalId: string, changeIndex: number) => void;
   onApplyAll: (proposalId: string) => void;
+  conversationManager: ReturnType<typeof useConversations>;
 }
 
 const changeTypeLabel = (type: string) => {
@@ -109,18 +112,10 @@ const ChangeRow = ({
 
     {change.status === 'pending' ? (
       <div className="flex items-center gap-1 flex-shrink-0">
-        <button
-          onClick={onApply}
-          className="p-1.5 rounded-md bg-status-good/15 text-status-good hover:bg-status-good/25 transition-colors"
-          title="Apply this change"
-        >
+        <button onClick={onApply} className="p-1.5 rounded-md bg-status-good/15 text-status-good hover:bg-status-good/25 transition-colors" title="Apply this change">
           <Check className="w-3.5 h-3.5" />
         </button>
-        <button
-          onClick={onReject}
-          className="p-1.5 rounded-md bg-destructive/15 text-status-critical hover:bg-destructive/25 transition-colors"
-          title="Reject this change"
-        >
+        <button onClick={onReject} className="p-1.5 rounded-md bg-destructive/15 text-status-critical hover:bg-destructive/25 transition-colors" title="Reject this change">
           <X className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -135,21 +130,25 @@ const ChangeRow = ({
 );
 
 const ProtocolChat = ({
-  messages,
-  isStreaming,
-  onSend,
-  onCancel,
-  onClear,
-  onApplyChange,
-  onRejectChange,
-  onApplyAll,
+  messages, isStreaming, onSend, onCancel, onClear,
+  onApplyChange, onRejectChange, onApplyAll, conversationManager,
 }: ProtocolChatProps) => {
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<any>(null);
+
+  const {
+    projects, conversations, activeConversationId,
+    searchQuery, searchResults,
+    setActiveConversationId,
+    createProject, deleteProject,
+    createConversation, deleteConversation, renameConversation,
+    searchMessages,
+  } = conversationManager;
 
   const hasSpeechRecognition = typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
 
@@ -159,26 +158,19 @@ const ProtocolChat = ({
       setIsListening(false);
       return;
     }
-
     const SpeechRecognitionCtor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognitionCtor) return;
-
     const recognition = new SpeechRecognitionCtor();
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
-
     recognition.onresult = (event: any) => {
       let transcript = '';
-      for (let i = 0; i < event.results.length; i++) {
-        transcript += event.results[i][0].transcript;
-      }
+      for (let i = 0; i < event.results.length; i++) transcript += event.results[i][0].transcript;
       setInput(transcript);
     };
-
     recognition.onerror = () => setIsListening(false);
     recognition.onend = () => setIsListening(false);
-
     recognitionRef.current = recognition;
     recognition.start();
     setIsListening(true);
@@ -188,19 +180,21 @@ const ProtocolChat = ({
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, isStreaming]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const trimmed = input.trim();
     if (!trimmed || isStreaming) return;
+    // Auto-create conversation if none active
+    if (!activeConversationId) {
+      const conv = await createConversation(trimmed.slice(0, 40));
+      if (!conv) return;
+    }
     onSend(trimmed);
     setInput('');
     if (inputRef.current) inputRef.current.style.height = 'auto';
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit();
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); }
   };
 
   const handleTextareaInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -210,7 +204,13 @@ const ProtocolChat = ({
     el.style.height = Math.min(el.scrollHeight, 120) + 'px';
   };
 
-  // Minimized state: collapsed 2-line box
+  const handleNewConversation = async (projectId?: string) => {
+    await createConversation('New Chat', projectId);
+  };
+
+  const activeConv = conversations.find(c => c.id === activeConversationId);
+
+  // Minimized state
   if (!isExpanded) {
     const lastMsg = messages[messages.length - 1];
     const preview = lastMsg
@@ -218,17 +218,14 @@ const ProtocolChat = ({
       : 'Ask about your protocol analysis…';
 
     return (
-      <div
-        className="bg-card rounded-lg border border-border/50 px-3 py-2.5 cursor-pointer hover:border-primary/30 transition-colors"
-        onClick={() => setIsExpanded(true)}
-      >
+      <div className="bg-card rounded-lg border border-border/50 px-3 py-2.5 cursor-pointer hover:border-primary/30 transition-colors" onClick={() => setIsExpanded(true)}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <Brain className="w-4 h-4 text-primary flex-shrink-0" />
             <span className="text-xs font-semibold text-foreground">Protocol Advisor</span>
-            {messages.length > 0 && (
+            {conversations.length > 0 && (
               <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
-                {messages.length}
+                {conversations.length} chats
               </span>
             )}
           </div>
@@ -241,151 +238,181 @@ const ProtocolChat = ({
 
   // Expanded full-screen state
   return (
-    <div className="fixed inset-0 z-50 bg-background flex flex-col animate-scale-in">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
-        <div className="flex items-center gap-2">
-          <Brain className="w-4 h-4 text-primary" />
-          <span className="text-xs font-semibold text-foreground">Protocol Advisor</span>
-          {isListening && (
-            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-destructive/15 text-status-critical animate-pulse">
-              ● Recording
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-1.5">
-          {messages.length > 0 && (
-            <button
-              onClick={onClear}
-              className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-              title="Clear conversation"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          )}
-          <button
-            onClick={() => setIsExpanded(false)}
-            className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-            title="Minimize"
-          >
-            <Minimize2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
-
-      {/* Messages */}
-      {messages.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center px-6">
-          <div className="text-center max-w-sm">
-            <Brain className="w-8 h-8 text-primary mx-auto mb-3 opacity-50" />
-            <p className="text-xs text-muted-foreground leading-relaxed mb-4">
-              Ask questions about your analysis, request alternatives, or ask how to improve your stack grade.
-              When you agree on changes, they'll be applied directly to your protocol.
-            </p>
-            <div className="flex flex-wrap gap-1.5 justify-center">
-              {[
-                'How can I improve my grade to B+?',
-                'What should I remove to reduce liver stress?',
-                'Suggest cheaper alternatives for poor-value compounds',
-                'Optimize my GH secretagogue timing',
-              ].map(q => (
-                <button
-                  key={q}
-                  onClick={() => { setInput(q); inputRef.current?.focus(); }}
-                  className="text-[10px] px-2.5 py-1.5 rounded-lg bg-secondary/70 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors border border-border/30"
-                >
-                  {q}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 scrollbar-thin">
-          {messages.map(msg => (
-            <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[85%] rounded-lg px-3 py-2 ${
-                msg.role === 'user'
-                  ? 'bg-primary/15 text-foreground'
-                  : 'bg-secondary/50 text-foreground'
-              }`}>
-                {msg.content && (
-                  <div className="text-xs leading-relaxed prose prose-invert prose-xs max-w-none [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0.5 [&_h1]:text-sm [&_h2]:text-xs [&_h3]:text-xs [&_h1]:font-bold [&_h2]:font-semibold [&_h3]:font-semibold [&_strong]:text-foreground [&_a]:text-primary">
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
-                  </div>
-                )}
-                {msg.proposal && (
-                  <ProposalCard
-                    proposal={msg.proposal}
-                    onApply={(i) => onApplyChange(msg.proposal!.id, i)}
-                    onReject={(i) => onRejectChange(msg.proposal!.id, i)}
-                    onApplyAll={() => onApplyAll(msg.proposal!.id)}
-                  />
-                )}
-              </div>
-            </div>
-          ))}
-          {isStreaming && messages[messages.length - 1]?.role !== 'assistant' && (
-            <div className="flex justify-start">
-              <div className="bg-secondary/50 rounded-lg px-3 py-2">
-                <div className="flex gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary/50 animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary/50 animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary/50 animate-bounce" style={{ animationDelay: '300ms' }} />
-                </div>
-              </div>
-            </div>
-          )}
+    <div className="fixed inset-0 z-50 bg-background flex animate-scale-in">
+      {/* Sidebar */}
+      {showSidebar && (
+        <div className="w-64 flex-shrink-0">
+          <ChatSidebar
+            projects={projects}
+            conversations={conversations}
+            activeConversationId={activeConversationId}
+            searchQuery={searchQuery}
+            searchResults={searchResults}
+            onSelectConversation={setActiveConversationId}
+            onNewConversation={handleNewConversation}
+            onDeleteConversation={deleteConversation}
+            onRenameConversation={renameConversation}
+            onCreateProject={(name) => createProject(name)}
+            onDeleteProject={deleteProject}
+            onSearch={searchMessages}
+            onSearchResultClick={(convId) => setActiveConversationId(convId)}
+          />
         </div>
       )}
 
-      {/* Input */}
-      <div className="border-t border-border/50 px-4 py-3">
-        <div className="flex items-end gap-2">
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={handleTextareaInput}
-            onKeyDown={handleKeyDown}
-            placeholder="Ask about your protocol analysis..."
-            className="flex-1 bg-transparent text-xs text-foreground placeholder:text-muted-foreground resize-none outline-none max-h-[120px] py-1.5"
-            rows={1}
-            disabled={isStreaming}
-            spellCheck
-            autoCorrect="on"
-            autoCapitalize="sentences"
-          />
-          {hasSpeechRecognition && (
+      {/* Main chat area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
+          <div className="flex items-center gap-2 min-w-0">
             <button
-              onClick={toggleListening}
-              className={`p-2 rounded-lg transition-colors flex-shrink-0 ${
-                isListening
-                  ? 'bg-destructive/15 text-status-critical mic-recording'
-                  : 'bg-secondary/50 text-muted-foreground hover:text-foreground hover:bg-secondary'
-              }`}
-              title={isListening ? 'Stop listening' : 'Voice input'}
-              disabled={isStreaming}
+              onClick={() => setShowSidebar(!showSidebar)}
+              className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+              title={showSidebar ? 'Hide sidebar' : 'Show sidebar'}
             >
-              {isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+              {showSidebar ? <PanelLeftClose className="w-3.5 h-3.5" /> : <PanelLeftOpen className="w-3.5 h-3.5" />}
             </button>
-          )}
-          {isStreaming ? (
-            <button
-              onClick={onCancel}
-              className="p-2 rounded-lg bg-destructive/15 text-status-critical hover:bg-destructive/25 transition-colors flex-shrink-0"
-            >
-              <Square className="w-3.5 h-3.5" />
+            <Brain className="w-4 h-4 text-primary" />
+            <span className="text-xs font-semibold text-foreground truncate">
+              {activeConv?.title || 'Protocol Advisor'}
+            </span>
+            {isListening && (
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-destructive/15 text-status-critical animate-pulse">
+                ● Recording
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5">
+            {messages.length > 0 && (
+              <button onClick={onClear} className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors" title="Clear conversation">
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )}
+            <button onClick={() => setIsExpanded(false)} className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors" title="Minimize">
+              <Minimize2 className="w-3.5 h-3.5" />
             </button>
-          ) : (
-            <button
-              onClick={handleSubmit}
-              disabled={!input.trim()}
-              className="p-2 rounded-lg bg-primary/15 text-primary hover:bg-primary/25 transition-colors flex-shrink-0 disabled:opacity-30"
-            >
-              <Send className="w-3.5 h-3.5" />
-            </button>
-          )}
+          </div>
         </div>
+
+        {/* Messages */}
+        {!activeConversationId ? (
+          <div className="flex-1 flex items-center justify-center px-6">
+            <div className="text-center max-w-sm">
+              <Brain className="w-8 h-8 text-primary mx-auto mb-3 opacity-50" />
+              <p className="text-xs text-muted-foreground leading-relaxed mb-4">
+                Select a conversation from the sidebar or start a new one.
+              </p>
+              <button
+                onClick={() => handleNewConversation()}
+                className="text-xs px-4 py-2 rounded-lg bg-primary/15 text-primary hover:bg-primary/25 transition-colors font-medium"
+              >
+                Start New Chat
+              </button>
+            </div>
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center px-6">
+            <div className="text-center max-w-sm">
+              <Brain className="w-8 h-8 text-primary mx-auto mb-3 opacity-50" />
+              <p className="text-xs text-muted-foreground leading-relaxed mb-4">
+                Ask questions about your analysis, request alternatives, or ask how to improve your stack grade.
+              </p>
+              <div className="flex flex-wrap gap-1.5 justify-center">
+                {[
+                  'How can I improve my grade to B+?',
+                  'What should I remove to reduce liver stress?',
+                  'Suggest cheaper alternatives for poor-value compounds',
+                  'Optimize my GH secretagogue timing',
+                ].map(q => (
+                  <button
+                    key={q}
+                    onClick={() => { setInput(q); inputRef.current?.focus(); }}
+                    className="text-[10px] px-2.5 py-1.5 rounded-lg bg-secondary/70 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors border border-border/30"
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 scrollbar-thin">
+            {messages.map(msg => (
+              <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[85%] rounded-lg px-3 py-2 ${
+                  msg.role === 'user' ? 'bg-primary/15 text-foreground' : 'bg-secondary/50 text-foreground'
+                }`}>
+                  {msg.content && (
+                    <div className="text-xs leading-relaxed prose prose-invert prose-xs max-w-none [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0.5 [&_h1]:text-sm [&_h2]:text-xs [&_h3]:text-xs [&_h1]:font-bold [&_h2]:font-semibold [&_h3]:font-semibold [&_strong]:text-foreground [&_a]:text-primary">
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    </div>
+                  )}
+                  {msg.proposal && (
+                    <ProposalCard
+                      proposal={msg.proposal}
+                      onApply={(i) => onApplyChange(msg.proposal!.id, i)}
+                      onReject={(i) => onRejectChange(msg.proposal!.id, i)}
+                      onApplyAll={() => onApplyAll(msg.proposal!.id)}
+                    />
+                  )}
+                </div>
+              </div>
+            ))}
+            {isStreaming && messages[messages.length - 1]?.role !== 'assistant' && (
+              <div className="flex justify-start">
+                <div className="bg-secondary/50 rounded-lg px-3 py-2">
+                  <div className="flex gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary/50 animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary/50 animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary/50 animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Input */}
+        {activeConversationId && (
+          <div className="border-t border-border/50 px-4 py-3">
+            <div className="flex items-end gap-2">
+              <textarea
+                ref={inputRef}
+                value={input}
+                onChange={handleTextareaInput}
+                onKeyDown={handleKeyDown}
+                placeholder="Ask about your protocol analysis..."
+                className="flex-1 bg-transparent text-xs text-foreground placeholder:text-muted-foreground resize-none outline-none max-h-[120px] py-1.5"
+                rows={1}
+                disabled={isStreaming}
+                spellCheck
+                autoCorrect="on"
+                autoCapitalize="sentences"
+              />
+              {hasSpeechRecognition && (
+                <button
+                  onClick={toggleListening}
+                  className={`p-2 rounded-lg transition-colors flex-shrink-0 ${
+                    isListening ? 'bg-destructive/15 text-status-critical mic-recording' : 'bg-secondary/50 text-muted-foreground hover:text-foreground hover:bg-secondary'
+                  }`}
+                  title={isListening ? 'Stop listening' : 'Voice input'}
+                  disabled={isStreaming}
+                >
+                  {isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+                </button>
+              )}
+              {isStreaming ? (
+                <button onClick={onCancel} className="p-2 rounded-lg bg-destructive/15 text-status-critical hover:bg-destructive/25 transition-colors flex-shrink-0">
+                  <Square className="w-3.5 h-3.5" />
+                </button>
+              ) : (
+                <button onClick={handleSubmit} disabled={!input.trim()} className="p-2 rounded-lg bg-primary/15 text-primary hover:bg-primary/25 transition-colors flex-shrink-0 disabled:opacity-30">
+                  <Send className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
