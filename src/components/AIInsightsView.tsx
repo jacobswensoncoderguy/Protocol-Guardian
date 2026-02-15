@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Brain, RefreshCw, ShieldAlert, Beaker, BarChart3, DollarSign, Lightbulb, ChevronDown, GitCompare, AlertTriangle, Zap, MessageSquare, Send, X } from 'lucide-react';
+import { Brain, RefreshCw, ShieldAlert, Beaker, BarChart3, DollarSign, Lightbulb, ChevronDown, GitCompare, AlertTriangle, Zap, MessageSquare, Send, X, ThumbsDown, TrendingUp } from 'lucide-react';
 import { StackAnalysis, ToleranceComparison } from '@/hooks/useProtocolAnalysis';
 import { ToleranceLevel } from '@/hooks/useProtocolAnalysis';
 import ToleranceSelector from '@/components/ToleranceSelector';
@@ -65,7 +65,6 @@ const gradeColor = (grade: string) => {
   return 'text-status-critical';
 };
 
-// Severity weight for ranking sections
 const severityWeight = (severity: string) => {
   if (severity === 'danger') return 3;
   if (severity === 'warning') return 2;
@@ -79,7 +78,6 @@ const verdictWeight = (verdict: string) => {
   return 1;
 };
 
-// Compute section discrepancy scores for ranking
 const computeSectionScores = (analysis: StackAnalysis) => {
   const contraindicationScore = analysis.contraindications.reduce(
     (sum, c) => sum + severityWeight(c.severity), 0
@@ -118,12 +116,40 @@ const impactBadge = (score: number) => {
   return { label: 'None', color: 'bg-secondary text-muted-foreground' };
 };
 
-// Inline reply component for insight cards
+// Impact percentage badge
+const ImpactPercent = ({ value, label }: { value?: number; label?: string }) => {
+  if (value === undefined && !label) return null;
+  const display = value !== undefined ? `${value}%` : label;
+  const color = value !== undefined
+    ? value >= 70 ? 'text-status-critical bg-destructive/10' : value >= 40 ? 'text-status-warning bg-accent/10' : 'text-primary bg-primary/10'
+    : 'text-muted-foreground bg-secondary';
+  return (
+    <span className={`inline-flex items-center gap-0.5 text-[9px] font-mono px-1.5 py-0.5 rounded-full ${color}`}>
+      <TrendingUp className="w-2.5 h-2.5" />
+      {display}
+    </span>
+  );
+};
+
+// Dismiss button for findings
+const DismissButton = ({ onDismiss }: { onDismiss: () => void }) => (
+  <button
+    onClick={(e) => { e.stopPropagation(); onDismiss(); }}
+    className="p-1 rounded-md text-muted-foreground/50 hover:text-status-warning hover:bg-accent/10 transition-colors"
+    title="Dismiss this finding"
+  >
+    <ThumbsDown className="w-3 h-3" />
+  </button>
+);
+
+// Inline reply component with proper text selection & copy-paste
 const InlineReply = ({ context, onSend }: { context: string; onSend: (message: string) => void }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [reply, setReply] = useState('');
 
-  const handleSend = () => {
+  const handleSend = (e?: React.MouseEvent | React.FormEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
     if (!reply.trim()) return;
     onSend(`Regarding: "${context.slice(0, 120)}${context.length > 120 ? '…' : ''}"\n\n${reply}`);
     setReply('');
@@ -133,7 +159,7 @@ const InlineReply = ({ context, onSend }: { context: string; onSend: (message: s
   if (!isOpen) {
     return (
       <button
-        onClick={() => setIsOpen(true)}
+        onClick={(e) => { e.stopPropagation(); setIsOpen(true); }}
         className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-colors mt-1.5 group"
       >
         <MessageSquare className="w-3 h-3 group-hover:text-primary" />
@@ -143,23 +169,24 @@ const InlineReply = ({ context, onSend }: { context: string; onSend: (message: s
   }
 
   return (
-    <div className="mt-2 flex items-center gap-1.5 animate-fade-in">
-      <input
-        type="text"
+    <form onSubmit={handleSend} className="mt-2 flex items-center gap-1.5 animate-fade-in" onClick={(e) => e.stopPropagation()}>
+      <textarea
         value={reply}
         onChange={(e) => setReply(e.target.value)}
-        onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
         placeholder="Correct or ask about this…"
-        className="flex-1 text-xs bg-secondary/50 border border-border/50 rounded-md px-2.5 py-1.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40"
+        rows={2}
+        className="flex-1 text-xs bg-secondary/50 border border-border/50 rounded-md px-2.5 py-1.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 resize-none select-text"
+        style={{ userSelect: 'text', WebkitUserSelect: 'text' }}
         autoFocus
       />
-      <button onClick={handleSend} disabled={!reply.trim()} className="p-1.5 rounded-md bg-primary/10 text-primary hover:bg-primary/20 disabled:opacity-30 transition-colors">
-        <Send className="w-3 h-3" />
+      <button type="submit" disabled={!reply.trim()} className="p-1.5 rounded-md bg-primary/10 text-primary hover:bg-primary/20 disabled:opacity-30 transition-colors">
+        <Send className="w-3.5 h-3.5" />
       </button>
-      <button onClick={() => { setIsOpen(false); setReply(''); }} className="p-1.5 rounded-md text-muted-foreground hover:text-foreground transition-colors">
-        <X className="w-3 h-3" />
+      <button type="button" onClick={(e) => { e.stopPropagation(); setIsOpen(false); setReply(''); }} className="p-1.5 rounded-md text-muted-foreground hover:text-foreground transition-colors">
+        <X className="w-3.5 h-3.5" />
       </button>
-    </div>
+    </form>
   );
 };
 
@@ -202,7 +229,7 @@ const CollapsibleSection = ({
         <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground ml-auto transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       {isOpen && (
-        <div className="px-4 pb-4 animate-fade-in">
+        <div className="px-4 pb-4 animate-fade-in select-text" style={{ userSelect: 'text', WebkitUserSelect: 'text' }}>
           {children}
         </div>
       )}
@@ -259,11 +286,12 @@ const ToleranceComparisonCard = ({
             return (
               <div
                 key={level}
-                className={`p-3 rounded-lg border transition-all ${
+                className={`p-3 rounded-lg border transition-all select-text ${
                   isActive
                     ? 'border-primary/40 bg-primary/5 ring-1 ring-primary/20'
                     : 'border-border/30 bg-secondary/20'
                 }`}
+                style={{ userSelect: 'text', WebkitUserSelect: 'text' }}
               >
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-[10px] font-mono text-muted-foreground">
@@ -302,6 +330,13 @@ const ToleranceComparisonCard = ({
 
 const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, onRefresh, chatMessages, isChatStreaming, onChatSend, onChatCancel, onChatClear, onApplyChange, onRejectChange, onApplyAll, toleranceComparison, compareLoading, onCompareAllLevels, conversationManager }: AIInsightsViewProps) => {
   const sectionScores = analysis ? computeSectionScores(analysis) : [];
+  const [dismissedFindings, setDismissedFindings] = useState<Set<string>>(new Set());
+
+  const dismiss = (key: string) => {
+    setDismissedFindings(prev => new Set(prev).add(key));
+  };
+
+  const isDismissed = (key: string) => dismissedFindings.has(key);
 
   const renderSection = (sectionId: string) => {
     if (!analysis) return null;
@@ -320,25 +355,34 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
             score={sectionData.score}
           >
             {analysis.contraindications.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No significant contraindications detected 🎉</p>
+              <p className="text-sm text-muted-foreground">No significant contraindications detected</p>
             ) : (
               <div className="space-y-2.5">
-                {analysis.contraindications.map((c, i) => (
-                  <div key={i} className="p-3 rounded-lg bg-secondary/30 border border-border/30">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${severityBadge(c.severity)}`}>
-                        {c.severity}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground font-mono">{c.category}</span>
+                {analysis.contraindications.map((c, i) => {
+                  const key = `contra-${i}`;
+                  if (isDismissed(key)) return null;
+                  return (
+                    <div key={i} className="p-3 rounded-lg bg-secondary/30 border border-border/30 select-text" style={{ userSelect: 'text', WebkitUserSelect: 'text' }}>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${severityBadge(c.severity)}`}>
+                          {c.severity}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground font-mono">{c.category}</span>
+                        <ImpactPercent value={(c as any).impactPercent} label={(c as any).impactLabel} />
+                        <div className="ml-auto"><DismissButton onDismiss={() => dismiss(key)} /></div>
+                      </div>
+                      <p className="text-xs text-foreground/85 mb-1">{c.description}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        <span className="font-semibold text-foreground/70">Compounds:</span> {c.compounds.join(', ')}
+                      </p>
+                      <p className="text-[11px] text-primary mt-1">
+                        <Lightbulb className="w-3 h-3 inline mr-1 -mt-0.5" />
+                        {c.recommendation}
+                      </p>
+                      <InlineReply context={c.description} onSend={onChatSend} />
                     </div>
-                    <p className="text-xs text-foreground/85 mb-1">{c.description}</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      <span className="font-semibold text-foreground/70">Compounds:</span> {c.compounds.join(', ')}
-                    </p>
-                    <p className="text-[11px] text-primary mt-1">💡 {c.recommendation}</p>
-                    <InlineReply context={c.description} onSend={onChatSend} />
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CollapsibleSection>
@@ -354,20 +398,30 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
             score={sectionData.score}
           >
             {analysis.bioavailabilityIssues.length === 0 ? (
-              <p className="text-sm text-muted-foreground">All compounds optimally delivered 🎯</p>
+              <p className="text-sm text-muted-foreground">All compounds optimally delivered</p>
             ) : (
               <div className="space-y-2.5">
-                {analysis.bioavailabilityIssues.map((b, i) => (
-                  <div key={i} className="p-3 rounded-lg bg-secondary/30 border border-border/30">
-                    <div className="flex items-baseline justify-between mb-1">
-                      <span className="text-xs font-semibold text-foreground">{b.compound}</span>
-                      <span className="text-[10px] font-mono text-muted-foreground">{b.currentMethod}</span>
+                {analysis.bioavailabilityIssues.map((b, i) => {
+                  const key = `bio-${i}`;
+                  if (isDismissed(key)) return null;
+                  return (
+                    <div key={i} className="p-3 rounded-lg bg-secondary/30 border border-border/30 select-text" style={{ userSelect: 'text', WebkitUserSelect: 'text' }}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-semibold text-foreground">{b.compound}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-mono text-muted-foreground">{b.currentMethod}</span>
+                          <DismissButton onDismiss={() => dismiss(key)} />
+                        </div>
+                      </div>
+                      <p className="text-xs text-foreground/80 mb-1">{b.issue}</p>
+                      <p className="text-[11px] text-primary">
+                        <RefreshCw className="w-3 h-3 inline mr-1 -mt-0.5" />
+                        {b.suggestion} ({b.improvementEstimate})
+                      </p>
+                      <InlineReply context={`${b.compound}: ${b.issue}`} onSend={onChatSend} />
                     </div>
-                    <p className="text-xs text-foreground/80 mb-1">{b.issue}</p>
-                    <p className="text-[11px] text-primary">🔄 {b.suggestion} ({b.improvementEstimate})</p>
-                    <InlineReply context={`${b.compound}: ${b.issue}`} onSend={onChatSend} />
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CollapsibleSection>
@@ -385,7 +439,7 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
           >
             <div className="space-y-2.5">
               {analysis.protocolGrades.map((p, i) => (
-                <div key={i} className="p-3 rounded-lg bg-secondary/30 border border-border/30">
+                <div key={i} className="p-3 rounded-lg bg-secondary/30 border border-border/30 select-text" style={{ userSelect: 'text', WebkitUserSelect: 'text' }}>
                   <div className="flex items-center gap-2 mb-2">
                     <span className={`text-lg font-bold font-mono ${gradeColor(p.grade)}`}>{p.grade}</span>
                     <span className="text-xs font-semibold text-foreground">{p.protocolName}</span>
@@ -425,21 +479,28 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
             score={sectionData.score}
           >
             <div className="space-y-2">
-              {analysis.costEfficiency.map((c, i) => (
-                <div key={i} className="flex items-start gap-3 p-2 rounded-lg bg-secondary/20">
-                  <span className={`text-[10px] font-mono font-bold mt-0.5 ${verdictColor(c.verdict)}`}>
-                    {c.verdict.toUpperCase()}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <span className="text-xs font-semibold text-foreground">{c.compound}</span>
-                    <p className="text-[11px] text-muted-foreground">{c.reasoning}</p>
-                    {c.alternative && c.alternative !== 'N/A' && (
-                      <p className="text-[11px] text-primary mt-0.5">→ {c.alternative}</p>
-                    )}
-                    <InlineReply context={`${c.compound} cost: ${c.reasoning}`} onSend={onChatSend} />
+              {analysis.costEfficiency.map((c, i) => {
+                const key = `cost-${i}`;
+                if (isDismissed(key)) return null;
+                return (
+                  <div key={i} className="flex items-start gap-3 p-2 rounded-lg bg-secondary/20 select-text" style={{ userSelect: 'text', WebkitUserSelect: 'text' }}>
+                    <span className={`text-[10px] font-mono font-bold mt-0.5 ${verdictColor(c.verdict)}`}>
+                      {c.verdict.toUpperCase()}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-foreground">{c.compound}</span>
+                        <DismissButton onDismiss={() => dismiss(key)} />
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">{c.reasoning}</p>
+                      {c.alternative && c.alternative !== 'N/A' && (
+                        <p className="text-[11px] text-primary mt-0.5">→ {c.alternative}</p>
+                      )}
+                      <InlineReply context={`${c.compound} cost: ${c.reasoning}`} onSend={onChatSend} />
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CollapsibleSection>
         );
@@ -454,17 +515,22 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
             score={sectionData.score}
           >
             <div className="space-y-2">
-              {analysis.topRecommendations.map((r, i) => (
-                <div key={i}>
-                  <div className="flex gap-2.5 items-start">
-                    <span className="text-primary text-xs mt-0.5 font-bold">{i + 1}.</span>
-                    <p className="text-xs text-foreground/85 leading-relaxed">{r}</p>
+              {analysis.topRecommendations.map((r, i) => {
+                const key = `rec-${i}`;
+                if (isDismissed(key)) return null;
+                return (
+                  <div key={i} className="select-text" style={{ userSelect: 'text', WebkitUserSelect: 'text' }}>
+                    <div className="flex gap-2.5 items-start">
+                      <span className="text-primary text-xs mt-0.5 font-bold">{i + 1}.</span>
+                      <p className="text-xs text-foreground/85 leading-relaxed flex-1">{r}</p>
+                      <DismissButton onDismiss={() => dismiss(key)} />
+                    </div>
+                    <div className="pl-5">
+                      <InlineReply context={r} onSend={onChatSend} />
+                    </div>
                   </div>
-                  <div className="pl-5">
-                    <InlineReply context={r} onSend={onChatSend} />
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CollapsibleSection>
         );
@@ -523,7 +589,7 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
       ) : analysis ? (
         <>
           {/* Overall Grade */}
-          <div className="bg-card rounded-lg border border-border/50 p-4">
+          <div className="bg-card rounded-lg border border-border/50 p-4 select-text" style={{ userSelect: 'text', WebkitUserSelect: 'text' }}>
             <div className="flex items-center gap-4">
               <div className={`text-4xl font-black font-mono ${gradeColor(analysis.overallGrade)}`}>
                 {analysis.overallGrade}
@@ -548,6 +614,16 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
 
           {/* Sections ranked by discrepancy score */}
           {sectionScores.map(s => renderSection(s.id))}
+
+          {/* Dismissed count */}
+          {dismissedFindings.size > 0 && (
+            <button
+              onClick={() => setDismissedFindings(new Set())}
+              className="w-full text-center text-[10px] text-muted-foreground hover:text-foreground py-2 transition-colors"
+            >
+              {dismissedFindings.size} finding{dismissedFindings.size !== 1 ? 's' : ''} dismissed — tap to restore
+            </button>
+          )}
         </>
       ) : (
         <div className="bg-card rounded-lg border border-border/50 p-6 text-center">
