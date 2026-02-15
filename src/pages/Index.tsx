@@ -216,6 +216,7 @@ const Index = () => {
               toleranceLevel={toleranceLevel}
               onAnalyzeStack={analyzeStack}
               onViewAIInsights={() => setActiveTab('ai-insights')}
+              onViewOutcomes={() => setActiveTab('outcomes')}
               goals={fullGoals}
               userId={user?.id}
             />

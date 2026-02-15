@@ -17,6 +17,7 @@ interface DashboardViewProps {
   toleranceLevel?: string;
   onAnalyzeStack?: () => void;
   onViewAIInsights?: () => void;
+  onViewOutcomes?: () => void;
   goals?: UserGoal[];
   userId?: string;
 }
@@ -35,7 +36,7 @@ function getProgress(goal: UserGoal, firstReading?: number): number | null {
   return Math.min(100, Math.max(0, Math.round(((current - baseline) / range) * 100)));
 }
 
-const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, toleranceLevel, onAnalyzeStack, onViewAIInsights, goals = [], userId }: DashboardViewProps) => {
+const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, toleranceLevel, onAnalyzeStack, onViewAIInsights, onViewOutcomes, goals = [], userId }: DashboardViewProps) => {
   const [selectedCompound, setSelectedCompound] = useState<Compound | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { readings, fetchReadings } = useGoalReadings(userId);
@@ -75,6 +76,7 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
               Goal Progress
             </h3>
             <div className="flex items-center gap-2">
+              <button onClick={onViewOutcomes} className="text-xs text-primary hover:underline">View All</button>
               <span className="text-xs text-muted-foreground">{onTrackCount} of {activeGoals.length} on track</span>
               <span className="text-lg font-mono font-bold text-primary">{overallProgress}%</span>
             </div>
@@ -99,7 +101,7 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
               const barColor = progressVal >= 75 ? 'bg-emerald-500' : progressVal >= 40 ? 'bg-primary' : progressVal >= 15 ? 'bg-amber-500' : 'bg-muted-foreground/40';
 
               return (
-                <div key={goal.id} className="space-y-1">
+                <div key={goal.id} className="space-y-1 cursor-pointer hover:opacity-80 transition-opacity" onClick={onViewOutcomes}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="text-sm flex-shrink-0">{icon}</span>
