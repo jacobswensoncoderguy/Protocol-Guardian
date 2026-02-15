@@ -1,7 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Beaker, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus, Calendar, FileText } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Beaker, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus, Calendar, FileText, X } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
+import { format } from 'date-fns';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarPicker } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
 
 interface BiomarkerHistoryProps {
   userId?: string;
@@ -66,6 +70,8 @@ export default function BiomarkerHistoryView({ userId, onUploadClick }: Biomarke
   const [loading, setLoading] = useState(true);
   const [expandedMarker, setExpandedMarker] = useState<string | null>(null);
   const [expandedUpload, setExpandedUpload] = useState<string | null>(null);
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
 
   const fetchUploads = useCallback(async () => {
     if (!userId) return;
@@ -84,9 +90,25 @@ export default function BiomarkerHistoryView({ userId, onUploadClick }: Biomarke
 
   useEffect(() => { fetchUploads(); }, [fetchUploads]);
 
-  // Build timeline of all biomarkers across uploads
+  // Filter uploads by date range
+  const filteredUploads = useMemo(() => {
+    return uploads.filter(upload => {
+      const d = new Date(upload.reading_date || upload.created_at);
+      if (dateFrom && d < dateFrom) return false;
+      if (dateTo) {
+        const endOfDay = new Date(dateTo);
+        endOfDay.setHours(23, 59, 59, 999);
+        if (d > endOfDay) return false;
+      }
+      return true;
+    });
+  }, [uploads, dateFrom, dateTo]);
+
+  const hasDateFilter = dateFrom || dateTo;
+
+  // Build timeline of all biomarkers across filtered uploads
   const allPoints: BiomarkerPoint[] = [];
-  uploads.forEach(upload => {
+  filteredUploads.forEach(upload => {
     const biomarkers = upload.ai_extracted_data?.biomarkers || [];
     biomarkers.forEach((b: any) => {
       allPoints.push({
@@ -165,7 +187,7 @@ export default function BiomarkerHistoryView({ userId, onUploadClick }: Biomarke
         </h3>
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-muted-foreground">
-            {uploads.length} upload{uploads.length !== 1 ? 's' : ''} · {markerTimelines.size} markers tracked
+            {filteredUploads.length} upload{filteredUploads.length !== 1 ? 's' : ''} · {markerTimelines.size} markers tracked
           </span>
           <button
             onClick={onUploadClick}
@@ -174,6 +196,69 @@ export default function BiomarkerHistoryView({ userId, onUploadClick }: Biomarke
             + Upload
           </button>
         </div>
+      </div>
+
+      {/* Date Range Filter */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <Popover>
+          <PopoverTrigger asChild>
+            <button className={cn(
+              "text-[11px] px-2.5 py-1.5 rounded-lg border transition-colors inline-flex items-center gap-1.5 font-medium",
+              dateFrom
+                ? "bg-primary/10 text-primary border-primary/20"
+                : "bg-secondary/30 text-muted-foreground border-border/50 hover:bg-secondary/50"
+            )}>
+              <Calendar className="w-3 h-3" />
+              {dateFrom ? format(dateFrom, 'MMM d, yyyy') : 'From'}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <CalendarPicker
+              mode="single"
+              selected={dateFrom}
+              onSelect={setDateFrom}
+              disabled={(date) => dateTo ? date > dateTo : false}
+              initialFocus
+              className={cn("p-3 pointer-events-auto")}
+            />
+          </PopoverContent>
+        </Popover>
+
+        <span className="text-[10px] text-muted-foreground">→</span>
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <button className={cn(
+              "text-[11px] px-2.5 py-1.5 rounded-lg border transition-colors inline-flex items-center gap-1.5 font-medium",
+              dateTo
+                ? "bg-primary/10 text-primary border-primary/20"
+                : "bg-secondary/30 text-muted-foreground border-border/50 hover:bg-secondary/50"
+            )}>
+              <Calendar className="w-3 h-3" />
+              {dateTo ? format(dateTo, 'MMM d, yyyy') : 'To'}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <CalendarPicker
+              mode="single"
+              selected={dateTo}
+              onSelect={setDateTo}
+              disabled={(date) => dateFrom ? date < dateFrom : false}
+              initialFocus
+              className={cn("p-3 pointer-events-auto")}
+            />
+          </PopoverContent>
+        </Popover>
+
+        {hasDateFilter && (
+          <button
+            onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}
+            className="text-[10px] px-2 py-1 rounded-lg bg-destructive/10 text-destructive border border-destructive/20 hover:bg-destructive/20 transition-colors inline-flex items-center gap-1 font-medium"
+          >
+            <X className="w-3 h-3" />
+            Clear
+          </button>
+        )}
       </div>
 
       {/* Key Marker Trend Cards */}
@@ -332,7 +417,7 @@ export default function BiomarkerHistoryView({ userId, onUploadClick }: Biomarke
             Upload Timeline
           </h4>
         </div>
-        {[...uploads].reverse().map(upload => {
+        {[...filteredUploads].reverse().map(upload => {
           const isExpanded = expandedUpload === upload.id;
           const biomarkers = upload.ai_extracted_data?.biomarkers || [];
           const flagged = biomarkers.filter((b: any) => b.status !== 'normal').length;
