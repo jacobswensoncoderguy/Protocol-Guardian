@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { MeasurementSystem, DoseUnitPreference } from '@/lib/measurements';
 
 export interface UserProfile {
   gender?: string | null;
@@ -8,6 +9,8 @@ export interface UserProfile {
   body_fat_pct?: number | null;
   age?: number | null;
   display_name?: string | null;
+  measurement_system?: MeasurementSystem;
+  dose_unit_preference?: DoseUnitPreference;
 }
 
 export interface ToleranceEntry {
@@ -25,7 +28,7 @@ export function useProfile(userId?: string) {
     if (!userId) return;
     const { data } = await (supabase as any)
       .from('profiles')
-      .select('gender, height_cm, weight_kg, body_fat_pct, age, display_name')
+      .select('gender, height_cm, weight_kg, body_fat_pct, age, display_name, measurement_system, dose_unit_preference')
       .eq('user_id', userId)
       .maybeSingle();
     if (data) setProfile(data);
@@ -53,7 +56,6 @@ export function useProfile(userId?: string) {
 
   const updateProfile = useCallback(async (updates: Partial<UserProfile>) => {
     if (!userId) return;
-    // Upsert profile
     const { error } = await (supabase as any)
       .from('profiles')
       .upsert({ user_id: userId, ...updates, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
@@ -74,6 +76,9 @@ export function useProfile(userId?: string) {
     }
   }, [userId]);
 
+  const measurementSystem: MeasurementSystem = profile?.measurement_system || 'metric';
+  const doseUnitPreference: DoseUnitPreference = profile?.dose_unit_preference || 'mg';
+
   return {
     profile,
     loading,
@@ -82,5 +87,7 @@ export function useProfile(userId?: string) {
     currentTolerance,
     setTolerance,
     toleranceHistory,
+    measurementSystem,
+    doseUnitPreference,
   };
 }

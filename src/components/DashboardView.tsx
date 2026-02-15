@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Compound } from '@/data/compounds';
-import { Target, Plus, ChevronLeft, ChevronRight, Shield, Scale, Zap, Rocket, Ruler, Weight, Percent, Calendar as CalendarIcon, Check } from 'lucide-react';
+import { Target, Plus, ChevronLeft, ChevronRight, Shield, Scale, Zap, Rocket, Ruler, Weight, Percent, Calendar as CalendarIcon, Check, ToggleLeft, Syringe } from 'lucide-react';
 import { StackAnalysis } from '@/hooks/useProtocolAnalysis';
 import { ToleranceLevel } from '@/hooks/useProtocolAnalysis';
 import { UserGoal } from '@/hooks/useGoals';
@@ -10,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { MeasurementSystem, DoseUnitPreference, displayHeight, displayWeight } from '@/lib/measurements';
 import ProtocolOutcomesCard from '@/components/ProtocolOutcomesCard';
 import ProtocolIntelligenceCard from '@/components/ProtocolIntelligenceCard';
 import MiniSparkline from '@/components/MiniSparkline';
@@ -37,6 +38,8 @@ interface DashboardViewProps {
   toleranceHistory?: ToleranceEntry[];
   onUpdateProfile?: (updates: Partial<UserProfile>) => Promise<void>;
   onToleranceChange?: (level: ToleranceLevel) => void;
+  measurementSystem?: MeasurementSystem;
+  doseUnitPreference?: DoseUnitPreference;
 }
 
 const toleranceMeta: Record<string, { Icon: typeof Shield; label: string; color: string }> = {
@@ -150,13 +153,15 @@ const ZoneLegend = ({ zoneIntensities, onZoneTap }: { zoneIntensities: Record<Bo
   );
 };
 // Profile & Tolerance info bar for Protocol Coverage screen
-const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpdateProfile, onToleranceChange, onGenderChange }: {
+const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpdateProfile, onToleranceChange, onGenderChange, measurementSystem = 'metric', doseUnitPreference = 'mg' }: {
   profile?: UserProfile | null;
   toleranceLevel?: string;
   toleranceHistory?: ToleranceEntry[];
   onUpdateProfile?: (updates: Partial<UserProfile>) => Promise<void>;
   onToleranceChange?: (level: ToleranceLevel) => void;
   onGenderChange?: (gender: string, temporary: boolean) => void;
+  measurementSystem?: MeasurementSystem;
+  doseUnitPreference?: DoseUnitPreference;
 }) => {
   const [editing, setEditing] = useState(false);
   const [height, setHeight] = useState(profile?.height_cm?.toString() || '');
@@ -230,6 +235,24 @@ const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpda
         </div>
       )}
 
+      {/* Measurement toggles */}
+      <div className="flex items-center gap-3 px-1">
+        <button
+          onClick={() => onUpdateProfile?.({ measurement_system: measurementSystem === 'metric' ? 'imperial' : 'metric' } as any)}
+          className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-colors"
+        >
+          <ToggleLeft className="w-3 h-3" />
+          <span className="font-medium">{measurementSystem === 'metric' ? 'Metric' : 'Imperial'}</span>
+        </button>
+        <button
+          onClick={() => onUpdateProfile?.({ dose_unit_preference: doseUnitPreference === 'mg' ? 'iu' : 'mg' } as any)}
+          className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-colors"
+        >
+          <Syringe className="w-3 h-3" />
+          <span className="font-medium">{doseUnitPreference === 'mg' ? 'mg/mcg' : 'IU'}</span>
+        </button>
+      </div>
+
       {/* Profile metrics row */}
       {!editing ? (
         <button
@@ -237,8 +260,8 @@ const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpda
           className="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-secondary/30 border border-border/20 hover:border-primary/30 transition-all"
         >
           <div className="flex items-center gap-3 flex-1 text-[10px] text-muted-foreground">
-            {profile?.height_cm && <span className="flex items-center gap-0.5"><Ruler className="w-3 h-3" />{profile.height_cm}cm</span>}
-            {profile?.weight_kg && <span className="flex items-center gap-0.5"><Weight className="w-3 h-3" />{profile.weight_kg}kg</span>}
+            {profile?.height_cm && <span className="flex items-center gap-0.5"><Ruler className="w-3 h-3" />{displayHeight(profile.height_cm, measurementSystem)}</span>}
+            {profile?.weight_kg && <span className="flex items-center gap-0.5"><Weight className="w-3 h-3" />{displayWeight(profile.weight_kg, measurementSystem)}</span>}
             {profile?.body_fat_pct != null && <span className="flex items-center gap-0.5"><Percent className="w-3 h-3" />{profile.body_fat_pct}%</span>}
             {profile?.age && <span className="flex items-center gap-0.5"><CalendarIcon className="w-3 h-3" />{profile.age}y</span>}
             {!profile?.height_cm && !profile?.weight_kg && <span className="text-muted-foreground/50">Tap to add measurements</span>}
@@ -284,7 +307,7 @@ const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpda
   );
 };
 
-const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, toleranceLevel, onAnalyzeStack, onViewAIInsights, onViewOutcomes, goals = [], userId, profile, toleranceHistory = [], onUpdateProfile, onToleranceChange }: DashboardViewProps) => {
+const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, toleranceLevel, onAnalyzeStack, onViewAIInsights, onViewOutcomes, goals = [], userId, profile, toleranceHistory = [], onUpdateProfile, onToleranceChange, measurementSystem = 'metric', doseUnitPreference = 'mg' }: DashboardViewProps) => {
   const { readings, fetchReadings, addReading } = useGoalReadings(userId);
   const [activeScreen, setActiveScreen] = useState(0);
   const [selectedZone, setSelectedZone] = useState<BodyZone | null>(null);
@@ -326,8 +349,29 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
 
   const bodyCoverage = useMemo(() => {
     const zones = Object.values(zoneIntensities);
-    const covered = zones.filter(v => v > 0.3).length;
-    return Math.round((covered / zones.length) * 100);
+    // Weighted average of all zone intensities (each zone's intensity is 0-1)
+    const totalIntensity = zones.reduce((sum, v) => sum + v, 0);
+    return Math.round((totalIntensity / zones.length) * 100);
+  }, [zoneIntensities]);
+
+  const coverageRationale = useMemo(() => {
+    const entries = Object.entries(zoneIntensities) as Array<[BodyZone, number]>;
+    const active = entries.filter(([, v]) => v > 0.1);
+    const uncovered = entries.filter(([, v]) => v <= 0.1);
+    const strongest = active.sort((a, b) => b[1] - a[1]).slice(0, 2);
+    const weakest = active.sort((a, b) => a[1] - b[1]).slice(0, 1);
+
+    let rationale = `${active.length}/${entries.length} zones active. `;
+    if (strongest.length > 0) {
+      rationale += `Strongest: ${strongest.map(([z, v]) => `${BODY_ZONES[z].label} (${Math.round(v * 100)}%)`).join(', ')}. `;
+    }
+    if (weakest.length > 0 && weakest[0][1] < 0.5) {
+      rationale += `Weakest: ${BODY_ZONES[weakest[0][0]].label} (${Math.round(weakest[0][1] * 100)}%). `;
+    }
+    if (uncovered.length > 0) {
+      rationale += `Uncovered: ${uncovered.map(([z]) => BODY_ZONES[z].label).join(', ')}.`;
+    }
+    return rationale.trim();
   }, [zoneIntensities]);
 
   const overallProgress = activeGoals.length > 0
@@ -397,8 +441,11 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
           <div className="w-full flex-shrink-0" style={{ minHeight: 'calc(100vh - 180px)' }}>
             <div className="flex flex-col items-center h-full pt-6 pb-4 px-4">
               <h2 className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-0.5">Protocol Coverage</h2>
-              <p className="text-[10px] text-muted-foreground/60 mb-2">
-                {compounds.length} compounds · {bodyCoverage}% body coverage
+              <p className="text-[10px] text-muted-foreground/60 mb-1">
+                {compounds.length} compounds · {bodyCoverage}% avg coverage
+              </p>
+              <p className="text-[9px] text-muted-foreground/40 mb-2 text-center max-w-[280px] leading-snug">
+                {coverageRationale}
               </p>
 
               {/* Profile & Tolerance Info Bar */}
@@ -409,6 +456,8 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
                 onUpdateProfile={onUpdateProfile}
                 onToleranceChange={onToleranceChange}
                 onGenderChange={handleGenderChange}
+                measurementSystem={measurementSystem}
+                doseUnitPreference={doseUnitPreference}
               />
 
               {/* Wireframe body – no 3D, no orbit controls */}

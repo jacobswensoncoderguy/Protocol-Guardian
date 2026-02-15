@@ -206,9 +206,11 @@ export type Database = {
           body_fat_pct: number | null
           created_at: string
           display_name: string | null
+          dose_unit_preference: string
           gender: string | null
           height_cm: number | null
           id: string
+          measurement_system: string
           updated_at: string
           user_id: string
           weight_kg: number | null
@@ -219,9 +221,11 @@ export type Database = {
           body_fat_pct?: number | null
           created_at?: string
           display_name?: string | null
+          dose_unit_preference?: string
           gender?: string | null
           height_cm?: number | null
           id?: string
+          measurement_system?: string
           updated_at?: string
           user_id: string
           weight_kg?: number | null
@@ -232,9 +236,11 @@ export type Database = {
           body_fat_pct?: number | null
           created_at?: string
           display_name?: string | null
+          dose_unit_preference?: string
           gender?: string | null
           height_cm?: number | null
           id?: string
+          measurement_system?: string
           updated_at?: string
           user_id?: string
           weight_kg?: number | null
