@@ -11,38 +11,63 @@ interface GeometricBodyProps {
 
 type Gender = 'male' | 'female';
 
-// Percentage-based hit areas over the image (top, left, width, height)
-const ZONE_REGIONS: Record<Gender, Record<BodyZone, { top: number; left: number; width: number; height: number }>> = {
+// Each zone: { top, left, width, height } in %, plus a borderRadius for organic shape
+interface ZoneRegion {
+  top: number; left: number; width: number; height: number;
+  borderRadius: string;
+}
+
+const ZONE_REGIONS: Record<Gender, Record<BodyZone, ZoneRegion[]>> = {
   male: {
-    brain:    { top: 1,  left: 28, width: 44, height: 13 },
-    immune:   { top: 14, left: 32, width: 36, height: 5 },
-    heart:    { top: 19, left: 24, width: 52, height: 12 },
-    arms:     { top: 19, left: 5,  width: 20, height: 20 },
-    core:     { top: 31, left: 26, width: 48, height: 14 },
-    hormonal: { top: 45, left: 28, width: 44, height: 8 },
-    legs:     { top: 53, left: 18, width: 64, height: 40 },
+    brain: [
+      { top: 1, left: 32, width: 36, height: 14, borderRadius: '50% 50% 40% 40%' },
+    ],
+    immune: [
+      { top: 15, left: 34, width: 32, height: 5, borderRadius: '30%' },
+    ],
+    heart: [
+      { top: 20, left: 26, width: 48, height: 14, borderRadius: '40% 40% 50% 50%' },
+    ],
+    arms: [
+      { top: 20, left: 6, width: 18, height: 22, borderRadius: '40% 30% 50% 40%' },
+      { top: 20, left: 76, width: 18, height: 22, borderRadius: '30% 40% 40% 50%' },
+    ],
+    core: [
+      { top: 34, left: 28, width: 44, height: 14, borderRadius: '20% 20% 30% 30%' },
+    ],
+    hormonal: [
+      { top: 48, left: 30, width: 40, height: 8, borderRadius: '30% 30% 40% 40%' },
+    ],
+    legs: [
+      { top: 56, left: 20, width: 24, height: 38, borderRadius: '30% 30% 20% 40%' },
+      { top: 56, left: 56, width: 24, height: 38, borderRadius: '30% 30% 40% 20%' },
+    ],
   },
   female: {
-    brain:    { top: 2,  left: 30, width: 40, height: 14 },
-    immune:   { top: 16, left: 34, width: 32, height: 4 },
-    heart:    { top: 20, left: 26, width: 48, height: 11 },
-    arms:     { top: 20, left: 8,  width: 20, height: 16 },
-    core:     { top: 31, left: 28, width: 44, height: 12 },
-    hormonal: { top: 43, left: 30, width: 40, height: 7 },
-    legs:     { top: 50, left: 20, width: 60, height: 42 },
+    brain: [
+      { top: 2, left: 33, width: 34, height: 14, borderRadius: '50% 50% 40% 40%' },
+    ],
+    immune: [
+      { top: 16, left: 36, width: 28, height: 5, borderRadius: '30%' },
+    ],
+    heart: [
+      { top: 21, left: 28, width: 44, height: 12, borderRadius: '40% 40% 50% 50%' },
+    ],
+    arms: [
+      { top: 21, left: 10, width: 16, height: 18, borderRadius: '40% 30% 50% 40%' },
+      { top: 21, left: 74, width: 16, height: 18, borderRadius: '30% 40% 40% 50%' },
+    ],
+    core: [
+      { top: 33, left: 30, width: 40, height: 12, borderRadius: '20% 20% 30% 30%' },
+    ],
+    hormonal: [
+      { top: 45, left: 32, width: 36, height: 7, borderRadius: '30% 30% 40% 40%' },
+    ],
+    legs: [
+      { top: 52, left: 22, width: 22, height: 40, borderRadius: '30% 30% 20% 40%' },
+      { top: 52, left: 56, width: 22, height: 40, borderRadius: '30% 30% 40% 20%' },
+    ],
   },
-};
-
-// Right-side arm zones
-const ZONE_REGIONS_RIGHT_ARM: Record<Gender, { top: number; left: number; width: number; height: number }> = {
-  male:   { top: 19, left: 75, width: 20, height: 20 },
-  female: { top: 20, left: 72, width: 20, height: 16 },
-};
-
-// Right-side leg zones
-const ZONE_REGIONS_RIGHT_LEG: Record<Gender, { top: number; left: number; width: number; height: number }> = {
-  male:   { top: 53, left: 50, width: 32, height: 40 },
-  female: { top: 50, left: 48, width: 32, height: 42 },
 };
 
 const GeometricBody = ({ zoneIntensities, onZoneTap, className = '' }: GeometricBodyProps) => {
@@ -59,31 +84,58 @@ const GeometricBody = ({ zoneIntensities, onZoneTap, className = '' }: Geometric
     onZoneTap?.(zone);
   };
 
-  const renderHitArea = (zone: BodyZone, region: { top: number; left: number; width: number; height: number }, key?: string) => {
+  const renderHitArea = (zone: BodyZone, region: ZoneRegion, idx: number) => {
     const info = BODY_ZONES[zone];
     const isHovered = hoveredZone === zone;
     const isPulsing = pulsingZone === zone;
+    const intensity = zoneIntensities[zone];
+    const isActive = intensity > 0.1;
+
+    // Subtle idle glow for active zones, brighter on hover, pulse on tap
+    const borderColor = isPulsing || isHovered
+      ? info.color
+      : isActive
+        ? `${info.color}`
+        : 'transparent';
+
+    const borderOpacity = isPulsing ? 1 : isHovered ? 0.8 : isActive ? 0.15 + intensity * 0.2 : 0;
 
     return (
       <div
-        key={key || zone}
+        key={`${zone}-${idx}`}
         className="absolute cursor-pointer"
         style={{
           top: `${region.top}%`,
           left: `${region.left}%`,
           width: `${region.width}%`,
           height: `${region.height}%`,
-          // Invisible by default — only shows glow on hover/pulse
-          borderRadius: '12px',
-          border: (isHovered || isPulsing) ? `1.5px solid ${info.color}` : '1.5px solid transparent',
+          borderRadius: region.borderRadius,
+          border: `1.5px solid ${borderColor}`,
+          borderColor: borderColor,
+          opacity: borderOpacity > 0 ? 1 : 1, // always present for click
           boxShadow: isPulsing
-            ? `0 0 20px ${info.color}80, 0 0 40px ${info.color}40, inset 0 0 15px ${info.color}30`
+            ? `0 0 24px ${info.color}90, 0 0 48px ${info.color}40, inset 0 0 16px ${info.color}25`
             : isHovered
-              ? `0 0 16px ${info.color}50, inset 0 0 10px ${info.color}20`
-              : 'none',
-          backgroundColor: isHovered ? `${info.color}10` : 'transparent',
+              ? `0 0 18px ${info.color}60, inset 0 0 10px ${info.color}15`
+              : isActive
+                ? `0 0 8px ${info.color}${Math.round(intensity * 30).toString(16).padStart(2, '0')}`
+                : 'none',
+          backgroundColor: isHovered
+            ? `${info.color}0A`
+            : 'transparent',
           transition: 'all 0.3s ease',
           animation: isPulsing ? 'zonePulseGlow 0.8s ease-out' : undefined,
+          // Make the border itself transparent when inactive
+          ...((!isHovered && !isPulsing && !isActive) && { borderColor: 'transparent' }),
+          ...((isActive && !isHovered && !isPulsing) && {
+            borderColor: info.color,
+            borderWidth: '1px',
+            opacity: borderOpacity,
+          }),
+          ...((isHovered || isPulsing) && {
+            borderColor: info.color,
+            borderWidth: isPulsing ? '2px' : '1.5px',
+          }),
         }}
         onClick={() => handleZoneTap(zone)}
         onPointerEnter={() => setHoveredZone(zone)}
@@ -133,37 +185,29 @@ const GeometricBody = ({ zoneIntensities, onZoneTap, className = '' }: Geometric
             draggable={false}
           />
 
-          {/* Invisible hit areas for each zone */}
-          {(Object.entries(regions) as Array<[BodyZone, typeof regions.brain]>).map(([zone, region]) => (
-            <>
-              {renderHitArea(zone, region)}
-              {zone === 'arms' && renderHitArea(zone, ZONE_REGIONS_RIGHT_ARM[gender], 'arms-right')}
-            </>
-          ))}
+          {/* Organic-shaped zone hit areas */}
+          {(Object.entries(regions) as Array<[BodyZone, ZoneRegion[]]>).map(([zone, regs]) =>
+            regs.map((reg, idx) => renderHitArea(zone as BodyZone, reg, idx))
+          )}
 
           {/* Hover tooltip */}
           {hoveredZone && (() => {
             const info = BODY_ZONES[hoveredZone];
             const intensity = zoneIntensities[hoveredZone];
-            const region = regions[hoveredZone];
-            const tooltipTop = region.top > 12 ? region.top - 6 : region.top + region.height + 1;
+            const firstRegion = regions[hoveredZone][0];
+            const tooltipTop = firstRegion.top > 12 ? firstRegion.top - 7 : firstRegion.top + firstRegion.height + 1;
 
             return (
               <div
-                className="absolute z-20 pointer-events-none px-3 py-1.5 rounded-lg text-center"
+                className="absolute z-20 pointer-events-none left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-lg text-center"
                 style={{
                   top: `${tooltipTop}%`,
-                  left: '50%',
-                  transform: 'translateX(-50%)',
                   backgroundColor: 'hsl(var(--card) / 0.95)',
                   border: `1px solid ${info.color}60`,
                   boxShadow: `0 0 16px ${info.color}30, 0 4px 12px hsl(0 0% 0% / 0.4)`,
                 }}
               >
-                <span
-                  className="text-[11px] font-semibold font-mono block"
-                  style={{ color: info.color }}
-                >
+                <span className="text-[11px] font-semibold font-mono block" style={{ color: info.color }}>
                   {info.label}
                 </span>
                 <span className="text-[9px] text-muted-foreground">
@@ -177,8 +221,9 @@ const GeometricBody = ({ zoneIntensities, onZoneTap, className = '' }: Geometric
 
       <style>{`
         @keyframes zonePulseGlow {
-          0% { box-shadow: 0 0 30px currentColor, inset 0 0 20px currentColor; opacity: 1; }
-          100% { box-shadow: 0 0 0px transparent; opacity: 0.5; }
+          0% { transform: scale(1.03); opacity: 1; }
+          50% { transform: scale(1.01); opacity: 0.7; }
+          100% { transform: scale(1); opacity: 0.5; }
         }
       `}</style>
     </div>
