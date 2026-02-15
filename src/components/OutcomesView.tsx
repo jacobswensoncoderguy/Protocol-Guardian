@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Target, TrendingUp, Plus, Loader2, RefreshCw, Activity, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+import { Target, TrendingUp, Plus, Loader2, RefreshCw, Activity, Sparkles, ChevronDown, ChevronUp, Ruler, Weight, Percent, Calendar as CalendarIcon } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import { UserGoal } from '@/hooks/useGoals';
 import { GoalReading, useGoalReadings } from '@/hooks/useGoalReadings';
 import { supabase } from '@/integrations/supabase/client';
+import { UserProfile } from '@/hooks/useProfile';
+import { MeasurementSystem, displayHeight, displayWeight } from '@/lib/measurements';
 import BiomarkerHistoryView from './BiomarkerHistoryView';
 
 interface OutcomesViewProps {
@@ -11,6 +13,8 @@ interface OutcomesViewProps {
   goals: UserGoal[];
   onRefreshGoals: () => void;
   onUploadClick?: () => void;
+  profile?: UserProfile | null;
+  measurementSystem?: MeasurementSystem;
 }
 
 const GOAL_TYPE_COLORS: Record<string, string> = {
@@ -56,7 +60,7 @@ function getStatusColor(progress: number | null): string {
   return 'bg-muted-foreground/40';
 }
 
-const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick }: OutcomesViewProps) => {
+const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, measurementSystem = 'metric' }: OutcomesViewProps) => {
   const { readings, loading: readingsLoading, fetchReadings, addReading } = useGoalReadings(userId);
   const [bodyImage, setBodyImage] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
@@ -130,6 +134,15 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick }: Outcomes
 
   return (
     <div className="space-y-4">
+      {/* Persistent Measurements Bar */}
+      {profile && (profile.height_cm || profile.weight_kg || profile.body_fat_pct || profile.age) && (
+        <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-secondary/30 border border-border/20 text-[10px] text-muted-foreground">
+          {profile.height_cm && <span className="flex items-center gap-0.5"><Ruler className="w-3 h-3" />{displayHeight(profile.height_cm, measurementSystem)}</span>}
+          {profile.weight_kg && <span className="flex items-center gap-0.5"><Weight className="w-3 h-3" />{displayWeight(profile.weight_kg, measurementSystem)}</span>}
+          {profile.body_fat_pct != null && <span className="flex items-center gap-0.5"><Percent className="w-3 h-3" />{profile.body_fat_pct}%</span>}
+          {profile.age && <span className="flex items-center gap-0.5"><CalendarIcon className="w-3 h-3" />{profile.age}y</span>}
+        </div>
+      )}
       {/* Overall Progress Header */}
       <div className="bg-card rounded-xl border border-border/50 p-4">
         <div className="flex items-center justify-between mb-3">

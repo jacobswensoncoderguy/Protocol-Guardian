@@ -14,7 +14,7 @@ const levels: { value: ToleranceLevel; label: string; Icon: typeof Shield; desc:
 ];
 
 const ToleranceSelector = ({ value, onChange }: ToleranceSelectorProps) => (
-  <div className="flex gap-1.5 flex-wrap">
+  <div className="flex gap-1.5">
     {levels.map(l => (
       <button
         key={l.value}

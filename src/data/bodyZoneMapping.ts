@@ -61,6 +61,7 @@ export const COMPOUND_ZONE_MAP: Record<string, Partial<Record<BodyZone, number>>
   // Additional aliases for common naming variations
   'nandrolone':     { arms: 0.9, legs: 0.8, hormonal: 0.5, heart: 0.2 },
   'nandrolone-decanoate': { arms: 0.9, legs: 0.8, hormonal: 0.5, heart: 0.2 },
+  'deca-nandrolone': { arms: 0.9, legs: 0.8, hormonal: 0.5, heart: 0.2 },
   'igf-1-lr3':      { arms: 0.95, legs: 0.7, core: 0.5, hormonal: 0.4 },
   'igf-1':          { arms: 0.9, legs: 0.6, core: 0.4, hormonal: 0.3 },
   'hgh':            { arms: 0.7, core: 0.6, hormonal: 0.8, legs: 0.5, immune: 0.3 },
@@ -68,6 +69,27 @@ export const COMPOUND_ZONE_MAP: Record<string, Partial<Record<BodyZone, number>>
   'mk-677':         { hormonal: 0.7, arms: 0.5, core: 0.4 },
   'creatine':       { arms: 0.7, legs: 0.5, brain: 0.3 },
   'glutathione':    { immune: 0.8, brain: 0.3, core: 0.3 },
+  // Exact user compound name matches (after normalization)
+  'anavar-10mg':    { arms: 0.9, core: 0.7, legs: 0.6 },
+  'test-cypionate': { hormonal: 0.95, arms: 0.85, core: 0.5, brain: 0.3, legs: 0.6, heart: 0.3 },
+  'winstrol-stanozolol': { arms: 0.85, core: 0.5, legs: 0.5 },
+  'tadalafil-5mg':  { heart: 0.7, hormonal: 0.5 },
+  'l-arginine-1000mg': { heart: 0.8, arms: 0.3 },
+  'l-citrulline-malate-21': { heart: 0.7, arms: 0.3 },
+  'pycnogenol-150mg': { heart: 0.6, immune: 0.4 },
+  'citrus-bergamot-1200mg': { heart: 0.7, core: 0.3 },
+  'qunolcoq10-200mg': { heart: 0.8, brain: 0.3, core: 0.3 },
+  'cabergoline-250mcg': { hormonal: 0.6, brain: 0.3 },
+  'hawthorn-berry-500mg': { heart: 0.6, immune: 0.3 },
+  'ksm-66-ashwagandha-600mg': { hormonal: 0.5, brain: 0.4, immune: 0.3 },
+  'magnesium-glycinate-240mg': { brain: 0.4, heart: 0.3, legs: 0.3 },
+  'milk-thistle-300mg': { core: 0.4, immune: 0.3 },
+  'nac-1000mg':     { immune: 0.6, core: 0.4, brain: 0.3 },
+  'super-omega-3-fish-oil': { heart: 0.6, brain: 0.4, immune: 0.3 },
+  'taurine':        { heart: 0.5, brain: 0.3, arms: 0.2 },
+  'tudca-500mg':    { core: 0.5, immune: 0.3 },
+  'vitamin-c-1g':   { immune: 0.6, core: 0.2 },
+  'collagen-peptides': { legs: 0.6, arms: 0.4, core: 0.2 },
 };
 
 /**

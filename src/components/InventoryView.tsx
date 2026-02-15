@@ -2,9 +2,8 @@ import { useState } from 'react';
 import { Compound, getStatus, getReorderDateString, CompoundCategory } from '@/data/compounds';
 import { getCycleStatus, getDaysRemainingWithCycling } from '@/lib/cycling';
 import { UserProtocol } from '@/hooks/useProtocols';
-import { Pencil, Check, X, Trash2, Plus, ChevronDown, Moon, Syringe } from 'lucide-react';
+import { Pencil, Check, X, Trash2, Plus, ChevronDown, Syringe } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { DoseUnitPreference } from '@/lib/measurements';
 import ConfirmDialog from '@/components/ConfirmDialog';
 
 interface InventoryViewProps {
@@ -13,8 +12,6 @@ interface InventoryViewProps {
   onDeleteCompound?: (id: string) => void;
   onAddCompound?: () => void;
   protocols?: UserProtocol[];
-  doseUnitPreference?: DoseUnitPreference;
-  onToggleDoseUnit?: () => void;
 }
 
 const categoryLabels: Record<CompoundCategory, string> = {
@@ -26,7 +23,7 @@ const categoryLabels: Record<CompoundCategory, string> = {
 
 const categoryOrder: CompoundCategory[] = ['peptide', 'injectable-oil', 'oral', 'powder'];
 
-const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCompound, protocols = [], doseUnitPreference = 'mg', onToggleDoseUnit }: InventoryViewProps) => {
+const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCompound, protocols = [] }: InventoryViewProps) => {
   const [filter, setFilter] = useState<CompoundCategory | 'all'>('all');
   const [sortBy, setSortBy] = useState<'name' | 'days'>('name');
   const activeCompounds = compounds.filter(c => !c.notes?.includes('[DORMANT]'));
@@ -68,18 +65,9 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
 
   return (
     <div className="space-y-3">
-      {/* Header with filters + dose unit toggle */}
+      {/* Header */}
       <div className="flex items-center justify-between mb-1">
         <h2 className="text-sm font-semibold text-foreground">Compounds</h2>
-        {onToggleDoseUnit && (
-          <button
-            onClick={onToggleDoseUnit}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 transition-colors"
-          >
-            <Syringe className="w-3 h-3" />
-            {doseUnitPreference === 'mg' ? 'mg/mcg' : 'IU'}
-          </button>
-        )}
       </div>
       <div className="flex flex-wrap gap-1.5 sm:gap-2">
         <div className="flex gap-1 overflow-x-auto scrollbar-thin -mx-1 px-1">
@@ -141,7 +129,7 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
         <Collapsible>
           <CollapsibleTrigger className="flex items-center gap-1.5 w-full text-left mb-2 group">
             <ChevronDown className="w-3.5 h-3.5 text-muted-foreground transition-transform duration-200 group-data-[state=closed]:-rotate-90" />
-            <Moon className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="text-xs">💤</span>
             <h3 className="text-sm font-semibold text-muted-foreground">Dormant</h3>
             <span className="text-[10px] text-muted-foreground font-mono">({dormantCompounds.length})</span>
           </CollapsibleTrigger>
@@ -162,6 +150,8 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
 
 const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; onUpdate: (id: string, updates: Partial<Compound>) => void; onDelete?: (id: string) => void }) => {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmDormant, setConfirmDormant] = useState(false);
+  const [doseUnit, setDoseUnit] = useState<'mg' | 'iu'>('mg');
   const [editing, setEditing] = useState(false);
   const [editState, setEditState] = useState<Record<string, string>>({});
 
@@ -336,15 +326,18 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
               <button
                 onClick={() => {
                   const isDormant = compound.notes?.includes('[DORMANT]');
-                  const newNotes = isDormant
-                    ? (compound.notes || '').replace('[DORMANT]', '').trim()
-                    : `[DORMANT] ${compound.notes || ''}`.trim();
-                  onUpdate(compound.id, { notes: newNotes });
+                  if (isDormant) {
+                    // Reactivate directly
+                    const newNotes = (compound.notes || '').replace('[DORMANT]', '').trim();
+                    onUpdate(compound.id, { notes: newNotes });
+                  } else {
+                    setConfirmDormant(true);
+                  }
                 }}
                 className="p-1.5 rounded active:bg-secondary/80 transition-colors text-muted-foreground touch-manipulation"
                 title={compound.notes?.includes('[DORMANT]') ? 'Reactivate compound' : 'Set dormant'}
               >
-                <Moon className="w-3.5 h-3.5" />
+                <span className="text-[11px]">💤</span>
               </button>
               {/* Delete — spaced away from other actions */}
               {onDelete && !confirmDelete && (
@@ -371,6 +364,20 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
           </div>
         </div>
       )}
+
+      {/* Dormant confirmation */}
+      <ConfirmDialog
+        open={confirmDormant}
+        onOpenChange={setConfirmDormant}
+        title="Set Compound Dormant?"
+        description={`Mark "${compound.name}" as dormant? It will be moved to the dormant section but kept in your inventory for future use.`}
+        confirmLabel="Set Dormant 💤"
+        onConfirm={() => {
+          const newNotes = `[DORMANT] ${compound.notes || ''}`.trim();
+          onUpdate(compound.id, { notes: newNotes });
+          setConfirmDormant(false);
+        }}
+      />
 
       {/* Progress bar */}
       <div className="h-1 bg-secondary rounded-full overflow-hidden mb-2">
@@ -529,6 +536,18 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
         </div>
       ) : (
         <>
+          {/* Per-card dose unit toggle for injectables/peptides */}
+          {(isPeptide || isOil) && (
+            <div className="flex justify-end mb-1.5">
+              <button
+                onClick={() => setDoseUnit(u => u === 'mg' ? 'iu' : 'mg')}
+                className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-medium bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors"
+              >
+                <Syringe className="w-2.5 h-2.5" />
+                {doseUnit === 'mg' ? 'mg/mcg' : 'IU'}
+              </button>
+            </div>
+          )}
           {isPeptide ? (
             <div className="grid grid-cols-2 gap-x-3 text-[10px]">
               <div>
