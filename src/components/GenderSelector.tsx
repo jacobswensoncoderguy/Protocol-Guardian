@@ -40,19 +40,19 @@ const GenderSelector = ({ currentGender, onGenderChange, locked = false }: Gende
 
   return (
     <>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-1.5">
         {genders.map(g => (
           <button
             key={g.id}
             onClick={() => handleSelect(g.id)}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all ${
               currentGender === g.id
                 ? 'bg-primary/15 border-primary/40 text-primary'
                 : 'bg-secondary/30 border-border/30 text-muted-foreground hover:border-primary/30'
             }`}
           >
-            <img src={g.img} alt={g.label} className="w-6 h-8 rounded object-cover" />
-            <span className="text-xs font-semibold">{g.label}</span>
+            <img src={g.img} alt={g.label} className="w-5 h-7 rounded object-cover" />
+            <span className="text-[11px] font-semibold">{g.label}</span>
           </button>
         ))}
       </div>
