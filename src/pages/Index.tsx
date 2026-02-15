@@ -61,6 +61,7 @@ const Index = () => {
   const {
     stackAnalysis, compoundAnalyses, loading: aiLoading, compoundLoading,
     toleranceLevel, setToleranceLevel, analyzeStack, analyzeCompound, needsRefresh,
+    toleranceComparison, compareLoading, compareAllLevels,
   } = useProtocolAnalysis(compounds, protocols);
 
   const {
@@ -222,6 +223,9 @@ const Index = () => {
               onApplyChange={onApplyChange}
               onRejectChange={onRejectChange}
               onApplyAll={onApplyAll}
+              toleranceComparison={toleranceComparison}
+              compareLoading={compareLoading}
+              onCompareAllLevels={compareAllLevels}
             />
           </TabsContent>
         </Tabs>
