@@ -202,10 +202,10 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
 
       {/* No goals state */}
       {activeGoals.length === 0 && (
-        <div className="bg-card rounded-xl border border-border/50 p-6 text-center">
+        <div className="bg-card rounded-xl border border-border/50 p-6 text-center cursor-pointer hover:border-primary/30 transition-colors" onClick={onViewOutcomes}>
           <Target className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
           <h3 className="text-sm font-semibold text-foreground mb-1">No Active Goals</h3>
-          <p className="text-xs text-muted-foreground">Set health goals to track your progress here.</p>
+          <p className="text-xs text-muted-foreground">Tap to set health goals and track your progress.</p>
         </div>
       )}
 
