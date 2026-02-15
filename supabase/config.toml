@@ -2,3 +2,6 @@ project_id = "cjaqpvstvvgkuilgnmtp"
 
 [functions.goal-interview]
 verify_jwt = false
+
+[functions.goal-expand]
+verify_jwt = false
