@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Scan, Activity, Bone, Flame, Scale, TrendingUp } from 'lucide-react';
+import { Scan, Activity, Bone, Flame, Scale, TrendingUp, Zap } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, RadialBarChart, RadialBar, LineChart, Line, Legend } from 'recharts';
 import { cn } from '@/lib/utils';
 
@@ -196,6 +196,56 @@ export default function DexaScanView({ uploads }: DexaScanViewProps) {
         {summary && (
           <p className="text-[10px] text-muted-foreground bg-secondary/20 rounded-lg px-2.5 py-2">{summary}</p>
         )}
+
+        {/* Recomposition Score */}
+        {previous && bodyFat && prevBodyFat && leanMass && prevLeanMass && (() => {
+          const fatDelta = prevBodyFat.value - bodyFat.value; // positive = fat lost
+          const leanDelta = leanMass.value - prevLeanMass.value; // positive = lean gained
+          // Score: weighted combo — fat loss (40%) + lean gain (40%) + VAT improvement (20%)
+          // Normalize: 1% fat loss ≈ 10pts, 1lb lean gain ≈ 5pts, 0.5lb VAT loss ≈ 10pts
+          const fatScore = Math.min(50, Math.max(-25, fatDelta * 10));
+          const leanScore = Math.min(50, Math.max(-25, leanDelta * 5));
+          const vatDelta = (prevVat?.value ?? 0) - (vat?.value ?? 0);
+          const vatScore = vat && prevVat ? Math.min(20, Math.max(-10, vatDelta * 20)) : 0;
+          const raw = fatScore + leanScore + vatScore;
+          const score = Math.round(Math.min(100, Math.max(0, 50 + raw)));
+          const grade = score >= 85 ? 'A' : score >= 70 ? 'B' : score >= 55 ? 'C' : score >= 40 ? 'D' : 'F';
+          const gradeColor = score >= 70 ? 'text-emerald-400' : score >= 50 ? 'text-amber-400' : 'text-destructive';
+          const gradeBg = score >= 70 ? 'bg-emerald-500/10 border-emerald-500/20' : score >= 50 ? 'bg-amber-500/10 border-amber-500/20' : 'bg-destructive/10 border-destructive/20';
+          const barColor = score >= 70 ? 'bg-emerald-500' : score >= 50 ? 'bg-amber-500' : 'bg-destructive';
+
+          return (
+            <div className={`rounded-xl p-3 border ${gradeBg}`}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5">
+                  <Zap className={`w-4 h-4 ${gradeColor}`} />
+                  <span className="text-xs font-semibold text-foreground">Recomposition Score</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-2xl font-mono font-bold ${gradeColor}`}>{grade}</span>
+                  <span className="text-xs font-mono text-muted-foreground">{score}/100</span>
+                </div>
+              </div>
+              {/* Progress bar */}
+              <div className="h-1.5 bg-secondary/40 rounded-full overflow-hidden mb-2">
+                <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${score}%` }} />
+              </div>
+              <div className="flex items-center gap-3 text-[10px]">
+                <span className={fatDelta > 0 ? 'text-emerald-400' : fatDelta < 0 ? 'text-amber-400' : 'text-muted-foreground'}>
+                  Fat: {fatDelta > 0 ? '-' : '+'}{Math.abs(fatDelta).toFixed(1)}{bodyFat.unit === '%' ? 'pp' : bodyFat.unit}
+                </span>
+                <span className={leanDelta > 0 ? 'text-emerald-400' : leanDelta < 0 ? 'text-amber-400' : 'text-muted-foreground'}>
+                  Lean: {leanDelta > 0 ? '+' : ''}{leanDelta.toFixed(1)} {leanMass.unit}
+                </span>
+                {vat && prevVat && (
+                  <span className={vatDelta > 0 ? 'text-emerald-400' : vatDelta < 0 ? 'text-amber-400' : 'text-muted-foreground'}>
+                    VAT: {vatDelta > 0 ? '-' : '+'}{Math.abs(vatDelta).toFixed(1)} {vat.unit}
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Key Metrics Gauges */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
