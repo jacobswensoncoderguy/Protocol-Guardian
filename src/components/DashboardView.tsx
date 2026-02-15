@@ -341,6 +341,7 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
         open={zoneDrawerOpen}
         onOpenChange={setZoneDrawerOpen}
         compounds={compounds}
+        toleranceLevel={toleranceLevel}
       />
     </div>
   );
