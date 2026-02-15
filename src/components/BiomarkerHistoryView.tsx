@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
+import BiomarkerComparisonChart from './BiomarkerComparisonChart';
 
 interface BiomarkerHistoryProps {
   userId?: string;
@@ -372,6 +373,15 @@ export default function BiomarkerHistoryView({ userId, onUploadClick }: Biomarke
             );
           })}
         </div>
+      )}
+
+      {/* Comparison Chart */}
+      {markerTimelines.size >= 2 && (
+        <BiomarkerComparisonChart
+          markerTimelines={markerTimelines}
+          markerColors={MARKER_COLORS}
+          defaultColor={DEFAULT_COLOR}
+        />
       )}
 
       {/* All markers by category */}
