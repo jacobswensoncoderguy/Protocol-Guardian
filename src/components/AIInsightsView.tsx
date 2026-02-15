@@ -44,7 +44,6 @@ const verdictColor = (verdict: string) => {
 const toleranceMeta: Record<string, { Icon: typeof Shield; label: string; color: string }> = {
   conservative: { Icon: Shield, label: 'Conservative', color: 'bg-blue-500/15 text-blue-400 border-blue-500/30' },
   moderate: { Icon: Scale, label: 'Moderate', color: 'bg-primary/15 text-primary border-primary/30' },
-  aggressive: { Icon: Zap, label: 'Aggressive', color: 'bg-amber-500/15 text-amber-400 border-amber-500/30' },
   performance: { Icon: Rocket, label: 'Performance', color: 'bg-rose-500/15 text-rose-400 border-rose-500/30' },
 };
 

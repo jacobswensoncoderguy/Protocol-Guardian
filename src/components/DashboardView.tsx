@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Compound } from '@/data/compounds';
-import { Target, Plus, ChevronLeft, ChevronRight, Shield, Scale, Zap, Rocket, Ruler, Weight, Percent, Calendar as CalendarIcon, Check, ToggleLeft } from 'lucide-react';
+import { Target, Plus, ChevronLeft, ChevronRight, Shield, Scale, Rocket, Ruler, Weight, Percent, Calendar as CalendarIcon, Check, ToggleLeft } from 'lucide-react';
 import { kgToLbs, lbsToKg } from '@/lib/measurements';
 import { StackAnalysis } from '@/hooks/useProtocolAnalysis';
 import { ToleranceLevel } from '@/hooks/useProtocolAnalysis';
@@ -46,7 +46,6 @@ interface DashboardViewProps {
 const toleranceMeta: Record<string, { Icon: typeof Shield; label: string; color: string }> = {
   conservative: { Icon: Shield, label: 'Conservative', color: 'text-blue-400' },
   moderate: { Icon: Scale, label: 'Moderate', color: 'text-primary' },
-  aggressive: { Icon: Zap, label: 'Aggressive', color: 'text-amber-400' },
   performance: { Icon: Rocket, label: 'Performance', color: 'text-rose-400' },
 };
 
@@ -182,13 +181,14 @@ const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpda
     return measurementSystem === 'imperial' ? kgToLbs(kg).toString() : kg.toString();
   }, [measurementSystem]);
 
-  // Re-sync form values when profile or measurement system changes
+  // Re-sync form values when profile or measurement system changes, but NOT while editing
   useEffect(() => {
+    if (editing) return;
     setHeight(toDisplayHeight(profile?.height_cm));
     setWeight(toDisplayWeight(profile?.weight_kg));
     setBodyFat(profile?.body_fat_pct?.toString() || '');
     setAge(profile?.age?.toString() || '');
-  }, [profile, measurementSystem, toDisplayHeight, toDisplayWeight]);
+  }, [profile, measurementSystem, toDisplayHeight, toDisplayWeight, editing]);
 
   const handleSave = async () => {
     if (!onUpdateProfile) return;
@@ -247,7 +247,7 @@ const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpda
           <div className="flex-1 min-w-0">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Dosing Tolerance</p>
             <div className="flex flex-wrap gap-1">
-              {(['conservative', 'moderate', 'aggressive', 'performance'] as ToleranceLevel[]).map(level => {
+            {(['conservative', 'moderate', 'performance'] as ToleranceLevel[]).map(level => {
                 const meta = toleranceMeta[level];
                 const isActive = toleranceLevel === level;
                 return (
@@ -257,7 +257,6 @@ const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpda
                     className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-1.5 rounded-lg border transition-all ${
                       isActive
                         ? level === 'conservative' ? 'bg-blue-500/10 border-blue-500/30 text-blue-400'
-                        : level === 'aggressive' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
                         : level === 'performance' ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
                         : 'bg-primary/10 border-primary/30 text-primary'
                         : 'bg-secondary/50 border-border/50 text-muted-foreground hover:bg-secondary'
@@ -298,7 +297,26 @@ const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpda
           <div className="flex items-center justify-between pb-1.5 border-b border-border/20">
             <span className="text-[9px] uppercase tracking-wider text-muted-foreground">Unit System</span>
             <button
-              onClick={() => onUpdateProfile?.({ measurement_system: measurementSystem === 'metric' ? 'imperial' : 'metric' } as any)}
+              onClick={async () => {
+                const newSystem = measurementSystem === 'metric' ? 'imperial' : 'metric';
+                // Convert current form values to the new system
+                const currentHeightVal = height ? parseFloat(height) : null;
+                const currentWeightVal = weight ? parseFloat(weight) : null;
+                if (currentHeightVal != null) {
+                  // Convert between inches and cm
+                  const newHeight = measurementSystem === 'metric'
+                    ? (currentHeightVal / 2.54).toFixed(1)
+                    : Math.round(currentHeightVal * 2.54).toString();
+                  setHeight(newHeight);
+                }
+                if (currentWeightVal != null) {
+                  const newWeight = measurementSystem === 'metric'
+                    ? kgToLbs(currentWeightVal).toString()
+                    : lbsToKg(currentWeightVal).toString();
+                  setWeight(newWeight);
+                }
+                await onUpdateProfile?.({ measurement_system: newSystem } as any);
+              }}
               className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 transition-colors"
             >
               <ToggleLeft className="w-3 h-3" />
