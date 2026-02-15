@@ -1,4 +1,4 @@
-import { Shield, Scale, Zap, Rocket } from 'lucide-react';
+import { Shield, Scale, Rocket } from 'lucide-react';
 import { ToleranceLevel } from '@/hooks/useProtocolAnalysis';
 
 interface ToleranceSelectorProps {
@@ -9,8 +9,7 @@ interface ToleranceSelectorProps {
 const levels: { value: ToleranceLevel; label: string; Icon: typeof Shield; desc: string }[] = [
   { value: 'conservative', label: 'Conservative', Icon: Shield, desc: 'Clinical-grade' },
   { value: 'moderate', label: 'Moderate', Icon: Scale, desc: 'Balanced' },
-  { value: 'aggressive', label: 'Aggressive', Icon: Zap, desc: 'Short-term max' },
-  { value: 'performance', label: 'Performance', Icon: Rocket, desc: 'Supra-human' },
+  { value: 'performance', label: 'Performance', Icon: Rocket, desc: 'Performance' },
 ];
 
 const ToleranceSelector = ({ value, onChange }: ToleranceSelectorProps) => (

@@ -4,7 +4,7 @@ import { Compound } from '@/data/compounds';
 import { UserProtocol } from '@/hooks/useProtocols';
 import { toast } from 'sonner';
 
-export type ToleranceLevel = 'conservative' | 'moderate' | 'aggressive' | 'performance';
+export type ToleranceLevel = 'conservative' | 'moderate' | 'performance';
 
 export interface Contraindication {
   compounds: string[];
@@ -50,7 +50,6 @@ export interface StackAnalysis {
 export interface ToleranceComparison {
   conservative: { grade: string; summary: string; topRisk: string; topStrength: string };
   moderate: { grade: string; summary: string; topRisk: string; topStrength: string };
-  aggressive: { grade: string; summary: string; topRisk: string; topStrength: string };
   performance: { grade: string; summary: string; topRisk: string; topStrength: string };
 }
 
