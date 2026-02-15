@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Square, Trash2, Check, X, CheckCheck, Brain, ArrowRight } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { ChatMessage, ChangeProposal, ProposedChange } from '@/hooks/useProtocolChat';
 
 interface ProtocolChatProps {
@@ -225,7 +226,11 @@ const ProtocolChat = ({
                   ? 'bg-primary/15 text-foreground'
                   : 'bg-secondary/50 text-foreground'
               }`}>
-                <p className="text-xs leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                {msg.content && (
+                  <div className="text-xs leading-relaxed prose prose-invert prose-xs max-w-none [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0.5 [&_h1]:text-sm [&_h2]:text-xs [&_h3]:text-xs [&_h1]:font-bold [&_h2]:font-semibold [&_h3]:font-semibold [&_strong]:text-foreground [&_a]:text-primary">
+                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  </div>
+                )}
                 {msg.proposal && (
                   <ProposalCard
                     proposal={msg.proposal}
