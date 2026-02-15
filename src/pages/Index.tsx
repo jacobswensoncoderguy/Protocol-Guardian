@@ -4,6 +4,7 @@ import { Compound } from '@/data/compounds';
 import { useCompounds } from '@/hooks/useCompounds';
 import { useProtocols } from '@/hooks/useProtocols';
 import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
 import { useGoals } from '@/hooks/useGoals';
 import { useTheme } from '@/hooks/useTheme';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
@@ -53,6 +54,7 @@ const LoadingSkeleton = () => (
 
 const Index = () => {
   const { user, signOut } = useAuth();
+  const { profile, currentTolerance, setTolerance, toleranceHistory, updateProfile } = useProfile(user?.id);
   const { compounds, loading, hasCompounds, updateCompound, addCompound, deleteCompound, refetch } = useCompounds(user?.id);
   const { isDark, toggle } = useTheme();
   const { createGoals, goals: fullGoals, fetchGoals: fetchFullGoals } = useGoals(user?.id);
@@ -71,9 +73,22 @@ const Index = () => {
 
   const {
     stackAnalysis, compoundAnalyses, loading: aiLoading, compoundLoading,
-    toleranceLevel, setToleranceLevel, analyzeStack, analyzeCompound, needsRefresh,
+    toleranceLevel, setToleranceLevel: setToleranceLevelLocal, analyzeStack, analyzeCompound, needsRefresh,
     toleranceComparison, compareLoading, compareAllLevels,
   } = useProtocolAnalysis(compounds, protocols);
+
+  // Sync persisted tolerance into local analysis hook
+  useEffect(() => {
+    if (currentTolerance && currentTolerance !== toleranceLevel) {
+      setToleranceLevelLocal(currentTolerance as any);
+    }
+  }, [currentTolerance]);
+
+  // Wrap tolerance change to persist
+  const handleToleranceChange = useCallback((level: any) => {
+    setToleranceLevelLocal(level);
+    setTolerance(level);
+  }, [setTolerance]);
 
   const conversationManager = useConversations(user?.id);
 
@@ -219,6 +234,9 @@ const Index = () => {
               onViewOutcomes={() => setActiveTab('outcomes')}
               goals={fullGoals}
               userId={user?.id}
+              profile={profile}
+              toleranceHistory={toleranceHistory}
+              onUpdateProfile={updateProfile}
             />
           </TabsContent>
           <TabsContent value="schedule" className="animate-slide-up">
@@ -247,7 +265,7 @@ const Index = () => {
               analysis={stackAnalysis}
               loading={aiLoading}
               toleranceLevel={toleranceLevel}
-              onToleranceChange={setToleranceLevel}
+              onToleranceChange={handleToleranceChange}
               onRefresh={analyzeStack}
               chatMessages={chatMessages}
               isChatStreaming={isChatStreaming}
