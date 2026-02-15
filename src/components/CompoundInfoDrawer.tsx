@@ -4,7 +4,8 @@ import { compoundBenefits, TimelineEvent } from '@/data/compoundBenefits';
 import { getCycleStatus } from '@/lib/cycling';
 import { getDaysRemainingWithCycling } from '@/lib/cycling';
 import { getStatus } from '@/data/compounds';
-import { Info, Clock } from 'lucide-react';
+import { Info, Clock, Pill, BarChart3 } from 'lucide-react';
+import { getCompoundIcon } from '@/lib/iconMap';
 import CompoundAISection from '@/components/CompoundAISection';
 import { CompoundAnalysis } from '@/hooks/useProtocolAnalysis';
 
@@ -138,7 +139,10 @@ const CompoundInfoDrawer = ({ compound, open, onOpenChange, compoundAnalysis, co
       <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto bg-card border-border rounded-t-2xl">
         <SheetHeader className="text-left pb-2">
           <SheetTitle className="flex items-center gap-3 text-foreground">
-            <span className="text-3xl">{benefits?.icon || '💊'}</span>
+            {(() => {
+              const IconComp = key ? getCompoundIcon(key) : Pill;
+              return <IconComp className="w-7 h-7 text-primary" />;
+            })()}
             <div>
               <div className="text-lg font-bold">{compound.name}</div>
               <div className="text-xs text-muted-foreground font-normal capitalize">{compound.category.replace('-', ' ')}</div>
@@ -172,12 +176,21 @@ const CompoundInfoDrawer = ({ compound, open, onOpenChange, compoundAnalysis, co
         {/* Benefits */}
         {benefits ? (
           <div className="space-y-2.5">
-            {benefits.benefits.map((b, i) => (
-              <div key={i} className="flex gap-2.5 items-start">
-                <span className="text-primary text-xs mt-0.5">●</span>
-                <p className="text-sm text-foreground/85 leading-relaxed">{b}</p>
-              </div>
-            ))}
+            {benefits.benefits.map((b, i) => {
+              // Strip leading emoji from benefit text
+              const cleaned = b.replace(/^[\p{Emoji}\p{Emoji_Presentation}\p{Emoji_Modifier}\p{Emoji_Component}\u200d\ufe0f]+\s*/u, '');
+              const isProjection = b.startsWith('📊');
+              return (
+                <div key={i} className="flex gap-2.5 items-start">
+                  {isProjection ? (
+                    <BarChart3 className="w-3.5 h-3.5 text-primary flex-shrink-0 mt-0.5" />
+                  ) : (
+                    <span className="text-primary text-xs mt-0.5">●</span>
+                  )}
+                  <p className={`text-sm leading-relaxed ${isProjection ? 'text-primary/90 font-medium' : 'text-foreground/85'}`}>{cleaned}</p>
+                </div>
+              );
+            })}
           </div>
         ) : (
           <div className="flex items-center gap-2 text-muted-foreground text-sm py-4">

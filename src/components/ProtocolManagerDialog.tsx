@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { UserProtocol, SUGGESTED_PROTOCOLS } from '@/hooks/useProtocols';
 import { Compound } from '@/data/compounds';
 import { Plus, Trash2, ChevronRight, ArrowLeft, Check, X, Sparkles, Pencil, Copy, StickyNote } from 'lucide-react';
+import ProtocolIcon from '@/components/ProtocolIcon';
 
 interface ProtocolManagerDialogProps {
   open: boolean;
@@ -221,7 +222,7 @@ const ProtocolManagerDialog = ({
                 <button onClick={() => { setView('list'); setSelectedProtocol(null); }} className="p-1 rounded hover:bg-secondary transition-colors">
                   <ArrowLeft className="w-4 h-4" />
                 </button>
-                <span>{selectedProtocol.icon} {selectedProtocol.name}</span>
+                <span className="flex items-center gap-1.5"><ProtocolIcon icon={selectedProtocol.icon} className="w-4 h-4 text-primary" /> {selectedProtocol.name}</span>
               </>
             )}
             {view === 'assign' && selectedProtocol && (
@@ -237,7 +238,7 @@ const ProtocolManagerDialog = ({
                 <button onClick={() => setView('detail')} className="p-1 rounded hover:bg-secondary transition-colors">
                   <ArrowLeft className="w-4 h-4" />
                 </button>
-                Bulk Edit — {selectedProtocol.icon} {selectedProtocol.name}
+                Bulk Edit — <ProtocolIcon icon={selectedProtocol.icon} className="w-4 h-4 text-primary inline" /> {selectedProtocol.name}
               </>
             )}
           </DialogTitle>
@@ -264,7 +265,7 @@ const ProtocolManagerDialog = ({
                           onClick={() => openDetail(p)}
                           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-border/50 bg-card hover:bg-secondary/50 transition-all text-left"
                         >
-                          <span className="text-lg">{p.icon}</span>
+                          <ProtocolIcon icon={p.icon} className="w-5 h-5 text-primary" />
                           <div className="min-w-0 flex-1">
                             <span className="text-sm font-medium text-foreground">{p.name}</span>
                             <p className="text-[10px] text-muted-foreground">{p.compoundIds.length} compounds</p>
@@ -308,7 +309,7 @@ const ProtocolManagerDialog = ({
                         onClick={() => handleUseSuggestion(s)}
                         className="flex items-center gap-2 px-2.5 py-2 rounded-lg border border-border/50 bg-card hover:bg-secondary/50 transition-all text-left"
                       >
-                        <span className="text-base">{s.icon}</span>
+                        <ProtocolIcon icon={s.icon} className="w-4 h-4 text-primary" />
                         <span className="text-[11px] font-medium text-foreground leading-tight">{s.name.replace(' Protocol', '')}</span>
                       </button>
                     ))}

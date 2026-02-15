@@ -1,3 +1,4 @@
+import { Shield, Scale, Zap, Rocket } from 'lucide-react';
 import { ToleranceLevel } from '@/hooks/useProtocolAnalysis';
 
 interface ToleranceSelectorProps {
@@ -5,11 +6,11 @@ interface ToleranceSelectorProps {
   onChange: (level: ToleranceLevel) => void;
 }
 
-const levels: { value: ToleranceLevel; label: string; icon: string; desc: string }[] = [
-  { value: 'conservative', label: 'Conservative', icon: '🛡️', desc: 'Clinical-grade' },
-  { value: 'moderate', label: 'Moderate', icon: '⚖️', desc: 'Balanced' },
-  { value: 'aggressive', label: 'Aggressive', icon: '⚡', desc: 'Short-term max' },
-  { value: 'performance', label: 'Performance', icon: '🚀', desc: 'Supra-human' },
+const levels: { value: ToleranceLevel; label: string; Icon: typeof Shield; desc: string }[] = [
+  { value: 'conservative', label: 'Conservative', Icon: Shield, desc: 'Clinical-grade' },
+  { value: 'moderate', label: 'Moderate', Icon: Scale, desc: 'Balanced' },
+  { value: 'aggressive', label: 'Aggressive', Icon: Zap, desc: 'Short-term max' },
+  { value: 'performance', label: 'Performance', Icon: Rocket, desc: 'Supra-human' },
 ];
 
 const ToleranceSelector = ({ value, onChange }: ToleranceSelectorProps) => (
@@ -24,7 +25,7 @@ const ToleranceSelector = ({ value, onChange }: ToleranceSelectorProps) => (
             : 'bg-secondary/50 border-border/50 text-muted-foreground hover:bg-secondary'
         }`}
       >
-        <span>{l.icon}</span>
+        <l.Icon className="w-3.5 h-3.5" />
         <span>{l.label}</span>
       </button>
     ))}
