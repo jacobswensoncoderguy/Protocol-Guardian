@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Package, DollarSign, LayoutDashboard, ShoppingCart, Sun, Moon, RefreshCw, LogOut, Sparkles, Brain, Target } from 'lucide-react';
+import { Calendar, Package, DollarSign, LayoutDashboard, ShoppingCart, Sun, Moon, RefreshCw, LogOut, Sparkles, Brain, Target, Activity } from 'lucide-react';
 import { Compound } from '@/data/compounds';
 import { useCompounds } from '@/hooks/useCompounds';
 import { useProtocols } from '@/hooks/useProtocols';
@@ -11,7 +11,7 @@ import { useProtocolAnalysis } from '@/hooks/useProtocolAnalysis';
 import { useProtocolChat } from '@/hooks/useProtocolChat';
 import { useConversations } from '@/hooks/useConversations';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import Onboarding from './Onboarding';
 import AddCompoundDialog from '@/components/AddCompoundDialog';
 import ProtocolManagerDialog from '@/components/ProtocolManagerDialog';
@@ -23,6 +23,7 @@ import InventoryView from '@/components/InventoryView';
 import CostProjectionView from '@/components/CostProjectionView';
 import ReorderView from '@/components/ReorderView';
 import AIInsightsView from '@/components/AIInsightsView';
+import OutcomesView from '@/components/OutcomesView';
 
 const LoadingSkeleton = () => (
   <div className="min-h-screen bg-background">
@@ -53,7 +54,9 @@ const Index = () => {
   const { user, signOut } = useAuth();
   const { compounds, loading, hasCompounds, updateCompound, addCompound, deleteCompound, refetch } = useCompounds(user?.id);
   const { isDark, toggle } = useTheme();
-  const { createGoals } = useGoals(user?.id);
+  const { createGoals, goals: fullGoals, fetchGoals: fetchFullGoals } = useGoals(user?.id);
+
+  useEffect(() => { if (user?.id) fetchFullGoals(); }, [user?.id, fetchFullGoals]);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showProtocolManager, setShowProtocolManager] = useState(false);
@@ -189,6 +192,10 @@ const Index = () => {
               <DollarSign className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
               <span className="hidden sm:inline">Costs</span>
             </TabsTrigger>
+            <TabsTrigger value="outcomes" className="flex-1 gap-1 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[11px] sm:text-xs py-2.5">
+              <Activity className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+              <span className="hidden sm:inline">Outcomes</span>
+            </TabsTrigger>
             <TabsTrigger value="ai-insights" className="flex-1 gap-1 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[11px] sm:text-xs py-2.5">
               <Brain className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
               <span className="hidden sm:inline">AI</span>
@@ -223,6 +230,9 @@ const Index = () => {
           </TabsContent>
           <TabsContent value="costs" className="animate-slide-up">
             <CostProjectionView compounds={compounds} protocols={protocols} />
+          </TabsContent>
+          <TabsContent value="outcomes" className="animate-slide-up">
+            <OutcomesView userId={user?.id} goals={fullGoals} onRefreshGoals={fetchFullGoals} />
           </TabsContent>
           <TabsContent value="ai-insights" className="animate-slide-up">
             <AIInsightsView

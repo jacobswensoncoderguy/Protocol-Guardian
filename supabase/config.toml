@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.goal-expand]
 verify_jwt = false
+
+[functions.generate-body-illustration]
+verify_jwt = false
