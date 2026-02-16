@@ -25,7 +25,7 @@ function getReorderSupplyDays(compound: Compound): number {
   if (effectiveDaily === 0) return 9999;
 
   const reorderUnits = compound.category === 'peptide'
-    ? compound.reorderQuantity * 10
+    ? (compound.reorderType === 'single' ? compound.reorderQuantity : compound.reorderQuantity * 10)
     : compound.reorderQuantity;
   const unitsPerUnit = compound.category === 'peptide' && compound.bacstatPerVial
     ? compound.bacstatPerVial
@@ -52,11 +52,14 @@ function buildProjection(compounds: Compound[]): MonthData[] {
   compounds.forEach(compound => {
     const daysLeft = getDaysRemainingWithCycling(compound);
     const cost = getReorderCost(compound);
+    const isSingleUnit = compound.reorderType === 'single';
     const displayQty = compound.category === 'peptide'
-      ? `${compound.reorderQuantity} kit${compound.reorderQuantity !== 1 ? 's' : ''}`
+      ? isSingleUnit
+        ? `${compound.reorderQuantity} vial${compound.reorderQuantity !== 1 ? 's' : ''}`
+        : `${compound.reorderQuantity} kit${compound.reorderQuantity !== 1 ? 's' : ''}`
       : `${compound.reorderQuantity}`;
     const displayPrice = compound.category === 'peptide'
-      ? (compound.kitPrice || 0)
+      ? isSingleUnit ? compound.unitPrice : (compound.kitPrice || 0)
       : compound.unitPrice;
 
     const supplyDays = getReorderSupplyDays(compound);
