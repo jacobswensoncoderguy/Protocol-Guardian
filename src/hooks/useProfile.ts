@@ -56,9 +56,18 @@ export function useProfile(userId?: string) {
 
   const updateProfile = useCallback(async (updates: Partial<UserProfile>) => {
     if (!userId) return;
+    const upsertData: any = { user_id: userId, ...updates, updated_at: new Date().toISOString() };
+
+    // Attach referrer on first profile creation
+    const referrerId = sessionStorage.getItem('referrer_id');
+    if (referrerId && referrerId !== userId) {
+      upsertData.referred_by = referrerId;
+      sessionStorage.removeItem('referrer_id');
+    }
+
     const { error } = await (supabase as any)
       .from('profiles')
-      .upsert({ user_id: userId, ...updates, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+      .upsert(upsertData, { onConflict: 'user_id' });
     if (error) console.error('Failed to update profile:', error);
     else setProfile(prev => prev ? { ...prev, ...updates } : updates);
   }, [userId]);

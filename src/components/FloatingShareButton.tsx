@@ -1,9 +1,12 @@
 import { Share2, Mail, MessageSquare, Link } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
 
 const FloatingShareButton = () => {
-  const url = 'https://superhumanprotocol.lovable.app';
+  const { user } = useAuth();
+  const baseUrl = 'https://superhumanprotocol.lovable.app';
+  const url = user ? `${baseUrl}?ref=${user.id}` : baseUrl;
 
   return (
     <div className="fixed bottom-6 right-6 z-50">
