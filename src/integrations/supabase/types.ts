@@ -105,6 +105,7 @@ export type Database = {
           unit_price: number
           unit_size: number
           updated_at: string
+          vial_size_ml: number | null
         }
         Insert: {
           bacstat_per_vial?: number | null
@@ -131,6 +132,7 @@ export type Database = {
           unit_price: number
           unit_size: number
           updated_at?: string
+          vial_size_ml?: number | null
         }
         Update: {
           bacstat_per_vial?: number | null
@@ -157,6 +159,7 @@ export type Database = {
           unit_price?: number
           unit_size?: number
           updated_at?: string
+          vial_size_ml?: number | null
         }
         Relationships: []
       }
@@ -401,6 +404,7 @@ export type Database = {
           unit_size: number
           updated_at: string
           user_id: string
+          vial_size_ml: number | null
         }
         Insert: {
           bacstat_per_vial?: number | null
@@ -430,6 +434,7 @@ export type Database = {
           unit_size: number
           updated_at?: string
           user_id: string
+          vial_size_ml?: number | null
         }
         Update: {
           bacstat_per_vial?: number | null
@@ -459,6 +464,7 @@ export type Database = {
           unit_size?: number
           updated_at?: string
           user_id?: string
+          vial_size_ml?: number | null
         }
         Relationships: []
       }

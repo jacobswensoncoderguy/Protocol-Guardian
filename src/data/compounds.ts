@@ -7,10 +7,11 @@ export interface Compound {
   name: string;
   category: CompoundCategory;
   // Vial/bottle info
-  unitSize: number;
-  unitLabel: string; // "mg vial", "mg (10mL)", "caps", "servings"
+  unitSize: number; // For oils: mg/mL concentration. For peptides: mg per vial. For orals/powders: count per bottle.
+  unitLabel: string; // "mg vial", "mg/mL", "caps", "servings"
   unitPrice: number; // per-unit price (per vial for oils, per bottle for orals/powders)
   kitPrice?: number; // peptides only: price per kit (10 vials)
+  vialSizeMl?: number; // oils only: vial volume in mL (e.g. 10)
   // Dosing
   dosePerUse: number;
   doseLabel: string; // "IU", "mg", "caps", "g"
@@ -40,10 +41,13 @@ export function getDaysRemaining(compound: Compound): number {
 
   // For peptides: supply is measured in IU (bacstat units), not mg
   // Each vial has bacstatPerVial IU when reconstituted, doses are in IU
-  // For non-peptides: supply = currentQuantity * unitSize
+  // For oils: supply = currentQuantity * concentration(mg/mL) * vialSizeMl
+  // For non-peptides/oils: supply = currentQuantity * unitSize
   const totalSupply = compound.category === 'peptide' && compound.bacstatPerVial
     ? compound.currentQuantity * compound.bacstatPerVial
-    : compound.currentQuantity * compound.unitSize;
+    : compound.category === 'injectable-oil' && compound.vialSizeMl
+      ? compound.currentQuantity * compound.unitSize * compound.vialSizeMl
+      : compound.currentQuantity * compound.unitSize;
 
   return Math.max(0, Math.floor(totalSupply / dailyConsumption));
 }
@@ -88,7 +92,11 @@ export function getMonthlyConsumptionCost(compound: Compound): number {
     return kitsPerMonth * (compound.kitPrice || 0);
   }
 
-  const unitsPerMonth = monthlyConsumption / compound.unitSize;
+  // For oils: unitSize is mg/mL, total mg per vial = unitSize * vialSizeMl
+  const totalMgPerUnit = compound.category === 'injectable-oil' && compound.vialSizeMl
+    ? compound.unitSize * compound.vialSizeMl
+    : compound.unitSize;
+  const unitsPerMonth = monthlyConsumption / totalMgPerUnit;
   return unitsPerMonth * compound.unitPrice;
 }
 
@@ -299,9 +307,10 @@ export const defaultCompounds: Compound[] = [
     id: 'nad-plus',
     name: 'NAD+',
     category: 'injectable-oil',
-    unitSize: 10000,
-    unitLabel: 'mg (10mL)',
+    unitSize: 1000,
+    unitLabel: 'mg/mL',
     unitPrice: 100,
+    vialSizeMl: 10,
     dosePerUse: 1000,
     doseLabel: 'mg',
     dosesPerDay: 1,
@@ -450,9 +459,10 @@ export const defaultCompounds: Compound[] = [
     id: 'deca',
     name: 'Deca (Nandrolone)',
     category: 'injectable-oil',
-    unitSize: 3000,
-    unitLabel: 'mg (10mL)',
+    unitSize: 300,
+    unitLabel: 'mg/mL',
     unitPrice: 48,
+    vialSizeMl: 10,
     dosePerUse: 83,
     doseLabel: 'mg',
     dosesPerDay: 1,
@@ -470,9 +480,10 @@ export const defaultCompounds: Compound[] = [
     id: 'test-cyp',
     name: 'Test Cypionate',
     category: 'injectable-oil',
-    unitSize: 2500,
-    unitLabel: 'mg (10mL)',
+    unitSize: 250,
+    unitLabel: 'mg/mL',
     unitPrice: 32,
+    vialSizeMl: 10,
     dosePerUse: 35,
     doseLabel: 'mg',
     dosesPerDay: 1,

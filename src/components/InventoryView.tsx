@@ -254,7 +254,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
           editDose = Math.round((iu / 100) * 1000) / 1000;
         }
       } else if (isOil) {
-        const concMgPerMl = compound.unitSize / 10;
+        const concMgPerMl = compound.unitSize; // unitSize is now mg/mL directly
         if (concMgPerMl > 0) editDose = Math.round((compound.dosePerUse / concMgPerMl) * 1000) / 1000;
       }
     } else if (doseUnit === 'iu' && (isPeptide || isOil)) {
@@ -287,6 +287,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
       cycleOffDays: (compound.cycleOffDays || 0).toString(),
       cycleStartDate: compound.cycleStartDate || '',
       editDoseUnit: doseUnit, // track which unit was used for editing
+      vialSizeMl: (compound.vialSizeMl || 10).toString(),
     };
     if (isPeptide) {
       state.kitPrice = (compound.kitPrice || 0).toString();
@@ -323,7 +324,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
           dose = vialMg > 0 ? Math.round((iu / reconVolIU) * vialMg * 1000) / 1000 : dose;
         }
       } else if (convIsOil) {
-        const concMgPerMl = size / 10;
+        const concMgPerMl = size; // unitSize is now mg/mL directly
         dose = Math.round(dose * concMgPerMl * 1000) / 1000;
       }
     } else if (eu === 'iu') {
@@ -350,6 +351,11 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
 
     const editIsPeptide = editState.category === 'peptide';
     const editIsOil = editState.category === 'injectable-oil';
+
+    if (editIsOil) {
+      const vialMl = parseFloat(editState.vialSizeMl || '10');
+      updates.vialSizeMl = isNaN(vialMl) || vialMl <= 0 ? 10 : vialMl;
+    }
 
     if (editIsPeptide) {
       const kit = parseFloat(editState.kitPrice || '0');
@@ -631,8 +637,12 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
             onChange={v => setEditState(s => ({ ...s, timing: v }))} type="text" />
           <EditRow label={isPeptide ? 'Vials' : 'Qty'} value={editState.currentQuantity}
             onChange={v => setEditState(s => ({ ...s, currentQuantity: v }))} type="number" />
-          <EditRow label="Per Unit" value={editState.unitSize} suffix={isPeptide ? 'mg' : compound.unitLabel.split(' ')[0]}
+          <EditRow label={isOil ? 'Conc.' : 'Per Unit'} value={editState.unitSize} suffix={isOil ? 'mg/mL' : isPeptide ? 'mg' : compound.unitLabel.split(' ')[0]}
             onChange={v => setEditState(s => ({ ...s, unitSize: v }))} type="number" />
+          {isOil && (
+            <EditRow label="Vial Size" value={editState.vialSizeMl || '10'} suffix="mL"
+              onChange={v => setEditState(s => ({ ...s, vialSizeMl: v }))} type="number" />
+          )}
           <EditRow label="Dose" value={editState.dosePerUse} suffix={
             editState.editDoseUnit === 'ml' ? 'mL' : editState.editDoseUnit === 'iu' ? 'IU' : compound.doseLabel
           }
