@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Compound } from '@/data/compounds';
-import { Target, Plus, ChevronLeft, ChevronRight, Shield, Scale, Rocket, Ruler, Weight, Percent, Calendar as CalendarIcon, Check, ToggleLeft } from 'lucide-react';
+import { Target, Plus, Shield, Scale, Rocket, Ruler, Weight, Percent, Calendar as CalendarIcon, Check, ToggleLeft, ChevronRight } from 'lucide-react';
 import { getGoalIcon } from '@/lib/goalIcons';
 import { kgToLbs, lbsToKg } from '@/lib/measurements';
 import { StackAnalysis } from '@/hooks/useProtocolAnalysis';
@@ -363,7 +363,6 @@ const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpda
 
 const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, toleranceLevel, onAnalyzeStack, onViewAIInsights, onViewOutcomes, goals = [], userId, profile, toleranceHistory = [], onUpdateProfile, onToleranceChange, measurementSystem = 'metric', doseUnitPreference = 'mg', onNavigateToInventory }: DashboardViewProps) => {
   const { readings, fetchReadings, addReading } = useGoalReadings(userId);
-  const [activeScreen, setActiveScreen] = useState(0);
   const [selectedZone, setSelectedZone] = useState<BodyZone | null>(null);
   const [zoneDrawerOpen, setZoneDrawerOpen] = useState(false);
   const [tempGender, setTempGender] = useState<string | null>(null);
@@ -446,165 +445,91 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
     ? { A: 95, B: 75, C: 55, D: 35, F: 15 }[stackAnalysis.overallGrade] ?? 50
     : 50;
 
-  // Swipe handling
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const handleTouchStart = (e: React.TouchEvent) => setTouchStart(e.touches[0].clientX);
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStart === null) return;
-    const diff = e.changedTouches[0].clientX - touchStart;
-    if (Math.abs(diff) > 50) {
-      setActiveScreen(diff > 0 ? 0 : 1);
-    }
-    setTouchStart(null);
-  };
-
   return (
     <div className="space-y-3">
-      {/* Swipeable hero area */}
-      <div
-        className="relative overflow-hidden rounded-xl border border-border/30 bg-card/40 backdrop-blur-sm"
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-      >
-        {/* Dot indicators */}
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 flex gap-1.5">
-          {[0, 1].map(i => (
-            <button
-              key={i}
-              onClick={() => setActiveScreen(i)}
-              className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
-                activeScreen === i ? 'w-4 bg-primary shadow-[0_0_8px_hsl(190,100%,50%)]' : 'bg-muted-foreground/30'
-              }`}
-            />
-          ))}
+      {/* Profile & Tolerance Info Bar */}
+      <ProfileToleranceBar
+        profile={{ ...profile, gender: displayGender }}
+        toleranceLevel={toleranceLevel}
+        toleranceHistory={toleranceHistory}
+        onUpdateProfile={onUpdateProfile}
+        onToleranceChange={onToleranceChange}
+        onGenderChange={handleGenderChange}
+        measurementSystem={measurementSystem}
+        onNavigateToInventory={onNavigateToInventory}
+      />
+
+      {/* Protocol Coverage — compact zone bar */}
+      <div className="rounded-xl border border-border/30 bg-card/40 backdrop-blur-sm p-4">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-xs uppercase tracking-[0.15em] text-muted-foreground font-semibold">Protocol Coverage</h2>
+          <span className="text-lg font-mono font-bold text-primary">{bodyCoverage}%</span>
         </div>
+        <div className="h-2 bg-secondary/50 rounded-full overflow-hidden mb-2">
+          <div className="h-full bg-gradient-to-r from-primary to-chart-2 rounded-full transition-all duration-700" style={{ width: `${bodyCoverage}%` }} />
+        </div>
+        <p className="text-[9px] text-muted-foreground/60 mb-3 leading-snug">
+          {activeCompounds.length} active compounds · {coverageRationale}
+        </p>
+        <ZoneLegend zoneIntensities={zoneIntensities} onZoneTap={handleZoneTap} />
+      </div>
 
-        {/* Navigation arrows */}
-        <button
-          onClick={() => setActiveScreen(0)}
-          className={`absolute left-1 top-1/2 -translate-y-1/2 z-10 p-1 rounded-full bg-secondary/50 text-muted-foreground hover:text-foreground transition-all ${activeScreen === 0 ? 'opacity-0 pointer-events-none' : 'opacity-70'}`}
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-        <button
-          onClick={() => setActiveScreen(1)}
-          className={`absolute right-1 top-1/2 -translate-y-1/2 z-10 p-1 rounded-full bg-secondary/50 text-muted-foreground hover:text-foreground transition-all ${activeScreen === 1 ? 'opacity-0 pointer-events-none' : 'opacity-70'}`}
-        >
-          <ChevronRight className="w-4 h-4" />
-        </button>
-
-        <div
-          className="flex transition-transform duration-500 ease-out"
-          style={{ transform: `translateX(-${activeScreen * 100}%)` }}
-        >
-          {/* Screen 1: Wireframe Body Map */}
-          <div className="w-full flex-shrink-0" style={{ minHeight: 'calc(100vh - 180px)' }}>
-            <div className="flex flex-col items-center h-full pt-6 pb-4 px-4">
-              <h2 className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-0.5">Protocol Coverage</h2>
-              <p className="text-[10px] text-muted-foreground/60 mb-1">
-                {activeCompounds.length} active compounds · {bodyCoverage}% avg coverage
-              </p>
-              <p className="text-[9px] text-muted-foreground/40 mb-2 text-center max-w-[280px] leading-snug">
-                {coverageRationale}
-              </p>
-
-              {/* Profile & Tolerance Info Bar */}
-              <ProfileToleranceBar
-                profile={{ ...profile, gender: displayGender }}
-                toleranceLevel={toleranceLevel}
-                toleranceHistory={toleranceHistory}
-                onUpdateProfile={onUpdateProfile}
-                onToleranceChange={onToleranceChange}
-                onGenderChange={handleGenderChange}
-                measurementSystem={measurementSystem}
-                onNavigateToInventory={onNavigateToInventory}
-              />
-
-              {/* Wireframe body – no 3D, no orbit controls */}
-              <div className="relative w-full flex-1 flex items-center justify-center" style={{ minHeight: 340 }}>
-                <div className="w-[260px] h-[380px]">
-                  <GeometricBody zoneIntensities={zoneIntensities} onZoneTap={handleZoneTap} gender={displayGender === 'female' ? 'female' : 'male'} />
-                </div>
-              </div>
-
-              {/* Tap instruction */}
-              <p className="text-[9px] text-muted-foreground/50 mb-3">Tap a zone to view compounds & impact</p>
-
-              {/* Zone legend */}
-              <div className="w-full">
-                <ZoneLegend zoneIntensities={zoneIntensities} onZoneTap={handleZoneTap} />
-              </div>
-
-              <p className="text-[9px] text-muted-foreground/40 mt-3 animate-pulse">
-                ← Swipe for goals →
-              </p>
-            </div>
-          </div>
-
-          {/* Screen 2: Goals + Sparklines */}
-          <div className="w-full flex-shrink-0" style={{ minHeight: 'calc(100vh - 180px)' }}>
-            <div className="flex flex-col h-full pt-6 pb-4 px-4">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Target className="w-4 h-4 text-primary" />
-                  Goal Progress
-                </h2>
-                <div className="flex items-center gap-2">
-                  <button onClick={onViewOutcomes} className="text-xs text-primary hover:underline">View All</button>
-                  <span className="text-lg font-mono font-bold text-primary">{overallProgress}%</span>
-                </div>
-              </div>
-
-              <div className="h-2 bg-secondary/50 rounded-full overflow-hidden mb-4">
-                <div className="h-full bg-primary rounded-full transition-all duration-700" style={{ width: `${overallProgress}%` }} />
-              </div>
-
-              {activeGoals.length > 0 ? (
-                <div className="space-y-2 flex-1 overflow-y-auto scrollbar-thin">
-                  {activeGoals.map(goal => {
-                    const goalReadings = readings.get(goal.id!) || [];
-                    const firstReading = goalReadings.length > 0 ? goalReadings[0].value : undefined;
-                    const progress = getProgress(goal, firstReading);
-                    const GoalIcon = getGoalIcon(goal.goal_type);
-                    const progressVal = progress ?? 0;
-                    const barColor = progressVal >= 75 ? 'bg-emerald-500' : progressVal >= 40 ? 'bg-primary' : progressVal >= 15 ? 'bg-amber-500' : 'bg-muted-foreground/40';
-                    const sparkData = goalReadings.slice(-7).map(r => r.value);
-
-                    return (
-                      <GoalCard
-                        key={goal.id}
-                        goal={goal}
-                        GoalIcon={GoalIcon}
-                        progress={progress}
-                        progressVal={progressVal}
-                        barColor={barColor}
-                        sparkData={sparkData}
-                        onViewOutcomes={onViewOutcomes}
-                        onAddReading={async (value: number) => {
-                          await addReading(goal.id!, value, goal.target_unit || '');
-                          toast.success('Reading added');
-                          fetchReadings(activeGoals.map(g => g.id!).filter(Boolean));
-                        }}
-                      />
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="flex-1 flex items-center justify-center cursor-pointer" onClick={onViewOutcomes}>
-                  <div className="text-center">
-                    <Target className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
-                    <h3 className="text-sm font-semibold text-foreground mb-1">No Active Goals</h3>
-                    <p className="text-xs text-muted-foreground">Tap to set goals and track progress</p>
-                  </div>
-                </div>
-              )}
-
-              <p className="text-[9px] text-muted-foreground/40 mt-3 text-center animate-pulse">
-                ← Swipe for body map →
-              </p>
-            </div>
+      {/* Goal Progress */}
+      <div className="rounded-xl border border-border/30 bg-card/40 backdrop-blur-sm p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <Target className="w-4 h-4 text-primary" />
+            Goal Progress
+          </h2>
+          <div className="flex items-center gap-2">
+            <button onClick={onViewOutcomes} className="text-xs text-primary hover:underline">View All</button>
+            <span className="text-lg font-mono font-bold text-primary">{overallProgress}%</span>
           </div>
         </div>
+
+        <div className="h-2 bg-secondary/50 rounded-full overflow-hidden mb-3">
+          <div className="h-full bg-primary rounded-full transition-all duration-700" style={{ width: `${overallProgress}%` }} />
+        </div>
+
+        {activeGoals.length > 0 ? (
+          <div className="space-y-2">
+            {activeGoals.map(goal => {
+              const goalReadings = readings.get(goal.id!) || [];
+              const firstReading = goalReadings.length > 0 ? goalReadings[0].value : undefined;
+              const progress = getProgress(goal, firstReading);
+              const GoalIcon = getGoalIcon(goal.goal_type);
+              const progressVal = progress ?? 0;
+              const barColor = progressVal >= 75 ? 'bg-emerald-500' : progressVal >= 40 ? 'bg-primary' : progressVal >= 15 ? 'bg-amber-500' : 'bg-muted-foreground/40';
+              const sparkData = goalReadings.slice(-7).map(r => r.value);
+
+              return (
+                <GoalCard
+                  key={goal.id}
+                  goal={goal}
+                  GoalIcon={GoalIcon}
+                  progress={progress}
+                  progressVal={progressVal}
+                  barColor={barColor}
+                  sparkData={sparkData}
+                  onViewOutcomes={onViewOutcomes}
+                  onAddReading={async (value: number) => {
+                    await addReading(goal.id!, value, goal.target_unit || '');
+                    toast.success('Reading added');
+                    fetchReadings(activeGoals.map(g => g.id!).filter(Boolean));
+                  }}
+                />
+              );
+            })}
+          </div>
+        ) : (
+          <div className="py-8 flex items-center justify-center cursor-pointer" onClick={onViewOutcomes}>
+            <div className="text-center">
+              <Target className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+              <h3 className="text-sm font-semibold text-foreground mb-1">No Active Goals</h3>
+              <p className="text-xs text-muted-foreground">Tap to set goals and track progress</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Protocol Intelligence */}
