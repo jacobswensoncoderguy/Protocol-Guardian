@@ -106,7 +106,7 @@ const NeonProgressBar = ({ progress, color, label }: { progress: number; color: 
 );
 
 const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, measurementSystem = 'metric', onCreateGoal, onUpdateGoal, onDeleteGoal }: OutcomesViewProps) => {
-  const { readings, loading: readingsLoading, fetchReadings, addReading } = useGoalReadings(userId);
+  const { readings, loading: readingsLoading, fetchReadings, addReading, updateReading, deleteReading } = useGoalReadings(userId);
   const [expandedGoal, setExpandedGoal] = useState<string | null>(null);
   const [addReadingGoal, setAddReadingGoal] = useState<string | null>(null);
   const [newReadingValue, setNewReadingValue] = useState('');
@@ -115,6 +115,8 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [deleteConfirmGoal, setDeleteConfirmGoal] = useState<string | null>(null);
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
+  const [editingReadingId, setEditingReadingId] = useState<string | null>(null);
+  const [editReadingForm, setEditReadingForm] = useState<{ value: string; unit: string; reading_date: string }>({ value: '', unit: '', reading_date: '' });
   const [chatGoal, setChatGoal] = useState<UserGoal | null>(null);
   const [editForm, setEditForm] = useState<{
     title: string; target_value: string; baseline_value: string; target_unit: string; target_date: string; description: string; baseline_date: string; baseline_label: string; target_label: string;
@@ -532,18 +534,77 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
                             <Clock className="w-3 h-3" />
                             Reading History ({goalReadings.length} entries)
                           </p>
-                          <div className="space-y-1 max-h-36 overflow-y-auto scrollbar-thin">
-                            {goalReadings.slice().reverse().map(r => (
-                              <div key={r.id} className="flex items-center justify-between text-xs px-3 py-2 rounded-lg bg-secondary/20 border border-border/15">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: neon.solid, boxShadow: `0 0 4px ${neon.solid}` }} />
-                                  <span className="text-muted-foreground font-mono text-[10px]">
-                                    {new Date(r.reading_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                  </span>
+                          <div className="space-y-1 max-h-48 overflow-y-auto scrollbar-thin">
+                            {goalReadings.slice().reverse().map(r => {
+                              const isEditingReading = editingReadingId === r.id;
+                              if (isEditingReading) {
+                                return (
+                                  <div key={r.id} className="px-3 py-2 rounded-lg bg-secondary/30 border border-primary/30 space-y-2">
+                                    <div className="grid grid-cols-3 gap-2">
+                                      <div>
+                                        <label className="text-[8px] text-muted-foreground uppercase">Date</label>
+                                        <input type="date" value={editReadingForm.reading_date}
+                                          onChange={e => setEditReadingForm(f => ({ ...f, reading_date: e.target.value }))}
+                                          className="w-full px-1.5 py-1 rounded border border-border/50 bg-secondary text-[11px] text-foreground focus:outline-none focus:border-primary/50" />
+                                      </div>
+                                      <div>
+                                        <label className="text-[8px] text-muted-foreground uppercase">Value</label>
+                                        <input type="number" step="any" value={editReadingForm.value}
+                                          onChange={e => setEditReadingForm(f => ({ ...f, value: e.target.value }))}
+                                          className="w-full px-1.5 py-1 rounded border border-border/50 bg-secondary text-[11px] text-foreground focus:outline-none focus:border-primary/50" />
+                                      </div>
+                                      <div>
+                                        <label className="text-[8px] text-muted-foreground uppercase">Unit</label>
+                                        <input value={editReadingForm.unit}
+                                          onChange={e => setEditReadingForm(f => ({ ...f, unit: e.target.value }))}
+                                          className="w-full px-1.5 py-1 rounded border border-border/50 bg-secondary text-[11px] text-foreground focus:outline-none focus:border-primary/50" />
+                                      </div>
+                                    </div>
+                                    <div className="flex gap-1.5">
+                                      <button onClick={async () => {
+                                        await updateReading(r.id, goal.id!, {
+                                          value: parseFloat(editReadingForm.value),
+                                          unit: editReadingForm.unit,
+                                          reading_date: editReadingForm.reading_date,
+                                        });
+                                        setEditingReadingId(null);
+                                        toast.success('Reading updated');
+                                      }} className="flex-1 py-1 rounded bg-primary text-primary-foreground text-[10px] font-medium flex items-center justify-center gap-1">
+                                        <Check className="w-3 h-3" /> Save
+                                      </button>
+                                      <button onClick={() => setEditingReadingId(null)} className="px-2 py-1 rounded bg-secondary text-muted-foreground text-[10px]">Cancel</button>
+                                    </div>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <div key={r.id} className="flex items-center justify-between text-xs px-3 py-2 rounded-lg bg-secondary/20 border border-border/15 group">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: neon.solid, boxShadow: `0 0 4px ${neon.solid}` }} />
+                                    <span className="text-muted-foreground font-mono text-[10px]">
+                                      {new Date(r.reading_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-mono font-bold" style={{ color: neon.solid }}>{r.value} {r.unit}</span>
+                                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <button onClick={() => {
+                                        setEditingReadingId(r.id);
+                                        setEditReadingForm({ value: String(r.value), unit: r.unit, reading_date: r.reading_date });
+                                      }} className="p-0.5 rounded hover:bg-secondary/50 text-muted-foreground hover:text-foreground">
+                                        <Edit2 className="w-3 h-3" />
+                                      </button>
+                                      <button onClick={async () => {
+                                        await deleteReading(r.id, goal.id!);
+                                        toast.success('Reading deleted');
+                                      }} className="p-0.5 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive">
+                                        <Trash2 className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                  </div>
                                 </div>
-                                <span className="font-mono font-bold" style={{ color: neon.solid }}>{r.value} {r.unit}</span>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
                       )}

@@ -53,5 +53,25 @@ export function useGoalReadings(userId?: string) {
     else await fetchReadings([goalId]);
   }, [userId, fetchReadings]);
 
-  return { readings, loading, fetchReadings, addReading };
+  const updateReading = useCallback(async (readingId: string, goalId: string, updates: { value?: number; unit?: string; reading_date?: string; notes?: string | null }) => {
+    if (!userId) return;
+    const { error } = await supabase
+      .from('user_goal_readings')
+      .update(updates)
+      .eq('id', readingId);
+    if (error) console.error('Failed to update reading:', error);
+    else await fetchReadings([goalId]);
+  }, [userId, fetchReadings]);
+
+  const deleteReading = useCallback(async (readingId: string, goalId: string) => {
+    if (!userId) return;
+    const { error } = await supabase
+      .from('user_goal_readings')
+      .delete()
+      .eq('id', readingId);
+    if (error) console.error('Failed to delete reading:', error);
+    else await fetchReadings([goalId]);
+  }, [userId, fetchReadings]);
+
+  return { readings, loading, fetchReadings, addReading, updateReading, deleteReading };
 }
