@@ -12,6 +12,9 @@ export interface UserGoal {
   baseline_value?: number;
   current_value?: number;
   target_date?: string;
+  baseline_date?: string;
+  baseline_label?: string;
+  target_label?: string;
   status: string;
   priority: number;
 }
@@ -70,6 +73,9 @@ export function useGoals(userId?: string) {
     if (updates.baseline_value !== undefined) dbUpdates.baseline_value = updates.baseline_value;
     if (updates.current_value !== undefined) dbUpdates.current_value = updates.current_value;
     if (updates.target_date !== undefined) dbUpdates.target_date = updates.target_date;
+    if (updates.baseline_date !== undefined) dbUpdates.baseline_date = updates.baseline_date;
+    if (updates.baseline_label !== undefined) dbUpdates.baseline_label = updates.baseline_label;
+    if (updates.target_label !== undefined) dbUpdates.target_label = updates.target_label;
     if (updates.status !== undefined) dbUpdates.status = updates.status;
     if (updates.priority !== undefined) dbUpdates.priority = updates.priority;
 

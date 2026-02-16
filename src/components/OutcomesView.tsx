@@ -117,8 +117,8 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
   const [chatGoal, setChatGoal] = useState<UserGoal | null>(null);
   const [editForm, setEditForm] = useState<{
-    title: string; target_value: string; baseline_value: string; target_unit: string; target_date: string; description: string; baseline_date: string;
-  }>({ title: '', target_value: '', baseline_value: '', target_unit: '', target_date: '', description: '', baseline_date: '' });
+    title: string; target_value: string; baseline_value: string; target_unit: string; target_date: string; description: string; baseline_date: string; baseline_label: string; target_label: string;
+  }>({ title: '', target_value: '', baseline_value: '', target_unit: '', target_date: '', description: '', baseline_date: '', baseline_label: '', target_label: '' });
   const [celebrateGoal, setCelebrateGoal] = useState<UserGoal | null>(null);
   const [showAchievements, setShowAchievements] = useState(false);
 
@@ -188,24 +188,25 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
       target_unit: goal.target_unit || '',
       target_date: goal.target_date || '',
       description: goal.description || '',
-      baseline_date: (goal as any).baseline_date || '',
+      baseline_date: goal.baseline_date || '',
+      baseline_label: goal.baseline_label || 'Baseline',
+      target_label: goal.target_label || 'Target',
     });
   };
 
   const handleSaveEdit = async (goalId: string) => {
     if (onUpdateGoal && editForm.title.trim()) {
-      const updates: Partial<UserGoal> & { baseline_date?: string } = {
+      const updates: Partial<UserGoal> = {
         title: editForm.title.trim(),
         target_value: editForm.target_value ? parseFloat(editForm.target_value) : undefined,
         baseline_value: editForm.baseline_value ? parseFloat(editForm.baseline_value) : undefined,
         target_unit: editForm.target_unit || undefined,
         target_date: editForm.target_date || undefined,
         description: editForm.description || undefined,
+        baseline_date: editForm.baseline_date || undefined,
+        baseline_label: editForm.baseline_label || 'Baseline',
+        target_label: editForm.target_label || 'Target',
       };
-      // Save baseline_date directly via supabase
-      if (editForm.baseline_date) {
-        await (supabase as any).from('user_goals').update({ baseline_date: editForm.baseline_date }).eq('id', goalId);
-      }
       await onUpdateGoal(goalId, updates);
       toast.success('Goal updated');
     }
@@ -298,8 +299,8 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
               // Compute time progress for deadline gauge
               let timeProgress = 0;
               const behindSchedule = goal.target_date && progress !== null && (() => {
-                const baselineDate = (goal as any).baseline_date
-                  ? new Date((goal as any).baseline_date)
+                const baselineDate = goal.baseline_date
+                  ? new Date(goal.baseline_date)
                   : goalReadings[0]?.reading_date
                     ? new Date(goalReadings[0].reading_date)
                     : null;
@@ -399,12 +400,12 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
                           </div>
                           <div className="grid grid-cols-3 gap-2">
                             <div>
-                              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block mb-0.5">Baseline</label>
+                              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block mb-0.5">{editForm.baseline_label || 'Baseline'}</label>
                               <input type="number" step="any" value={editForm.baseline_value} onChange={e => setEditForm(f => ({ ...f, baseline_value: e.target.value }))}
                                 placeholder="—" className="w-full px-2 py-1.5 rounded-lg border border-border/50 bg-secondary text-sm text-foreground focus:outline-none focus:border-primary/50" />
                             </div>
                             <div>
-                              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block mb-0.5">Target</label>
+                              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block mb-0.5">{editForm.target_label || 'Target'}</label>
                               <input type="number" step="any" value={editForm.target_value} onChange={e => setEditForm(f => ({ ...f, target_value: e.target.value }))}
                                 placeholder="—" className="w-full px-2 py-1.5 rounded-lg border border-border/50 bg-secondary text-sm text-foreground focus:outline-none focus:border-primary/50" />
                             </div>
@@ -412,6 +413,18 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
                               <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block mb-0.5">Unit</label>
                               <input value={editForm.target_unit} onChange={e => setEditForm(f => ({ ...f, target_unit: e.target.value }))}
                                 placeholder="e.g. lbs, %" className="w-full px-2 py-1.5 rounded-lg border border-border/50 bg-secondary text-sm text-foreground focus:outline-none focus:border-primary/50" />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block mb-0.5">Baseline Label</label>
+                              <input value={editForm.baseline_label} onChange={e => setEditForm(f => ({ ...f, baseline_label: e.target.value }))}
+                                placeholder="Baseline" className="w-full px-2 py-1.5 rounded-lg border border-border/50 bg-secondary text-sm text-foreground focus:outline-none focus:border-primary/50" />
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block mb-0.5">Target Label</label>
+                              <input value={editForm.target_label} onChange={e => setEditForm(f => ({ ...f, target_label: e.target.value }))}
+                                placeholder="Target" className="w-full px-2 py-1.5 rounded-lg border border-border/50 bg-secondary text-sm text-foreground focus:outline-none focus:border-primary/50" />
                             </div>
                           </div>
                           <div>
@@ -446,7 +459,7 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
                         <NeonGauge
                           value={goal.baseline_value ?? 0}
                           max={goal.target_value ?? 100}
-                          label="Baseline"
+                          label={goal.baseline_label || 'Baseline'}
                           color={`${neon.solid}88`}
                           unit={goal.target_unit ?? undefined}
                         />
@@ -460,7 +473,7 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
                         <NeonGauge
                           value={goal.target_value ?? 0}
                           max={goal.target_value ?? 100}
-                          label="Target"
+                          label={goal.target_label || 'Target'}
                           color={`${neon.solid}66`}
                           unit={goal.target_unit ?? undefined}
                         />
