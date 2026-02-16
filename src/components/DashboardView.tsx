@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Compound } from '@/data/compounds';
 import { Target, Plus, Shield, Scale, Rocket, Ruler, Weight, Percent, Calendar as CalendarIcon, Check, ToggleLeft, ChevronRight } from 'lucide-react';
+import { AppFeatures } from '@/lib/appFeatures';
+import FeatureTeaserCard from '@/components/FeatureTeaserCard';
 import { getGoalIcon } from '@/lib/goalIcons';
 import { kgToLbs, lbsToKg } from '@/lib/measurements';
 import { StackAnalysis } from '@/hooks/useProtocolAnalysis';
@@ -49,6 +51,8 @@ interface DashboardViewProps {
     projects: { id: string; name: string }[];
     refreshConversation: (convId: string, lastContent: string) => void;
   };
+  appFeatures?: AppFeatures;
+  onEnableFeature?: (key: keyof AppFeatures) => void;
 }
 
 const toleranceMeta: Record<string, { Icon: typeof Shield; label: string; color: string }> = {
@@ -367,7 +371,7 @@ const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpda
   );
 };
 
-const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, toleranceLevel, onAnalyzeStack, onViewAIInsights, onViewOutcomes, goals = [], userId, profile, toleranceHistory = [], onUpdateProfile, onToleranceChange, measurementSystem = 'metric', doseUnitPreference = 'mg', onNavigateToInventory, conversationManager }: DashboardViewProps) => {
+const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, toleranceLevel, onAnalyzeStack, onViewAIInsights, onViewOutcomes, goals = [], userId, profile, toleranceHistory = [], onUpdateProfile, onToleranceChange, measurementSystem = 'metric', doseUnitPreference = 'mg', onNavigateToInventory, conversationManager, appFeatures, onEnableFeature }: DashboardViewProps) => {
   const { readings, fetchReadings, addReading } = useGoalReadings(userId);
   const [selectedZone, setSelectedZone] = useState<BodyZone | null>(null);
   const [zoneDrawerOpen, setZoneDrawerOpen] = useState(false);
@@ -451,6 +455,8 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
     ? { A: 95, B: 75, C: 55, D: 35, F: 15 }[stackAnalysis.overallGrade] ?? 50
     : 50;
 
+  const f = appFeatures || { goal_tracking: true, supplementation: true, inventory_tracking: true, dosing_reorder: true, medical_records: true };
+
   return (
     <div className="space-y-3">
       {/* Profile & Tolerance Info Bar */}
@@ -465,130 +471,152 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
         onNavigateToInventory={onNavigateToInventory}
       />
 
-      {/* Protocol Coverage — with body avatar */}
-      <div className="rounded-xl border border-border/30 bg-card/40 backdrop-blur-sm p-4">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-xs uppercase tracking-[0.15em] text-muted-foreground font-semibold">Protocol Coverage</h2>
-          <span className="text-lg font-mono font-bold text-primary">{bodyCoverage}%</span>
-        </div>
-        <div className="h-2 bg-secondary/50 rounded-full overflow-hidden mb-2">
-          <div className="h-full bg-gradient-to-r from-primary to-chart-2 rounded-full transition-all duration-700" style={{ width: `${bodyCoverage}%` }} />
-        </div>
-        <p className="text-[9px] text-muted-foreground/60 mb-3 leading-snug">
-          {activeCompounds.length} active compounds · {coverageRationale}
-        </p>
-
-        {/* Body avatar with floating zone badges */}
-        <div className="relative flex justify-center my-4">
-          <div className="relative">
-            <img
-              src={displayGender === 'female' ? bodyFemaleImg : bodyMaleImg}
-              alt={displayGender === 'female' ? 'Female body' : 'Male body'}
-              className="h-72 w-auto rounded-xl object-contain"
-            />
-            {/* Floating zone badges positioned around the body */}
-            {(() => {
-              const zonePositions: Record<BodyZone, { top: string; left?: string; right?: string }> = {
-                brain: { top: '2%', right: '-10%' },
-                heart: { top: '22%', right: '-12%' },
-                arms: { top: '28%', left: '-12%' },
-                core: { top: '45%', right: '-12%' },
-                hormonal: { top: '52%', left: '-12%' },
-                legs: { top: '72%', right: '-10%' },
-                immune: { top: '38%', left: '-10%' },
-              };
-              return (Object.entries(zoneIntensities) as Array<[BodyZone, number]>)
-                .filter(([, v]) => v > 0.1)
-                .map(([zone, intensity]) => {
-                  const pos = zonePositions[zone];
-                  if (!pos) return null;
-                  const pct = Math.round(intensity * 100);
-                  return (
-                    <button
-                      key={zone}
-                      onClick={() => handleZoneTap(zone)}
-                      className="absolute flex items-center gap-1 px-2 py-0.5 rounded-full bg-card/80 backdrop-blur-sm border border-border/30 hover:border-primary/50 transition-all active:scale-95 shadow-lg"
-                      style={{ top: pos.top, left: pos.left, right: pos.right }}
-                    >
-                      <div
-                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                        style={{
-                          backgroundColor: BODY_ZONES[zone].color,
-                          boxShadow: `0 0 ${4 + intensity * 8}px ${BODY_ZONES[zone].color}`,
-                        }}
-                      />
-                      <span className="text-[10px] font-mono font-semibold text-foreground">{pct}%</span>
-                    </button>
-                  );
-                });
-            })()}
+      {/* Protocol Coverage — supplementation feature */}
+      {f.supplementation ? (
+        <div className="rounded-xl border border-border/30 bg-card/40 backdrop-blur-sm p-4">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-xs uppercase tracking-[0.15em] text-muted-foreground font-semibold">Protocol Coverage</h2>
+            <span className="text-lg font-mono font-bold text-primary">{bodyCoverage}%</span>
           </div>
-        </div>
-        <p className="text-[10px] text-muted-foreground/50 text-center mb-3">Tap a zone to view compounds &amp; impact</p>
-
-        <ZoneLegend zoneIntensities={zoneIntensities} onZoneTap={handleZoneTap} />
-      </div>
-
-      {/* Goal Progress */}
-      <div className="rounded-xl border border-border/30 bg-card/40 backdrop-blur-sm p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <Target className="w-4 h-4 text-primary" />
-            Goal Progress
-          </h2>
-          <div className="flex items-center gap-2">
-            <button onClick={onViewOutcomes} className="text-xs text-primary hover:underline">View All</button>
-            <span className="text-lg font-mono font-bold text-primary">{overallProgress}%</span>
+          <div className="h-2 bg-secondary/50 rounded-full overflow-hidden mb-2">
+            <div className="h-full bg-gradient-to-r from-primary to-chart-2 rounded-full transition-all duration-700" style={{ width: `${bodyCoverage}%` }} />
           </div>
-        </div>
+          <p className="text-[9px] text-muted-foreground/60 mb-3 leading-snug">
+            {activeCompounds.length} active compounds · {coverageRationale}
+          </p>
 
-        <div className="h-2 bg-secondary/50 rounded-full overflow-hidden mb-3">
-          <div className="h-full bg-primary rounded-full transition-all duration-700" style={{ width: `${overallProgress}%` }} />
-        </div>
-
-        {activeGoals.length > 0 ? (
-          <div className="space-y-2">
-            {activeGoals.map(goal => {
-              const goalReadings = readings.get(goal.id!) || [];
-              const firstReading = goalReadings.length > 0 ? goalReadings[0].value : undefined;
-              const progress = getProgress(goal, firstReading);
-              const GoalIcon = getGoalIcon(goal.goal_type);
-              const progressVal = progress ?? 0;
-              const barColor = progressVal >= 75 ? 'bg-emerald-500' : progressVal >= 40 ? 'bg-primary' : progressVal >= 15 ? 'bg-amber-500' : 'bg-muted-foreground/40';
-              const sparkData = goalReadings.slice(-7).map(r => r.value);
-
-              return (
-                <GoalCard
-                  key={goal.id}
-                  goal={goal}
-                  GoalIcon={GoalIcon}
-                  progress={progress}
-                  progressVal={progressVal}
-                  barColor={barColor}
-                  sparkData={sparkData}
-                  onViewOutcomes={onViewOutcomes}
-                  onAddReading={async (value: number) => {
-                    await addReading(goal.id!, value, goal.target_unit || '');
-                    toast.success('Reading added');
-                    fetchReadings(activeGoals.map(g => g.id!).filter(Boolean));
-                  }}
-                />
-              );
-            })}
-          </div>
-        ) : (
-          <div className="py-8 flex items-center justify-center cursor-pointer" onClick={onViewOutcomes}>
-            <div className="text-center">
-              <Target className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
-              <h3 className="text-sm font-semibold text-foreground mb-1">No Active Goals</h3>
-              <p className="text-xs text-muted-foreground">Tap to set goals and track progress</p>
+          {/* Body avatar with floating zone badges */}
+          <div className="relative flex justify-center my-4">
+            <div className="relative">
+              <img
+                src={displayGender === 'female' ? bodyFemaleImg : bodyMaleImg}
+                alt={displayGender === 'female' ? 'Female body' : 'Male body'}
+                className="h-72 w-auto rounded-xl object-contain"
+              />
+              {(() => {
+                const zonePositions: Record<BodyZone, { top: string; left?: string; right?: string }> = {
+                  brain: { top: '2%', right: '-10%' },
+                  heart: { top: '22%', right: '-12%' },
+                  arms: { top: '28%', left: '-12%' },
+                  core: { top: '45%', right: '-12%' },
+                  hormonal: { top: '52%', left: '-12%' },
+                  legs: { top: '72%', right: '-10%' },
+                  immune: { top: '38%', left: '-10%' },
+                };
+                return (Object.entries(zoneIntensities) as Array<[BodyZone, number]>)
+                  .filter(([, v]) => v > 0.1)
+                  .map(([zone, intensity]) => {
+                    const pos = zonePositions[zone];
+                    if (!pos) return null;
+                    const pct = Math.round(intensity * 100);
+                    return (
+                      <button
+                        key={zone}
+                        onClick={() => handleZoneTap(zone)}
+                        className="absolute flex items-center gap-1 px-2 py-0.5 rounded-full bg-card/80 backdrop-blur-sm border border-border/30 hover:border-primary/50 transition-all active:scale-95 shadow-lg"
+                        style={{ top: pos.top, left: pos.left, right: pos.right }}
+                      >
+                        <div
+                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                          style={{
+                            backgroundColor: BODY_ZONES[zone].color,
+                            boxShadow: `0 0 ${4 + intensity * 8}px ${BODY_ZONES[zone].color}`,
+                          }}
+                        />
+                        <span className="text-[10px] font-mono font-semibold text-foreground">{pct}%</span>
+                      </button>
+                    );
+                  });
+              })()}
             </div>
           </div>
-        )}
-      </div>
+          <p className="text-[10px] text-muted-foreground/50 text-center mb-3">Tap a zone to view compounds &amp; impact</p>
+
+          <ZoneLegend zoneIntensities={zoneIntensities} onZoneTap={handleZoneTap} />
+        </div>
+      ) : (
+        <FeatureTeaserCard featureKey="supplementation" onEnable={() => onEnableFeature?.('supplementation')} />
+      )}
+
+      {/* Goal Progress */}
+      {f.goal_tracking ? (
+        <div className="rounded-xl border border-border/30 bg-card/40 backdrop-blur-sm p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Target className="w-4 h-4 text-primary" />
+              Goal Progress
+            </h2>
+            <div className="flex items-center gap-2">
+              <button onClick={onViewOutcomes} className="text-xs text-primary hover:underline">View All</button>
+              <span className="text-lg font-mono font-bold text-primary">{overallProgress}%</span>
+            </div>
+          </div>
+
+          <div className="h-2 bg-secondary/50 rounded-full overflow-hidden mb-3">
+            <div className="h-full bg-primary rounded-full transition-all duration-700" style={{ width: `${overallProgress}%` }} />
+          </div>
+
+          {activeGoals.length > 0 ? (
+            <div className="space-y-2">
+              {activeGoals.map(goal => {
+                const goalReadings = readings.get(goal.id!) || [];
+                const firstReading = goalReadings.length > 0 ? goalReadings[0].value : undefined;
+                const progress = getProgress(goal, firstReading);
+                const GoalIcon = getGoalIcon(goal.goal_type);
+                const progressVal = progress ?? 0;
+                const barColor = progressVal >= 75 ? 'bg-emerald-500' : progressVal >= 40 ? 'bg-primary' : progressVal >= 15 ? 'bg-amber-500' : 'bg-muted-foreground/40';
+                const sparkData = goalReadings.slice(-7).map(r => r.value);
+
+                return (
+                  <GoalCard
+                    key={goal.id}
+                    goal={goal}
+                    GoalIcon={GoalIcon}
+                    progress={progress}
+                    progressVal={progressVal}
+                    barColor={barColor}
+                    sparkData={sparkData}
+                    onViewOutcomes={onViewOutcomes}
+                    onAddReading={async (value: number) => {
+                      await addReading(goal.id!, value, goal.target_unit || '');
+                      toast.success('Reading added');
+                      fetchReadings(activeGoals.map(g => g.id!).filter(Boolean));
+                    }}
+                  />
+                );
+              })}
+            </div>
+          ) : (
+            <div className="py-8 flex items-center justify-center cursor-pointer" onClick={onViewOutcomes}>
+              <div className="text-center">
+                <Target className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+                <h3 className="text-sm font-semibold text-foreground mb-1">No Active Goals</h3>
+                <p className="text-xs text-muted-foreground">Tap to set goals and track progress</p>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <FeatureTeaserCard featureKey="goal_tracking" onEnable={() => onEnableFeature?.('goal_tracking')} />
+      )}
+
+      {/* Inventory Tracking teaser */}
+      {!f.inventory_tracking && (
+        <FeatureTeaserCard featureKey="inventory_tracking" onEnable={() => onEnableFeature?.('inventory_tracking')} />
+      )}
+
+      {/* Dosing & Reorder teaser */}
+      {!f.dosing_reorder && (
+        <FeatureTeaserCard featureKey="dosing_reorder" onEnable={() => onEnableFeature?.('dosing_reorder')} />
+      )}
+
+      {/* Medical Records teaser */}
+      {!f.medical_records && (
+        <FeatureTeaserCard featureKey="medical_records" onEnable={() => onEnableFeature?.('medical_records')} />
+      )}
 
       {/* Protocol Intelligence */}
-      {onAnalyzeStack && (
+      {f.supplementation && onAnalyzeStack && (
         <ProtocolIntelligenceCard
           analysis={stackAnalysis ?? null}
           loading={aiLoading ?? false}
@@ -599,7 +627,7 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
         />
       )}
 
-      <ProtocolOutcomesCard />
+      {f.supplementation && <ProtocolOutcomesCard />}
 
       <ZoneDetailDrawer
         zone={selectedZone}
