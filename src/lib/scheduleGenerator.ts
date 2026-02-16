@@ -150,7 +150,7 @@ export function generateScheduleFromCompounds(compounds: Compound[]): DaySchedul
         compoundId: compound.id,
         dose: doseStr,
         timing,
-        category: compound.category as DayDose['category'],
+        category: compound.category,
       };
 
       days.forEach(dayIdx => {

@@ -211,8 +211,9 @@ const DoseSection = ({
   doseUnit: 'mg' | 'ml';
 }) => {
   const allPeptides = doses.filter(d => d.category === 'peptide' || d.category === 'injectable-oil');
-  const allOrals = doses.filter(d => d.category === 'oral');
+  const allOrals = doses.filter(d => d.category === 'oral' || d.category === 'prescription' || d.category === 'vitamin' || d.category === 'adaptogen' || d.category === 'nootropic' || d.category === 'holistic' || d.category === 'probiotic' || d.category === 'alternative-medicine');
   const allPowders = doses.filter(d => d.category === 'powder');
+  const allTopicals = doses.filter(d => d.category === 'topical' || d.category === 'essential-oil');
 
   const protocolCompoundIds = new Set<string>();
   const protocolGroups: { label: string; doses: DayDose[] }[] = [];
@@ -227,6 +228,7 @@ const DoseSection = ({
 
   const ungroupedOrals = allOrals.filter(d => !protocolCompoundIds.has(d.compoundId));
   const ungroupedPowders = allPowders.filter(d => !protocolCompoundIds.has(d.compoundId));
+  const ungroupedTopicals = allTopicals.filter(d => !protocolCompoundIds.has(d.compoundId));
 
   const totalActive = doses.filter(d => !offCycleIds.has(d.compoundId)).length;
 
@@ -250,6 +252,9 @@ const DoseSection = ({
         )}
         {ungroupedPowders.length > 0 && (
           <DoseGroup label="Powders" doses={ungroupedPowders} compoundMap={compoundMap} offCycleIds={offCycleIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} />
+        )}
+        {ungroupedTopicals.length > 0 && (
+          <DoseGroup label="Topicals" doses={ungroupedTopicals} compoundMap={compoundMap} offCycleIds={offCycleIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} />
         )}
       </div>
     </div>

@@ -33,9 +33,18 @@ const categoryLabels: Record<string, string> = {
   'injectable-oil': 'Injectable Oils',
   oral: 'Oral Supplements',
   powder: 'Powders',
+  prescription: 'Prescription',
+  vitamin: 'Vitamins',
+  holistic: 'Holistic',
+  adaptogen: 'Adaptogens',
+  nootropic: 'Nootropics',
+  'essential-oil': 'Essential Oils',
+  'alternative-medicine': 'Alternative Medicine',
+  probiotic: 'Probiotics',
+  topical: 'Topical',
 };
 
-const categoryOrder = ['peptide', 'injectable-oil', 'oral', 'powder'];
+const categoryOrder = ['peptide', 'injectable-oil', 'prescription', 'oral', 'powder', 'vitamin', 'holistic', 'adaptogen', 'nootropic', 'essential-oil', 'alternative-medicine', 'probiotic', 'topical'];
 
 interface FormState {
   currentQuantity: string;
