@@ -358,12 +358,12 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
               {cycleStatus.isOn ? `ON ${cycleStatus.daysLeftInPhase}d` : `OFF ${cycleStatus.daysLeftInPhase}d`}
             </span>
           )}
-          <span className={`text-xs font-mono px-2 py-0.5 rounded-full ${
+          <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
             status === 'critical' ? 'bg-destructive/20 text-status-critical' :
             status === 'warning' ? 'bg-accent/20 text-status-warning' :
             'bg-status-good/10 text-status-good'
           }`} title={`${days} days of supply remaining`}>
-            <Package className="w-3 h-3 inline -mt-px" /> {days}d
+            {days}d left
           </span>
           {!editing && (
             <div className="flex items-center gap-1">
