@@ -499,43 +499,68 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
           <div className="flex items-center gap-2 text-[11px]">
             <span className="text-muted-foreground w-16 flex-shrink-0">Days</span>
             <div className="flex gap-0.5 flex-1">
-              {DAY_LABELS.map((label, idx) => {
+              {(() => {
                 const activeDays = parseDaysFromNote(editState.timing || '');
-                const isActive = activeDays.has(idx);
+                const allSelected = activeDays.size === 7;
+                const toggleDay = (idx: number) => {
+                  const days = new Set(activeDays);
+                  if (days.has(idx)) days.delete(idx);
+                  else days.add(idx);
+                  const note = editState.timing || '';
+                  let cleaned = note
+                    .replace(/\b(daily|nightly|every\s*day|m[\/-]f|mon[\s-]*fri|m\/w\/f|t\/th)\b/gi, '')
+                    .replace(/\b(sun(?:day)?|mon(?:day)?|tue(?:s(?:day)?)?|wed(?:nesday)?|thu(?:rs(?:day)?)?|fri(?:day)?|sat(?:urday)?|sa)\b/gi, '')
+                    .replace(/[,\/]\s*[,\/]/g, ',')
+                    .replace(/^[,\s]+|[,\s]+$/g, '')
+                    .trim();
+                  const dayStr = days.size === 7 ? 'daily' : buildDayString(days);
+                  const newNote = cleaned ? (dayStr ? `${dayStr}, ${cleaned}` : cleaned) : dayStr;
+                  setEditState(s => ({ ...s, timing: newNote, daysPerWeek: days.size.toString() }));
+                };
+                const toggleAll = () => {
+                  const note = editState.timing || '';
+                  let cleaned = note
+                    .replace(/\b(daily|nightly|every\s*day|m[\/-]f|mon[\s-]*fri|m\/w\/f|t\/th)\b/gi, '')
+                    .replace(/\b(sun(?:day)?|mon(?:day)?|tue(?:s(?:day)?)?|wed(?:nesday)?|thu(?:rs(?:day)?)?|fri(?:day)?|sat(?:urday)?|sa)\b/gi, '')
+                    .replace(/[,\/]\s*[,\/]/g, ',')
+                    .replace(/^[,\s]+|[,\s]+$/g, '')
+                    .trim();
+                  if (allSelected) {
+                    // Deselect all
+                    setEditState(s => ({ ...s, timing: cleaned, daysPerWeek: '0' }));
+                  } else {
+                    const newNote = cleaned ? `daily, ${cleaned}` : 'daily';
+                    setEditState(s => ({ ...s, timing: newNote, daysPerWeek: '7' }));
+                  }
+                };
                 return (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      const days = parseDaysFromNote(editState.timing || '');
-                      if (isActive) days.delete(idx);
-                      else days.add(idx);
-                      // Rebuild the timing note: keep non-day parts, replace day pattern
-                      const note = editState.timing || '';
-                      // Remove existing day patterns
-                      let cleaned = note
-                        .replace(/\b(daily|nightly|every\s*day|m[\/-]f|mon[\s-]*fri|m\/w\/f|t\/th)\b/gi, '')
-                        .replace(/\b(sun(?:day)?|mon(?:day)?|tue(?:s(?:day)?)?|wed(?:nesday)?|thu(?:rs(?:day)?)?|fri(?:day)?|sat(?:urday)?|sa)\b/gi, '')
-                        .replace(/[,\/]\s*[,\/]/g, ',')
-                        .replace(/^[,\s]+|[,\s]+$/g, '')
-                        .trim();
-                      const dayStr = buildDayString(days);
-                      const newNote = cleaned ? (dayStr ? `${dayStr}, ${cleaned}` : cleaned) : dayStr;
-                      setEditState(s => ({
-                        ...s,
-                        timing: newNote,
-                        daysPerWeek: days.size.toString(),
-                      }));
-                    }}
-                    className={`w-7 h-7 rounded text-[10px] font-medium transition-all ${
-                      isActive
-                        ? 'bg-primary/15 text-primary border border-primary/30'
-                        : 'bg-secondary text-muted-foreground border border-border/50'
-                    }`}
-                  >
-                    {label}
-                  </button>
+                  <>
+                    <button
+                      onClick={toggleAll}
+                      className={`h-7 px-1.5 rounded text-[10px] font-medium transition-all ${
+                        allSelected
+                          ? 'bg-primary/15 text-primary border border-primary/30'
+                          : 'bg-secondary text-muted-foreground border border-border/50'
+                      }`}
+                    >
+                      Daily
+                    </button>
+                    {DAY_LABELS.map((label, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => toggleDay(idx)}
+                        className={`w-7 h-7 rounded text-[10px] font-medium transition-all ${
+                          activeDays.has(idx)
+                            ? 'bg-primary/15 text-primary border border-primary/30'
+                            : 'bg-secondary text-muted-foreground border border-border/50'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </>
                 );
-              })}
+              })()}
             </div>
           </div>
           <EditRow label="Note" value={editState.timing || ''}
