@@ -110,6 +110,41 @@ const ZoneDetailDrawer = ({ zone, open, onOpenChange, compounds, toleranceLevel 
   const abortRef = useRef<AbortController | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  // Load existing zone conversation when drawer opens
+  useEffect(() => {
+    if (!open || !zone || !userId || !conversationManager) return;
+    const zoneInfo = BODY_ZONES[zone];
+    const loadExisting = async () => {
+      const project = conversationManager.projects.find(p => p.name === 'Body Coverage');
+      if (!project) return;
+
+      const { data: convs } = await supabase
+        .from('chat_conversations')
+        .select('id')
+        .eq('project_id', project.id)
+        .eq('title', `${zoneInfo.label} Zone`)
+        .order('updated_at', { ascending: false })
+        .limit(1);
+
+      if (convs && convs.length > 0) {
+        const convId = convs[0].id;
+        setZoneConversationId(convId);
+
+        const { data: msgs } = await supabase
+          .from('protocol_chat_messages')
+          .select('role, content')
+          .eq('conversation_id', convId)
+          .order('created_at', { ascending: true });
+
+        if (msgs && msgs.length > 0) {
+          setChatMessages(msgs.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })));
+          setShowChat(true);
+        }
+      }
+    };
+    loadExisting();
+  }, [open, zone]);
+
   if (!zone) return null;
 
   const info = BODY_ZONES[zone];
@@ -273,6 +308,7 @@ Give me specific, actionable suggestions to increase ${info.label} impact — co
     } finally { setAiLoading(false); }
   };
 
+
   // Get or create the "Body Coverage" project and a conversation for this zone
   const ensureZoneConversation = async (): Promise<string | null> => {
     if (zoneConversationId) return zoneConversationId;
@@ -285,7 +321,20 @@ Give me specific, actionable suggestions to increase ${info.label} impact — co
         project = await conversationManager.createProject('Body Coverage', 'Zone optimization chats', '#06b6d4');
       }
 
-      // Create a conversation for this zone
+      // Find existing conversation or create new one
+      const { data: existingConvs } = await supabase
+        .from('chat_conversations')
+        .select('id')
+        .eq('project_id', project.id)
+        .eq('title', `${info.label} Zone`)
+        .order('updated_at', { ascending: false })
+        .limit(1);
+
+      if (existingConvs && existingConvs.length > 0) {
+        setZoneConversationId(existingConvs[0].id);
+        return existingConvs[0].id;
+      }
+
       const conv = await conversationManager.createConversation(`${info.label} Zone`, project?.id);
       if (conv) {
         setZoneConversationId(conv.id);
