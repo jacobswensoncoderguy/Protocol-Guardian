@@ -1,13 +1,50 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useGoals } from '@/hooks/useGoals';
 import { useProfile } from '@/hooks/useProfile';
-import { CheckCircle, Circle, Loader2, Zap, Target, User, ChevronDown, ChevronRight, Plus } from 'lucide-react';
+import { CheckCircle, Circle, Loader2, Zap, Target, User, ChevronDown, ChevronRight, Plus, Search, Info, X } from 'lucide-react';
 import GoalInterview, { OnboardingResponse } from '@/components/GoalInterview';
 import GoalAIChat, { ExtractedGoal } from '@/components/GoalAIChat';
+import { compoundBenefits } from '@/data/compoundBenefits';
 import bodyMaleImg from '@/assets/body-male.jpeg';
 import bodyFemaleImg from '@/assets/body-female.jpeg';
+
+function normalizeBenefitKey(name: string): string {
+  return name.toLowerCase()
+    .replace(/\s*\d+\s*m[cg]g?\s*/gi, '')
+    .replace(/\s*\d+\s*iu\s*/gi, '')
+    .replace(/\s*\(\d+mg\)\s*/gi, '')
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+const benefitAliases: Record<string, string> = {
+  'testosterone-cypionate': 'test-cyp',
+  'testosterone': 'test-cyp',
+  'nandrolone': 'deca',
+  'nandrolone-decanoate': 'deca',
+  'oxandrolone': 'anavar',
+  'stanozolol': 'winstrol',
+  'ubiquinol': 'ubiquinol',
+  'qunol': 'ubiquinol',
+  'coq10': 'ubiquinol',
+  'citrus-bergamot': 'bergamot',
+  'l-citrulline': 'citrulline',
+  'l-citrulline-malate': 'citrulline',
+  'magnesium-glycinate': 'magnesium',
+  'nad': 'nad-plus',
+  'bpc': 'bpc-157',
+  'tb': 'tb-500',
+  'vitamin-c': 'vitamin-c',
+  'lions-mane-mushroom': 'lions-mane',
+  'lion-s-mane': 'lions-mane',
+  'cbd': 'cbd-oil',
+  'low-dose-naltrexone-ldn': 'low-dose-naltrexone',
+  'ldn': 'low-dose-naltrexone',
+};
 
 interface LibraryCompound {
   id: string;
@@ -97,6 +134,8 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [addingCustom, setAddingCustom] = useState<string | null>(null);
   const [customName, setCustomName] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [expandedInfo, setExpandedInfo] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchLibrary() {
@@ -236,11 +275,34 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
     onComplete();
   };
 
-  // Group compounds by category - include all categories even if empty
-  const grouped = categoryOrder.map(cat => ({
-    category: cat,
-    items: library.filter(c => c.category === cat),
-  }));
+  // Filter and group compounds by category
+  const filteredLibrary = useMemo(() => {
+    if (!searchQuery.trim()) return library;
+    const q = searchQuery.toLowerCase();
+    return library.filter(c => c.name.toLowerCase().includes(q) || c.category.toLowerCase().includes(q));
+  }, [library, searchQuery]);
+
+  const grouped = useMemo(() => {
+    const result = categoryOrder.map(cat => ({
+      category: cat,
+      items: filteredLibrary.filter(c => c.category === cat),
+    }));
+    // If searching, auto-expand categories with matches
+    if (searchQuery.trim()) {
+      const catsWithMatches = new Set(result.filter(g => g.items.length > 0).map(g => g.category));
+      setExpandedCategories(prev => {
+        const next = new Set(prev);
+        catsWithMatches.forEach(c => next.add(c));
+        return next;
+      });
+    }
+    return result;
+  }, [filteredLibrary, searchQuery]);
+
+  const getCompoundBenefitData = (name: string) => {
+    const key = normalizeBenefitKey(name);
+    return compoundBenefits[key] || compoundBenefits[benefitAliases[key]] || null;
+  };
 
   if (loading) {
     return (
@@ -339,9 +401,26 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
 
         {phase === 'compounds' && (
           <>
-            <div className="text-center mb-4">
+            <div className="text-center mb-3">
               <h2 className="text-lg font-bold text-foreground">Build Your Protocol</h2>
               <p className="text-sm text-muted-foreground">Tap a category to expand. Select compounds or add your own.</p>
+            </div>
+
+            {/* Search bar */}
+            <div className="relative mb-3">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search compounds across all categories..."
+                className="w-full pl-9 pr-8 py-2.5 rounded-lg border border-border/50 bg-card text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 transition-colors"
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <X className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+                </button>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -350,9 +429,11 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
                 const selectedCount = group.items.filter(c => selected.has(c.id)).length;
                 const hasItems = group.items.length > 0;
 
+                // Hide empty categories when searching
+                if (searchQuery.trim() && !hasItems) return null;
+
                 return (
                   <div key={group.category} className="border border-border/50 rounded-lg overflow-hidden">
-                    {/* Category header */}
                     <button
                       onClick={() => toggleCategory(group.category)}
                       className="w-full flex items-center justify-between px-3 py-3 bg-card hover:bg-secondary/30 transition-colors"
@@ -376,7 +457,6 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
                       </div>
                     </button>
 
-                    {/* Expanded content */}
                     {isExpanded && (
                       <div className="border-t border-border/30 px-2 py-2 space-y-1">
                         {hasItems && (
@@ -384,26 +464,66 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
                             Suggested Compounds
                           </p>
                         )}
-                        {group.items.map(compound => (
-                          <button
-                            key={compound.id}
-                            onClick={() => toggleCompound(compound.id)}
-                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-all text-left ${
-                              selected.has(compound.id)
-                                ? 'bg-primary/10 border-primary/30'
-                                : 'bg-card border-border/50 hover:bg-secondary/50'
-                            }`}
-                          >
-                            {selected.has(compound.id) ? (
-                              <CheckCircle className="w-4 h-4 text-primary flex-shrink-0" />
-                            ) : (
-                              <Circle className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                            )}
-                            <span className="text-sm font-medium text-foreground">{compound.name}</span>
-                          </button>
-                        ))}
+                        {group.items.map(compound => {
+                          const benefitData = getCompoundBenefitData(compound.name);
+                          const isInfoOpen = expandedInfo === compound.id;
+                          return (
+                            <div key={compound.id}>
+                              <div className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-all ${
+                                selected.has(compound.id)
+                                  ? 'bg-primary/10 border-primary/30'
+                                  : 'bg-card border-border/50 hover:bg-secondary/50'
+                              }`}>
+                                <button
+                                  onClick={() => toggleCompound(compound.id)}
+                                  className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                                >
+                                  {selected.has(compound.id) ? (
+                                    <CheckCircle className="w-4 h-4 text-primary flex-shrink-0" />
+                                  ) : (
+                                    <Circle className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                                  )}
+                                  <span className="text-sm font-medium text-foreground truncate">{compound.name}</span>
+                                </button>
+                                {benefitData && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); setExpandedInfo(isInfoOpen ? null : compound.id); }}
+                                    className={`p-1 rounded-md transition-colors flex-shrink-0 ${isInfoOpen ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                                  >
+                                    <Info className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                              {isInfoOpen && benefitData && (
+                                <div className="ml-4 mt-1 mb-2 p-3 rounded-lg bg-secondary/30 border border-border/30 space-y-2">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-base">{benefitData.icon}</span>
+                                    <span className="text-xs font-semibold text-foreground">Benefits & Guidance</span>
+                                  </div>
+                                  <ul className="space-y-1">
+                                    {benefitData.benefits.slice(0, 4).map((b, i) => (
+                                      <li key={i} className="text-[11px] text-muted-foreground leading-snug flex gap-1.5">
+                                        <span className="text-primary/60 mt-0.5">•</span>
+                                        <span>{b}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                  {benefitData.timeline && benefitData.timeline.length > 0 && (
+                                    <div className="pt-1 border-t border-border/30">
+                                      <p className="text-[10px] font-semibold text-muted-foreground mb-1">Expected Timeline</p>
+                                      {benefitData.timeline.slice(0, 3).map((t, i) => (
+                                        <p key={i} className="text-[10px] text-muted-foreground/80">
+                                          <span className="text-primary font-mono">Wk {t.week}</span> — {t.label}
+                                        </p>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
 
-                        {/* Add custom compound */}
                         {addingCustom === group.category ? (
                           <div className="flex items-center gap-2 px-2 py-1.5">
                             <input

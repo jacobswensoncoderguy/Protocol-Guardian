@@ -601,6 +601,315 @@ export const compoundBenefits: Record<string, CompoundBenefit> = {
       { week: 6, label: 'Full cycle: 3-5 lb lean mass + dramatic definition' },
     ],
   },
+  // === Prescription Medications ===
+  metformin: {
+    icon: '💊',
+    benefits: [
+      'Biguanide — insulin sensitizer & longevity compound',
+      'At 500-1000mg daily: improved fasting glucose & insulin sensitivity',
+      'Activates AMPK → mimics caloric restriction benefits',
+      'Anti-aging research shows reduced all-cause mortality',
+    ],
+    timeline: [
+      { week: 2, label: 'Blood glucose stabilization' },
+      { week: 6, label: 'Insulin sensitivity improved' },
+      { week: 12, label: 'AMPK-driven metabolic optimization' },
+    ],
+  },
+  rapamycin: {
+    icon: '🧬',
+    benefits: [
+      'mTOR inhibitor — longevity & autophagy activator',
+      'Weekly low-dose protocol: promotes cellular recycling',
+      'Research-backed for extending healthspan and lifespan',
+      'Immune system modulation and anti-cancer properties',
+    ],
+    timeline: [
+      { week: 4, label: 'Autophagy activation' },
+      { week: 8, label: 'mTOR inhibition benefits' },
+      { week: 24, label: 'Longevity pathway optimization' },
+    ],
+  },
+  modafinil: {
+    icon: '⚡',
+    benefits: [
+      'Eugeroic — wakefulness promoter & cognitive enhancer',
+      'At 100-200mg: 8-12h sustained focus without stimulant crash',
+      'Enhances dopamine, norepinephrine & histamine signaling',
+      'Improves working memory and executive function',
+    ],
+    timeline: [
+      { week: 0.5, label: 'Immediate focus & alertness' },
+      { week: 2, label: 'Cognitive performance optimized' },
+    ],
+  },
+  'low-dose-naltrexone': {
+    icon: '🔄',
+    benefits: [
+      'LDN — immune modulator at micro-doses (1.5-4.5mg)',
+      'Upregulates endorphin & enkephalin production',
+      'Anti-inflammatory via TLR4 and microglial modulation',
+      'Supports autoimmune conditions and chronic pain management',
+    ],
+    timeline: [
+      { week: 2, label: 'Endorphin upregulation' },
+      { week: 6, label: 'Immune modulation active' },
+      { week: 12, label: 'Pain & inflammation reduction' },
+    ],
+  },
+  thyroid: {
+    icon: '🦋',
+    benefits: [
+      'T3/T4 supplementation — metabolic rate optimization',
+      'Supports energy, body temperature regulation & fat metabolism',
+      'Critical for hypothyroid or subclinical thyroid patients',
+      'Enhances protein synthesis and cognitive function',
+    ],
+    timeline: [
+      { week: 1, label: 'Energy & temperature normalization' },
+      { week: 4, label: 'Metabolic rate optimized' },
+      { week: 8, label: 'Body composition improvement' },
+    ],
+  },
+  // === Holistic Compounds ===
+  'cbd-oil': {
+    icon: '🌱',
+    benefits: [
+      'Cannabidiol — endocannabinoid system modulator',
+      'Reduces anxiety, inflammation & neuropathic pain',
+      'Improves sleep quality without psychoactive effects',
+      'Neuroprotective and anti-oxidant properties',
+    ],
+    timeline: [
+      { week: 1, label: 'Anxiety & pain reduction' },
+      { week: 3, label: 'Sleep quality improvement' },
+      { week: 6, label: 'Systemic inflammation reduced' },
+    ],
+  },
+  turmeric: {
+    icon: '🟡',
+    benefits: [
+      'Curcumin — potent anti-inflammatory & antioxidant',
+      'At 500-1000mg with piperine: reduces CRP & joint inflammation',
+      'Supports liver detoxification and gut health',
+      'Neuroprotective via BDNF and amyloid reduction',
+    ],
+    timeline: [
+      { week: 2, label: 'Inflammation marker reduction' },
+      { week: 6, label: 'Joint comfort improvement' },
+      { week: 8, label: 'CRP reduction 25-50%' },
+    ],
+  },
+  'manuka-honey': {
+    icon: '🍯',
+    benefits: [
+      'Methylglyoxal-rich honey — antibacterial & gut healing',
+      'UMF 15+ grade: supports digestive lining integrity',
+      'Natural prebiotic supporting beneficial gut bacteria',
+      'Wound healing and immune support properties',
+    ],
+    timeline: [
+      { week: 2, label: 'Gut lining support active' },
+      { week: 6, label: 'Digestive health improvement' },
+    ],
+  },
+  'black-seed-oil': {
+    icon: '🖤',
+    benefits: [
+      'Nigella Sativa — thymoquinone-rich immune & metabolic support',
+      'Anti-inflammatory, antioxidant & blood sugar regulation',
+      'Supports respiratory health and allergy relief',
+      'Hepatoprotective and cholesterol-lowering properties',
+    ],
+    timeline: [
+      { week: 2, label: 'Immune & respiratory support' },
+      { week: 6, label: 'Blood sugar regulation' },
+      { week: 8, label: 'Cholesterol improvement' },
+    ],
+  },
+  // === Adaptogens ===
+  rhodiola: {
+    icon: '🏔️',
+    benefits: [
+      'Rhodiola Rosea — fatigue fighter & stress adaptogen',
+      'At 200-400mg: reduced mental fatigue & improved endurance',
+      'Modulates cortisol and enhances serotonin/dopamine balance',
+      'Supports exercise performance and recovery',
+    ],
+    timeline: [
+      { week: 1, label: 'Mental fatigue reduction' },
+      { week: 4, label: 'Cortisol modulation' },
+      { week: 8, label: 'Endurance & recovery gains' },
+    ],
+  },
+  'lions-mane': {
+    icon: '🦁',
+    benefits: [
+      'Hericium erinaceus — NGF-boosting nootropic mushroom',
+      'At 500-1000mg: nerve growth factor stimulation & neuroprotection',
+      'Supports memory, focus & cognitive longevity',
+      'May help with mild anxiety and depression',
+    ],
+    timeline: [
+      { week: 2, label: 'NGF stimulation begins' },
+      { week: 6, label: 'Cognitive clarity improvement' },
+      { week: 12, label: 'Neuroprotective effects steady' },
+    ],
+  },
+  'holy-basil': {
+    icon: '🌿',
+    benefits: [
+      'Tulsi — Ayurvedic adaptogen for stress & blood sugar',
+      'At 300-600mg: reduces cortisol & supports metabolic balance',
+      'Anti-inflammatory and antioxidant properties',
+      'Supports respiratory health and immune function',
+    ],
+    timeline: [
+      { week: 2, label: 'Stress reduction noticeable' },
+      { week: 4, label: 'Blood sugar stabilization' },
+      { week: 8, label: 'Full adaptogenic benefits' },
+    ],
+  },
+  reishi: {
+    icon: '🍄',
+    benefits: [
+      'Ganoderma lucidum — immune modulator & sleep support',
+      'At 500-1000mg: calming adaptogenic effect & immune balancing',
+      'Beta-glucans support NK cell activity & immune surveillance',
+      'Supports deep sleep and stress resilience',
+    ],
+    timeline: [
+      { week: 2, label: 'Sleep quality improvement' },
+      { week: 4, label: 'Immune system balancing' },
+      { week: 8, label: 'Full adaptogenic support' },
+    ],
+  },
+  // === Nootropics ===
+  'alpha-gpc': {
+    icon: '🧠',
+    benefits: [
+      'Choline donor — acetylcholine precursor for cognitive function',
+      'At 300-600mg: enhanced memory, focus & mind-muscle connection',
+      'Supports growth hormone release when taken pre-workout',
+      'Bioavailable choline that crosses the blood-brain barrier',
+    ],
+    timeline: [
+      { week: 1, label: 'Focus & memory boost' },
+      { week: 4, label: 'Sustained cognitive enhancement' },
+    ],
+  },
+  'bacopa-monnieri': {
+    icon: '📚',
+    benefits: [
+      'Brahmi — Ayurvedic nootropic for memory & learning',
+      'At 300-450mg: improved memory consolidation in 8-12 weeks',
+      'Bacosides support synaptic communication & BDNF',
+      'Anxiolytic effects and antioxidant neuroprotection',
+    ],
+    timeline: [
+      { week: 4, label: 'Anxiolytic effects noticeable' },
+      { week: 8, label: 'Memory consolidation improved' },
+      { week: 12, label: 'Full cognitive enhancement' },
+    ],
+  },
+  'phosphatidylserine': {
+    icon: '🔬',
+    benefits: [
+      'Cell membrane phospholipid — cognitive & cortisol support',
+      'At 100-300mg: reduces cortisol and supports memory under stress',
+      'Improves attention, processing speed & mental flexibility',
+      'Neuroprotective for aging-related cognitive decline',
+    ],
+    timeline: [
+      { week: 2, label: 'Cortisol blunting effect' },
+      { week: 6, label: 'Memory & attention improved' },
+      { week: 12, label: 'Neuroprotective benefits' },
+    ],
+  },
+  // === Vitamins & Minerals ===
+  'vitamin-d3': {
+    icon: '☀️',
+    benefits: [
+      'Cholecalciferol — hormone precursor & immune regulator',
+      'At 5000-10000 IU daily: optimizes serum 25(OH)D to 60-80 ng/mL',
+      'Supports bone density, immune function & testosterone',
+      'Pair with K2 (MK-7) to direct calcium into bones',
+    ],
+    timeline: [
+      { week: 4, label: 'Serum levels rising' },
+      { week: 8, label: 'Optimal 25(OH)D achieved' },
+      { week: 12, label: 'Immune & hormonal benefits' },
+    ],
+  },
+  'vitamin-k2': {
+    icon: '🦴',
+    benefits: [
+      'Menaquinone-7 (MK-7) — calcium metabolism director',
+      'At 100-200mcg daily: prevents arterial calcification',
+      'Activates osteocalcin → directs calcium into bones',
+      'Essential companion to Vitamin D3 supplementation',
+    ],
+    timeline: [
+      { week: 4, label: 'Calcium metabolism optimized' },
+      { week: 12, label: 'Arterial & bone health improved' },
+    ],
+  },
+  zinc: {
+    icon: '⚙️',
+    benefits: [
+      'Essential mineral — testosterone, immune & enzyme cofactor',
+      'At 15-30mg daily: supports testosterone & immune function',
+      'Required for 300+ enzymatic reactions in the body',
+      'Pair with copper to prevent depletion',
+    ],
+    timeline: [
+      { week: 2, label: 'Immune support active' },
+      { week: 6, label: 'Testosterone support optimized' },
+    ],
+  },
+  // === Probiotics ===
+  'spore-probiotic': {
+    icon: '🦠',
+    benefits: [
+      'Bacillus-based spore probiotic — survives stomach acid',
+      'Supports microbiome diversity and gut barrier integrity',
+      'Reduces endotoxin (LPS) leakage by up to 60%',
+      'Heat-stable and shelf-stable vs conventional probiotics',
+    ],
+    timeline: [
+      { week: 2, label: 'Gut barrier strengthening' },
+      { week: 6, label: 'Microbiome diversity increased' },
+      { week: 12, label: 'Endotoxin reduction 40-60%' },
+    ],
+  },
+  // === Topicals ===
+  tretinoin: {
+    icon: '✨',
+    benefits: [
+      'Retinoic acid — gold standard for skin renewal',
+      'At 0.025-0.05%: accelerates cell turnover & collagen production',
+      'Reduces fine lines, wrinkles & hyperpigmentation',
+      'Clinical results visible within 8-12 weeks',
+    ],
+    timeline: [
+      { week: 4, label: 'Cell turnover acceleration' },
+      { week: 8, label: 'Fine lines reducing' },
+      { week: 12, label: 'Visible skin renewal' },
+    ],
+  },
+  'hyaluronic-acid': {
+    icon: '💧',
+    benefits: [
+      'Glycosaminoglycan — deep skin hydration & plumping',
+      'Holds 1000x its weight in water for moisture retention',
+      'Reduces appearance of fine lines via hydration',
+      'Supports wound healing and skin barrier function',
+    ],
+    timeline: [
+      { week: 1, label: 'Immediate hydration boost' },
+      { week: 4, label: 'Fine line plumping' },
+    ],
+  },
 };
 
 // Protocol groupings are now user-defined via the user_protocols table.
