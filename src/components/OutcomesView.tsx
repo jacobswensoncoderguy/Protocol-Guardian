@@ -628,7 +628,7 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
                                   </div>
                                   <div className="flex items-center gap-2">
                                     <span className="font-mono font-bold" style={{ color: neon.solid }}>{r.value} {r.unit}</span>
-                                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="flex items-center gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                                       <button onClick={() => {
                                         setEditingReadingId(r.id);
                                         setEditReadingForm({ value: String(r.value), unit: r.unit, reading_date: r.reading_date });
