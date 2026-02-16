@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 const FloatingShareButton = () => {
   const { user } = useAuth();
   const baseUrl = 'https://superhumanprotocol.lovable.app';
-  const url = user ? `${baseUrl}?ref=${user.id}` : baseUrl;
+  const inviteUrl = user ? `${baseUrl}/invite?ref=${user.id}` : `${baseUrl}/invite`;
 
   return (
     <div className="fixed bottom-6 right-6 z-50">
@@ -18,7 +18,7 @@ const FloatingShareButton = () => {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" side="top" className="w-48 mb-2">
           <DropdownMenuItem onClick={() => {
-            const body = `Check out SUPERHUMAN Tracker — track your protocol and optimize your performance. Open this link in your browser (not in-app): ${url}`;
+            const body = `Check out SUPERHUMAN Tracker — track your protocol and optimize your performance. Create your account here: ${inviteUrl}`;
             window.open(`sms:?&body=${encodeURIComponent(body)}`);
           }}>
             <MessageSquare className="w-4 h-4 mr-2" />
@@ -26,14 +26,14 @@ const FloatingShareButton = () => {
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => {
             const subject = 'Try SUPERHUMAN Tracker';
-            const body = `Check out SUPERHUMAN Tracker — track your protocol and optimize your performance.\n\nCreate your account here: ${url}`;
+            const body = `Check out SUPERHUMAN Tracker — track your protocol and optimize your performance.\n\nCreate your account here: ${inviteUrl}`;
             window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
           }}>
             <Mail className="w-4 h-4 mr-2" />
             Share via Email
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => {
-            navigator.clipboard.writeText(url);
+            navigator.clipboard.writeText(inviteUrl);
             toast.success('Link copied to clipboard!');
           }}>
             <Link className="w-4 h-4 mr-2" />
