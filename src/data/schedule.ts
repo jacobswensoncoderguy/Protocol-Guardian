@@ -2,7 +2,7 @@ export interface DayDose {
   compoundId: string;
   dose: string;
   timing: 'morning' | 'afternoon' | 'evening';
-  category: 'peptide' | 'injectable-oil' | 'oral' | 'powder';
+  category: string;
 }
 
 export interface DaySchedule {

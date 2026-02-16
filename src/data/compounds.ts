@@ -1,4 +1,4 @@
-export type CompoundCategory = 'peptide' | 'injectable-oil' | 'oral' | 'powder';
+export type CompoundCategory = 'peptide' | 'injectable-oil' | 'oral' | 'powder' | 'prescription' | 'vitamin' | 'holistic' | 'adaptogen' | 'nootropic' | 'essential-oil' | 'alternative-medicine' | 'probiotic' | 'topical';
 
 export type CompoundStatus = 'good' | 'warning' | 'critical';
 

@@ -1,12 +1,21 @@
 import { lovable } from '@/integrations/lovable/index';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate, useSearchParams } from 'react-router-dom';
-import { Zap, Loader2 } from 'lucide-react';
-import { useEffect } from 'react';
+import { Zap, Loader2, Mail, Lock, ArrowLeft } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
+
+type AuthMode = 'login' | 'signup' | 'forgot';
 
 const Auth = () => {
   const { user, loading } = useAuth();
   const [searchParams] = useSearchParams();
+  const [mode, setMode] = useState<AuthMode>('login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   // Persist ref param so it survives the OAuth redirect
   useEffect(() => {
@@ -22,6 +31,61 @@ const Auth = () => {
     });
     if (error) {
       console.error('Sign in error:', error);
+      toast.error('Google sign-in failed. Please try again.');
+    }
+  };
+
+  const handleEmailSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password !== confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+    if (password.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+    setSubmitting(true);
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: window.location.origin },
+    });
+    setSubmitting(false);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success('Check your email for a verification link!');
+      setMode('login');
+    }
+  };
+
+  const handleEmailSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    setSubmitting(false);
+    if (error) {
+      toast.error(error.message);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) {
+      toast.error('Enter your email address');
+      return;
+    }
+    setSubmitting(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setSubmitting(false);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success('Password reset email sent!');
+      setMode('login');
     }
   };
 
@@ -39,7 +103,7 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
-      <div className="w-full max-w-sm space-y-8 text-center">
+      <div className="w-full max-w-sm space-y-6 text-center">
         <div>
           <div className="flex items-center justify-center gap-2 mb-3">
             <Zap className="w-8 h-8 text-primary" />
@@ -53,6 +117,7 @@ const Auth = () => {
           </p>
         </div>
 
+        {/* Google OAuth */}
         <button
           onClick={handleGoogleSignIn}
           className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-lg border border-border bg-card hover:bg-secondary transition-colors text-sm font-medium text-foreground"
@@ -65,6 +130,73 @@ const Auth = () => {
           </svg>
           Continue with Google
         </button>
+
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-border/50" />
+          </div>
+          <div className="relative flex justify-center text-xs">
+            <span className="bg-background px-3 text-muted-foreground">or</span>
+          </div>
+        </div>
+
+        {/* Email/Password Form */}
+        {mode === 'forgot' ? (
+          <form onSubmit={handleForgotPassword} className="space-y-3 text-left">
+            <button type="button" onClick={() => setMode('login')} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+              <ArrowLeft className="w-3 h-3" /> Back to login
+            </button>
+            <p className="text-sm text-muted-foreground">Enter your email to receive a password reset link.</p>
+            <div className="relative">
+              <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email address" required
+                className="w-full pl-10 pr-3 py-2.5 rounded-lg border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50" />
+            </div>
+            <button type="submit" disabled={submitting}
+              className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+              {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+              Send Reset Link
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={mode === 'login' ? handleEmailSignIn : handleEmailSignUp} className="space-y-3">
+            <div className="relative">
+              <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email address" required
+                className="w-full pl-10 pr-3 py-2.5 rounded-lg border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50" />
+            </div>
+            <div className="relative">
+              <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" required minLength={6}
+                className="w-full pl-10 pr-3 py-2.5 rounded-lg border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50" />
+            </div>
+            {mode === 'signup' && (
+              <div className="relative">
+                <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Confirm password" required minLength={6}
+                  className="w-full pl-10 pr-3 py-2.5 rounded-lg border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50" />
+              </div>
+            )}
+            <button type="submit" disabled={submitting}
+              className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+              {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+              {mode === 'login' ? 'Sign In' : 'Create Account'}
+            </button>
+            {mode === 'login' && (
+              <button type="button" onClick={() => setMode('forgot')} className="text-xs text-muted-foreground hover:text-primary transition-colors">
+                Forgot password?
+              </button>
+            )}
+          </form>
+        )}
+
+        <p className="text-xs text-muted-foreground">
+          {mode === 'login' ? (
+            <>Don't have an account? <button onClick={() => setMode('signup')} className="text-primary hover:underline">Sign up</button></>
+          ) : mode === 'signup' ? (
+            <>Already have an account? <button onClick={() => setMode('login')} className="text-primary hover:underline">Sign in</button></>
+          ) : null}
+        </p>
 
         <p className="text-[11px] text-muted-foreground">
           Your protocol data is private and secured to your account.

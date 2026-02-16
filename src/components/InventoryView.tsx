@@ -19,17 +19,26 @@ interface InventoryViewProps {
   onToleranceChange?: (level: ToleranceLevel) => void;
 }
 
-const categoryLabels: Record<CompoundCategory, string> = {
+const categoryLabels: Record<string, string> = {
   'peptide': 'Peptides',
   'injectable-oil': 'Injectable Oils',
   'oral': 'Oral Supplements',
   'powder': 'Powders',
+  'prescription': 'Prescription',
+  'vitamin': 'Vitamins',
+  'holistic': 'Holistic',
+  'adaptogen': 'Adaptogens',
+  'nootropic': 'Nootropics',
+  'essential-oil': 'Essential Oils',
+  'alternative-medicine': 'Alternative Medicine',
+  'probiotic': 'Probiotics',
+  'topical': 'Topical',
 };
 
-const categoryOrder: CompoundCategory[] = ['peptide', 'injectable-oil', 'oral', 'powder'];
+const categoryOrder: string[] = ['peptide', 'injectable-oil', 'prescription', 'oral', 'powder', 'vitamin', 'holistic', 'adaptogen', 'nootropic', 'essential-oil', 'alternative-medicine', 'probiotic', 'topical'];
 
 const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCompound, protocols = [], toleranceLevel, onToleranceChange }: InventoryViewProps) => {
-  const [filter, setFilter] = useState<CompoundCategory | 'all'>('all');
+  const [filter, setFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'name' | 'days'>('name');
   const [showToleranceConfirm, setShowToleranceConfirm] = useState(false);
   const [pendingTolerance, setPendingTolerance] = useState<ToleranceLevel | null>(null);
@@ -96,7 +105,7 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
 
       <div className="flex flex-wrap gap-1.5 sm:gap-2">
         <div className="flex gap-1 overflow-x-auto scrollbar-thin -mx-1 px-1">
-          {(['all', ...categoryOrder] as const).map(cat => (
+          {(['all', ...categoryOrder.filter(cat => activeCompounds.some(c => c.category === cat) || dormantCompounds.some(c => c.category === cat))]).map(cat => (
             <button
               key={cat}
               onClick={() => setFilter(cat)}
@@ -106,7 +115,7 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
                   : 'bg-secondary text-secondary-foreground active:bg-secondary/60'
               }`}
             >
-              {cat === 'all' ? 'All' : categoryLabels[cat]}
+              {cat === 'all' ? 'All' : (categoryLabels[cat] || cat)}
             </button>
           ))}
         </div>
@@ -192,7 +201,7 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
 const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; onUpdate: (id: string, updates: Partial<Compound>) => void; onDelete?: (id: string) => void }) => {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmDormant, setConfirmDormant] = useState(false);
-  const [doseUnit, setDoseUnit] = useState<'mg' | 'ml' | 'iu'>('mg');
+  const [doseUnit, setDoseUnit] = useState<'mg' | 'ml' | 'iu'>('iu');
   const [editing, setEditing] = useState(false);
   const [editState, setEditState] = useState<Record<string, string>>({});
 
@@ -546,7 +555,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
                       : 'bg-secondary text-muted-foreground border border-border/50'
                   }`}
                 >
-                  {cat === 'peptide' ? 'Pep' : cat === 'injectable-oil' ? 'Oil' : cat === 'oral' ? 'Oral' : 'Pwd'}
+                  {categoryLabels[cat] || cat}
                 </button>
               ))}
             </div>
@@ -888,8 +897,6 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
             <p className="text-[10px] text-accent mt-1.5 italic flex items-center gap-1">
               <RefreshCcw className="w-3 h-3" /> {compound.cycleOnDays} days on / {compound.cycleOffDays} days off{compound.cyclingNote && !compound.cyclingNote.match(/^\d+\s*days?\s*(on|off)/i) ? ` (${compound.cyclingNote})` : ''}
             </p>
-          ) : compound.cyclingNote ? (
-            <p className="text-[10px] text-accent mt-1.5 italic flex items-center gap-1"><RefreshCcw className="w-3 h-3" /> {compound.cyclingNote}</p>
           ) : null}
         </>
       )}
