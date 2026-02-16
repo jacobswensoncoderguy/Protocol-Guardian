@@ -446,24 +446,22 @@ const AddCompoundDialog = ({ open, onOpenChange, existingCompoundIds, onAdd }: A
                 onChange={v => setForm(f => f ? { ...f, currentQuantity: v } : f)} type="number" />
               <FormRow label="Unit Size" value={form!.unitSize} suffix={isPeptide ? 'mg/vial' : selected.unit_label}
                 onChange={v => setForm(f => f ? { ...f, unitSize: v } : f)} type="number" />
-              <FormRow label="Reorder Quantity" value={form!.reorderQuantity}
+              <FormRow label="Reorder Qty" value={form!.reorderQuantity}
                 onChange={v => setForm(f => f ? { ...f, reorderQuantity: v } : f)} type="number"
                 suffix={form!.reorderType === 'kit' ? 'kits' : 'units'} />
-              {!isPeptide && (
-                <div className="flex items-center gap-2 text-[11px] px-1">
-                  <span className="text-muted-foreground font-medium">Order as:</span>
-                  {(['single', 'kit'] as const).map(t => (
-                    <button key={t} onClick={() => setForm(f => f ? { ...f, reorderType: t } : f)}
-                      className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all ${
-                        form!.reorderType === t
-                          ? 'bg-primary/15 text-primary border border-primary/30'
-                          : 'bg-secondary text-muted-foreground border border-border/50'
-                      }`}>
-                      {t === 'single' ? 'Single Units' : 'Kits'}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <div className="flex items-center gap-2 text-[11px] px-1">
+                <span className="text-muted-foreground font-medium w-20 flex-shrink-0 text-right">Order As</span>
+                {(['single', 'kit'] as const).map(t => (
+                  <button key={t} onClick={() => setForm(f => f ? { ...f, reorderType: t } : f)}
+                    className={`px-2.5 py-1 rounded text-[10px] font-medium transition-all ${
+                      form!.reorderType === t
+                        ? 'bg-primary/15 text-primary border border-primary/30'
+                        : 'bg-secondary text-muted-foreground/40 border border-border/30'
+                    }`}>
+                    {t === 'single' ? 'Single Unit' : 'Kit'}
+                  </button>
+                ))}
+              </div>
 
               <SectionLabel>Dosing</SectionLabel>
               <FormRow label="Dose/Use" value={form!.dosePerUse} suffix={selected.dose_label}
@@ -486,13 +484,14 @@ const AddCompoundDialog = ({ open, onOpenChange, existingCompoundIds, onAdd }: A
               )}
 
               <SectionLabel>Pricing</SectionLabel>
-              {isPeptide ? (
-                <FormRow label="Kit Price" value={form!.kitPrice} prefix="$" suffix="/kit (10 vials)"
-                  onChange={v => setForm(f => f ? { ...f, kitPrice: v } : f)} type="number" />
-              ) : (
-                <FormRow label="Unit Price" value={form!.unitPrice} prefix="$" suffix={`/${isOil ? 'vial' : 'bottle'}`}
+              <div className={form!.reorderType === 'kit' ? 'opacity-40 pointer-events-none' : ''}>
+                <FormRow label="Unit Price" value={form!.unitPrice} prefix="$" suffix={`/${isPeptide ? 'vial' : isOil ? 'vial' : 'bottle'}`}
                   onChange={v => setForm(f => f ? { ...f, unitPrice: v } : f)} type="number" />
-              )}
+              </div>
+              <div className={form!.reorderType === 'single' ? 'opacity-40 pointer-events-none' : ''}>
+                <FormRow label="Kit Price" value={form!.kitPrice} prefix="$" suffix={isPeptide ? '/kit (10 vials)' : '/kit'}
+                  onChange={v => setForm(f => f ? { ...f, kitPrice: v } : f)} type="number" />
+              </div>
 
               <SectionLabel>Cycling (optional)</SectionLabel>
               <FormRow label="Days ON" value={form!.cycleOnDays}
