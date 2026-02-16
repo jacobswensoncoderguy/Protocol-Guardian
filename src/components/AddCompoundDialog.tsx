@@ -52,6 +52,7 @@ interface FormState {
   cycleOffDays: string;
   cycleStartDate: string;
   reorderQuantity: string;
+  reorderType: string;
   notes: string;
 }
 
@@ -148,6 +149,7 @@ const AddCompoundDialog = ({ open, onOpenChange, existingCompoundIds, onAdd }: A
       cycleOffDays: '',
       cycleStartDate: new Date().toISOString().split('T')[0],
       reorderQuantity: '1',
+      reorderType: 'single',
       notes: '',
     });
     setView('configure');
@@ -172,6 +174,7 @@ const AddCompoundDialog = ({ open, onOpenChange, existingCompoundIds, onAdd }: A
       cycleOffDays: (c.cycle_off_days || '').toString(),
       cycleStartDate: c.cycle_start_date || new Date().toISOString().split('T')[0],
       reorderQuantity: c.reorder_quantity.toString(),
+      reorderType: 'single',
       notes: c.notes || '',
     });
   };
@@ -221,6 +224,7 @@ const AddCompoundDialog = ({ open, onOpenChange, existingCompoundIds, onAdd }: A
       currentQuantity: qty,
       purchaseDate: '',
       reorderQuantity: reorder,
+      reorderType: (form.reorderType as 'single' | 'kit') || 'single',
       notes: form.notes || undefined,
       cycleOnDays: form.cycleOnDays ? parseInt(form.cycleOnDays) || undefined : undefined,
       cycleOffDays: form.cycleOffDays ? parseInt(form.cycleOffDays) || undefined : undefined,
@@ -442,8 +446,24 @@ const AddCompoundDialog = ({ open, onOpenChange, existingCompoundIds, onAdd }: A
                 onChange={v => setForm(f => f ? { ...f, currentQuantity: v } : f)} type="number" />
               <FormRow label="Unit Size" value={form!.unitSize} suffix={isPeptide ? 'mg/vial' : selected.unit_label}
                 onChange={v => setForm(f => f ? { ...f, unitSize: v } : f)} type="number" />
-              <FormRow label={isPeptide ? 'Reorder (kits)' : 'Reorder Qty'} value={form!.reorderQuantity}
-                onChange={v => setForm(f => f ? { ...f, reorderQuantity: v } : f)} type="number" />
+              <FormRow label="Reorder Quantity" value={form!.reorderQuantity}
+                onChange={v => setForm(f => f ? { ...f, reorderQuantity: v } : f)} type="number"
+                suffix={form!.reorderType === 'kit' ? 'kits' : 'units'} />
+              {!isPeptide && (
+                <div className="flex items-center gap-2 text-[11px] px-1">
+                  <span className="text-muted-foreground font-medium">Order as:</span>
+                  {(['single', 'kit'] as const).map(t => (
+                    <button key={t} onClick={() => setForm(f => f ? { ...f, reorderType: t } : f)}
+                      className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all ${
+                        form!.reorderType === t
+                          ? 'bg-primary/15 text-primary border border-primary/30'
+                          : 'bg-secondary text-muted-foreground border border-border/50'
+                      }`}>
+                      {t === 'single' ? 'Single Units' : 'Kits'}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               <SectionLabel>Dosing</SectionLabel>
               <FormRow label="Dose/Use" value={form!.dosePerUse} suffix={selected.dose_label}

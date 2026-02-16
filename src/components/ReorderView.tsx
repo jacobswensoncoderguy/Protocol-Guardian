@@ -200,9 +200,9 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [] }: Re
 
   const getDisplayQty = (compoundId: string, qty: number) => {
     const compound = compoundMap.get(compoundId);
-    if (!compound) return `${qty}`;
-    if (compound.category === 'peptide') return `${qty} kit${qty !== 1 ? 's' : ''}`;
-    const type = compound.reorderType === 'kit' ? 'kit' : 'unit';
+    if (!compound) return `Reorder Qty: ${qty}`;
+    if (compound.category === 'peptide') return `Reorder Qty: ${qty} kit${qty !== 1 ? 's' : ''} (${qty * 10} vials)`;
+    const type = compound.reorderType === 'kit' ? 'kit' : 'single unit';
     return `Reorder Qty: ${qty} ${type}${qty !== 1 ? 's' : ''}`;
   };
 
