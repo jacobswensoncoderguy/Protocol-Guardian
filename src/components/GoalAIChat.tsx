@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Loader2, Send, CheckCircle, Copy, Check, ThumbsUp, HelpCircle, X as XIcon, ChevronUp, ChevronDown, Pencil } from 'lucide-react';
+import { Loader2, Send, CheckCircle, Copy, Check, ThumbsUp, HelpCircle, X as XIcon, ChevronUp, ChevronDown, Pencil, Target, Zap, PlusCircle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import GeminiBadge from '@/components/GeminiBadge';
 import { OnboardingResponse } from './GoalInterview';
@@ -41,17 +41,35 @@ const STEP_CONTEXT = [
   {
     label: 'Understanding your targets',
     why: 'So we can set specific, measurable goals instead of vague ones',
-    icon: '🎯',
+    icon: Target,
+    suggestions: [
+      'Lose weight and tone up',
+      'Optimize hormones and energy',
+      'Build muscle and recover faster',
+      'Improve sleep and reduce stress',
+    ],
   },
   {
     label: 'Refining your approach',
     why: 'To match recommendations to your experience and lifestyle',
-    icon: '⚡',
+    icon: Zap,
+    suggestions: [
+      'Limited time — need simple protocols',
+      'Budget is a concern',
+      'Consistency is my biggest challenge',
+      'I have no major constraints',
+    ],
   },
   {
     label: 'Finalizing your plan',
     why: 'Creating your personalized goal targets — almost done!',
-    icon: '✅',
+    icon: CheckCircle,
+    suggestions: [
+      'Bloodwork and body measurements',
+      'How I look and feel day-to-day',
+      'Performance and energy levels',
+      'Progress photos and scale weight',
+    ],
   },
 ];
 
@@ -350,7 +368,7 @@ const GoalAIChat = ({ structuredResponses, onGoalsExtracted, onSkip, gender }: G
         {/* Current step context card */}
         {!extractedGoals && (
           <div className="mt-3 flex items-start gap-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/15">
-            <span className="text-base">{stepInfo.icon}</span>
+            {(() => { const Icon = stepInfo.icon; return <Icon className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />; })()}
             <div className="min-w-0">
               <p className="text-xs font-semibold text-foreground">{stepInfo.label}</p>
               <p className="text-[10px] text-muted-foreground leading-relaxed">{stepInfo.why}</p>
@@ -473,22 +491,58 @@ const GoalAIChat = ({ structuredResponses, onGoalsExtracted, onSkip, gender }: G
         </div>
       )}
 
-      {/* Input - hidden once goals are extracted */}
+      {/* Quick response suggestions + input */}
       {!extractedGoals && (
-        <div className="flex items-center gap-2">
-          <input
-            ref={inputRef}
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSend()}
-            placeholder={isLastStep ? 'Last answer — then we\'ll build your goals!' : 'Your answer...'}
-            disabled={isStreaming}
-            className="flex-1 px-3 py-2 rounded-lg border border-border/50 bg-card text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 disabled:opacity-50"
-          />
-          <button onClick={handleSend} disabled={isStreaming || !input.trim()}
-            className="p-2 rounded-lg bg-primary text-primary-foreground disabled:opacity-40 transition-all">
-            <Send className="w-4 h-4" />
-          </button>
+        <div className="space-y-2">
+          {/* Suggested responses */}
+          {!isStreaming && messages.length > 0 && messages[messages.length - 1]?.role === 'assistant' && (
+            <div className="space-y-1">
+              <p className="text-[9px] text-muted-foreground/60 uppercase tracking-wider font-semibold px-1">Quick responses</p>
+              <div className="flex flex-wrap gap-1.5">
+                {stepInfo.suggestions?.map((suggestion, i) => (
+                  <button
+                    key={i}
+                    onClick={() => {
+                      setInput(suggestion);
+                      setTimeout(() => {
+                        const userMsg: AIChatMessage = { role: 'user', content: suggestion };
+                        const newHistory = [...messages, userMsg];
+                        const newCount = userResponseCount + 1;
+                        setMessages(newHistory);
+                        setInput('');
+                        setUserResponseCount(newCount);
+                        sendToAI(newHistory, newCount >= MAX_QUESTIONS);
+                      }, 50);
+                    }}
+                    className="px-2.5 py-1.5 rounded-lg border border-border/50 bg-card hover:bg-secondary/50 hover:border-primary/30 text-[11px] text-foreground transition-all text-left"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-1.5 px-1 pt-0.5">
+                <PlusCircle className="w-3 h-3 text-muted-foreground/40" />
+                <span className="text-[9px] text-muted-foreground/50">Or type your own answer below</span>
+              </div>
+            </div>
+          )}
+
+          {/* Text input */}
+          <div className="flex items-center gap-2">
+            <input
+              ref={inputRef}
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSend()}
+              placeholder={isLastStep ? 'Last answer — then we\'ll build your goals!' : 'Your answer...'}
+              disabled={isStreaming}
+              className="flex-1 px-3 py-2 rounded-lg border border-border/50 bg-card text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 disabled:opacity-50"
+            />
+            <button onClick={handleSend} disabled={isStreaming || !input.trim()}
+              className="p-2 rounded-lg bg-primary text-primary-foreground disabled:opacity-40 transition-all">
+              <Send className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       )}
 

@@ -22,6 +22,7 @@ import GoalExpansionDialog from '@/components/GoalExpansionDialog';
 import BiomarkerUploadDialog from '@/components/BiomarkerUploadDialog';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import AccountSettingsDialog from '@/components/AccountSettingsDialog';
+import GuidedTour from '@/components/GuidedTour';
 
 import DashboardView from '@/components/DashboardView';
 import WeeklyScheduleView from '@/components/WeeklyScheduleView';
@@ -110,6 +111,7 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [showAccountSettings, setShowAccountSettings] = useState(false);
+  const [showGuidedTour, setShowGuidedTour] = useState(false);
 
   const handleRefresh = useCallback(async () => {
     await Promise.all([refetch(), refetchProtocols()]);
@@ -133,6 +135,7 @@ const Index = () => {
       <Onboarding
         onComplete={() => {
           setShowOnboarding(false);
+          setShowGuidedTour(true);
           refetch();
         }}
       />
@@ -375,6 +378,9 @@ const Index = () => {
         />
       </main>
       <FloatingShareButton />
+      {showGuidedTour && (
+        <GuidedTour onComplete={() => setShowGuidedTour(false)} />
+      )}
     </div>
   );
 };

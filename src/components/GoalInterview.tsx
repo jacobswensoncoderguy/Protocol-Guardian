@@ -318,19 +318,32 @@ const GoalInterview = ({ onComplete, gender }: GoalInterviewProps) => {
       case 6:
         return (
           <div className="space-y-3">
-            <p className="text-xs text-muted-foreground mb-3">Enter any current numbers you know. These become your baseline for tracking progress.</p>
-            {baselineMetrics.map(m => (
-              <div key={m.key}>
-                <label className="text-xs text-muted-foreground mb-1 block">{m.label}</label>
-                <input
-                  type="text"
-                  value={responses.currentMetrics[m.key] || ''}
-                  onChange={e => setMetric(m.key, e.target.value)}
-                  placeholder={m.placeholder}
-                  className="w-full px-3 py-2 rounded-lg border border-border/50 bg-card text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50"
-                />
-              </div>
-            ))}
+            <p className="text-xs text-muted-foreground mb-3">Enter any current numbers you know, or mark as N/A. These become your baseline for tracking progress.</p>
+            {baselineMetrics.map(m => {
+              const isNA = responses.currentMetrics[m.key] === 'N/A';
+              return (
+                <div key={m.key}>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs text-muted-foreground">{m.label}</label>
+                    <button
+                      onClick={() => setMetric(m.key, isNA ? '' : 'N/A')}
+                      className={`text-[10px] px-2 py-0.5 rounded-md border transition-all ${isNA ? 'bg-muted border-border text-foreground font-medium' : 'border-border/30 text-muted-foreground/60 hover:text-muted-foreground hover:border-border/50'}`}
+                    >
+                      {isNA ? '✓ N/A' : "Don't know"}
+                    </button>
+                  </div>
+                  {!isNA && (
+                    <input
+                      type="text"
+                      value={responses.currentMetrics[m.key] || ''}
+                      onChange={e => setMetric(m.key, e.target.value)}
+                      placeholder={m.placeholder}
+                      className="w-full px-3 py-2 rounded-lg border border-border/50 bg-card text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50"
+                    />
+                  )}
+                </div>
+              );
+            })}
           </div>
         );
       default:
@@ -365,7 +378,7 @@ const GoalInterview = ({ onComplete, gender }: GoalInterviewProps) => {
           className="flex items-center gap-1 px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-40 transition-all hover:opacity-90">
           {step === STEPS.length - 1 ? (
             <>
-              <MessageCircle className="w-4 h-4" /> Chat with AI
+              <ChevronRight className="w-4 h-4" /> Refine Goals with AI
             </>
           ) : (
             <>
