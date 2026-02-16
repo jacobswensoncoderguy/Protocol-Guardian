@@ -4,6 +4,7 @@ import ChatMarkdown from '@/components/ChatMarkdown';
 import { ChatMessage, ChangeProposal, ProposedChange } from '@/hooks/useProtocolChat';
 import { useConversations } from '@/hooks/useConversations';
 import ChatSidebar from '@/components/ChatSidebar';
+import GeminiBadge from '@/components/GeminiBadge';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 interface ProtocolChatProps {
@@ -432,6 +433,7 @@ const ProtocolChat = ({
                 </button>
               )}
             </div>
+            <GeminiBadge />
           </div>
         )}
       </div>

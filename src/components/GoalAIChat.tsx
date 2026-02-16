@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Loader2, Send, CheckCircle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import GeminiBadge from '@/components/GeminiBadge';
 import { OnboardingResponse } from './GoalInterview';
 
 interface AIChatMessage {
@@ -214,7 +215,9 @@ const GoalAIChat = ({ structuredResponses, onGoalsExtracted, onSkip }: GoalAICha
         </button>
       </div>
 
-      <button onClick={onSkip} className="text-xs text-muted-foreground hover:text-foreground mt-2 transition-colors">
+      <GeminiBadge />
+
+      <button onClick={onSkip} className="text-xs text-muted-foreground hover:text-foreground mt-1 transition-colors">
         Skip — I'll set goals later
       </button>
     </div>
