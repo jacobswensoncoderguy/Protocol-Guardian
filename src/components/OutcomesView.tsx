@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Target, TrendingUp, Plus, Activity, ChevronDown, ChevronUp, Ruler, Weight, Percent, Calendar as CalendarIcon, Trash2, Edit2, X, Check, MessageCircle, Clock, Trophy, Pause, RotateCcw, Archive } from 'lucide-react';
+import { Target, TrendingUp, Plus, Activity, ChevronDown, ChevronUp, Ruler, Weight, Percent, Calendar as CalendarIcon, Trash2, Edit2, X, Check, MessageCircle, Clock, Trophy, Pause, RotateCcw, Archive, ArrowUp, ArrowDown, GripVertical } from 'lucide-react';
 import { getGoalIcon } from '@/lib/goalIcons';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { UserGoal } from '@/hooks/useGoals';
@@ -124,6 +124,7 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
   }>({ title: '', target_value: '', baseline_value: '', target_unit: '', target_date: '', description: '', baseline_date: '', baseline_label: '', target_label: '' });
   const [celebrateGoal, setCelebrateGoal] = useState<UserGoal | null>(null);
   const [showAchievements, setShowAchievements] = useState(false);
+  const [reorderMode, setReorderMode] = useState(false);
 
   const activeGoals = goals.filter(g => g.status === 'active');
   const inactiveGoals = goals.filter(g => ['achieved', 'paused', 'archived'].includes(g.status));
@@ -172,6 +173,20 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
     }
   };
 
+  const handleMoveGoal = async (goalId: string, direction: 'up' | 'down') => {
+    const idx = activeGoals.findIndex(g => g.id === goalId);
+    if (idx < 0) return;
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= activeGoals.length) return;
+    const currentPriority = activeGoals[idx].priority ?? idx;
+    const swapPriority = activeGoals[swapIdx].priority ?? swapIdx;
+    if (onUpdateGoal) {
+      await Promise.all([
+        onUpdateGoal(activeGoals[idx].id!, { priority: swapPriority } as any),
+        onUpdateGoal(activeGoals[swapIdx].id!, { priority: currentPriority } as any),
+      ]);
+    }
+  };
 
 
   const handleDeleteGoal = async (goalId: string) => {
@@ -275,12 +290,27 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
       ) : (
         <>
           <div className="space-y-3">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-              <Target className="w-3.5 h-3.5" />
-              Goal Progress
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <Target className="w-3.5 h-3.5" />
+                Goal Progress
+              </h3>
+              {activeGoals.length > 1 && (
+                <button
+                  onClick={() => setReorderMode(r => !r)}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-all ${
+                    reorderMode
+                      ? 'bg-primary/15 text-primary border border-primary/30'
+                      : 'bg-secondary/50 text-muted-foreground border border-border/30 hover:bg-secondary'
+                  }`}
+                >
+                  <GripVertical className="w-3 h-3" />
+                  {reorderMode ? 'Done' : 'Reorder'}
+                </button>
+              )}
+            </div>
 
-            {activeGoals.map(goal => {
+            {activeGoals.map((goal, goalIndex) => {
               const goalReadings = readings.get(goal.id!) || [];
               const firstVal = goalReadings.length > 0 ? goalReadings[0].value : undefined;
               const progress = getProgress(goal, firstVal);
@@ -318,6 +348,25 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
               return (
                 <div key={goal.id} className={`bg-card rounded-xl border overflow-hidden transition-all ${isExpanded ? `border-border/60 ${neon.ring}` : 'border-border/30'}`}>
                   {/* Goal header */}
+                  <div className="flex items-center">
+                    {reorderMode && (
+                      <div className="flex flex-col items-center pl-2 py-2 gap-0.5 flex-shrink-0">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleMoveGoal(goal.id!, 'up'); }}
+                          disabled={goalIndex === 0}
+                          className="p-1 rounded hover:bg-secondary/60 transition-colors disabled:opacity-20"
+                        >
+                          <ArrowUp className="w-3.5 h-3.5 text-muted-foreground" />
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleMoveGoal(goal.id!, 'down'); }}
+                          disabled={goalIndex === activeGoals.length - 1}
+                          className="p-1 rounded hover:bg-secondary/60 transition-colors disabled:opacity-20"
+                        >
+                          <ArrowDown className="w-3.5 h-3.5 text-muted-foreground" />
+                        </button>
+                      </div>
+                    )}
                   <button
                     onClick={() => setExpandedGoal(isExpanded ? null : goal.id!)}
                     className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-secondary/20 transition-colors"
@@ -364,6 +413,7 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
                     </div>
                     {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
                   </button>
+                  </div>
 
                   {/* Expanded card */}
                   {isExpanded && (
