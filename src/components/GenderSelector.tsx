@@ -51,7 +51,7 @@ const GenderSelector = ({ currentGender, onGenderChange, locked = false }: Gende
                 : 'bg-secondary/30 border-border/30 text-muted-foreground hover:border-primary/30'
             }`}
           >
-            <img src={g.img} alt={g.label} className="w-5 h-7 rounded object-cover" />
+            <img src={g.img} alt={g.label} className="w-8 h-10 rounded object-cover" />
             <span className="text-[11px] font-semibold">{g.label}</span>
           </button>
         ))}
