@@ -380,7 +380,10 @@ const Index = () => {
       </main>
       <FloatingShareButton />
       {showGuidedTour && (
-        <GuidedTour onComplete={() => setShowGuidedTour(false)} />
+        <GuidedTour
+          onComplete={() => { setShowGuidedTour(false); setActiveTab('dashboard'); }}
+          onNavigateTab={setActiveTab}
+        />
       )}
     </div>
   );
