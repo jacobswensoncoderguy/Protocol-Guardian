@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { Compound, getStatus, getReorderDateString, CompoundCategory } from '@/data/compounds';
 import { getCycleStatus, getDaysRemainingWithCycling } from '@/lib/cycling';
 import { UserProtocol } from '@/hooks/useProtocols';
@@ -30,6 +31,8 @@ const categoryOrder: CompoundCategory[] = ['peptide', 'injectable-oil', 'oral', 
 const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCompound, protocols = [], toleranceLevel, onToleranceChange }: InventoryViewProps) => {
   const [filter, setFilter] = useState<CompoundCategory | 'all'>('all');
   const [sortBy, setSortBy] = useState<'name' | 'days'>('name');
+  const [showToleranceConfirm, setShowToleranceConfirm] = useState(false);
+  const [pendingTolerance, setPendingTolerance] = useState<ToleranceLevel | null>(null);
   const activeCompounds = compounds.filter(c => !c.notes?.includes('[DORMANT]'));
   const dormantCompounds = compounds.filter(c => c.notes?.includes('[DORMANT]'));
   const filtered = filter === 'all' ? activeCompounds : activeCompounds.filter(c => c.category === filter);
@@ -80,10 +83,13 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Dosing Tolerance Level</p>
           <ToleranceSelector
             value={(toleranceLevel || 'moderate') as ToleranceLevel}
-            onChange={onToleranceChange}
+            onChange={(level) => {
+              setPendingTolerance(level);
+              setShowToleranceConfirm(true);
+            }}
           />
           <p className="text-[9px] text-muted-foreground/50 mt-1.5">
-            Compare options side-by-side. Your selection applies across all pages.
+            Your selection applies across all pages.
           </p>
         </div>
       )}
@@ -161,6 +167,20 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
           </CollapsibleContent>
         </Collapsible>
       )}
+      <ConfirmDialog
+        open={showToleranceConfirm}
+        onOpenChange={setShowToleranceConfirm}
+        title="Confirm Tolerance Level"
+        description={`Lock your dosing tolerance to "${pendingTolerance}"? This will update all pages with this tolerance level.`}
+        confirmLabel="Lock It In"
+        onConfirm={() => {
+          if (pendingTolerance && onToleranceChange) {
+            onToleranceChange(pendingTolerance);
+            toast.success(`Tolerance locked to ${pendingTolerance}`);
+          }
+          setShowToleranceConfirm(false);
+        }}
+      />
     </div>
   );
 };

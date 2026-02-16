@@ -41,6 +41,7 @@ interface DashboardViewProps {
   onToleranceChange?: (level: ToleranceLevel) => void;
   measurementSystem?: MeasurementSystem;
   doseUnitPreference?: DoseUnitPreference;
+  onNavigateToInventory?: () => void;
 }
 
 const toleranceMeta: Record<string, { Icon: typeof Shield; label: string; color: string }> = {
@@ -153,7 +154,7 @@ const ZoneLegend = ({ zoneIntensities, onZoneTap }: { zoneIntensities: Record<Bo
   );
 };
 // Profile & Tolerance info bar for Protocol Coverage screen
-const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpdateProfile, onToleranceChange, onGenderChange, measurementSystem = 'metric' }: {
+const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpdateProfile, onToleranceChange, onGenderChange, measurementSystem = 'metric', onNavigateToInventory }: {
   profile?: UserProfile | null;
   toleranceLevel?: string;
   toleranceHistory?: ToleranceEntry[];
@@ -161,6 +162,7 @@ const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpda
   onToleranceChange?: (level: ToleranceLevel) => void;
   onGenderChange?: (gender: string, temporary: boolean) => void;
   measurementSystem?: MeasurementSystem;
+  onNavigateToInventory?: () => void;
 }) => {
   const [editing, setEditing] = useState(false);
   const [height, setHeight] = useState('');
@@ -253,10 +255,15 @@ const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpda
                 : toleranceLevel === 'performance' ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
                 : 'bg-primary/10 border-primary/30 text-primary';
               return (
-                <div className={`inline-flex items-center gap-1.5 text-[10px] font-medium px-2.5 py-1.5 rounded-lg border ${colorClass}`}>
+                <button
+                  onClick={onNavigateToInventory}
+                  className={`inline-flex items-center gap-1.5 text-[10px] font-medium px-2.5 py-1.5 rounded-lg border transition-all hover:opacity-80 active:scale-95 ${colorClass}`}
+                  title="Tap to change on Compounds tab"
+                >
                   <meta.Icon className="w-3 h-3" />
                   <span>{meta.label}</span>
-                </div>
+                  <ChevronRight className="w-3 h-3 opacity-50" />
+                </button>
               );
             })()}
             {latestTolerance && (
@@ -356,7 +363,7 @@ const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpda
   );
 };
 
-const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, toleranceLevel, onAnalyzeStack, onViewAIInsights, onViewOutcomes, goals = [], userId, profile, toleranceHistory = [], onUpdateProfile, onToleranceChange, measurementSystem = 'metric', doseUnitPreference = 'mg' }: DashboardViewProps) => {
+const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, toleranceLevel, onAnalyzeStack, onViewAIInsights, onViewOutcomes, goals = [], userId, profile, toleranceHistory = [], onUpdateProfile, onToleranceChange, measurementSystem = 'metric', doseUnitPreference = 'mg', onNavigateToInventory }: DashboardViewProps) => {
   const { readings, fetchReadings, addReading } = useGoalReadings(userId);
   const [activeScreen, setActiveScreen] = useState(0);
   const [selectedZone, setSelectedZone] = useState<BodyZone | null>(null);
@@ -512,6 +519,7 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
                 onToleranceChange={onToleranceChange}
                 onGenderChange={handleGenderChange}
                 measurementSystem={measurementSystem}
+                onNavigateToInventory={onNavigateToInventory}
               />
 
               {/* Wireframe body – no 3D, no orbit controls */}

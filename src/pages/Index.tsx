@@ -242,6 +242,7 @@ const Index = () => {
               onToleranceChange={handleToleranceChange}
               measurementSystem={measurementSystem}
               doseUnitPreference={doseUnitPreference}
+              onNavigateToInventory={() => setActiveTab('inventory')}
             />
           </TabsContent>
           <TabsContent value="schedule" className="animate-slide-up">
