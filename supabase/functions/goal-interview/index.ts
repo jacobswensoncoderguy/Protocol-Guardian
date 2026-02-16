@@ -90,18 +90,17 @@ Format responses in markdown. Use **bold** for emphasis.`;
                       properties: {
                         goal_type: { 
                           type: "string", 
-                          enum: isFemale 
-                            ? ["body_composition", "fat_loss", "cardiovascular", "cognitive", "hormonal_balance", "longevity", "recovery", "sleep", "skin_hair", "fertility", "stress", "custom"]
-                            : ["muscle_gain", "fat_loss", "cardiovascular", "cognitive", "hormonal", "longevity", "recovery", "sleep", "libido", "custom"]
+                          description: isFemale 
+                            ? "Goal type. One of: body_composition, fat_loss, cardiovascular, cognitive, hormonal_balance, longevity, recovery, sleep, skin_hair, fertility, stress, custom"
+                            : "Goal type. One of: muscle_gain, fat_loss, cardiovascular, cognitive, hormonal, longevity, recovery, sleep, libido, custom"
                         },
                         title: { type: "string", description: "Short, specific goal title" },
                         description: { type: "string", description: "Detailed description of the goal" },
-                        body_area: { type: "string", enum: ["arms", "chest", "legs", "core", "back", "full_body", "brain", "heart"], description: "Body area if applicable" },
+                        body_area: { type: "string", description: "Body area if applicable. One of: arms, chest, legs, core, back, full_body, brain, heart" },
                         target_value: { type: "number", description: "Numeric target value" },
                         target_unit: { type: "string", description: "Unit of measurement (e.g., lbs, %, ng/dL)" },
-                        priority: { type: "number", enum: [1, 2, 3], description: "1=high, 2=medium, 3=low" },
+                        priority: { type: "number", description: "Priority: 1=high, 2=medium, 3=low" },
                       },
-                      required: ["goal_type", "title", "priority"],
                     },
                   },
                 },
