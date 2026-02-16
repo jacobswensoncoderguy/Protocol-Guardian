@@ -54,6 +54,7 @@ interface FormState {
   reorderQuantity: string;
   reorderType: string;
   notes: string;
+  vialSizeMl: string;
 }
 
 interface AddCompoundDialogProps {
@@ -151,6 +152,7 @@ const AddCompoundDialog = ({ open, onOpenChange, existingCompoundIds, onAdd }: A
       reorderQuantity: '1',
       reorderType: 'single',
       notes: '',
+      vialSizeMl: '10',
     });
     setView('configure');
   };
@@ -176,6 +178,7 @@ const AddCompoundDialog = ({ open, onOpenChange, existingCompoundIds, onAdd }: A
       reorderQuantity: c.reorder_quantity.toString(),
       reorderType: 'single',
       notes: c.notes || '',
+      vialSizeMl: '10',
     });
   };
 
@@ -214,7 +217,7 @@ const AddCompoundDialog = ({ open, onOpenChange, existingCompoundIds, onAdd }: A
       unitLabel: isOil ? 'mg/mL' : selected.unit_label,
       unitPrice: price,
       kitPrice: isPeptide ? kit : undefined,
-      vialSizeMl: isOil ? (parseFloat((form as any).vialSizeMl) || 10) : undefined,
+      vialSizeMl: isOil ? (parseFloat(form.vialSizeMl) || 10) : undefined,
       dosePerUse: dose,
       doseLabel: selected.dose_label,
       bacstatPerVial: isPeptide ? parseFloat(form.bacstatPerVial) || 200 : undefined,
@@ -446,8 +449,12 @@ const AddCompoundDialog = ({ open, onOpenChange, existingCompoundIds, onAdd }: A
               <SectionLabel>Inventory</SectionLabel>
               <FormRow label={isPeptide ? 'Vials on Hand' : 'Qty on Hand'} value={form!.currentQuantity}
                 onChange={v => setForm(f => f ? { ...f, currentQuantity: v } : f)} type="number" />
-              <FormRow label="Unit Size" value={form!.unitSize} suffix={isPeptide ? 'mg/vial' : selected.unit_label}
+              <FormRow label={isOil ? 'Conc.' : 'Unit Size'} value={form!.unitSize} suffix={isPeptide ? 'mg/vial' : isOil ? 'mg/mL' : selected.unit_label}
                 onChange={v => setForm(f => f ? { ...f, unitSize: v } : f)} type="number" />
+              {isOil && (
+                <FormRow label="Vial Size" value={form!.vialSizeMl} suffix="mL"
+                  onChange={v => setForm(f => f ? { ...f, vialSizeMl: v } : f)} type="number" />
+              )}
               <FormRow label="Reorder Qty" value={form!.reorderQuantity}
                 onChange={v => setForm(f => f ? { ...f, reorderQuantity: v } : f)} type="number"
                 suffix={form!.reorderType === 'kit' ? 'kits' : 'units'} />
