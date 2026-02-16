@@ -112,9 +112,9 @@ export function useCompounds(userId: string | undefined) {
     if (updates.daysPerWeek !== undefined) dbUpdates.days_per_week = updates.daysPerWeek;
     if (updates.timingNote !== undefined) dbUpdates.timing_note = updates.timingNote;
     if (updates.cyclingNote !== undefined) dbUpdates.cycling_note = updates.cyclingNote;
-    if (updates.cycleOnDays !== undefined) dbUpdates.cycle_on_days = updates.cycleOnDays;
-    if (updates.cycleOffDays !== undefined) dbUpdates.cycle_off_days = updates.cycleOffDays;
-    if (updates.cycleStartDate !== undefined) dbUpdates.cycle_start_date = updates.cycleStartDate;
+    if ('cycleOnDays' in updates) dbUpdates.cycle_on_days = updates.cycleOnDays ?? null;
+    if ('cycleOffDays' in updates) dbUpdates.cycle_off_days = updates.cycleOffDays ?? null;
+    if ('cycleStartDate' in updates) dbUpdates.cycle_start_date = updates.cycleStartDate ?? null;
     if (updates.currentQuantity !== undefined) dbUpdates.current_quantity = updates.currentQuantity;
     if (updates.purchaseDate !== undefined) dbUpdates.purchase_date = updates.purchaseDate;
     if (updates.reorderQuantity !== undefined) dbUpdates.reorder_quantity = updates.reorderQuantity;

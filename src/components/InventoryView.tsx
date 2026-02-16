@@ -239,6 +239,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
   };
 
   const startEdit = () => {
+    const hasCycling = !!(compound.cycleOnDays && compound.cycleOffDays);
     const state: Record<string, string> = {
       name: compound.name,
       category: compound.category,
@@ -249,6 +250,10 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
       dosePerUse: compound.dosePerUse.toString(),
       reorderQuantity: compound.reorderQuantity.toString(),
       reorderType: compound.reorderType || 'single',
+      cyclingEnabled: hasCycling ? 'true' : 'false',
+      cycleOnDays: (compound.cycleOnDays || 0).toString(),
+      cycleOffDays: (compound.cycleOffDays || 0).toString(),
+      cycleStartDate: compound.cycleStartDate || '',
     };
     if (isPeptide) {
       state.kitPrice = (compound.kitPrice || 0).toString();
@@ -257,11 +262,6 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
     }
     if (!isPeptide && !isOil) {
       state.purchaseDate = compound.purchaseDate;
-    }
-    if (compound.cycleOnDays) {
-      state.cycleOnDays = compound.cycleOnDays.toString();
-      state.cycleOffDays = (compound.cycleOffDays || 0).toString();
-      state.cycleStartDate = compound.cycleStartDate || '';
     }
     setEditState(state);
     setEditing(true);
@@ -301,19 +301,19 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
       updates.purchaseDate = editState.purchaseDate;
     }
 
-    if (editState.cycleOnDays !== undefined) {
+    if (editState.cyclingEnabled === 'true') {
       const on = parseInt(editState.cycleOnDays);
       const off = parseInt(editState.cycleOffDays);
       if (!isNaN(on) && on > 0 && !isNaN(off) && off > 0) {
         updates.cycleOnDays = on;
         updates.cycleOffDays = off;
         updates.cycleStartDate = editState.cycleStartDate || compound.cycleStartDate || new Date().toISOString().split('T')[0];
-      } else if (on === 0 || off === 0) {
-        // User cleared cycling — remove it
-        updates.cycleOnDays = undefined;
-        updates.cycleOffDays = undefined;
-        updates.cycleStartDate = undefined;
       }
+    } else {
+      // Cycling disabled — clear it
+      updates.cycleOnDays = undefined;
+      updates.cycleOffDays = undefined;
+      updates.cycleStartDate = undefined;
     }
 
     if (editState.timing !== undefined) {
@@ -582,13 +582,42 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
               ))}
             </div>
           </div>
-          {editState.cycleOnDays !== undefined && (
+          {/* Cycling toggle */}
+          <div className="flex items-center gap-2 text-[11px]">
+            <span className="text-muted-foreground w-16 flex-shrink-0">Cycling</span>
+            <div className="flex gap-1 flex-1">
+              <button
+                onClick={() => {
+                  if (editState.cyclingEnabled === 'true') {
+                    setEditState(s => ({ ...s, cyclingEnabled: 'false', cycleOnDays: '0', cycleOffDays: '0', cycleStartDate: '' }));
+                  } else {
+                    setEditState(s => ({
+                      ...s,
+                      cyclingEnabled: 'true',
+                      cycleOnDays: s.cycleOnDays && s.cycleOnDays !== '0' ? s.cycleOnDays : '28',
+                      cycleOffDays: s.cycleOffDays && s.cycleOffDays !== '0' ? s.cycleOffDays : '14',
+                      cycleStartDate: s.cycleStartDate || new Date().toISOString().split('T')[0],
+                    }));
+                  }
+                }}
+                className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all ${
+                  editState.cyclingEnabled === 'true'
+                    ? 'bg-primary/15 text-primary border border-primary/30'
+                    : 'bg-secondary text-muted-foreground border border-border/50'
+                }`}
+              >
+                <RefreshCcw className="w-3 h-3 inline mr-0.5" />
+                {editState.cyclingEnabled === 'true' ? 'ON' : 'OFF'}
+              </button>
+            </div>
+          </div>
+          {editState.cyclingEnabled === 'true' && (
             <>
-              <EditRow label="Cycle ON" value={editState.cycleOnDays} suffix="days"
+              <EditRow label="Cycle ON" value={editState.cycleOnDays || ''} suffix="days"
                 onChange={v => setEditState(s => ({ ...s, cycleOnDays: v }))} type="number" />
-              <EditRow label="Cycle OFF" value={editState.cycleOffDays} suffix="days"
+              <EditRow label="Cycle OFF" value={editState.cycleOffDays || ''} suffix="days"
                 onChange={v => setEditState(s => ({ ...s, cycleOffDays: v }))} type="number" />
-              <EditRow label="Cycle Start" value={editState.cycleStartDate}
+              <EditRow label="Cycle Start" value={editState.cycleStartDate || ''}
                 onChange={v => setEditState(s => ({ ...s, cycleStartDate: v }))} type="date" />
             </>
           )}
