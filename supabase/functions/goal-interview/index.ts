@@ -9,20 +9,34 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, structuredResponses } = await req.json();
+    const { messages, structuredResponses, gender } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+
+    const isFemale = gender === 'female';
+
+    const genderContext = isFemale
+      ? `The user is female. Focus on female-specific health topics: hormonal balance (estrogen, progesterone, cortisol), 
+cycle health, perimenopause/menopause support, bone density, skin & hair health, fertility considerations, and stress/mood support.
+Do NOT ask about testosterone levels or male-specific concerns like prostate health.
+Frame muscle goals as "body composition" and "toning" rather than "bulk" unless they specifically want that.
+Consider female-appropriate peptide doses and supplement recommendations.`
+      : `The user is male. You can discuss testosterone optimization, muscle building, libido, and male-specific health concerns.`;
 
     const systemPrompt = `You are a biohacking and health optimization coach conducting a brief, conversational follow-up interview. 
 The user has already answered structured questions about their goals. Here's what they shared:
 
 ${JSON.stringify(structuredResponses, null, 2)}
 
+Gender context:
+${genderContext}
+
 Your role:
 1. Ask 2-3 focused follow-up questions based on their answers to get specific, actionable details
 2. Be warm, encouraging, and knowledgeable about peptides, supplements, and performance optimization
 3. After gathering enough info, summarize their goal profile and suggest specific, measurable targets
 4. Use tool calling to extract structured goals when the conversation feels complete
+5. Tailor all recommendations and language to be appropriate for the user's gender
 
 Keep responses concise (2-3 sentences max per turn). Be direct and avoid generic wellness advice.
 Format your responses in markdown. Use bold for emphasis.`;
@@ -54,7 +68,12 @@ Format your responses in markdown. Use bold for emphasis.`;
                     items: {
                       type: "object",
                       properties: {
-                        goal_type: { type: "string", enum: ["muscle_gain", "fat_loss", "cardiovascular", "cognitive", "hormonal", "longevity", "recovery", "sleep", "libido", "custom"] },
+                        goal_type: { 
+                          type: "string", 
+                          enum: isFemale 
+                            ? ["body_composition", "fat_loss", "cardiovascular", "cognitive", "hormonal_balance", "longevity", "recovery", "sleep", "skin_hair", "fertility", "stress", "custom"]
+                            : ["muscle_gain", "fat_loss", "cardiovascular", "cognitive", "hormonal", "longevity", "recovery", "sleep", "libido", "custom"]
+                        },
                         title: { type: "string", description: "Short, specific goal title" },
                         description: { type: "string", description: "Detailed description" },
                         body_area: { type: "string", enum: ["arms", "chest", "legs", "core", "back", "full_body", "brain", "heart"], description: "Body area if applicable" },

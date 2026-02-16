@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
-import { Loader2, Send, CheckCircle } from 'lucide-react';
+import { Loader2, Send, CheckCircle, Copy, Check, ThumbsUp, HelpCircle, X as XIcon, ChevronUp, ChevronDown } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import GeminiBadge from '@/components/GeminiBadge';
 import { OnboardingResponse } from './GoalInterview';
+import { toast } from 'sonner';
 
 interface AIChatMessage {
   role: 'user' | 'assistant';
@@ -13,6 +14,7 @@ interface GoalAIChatProps {
   structuredResponses: OnboardingResponse;
   onGoalsExtracted: (goals: ExtractedGoal[]) => void;
   onSkip: () => void;
+  gender?: string | null;
 }
 
 export interface ExtractedGoal {
@@ -25,11 +27,77 @@ export interface ExtractedGoal {
   priority: number;
 }
 
-const GoalAIChat = ({ structuredResponses, onGoalsExtracted, onSkip }: GoalAIChatProps) => {
+type InterestLevel = 'interested' | 'need_info' | 'not_interested';
+
+interface GoalInterest {
+  goalIndex: number;
+  interest: InterestLevel;
+  priority: number; // 1-5
+}
+
+const CopyButton = ({ text }: { text: string }) => {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      toast.success('Copied to clipboard');
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+  return (
+    <button onClick={handleCopy} className="p-1 rounded hover:bg-secondary/50 text-muted-foreground/50 hover:text-muted-foreground transition-colors" title="Copy message">
+      {copied ? <Check className="w-3 h-3 text-primary" /> : <Copy className="w-3 h-3" />}
+    </button>
+  );
+};
+
+const InterestToggle = ({ value, onChange }: { value?: InterestLevel; onChange: (v: InterestLevel) => void }) => {
+  const options: { id: InterestLevel; label: string; icon: typeof ThumbsUp }[] = [
+    { id: 'interested', label: 'Interested', icon: ThumbsUp },
+    { id: 'need_info', label: 'Need more info', icon: HelpCircle },
+    { id: 'not_interested', label: 'Not for me', icon: XIcon },
+  ];
+  return (
+    <div className="flex gap-1.5 flex-wrap">
+      {options.map(o => {
+        const Icon = o.icon;
+        const active = value === o.id;
+        return (
+          <button
+            key={o.id}
+            onClick={() => onChange(o.id)}
+            className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium border transition-all ${
+              active
+                ? o.id === 'interested' ? 'bg-primary/15 border-primary/40 text-primary'
+                : o.id === 'need_info' ? 'bg-amber-500/15 border-amber-500/40 text-amber-600'
+                : 'bg-destructive/10 border-destructive/30 text-destructive'
+                : 'bg-card border-border/50 text-muted-foreground hover:bg-secondary/50'
+            }`}
+          >
+            <Icon className="w-3 h-3" />
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
+const PrioritySelector = ({ value, onChange }: { value: number; onChange: (v: number) => void }) => (
+  <div className="flex items-center gap-1">
+    <span className="text-[9px] text-muted-foreground mr-1">Priority:</span>
+    <button onClick={() => onChange(Math.max(1, value - 1))} className="p-0.5 rounded hover:bg-secondary text-muted-foreground"><ChevronDown className="w-3 h-3" /></button>
+    <span className="text-[10px] font-mono font-bold text-primary w-3 text-center">{value}</span>
+    <button onClick={() => onChange(Math.min(5, value + 1))} className="p-0.5 rounded hover:bg-secondary text-muted-foreground"><ChevronUp className="w-3 h-3" /></button>
+  </div>
+);
+
+const GoalAIChat = ({ structuredResponses, onGoalsExtracted, onSkip, gender }: GoalAIChatProps) => {
   const [messages, setMessages] = useState<AIChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [extractedGoals, setExtractedGoals] = useState<ExtractedGoal[] | null>(null);
+  const [goalInterests, setGoalInterests] = useState<Map<number, GoalInterest>>(new Map());
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const startedRef = useRef(false);
@@ -56,7 +124,7 @@ const GoalAIChat = ({ structuredResponses, onGoalsExtracted, onSkip }: GoalAICha
           'Content-Type': 'application/json',
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ messages: msgHistory, structuredResponses }),
+        body: JSON.stringify({ messages: msgHistory, structuredResponses, gender }),
       });
 
       if (!resp.ok || !resp.body) throw new Error('Stream failed');
@@ -85,7 +153,6 @@ const GoalAIChat = ({ structuredResponses, onGoalsExtracted, onSkip }: GoalAICha
             const parsed = JSON.parse(json);
             const delta = parsed.choices?.[0]?.delta;
 
-            // Check for tool calls
             if (delta?.tool_calls) {
               inToolCall = true;
               const tc = delta.tool_calls[0];
@@ -110,7 +177,6 @@ const GoalAIChat = ({ structuredResponses, onGoalsExtracted, onSkip }: GoalAICha
         }
       }
 
-      // Process tool call results
       if (inToolCall && toolCallArgs) {
         try {
           const parsed = JSON.parse(toolCallArgs);
@@ -122,7 +188,6 @@ const GoalAIChat = ({ structuredResponses, onGoalsExtracted, onSkip }: GoalAICha
         }
       }
 
-      // If no content was streamed but we got tool calls, add a summary message
       if (!assistantContent && extractedGoals) {
         setMessages(prev => [...prev, { role: 'assistant', content: "I've defined your goals based on our conversation. Review them below!" }]);
       }
@@ -143,6 +208,36 @@ const GoalAIChat = ({ structuredResponses, onGoalsExtracted, onSkip }: GoalAICha
     sendToAI(newHistory);
   };
 
+  const setInterest = (index: number, interest: InterestLevel) => {
+    setGoalInterests(prev => {
+      const next = new Map(prev);
+      const existing = next.get(index);
+      next.set(index, { goalIndex: index, interest, priority: existing?.priority ?? 3 });
+      return next;
+    });
+  };
+
+  const setPriority = (index: number, priority: number) => {
+    setGoalInterests(prev => {
+      const next = new Map(prev);
+      const existing = next.get(index);
+      next.set(index, { goalIndex: index, interest: existing?.interest ?? 'interested', priority });
+      return next;
+    });
+  };
+
+  const handleAcceptGoals = () => {
+    if (!extractedGoals) return;
+    const refined = extractedGoals
+      .map((g, i) => {
+        const interest = goalInterests.get(i);
+        if (interest?.interest === 'not_interested') return null;
+        return { ...g, priority: interest?.priority ?? g.priority };
+      })
+      .filter(Boolean) as ExtractedGoal[];
+    onGoalsExtracted(refined);
+  };
+
   return (
     <div className="flex flex-col h-full">
       <div className="text-center mb-3">
@@ -153,7 +248,7 @@ const GoalAIChat = ({ structuredResponses, onGoalsExtracted, onSkip }: GoalAICha
       <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 mb-3 max-h-[45vh] scrollbar-thin">
         {messages.map((msg, i) => (
           <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
+            <div className={`max-w-[85%] rounded-lg px-3 py-2 text-sm relative group ${
               msg.role === 'user'
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-card border border-border/50 text-foreground'
@@ -163,6 +258,9 @@ const GoalAIChat = ({ structuredResponses, onGoalsExtracted, onSkip }: GoalAICha
                   <ReactMarkdown>{msg.content}</ReactMarkdown>
                 </div>
               ) : msg.content}
+              <div className="absolute -bottom-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <CopyButton text={msg.content} />
+              </div>
             </div>
           </div>
         ))}
@@ -175,23 +273,33 @@ const GoalAIChat = ({ structuredResponses, onGoalsExtracted, onSkip }: GoalAICha
         )}
       </div>
 
-      {/* Extracted goals preview */}
+      {/* Extracted goals preview with interest toggles */}
       {extractedGoals && (
         <div className="border border-primary/30 rounded-lg p-3 mb-3 bg-primary/5">
           <h3 className="text-sm font-semibold text-primary mb-2 flex items-center gap-1.5">
             <CheckCircle className="w-4 h-4" /> AI-Generated Goals
           </h3>
-          <div className="space-y-1.5">
-            {extractedGoals.map((g, i) => (
-              <div key={i} className="flex items-center justify-between text-xs bg-card/50 rounded px-2.5 py-1.5">
-                <span className="text-foreground font-medium">{g.title}</span>
-                {g.target_value && g.target_unit && (
-                  <span className="text-primary font-mono">{g.target_value} {g.target_unit}</span>
-                )}
-              </div>
-            ))}
+          <div className="space-y-2.5">
+            {extractedGoals.map((g, i) => {
+              const interest = goalInterests.get(i);
+              const isRejected = interest?.interest === 'not_interested';
+              return (
+                <div key={i} className={`bg-card/50 rounded-lg px-2.5 py-2 space-y-1.5 border transition-all ${isRejected ? 'opacity-40 border-border/30' : 'border-border/50'}`}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-foreground font-medium">{g.title}</span>
+                    {g.target_value && g.target_unit && (
+                      <span className="text-primary font-mono text-[10px]">{g.target_value} {g.target_unit}</span>
+                    )}
+                  </div>
+                  <InterestToggle value={interest?.interest} onChange={(v) => setInterest(i, v)} />
+                  {interest?.interest === 'interested' && (
+                    <PrioritySelector value={interest.priority} onChange={(v) => setPriority(i, v)} />
+                  )}
+                </div>
+              );
+            })}
           </div>
-          <button onClick={() => onGoalsExtracted(extractedGoals)}
+          <button onClick={handleAcceptGoals}
             className="w-full mt-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all">
             Accept Goals & Continue
           </button>

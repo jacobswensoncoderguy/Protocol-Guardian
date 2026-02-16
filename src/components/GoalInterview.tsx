@@ -14,9 +14,10 @@ export interface OnboardingResponse {
 
 interface GoalInterviewProps {
   onComplete: (responses: OnboardingResponse) => void;
+  gender?: string | null;
 }
 
-const GOAL_OPTIONS = [
+const GOAL_OPTIONS_MALE = [
   { id: 'muscle_gain', label: 'Build Muscle', icon: Dumbbell, color: 'text-emerald-400' },
   { id: 'fat_loss', label: 'Lose Fat', icon: Flame, color: 'text-orange-400' },
   { id: 'cardiovascular', label: 'Heart Health', icon: Heart, color: 'text-red-400' },
@@ -26,6 +27,20 @@ const GOAL_OPTIONS = [
   { id: 'recovery', label: 'Recovery & Healing', icon: Target, color: 'text-green-400' },
   { id: 'sleep', label: 'Sleep Quality', icon: Moon, color: 'text-indigo-400' },
   { id: 'libido', label: 'Libido & Sexual Health', icon: Sparkles, color: 'text-pink-400' },
+];
+
+const GOAL_OPTIONS_FEMALE = [
+  { id: 'body_composition', label: 'Body Composition', icon: Dumbbell, color: 'text-emerald-400' },
+  { id: 'fat_loss', label: 'Lose Fat', icon: Flame, color: 'text-orange-400' },
+  { id: 'cardiovascular', label: 'Heart Health', icon: Heart, color: 'text-red-400' },
+  { id: 'cognitive', label: 'Cognitive Performance', icon: Brain, color: 'text-violet-400' },
+  { id: 'hormonal_balance', label: 'Hormonal Balance', icon: Activity, color: 'text-cyan-400' },
+  { id: 'longevity', label: 'Longevity & Anti-Aging', icon: Zap, color: 'text-yellow-400' },
+  { id: 'recovery', label: 'Recovery & Healing', icon: Target, color: 'text-green-400' },
+  { id: 'sleep', label: 'Sleep Quality', icon: Moon, color: 'text-indigo-400' },
+  { id: 'skin_hair', label: 'Skin & Hair Health', icon: Sparkles, color: 'text-pink-400' },
+  { id: 'fertility', label: 'Fertility & Cycle Health', icon: Heart, color: 'text-rose-400' },
+  { id: 'stress', label: 'Stress & Mood Support', icon: Brain, color: 'text-amber-400' },
 ];
 
 const BODY_AREAS = [
@@ -43,7 +58,7 @@ const EXPERIENCE_OPTIONS = [
   { id: 'advanced', label: 'Experienced', description: '3+ years, familiar with cycling, stacking, and bloodwork' },
 ];
 
-const HEALTH_CONCERNS = [
+const HEALTH_CONCERNS_MALE = [
   { id: 'insulin_resistance', label: 'Insulin Resistance' },
   { id: 'inflammation', label: 'Chronic Inflammation' },
   { id: 'joint_pain', label: 'Joint Pain' },
@@ -51,6 +66,20 @@ const HEALTH_CONCERNS = [
   { id: 'thyroid', label: 'Thyroid Issues' },
   { id: 'gut_health', label: 'Gut Health' },
   { id: 'anxiety', label: 'Anxiety / Stress' },
+  { id: 'none', label: 'None of the above' },
+];
+
+const HEALTH_CONCERNS_FEMALE = [
+  { id: 'insulin_resistance', label: 'Insulin Resistance' },
+  { id: 'inflammation', label: 'Chronic Inflammation' },
+  { id: 'joint_pain', label: 'Joint Pain' },
+  { id: 'hormonal_imbalance', label: 'Hormonal Imbalance' },
+  { id: 'pcos', label: 'PCOS' },
+  { id: 'perimenopause', label: 'Perimenopause / Menopause' },
+  { id: 'thyroid', label: 'Thyroid Issues' },
+  { id: 'gut_health', label: 'Gut Health' },
+  { id: 'anxiety', label: 'Anxiety / Stress' },
+  { id: 'bone_density', label: 'Bone Density' },
   { id: 'none', label: 'None of the above' },
 ];
 
@@ -81,7 +110,26 @@ const STEPS: Step[] = [
   { title: 'Current baseline', subtitle: 'Optional starting measurements' },
 ];
 
-const GoalInterview = ({ onComplete }: GoalInterviewProps) => {
+const GoalInterview = ({ onComplete, gender }: GoalInterviewProps) => {
+  const isFemale = gender === 'female';
+  const goalOptions = isFemale ? GOAL_OPTIONS_FEMALE : GOAL_OPTIONS_MALE;
+  const healthConcerns = isFemale ? HEALTH_CONCERNS_FEMALE : HEALTH_CONCERNS_MALE;
+
+  const baselineMetrics = isFemale
+    ? [
+        { key: 'weight', label: 'Body Weight', placeholder: 'e.g. 135 lbs' },
+        { key: 'bodyFat', label: 'Body Fat %', placeholder: 'e.g. 24%' },
+        { key: 'leanMass', label: 'Lean Mass', placeholder: 'e.g. 103 lbs' },
+        { key: 'estradiol', label: 'Estradiol (E2)', placeholder: 'e.g. 150 pg/mL' },
+        { key: 'progesterone', label: 'Progesterone', placeholder: 'e.g. 12 ng/mL' },
+      ]
+    : [
+        { key: 'weight', label: 'Body Weight', placeholder: 'e.g. 185 lbs' },
+        { key: 'bodyFat', label: 'Body Fat %', placeholder: 'e.g. 18%' },
+        { key: 'leanMass', label: 'Lean Mass', placeholder: 'e.g. 152 lbs' },
+        { key: 'testosterone', label: 'Total Testosterone', placeholder: 'e.g. 650 ng/dL' },
+      ];
+
   const [step, setStep] = useState(0);
   const [responses, setResponses] = useState<OnboardingResponse>({
     primaryGoals: [],
@@ -116,12 +164,12 @@ const GoalInterview = ({ onComplete }: GoalInterviewProps) => {
   const canProceed = () => {
     switch (step) {
       case 0: return responses.primaryGoals.length > 0;
-      case 1: return true; // optional
+      case 1: return true;
       case 2: return responses.experience !== '';
-      case 3: return true; // optional
+      case 3: return true;
       case 4: return responses.timeline !== '';
-      case 5: return true; // optional
-      case 6: return true; // optional
+      case 5: return true;
+      case 6: return true;
       default: return true;
     }
   };
@@ -140,7 +188,7 @@ const GoalInterview = ({ onComplete }: GoalInterviewProps) => {
       case 0:
         return (
           <div className="grid grid-cols-1 gap-2">
-            {GOAL_OPTIONS.map(g => {
+            {goalOptions.map(g => {
               const Icon = g.icon;
               const selected = responses.primaryGoals.includes(g.id);
               return (
@@ -185,7 +233,7 @@ const GoalInterview = ({ onComplete }: GoalInterviewProps) => {
       case 3:
         return (
           <div className="grid grid-cols-2 gap-2">
-            {HEALTH_CONCERNS.map(c => {
+            {healthConcerns.map(c => {
               const selected = responses.healthConcerns.includes(c.id);
               return (
                 <button key={c.id} onClick={() => toggleMulti('healthConcerns', c.id)}
@@ -229,12 +277,7 @@ const GoalInterview = ({ onComplete }: GoalInterviewProps) => {
         return (
           <div className="space-y-3">
             <p className="text-xs text-muted-foreground mb-3">Enter any current numbers you know. These become your baseline for tracking progress.</p>
-            {[
-              { key: 'weight', label: 'Body Weight', placeholder: 'e.g. 185 lbs' },
-              { key: 'bodyFat', label: 'Body Fat %', placeholder: 'e.g. 18%' },
-              { key: 'leanMass', label: 'Lean Mass', placeholder: 'e.g. 152 lbs' },
-              { key: 'testosterone', label: 'Total Testosterone', placeholder: 'e.g. 650 ng/dL' },
-            ].map(m => (
+            {baselineMetrics.map(m => (
               <div key={m.key}>
                 <label className="text-xs text-muted-foreground mb-1 block">{m.label}</label>
                 <input
