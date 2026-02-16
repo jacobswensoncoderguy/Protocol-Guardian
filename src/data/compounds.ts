@@ -74,8 +74,11 @@ export function getReorderDateString(compound: Compound): string {
 }
 
 export function getReorderCost(compound: Compound): number {
-  if (compound.category === 'peptide' && compound.kitPrice) {
-    return compound.reorderQuantity * compound.kitPrice;
+  if (compound.category === 'peptide') {
+    if (compound.reorderType === 'single') {
+      return compound.reorderQuantity * compound.unitPrice;
+    }
+    return compound.reorderQuantity * (compound.kitPrice || 0);
   }
   return compound.reorderQuantity * compound.unitPrice;
 }

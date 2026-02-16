@@ -30,7 +30,7 @@ function getReorderSupplyDays(compound: Compound): number {
   const effectiveDaily = getEffectiveDailyConsumption(compound);
   if (effectiveDaily === 0) return 9999;
   const reorderUnits = compound.category === 'peptide'
-    ? compound.reorderQuantity * 10
+    ? (compound.reorderType === 'single' ? compound.reorderQuantity : compound.reorderQuantity * 10)
     : compound.reorderQuantity;
   const unitsPerUnit = compound.category === 'peptide' && compound.bacstatPerVial
     ? compound.bacstatPerVial
@@ -203,7 +203,10 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [] }: Re
   const getDisplayQty = (compoundId: string, qty: number) => {
     const compound = compoundMap.get(compoundId);
     if (!compound) return `Reorder Qty: ${qty}`;
-    if (compound.category === 'peptide') return `Reorder Qty: ${qty} kit${qty !== 1 ? 's' : ''} (${qty * 10} vials)`;
+    if (compound.category === 'peptide') {
+      if (compound.reorderType === 'single') return `Reorder Qty: ${qty} vial${qty !== 1 ? 's' : ''}`;
+      return `Reorder Qty: ${qty} kit${qty !== 1 ? 's' : ''} (${qty * 10} vials)`;
+    }
     const type = compound.reorderType === 'kit' ? 'kit' : 'single unit';
     return `Reorder Qty: ${qty} ${type}${qty !== 1 ? 's' : ''}`;
   };

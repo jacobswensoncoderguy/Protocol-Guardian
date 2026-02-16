@@ -298,6 +298,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
     };
     if (isPeptide) {
       state.kitPrice = (compound.kitPrice || 0).toString();
+      state.unitPrice = compound.unitPrice.toString();
     } else {
       state.unitPrice = compound.unitPrice.toString();
     }
@@ -366,9 +367,17 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
     }
 
     if (editIsPeptide) {
-      const kit = parseFloat(editState.kitPrice || '0');
-      if (isNaN(kit) || kit < 0) return;
-      updates.kitPrice = kit;
+      if (editState.reorderType === 'single') {
+        const unit = parseFloat(editState.unitPrice || '0');
+        if (isNaN(unit) || unit < 0) return;
+        updates.unitPrice = unit;
+        updates.kitPrice = Math.round(unit * 10 * 100) / 100;
+      } else {
+        const kit = parseFloat(editState.kitPrice || '0');
+        if (isNaN(kit) || kit < 0) return;
+        updates.kitPrice = kit;
+        updates.unitPrice = Math.round((kit / 10) * 100) / 100;
+      }
     } else {
       const price = parseFloat(editState.unitPrice || '0');
       if (isNaN(price) || price < 0) return;
@@ -411,8 +420,11 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
 
   const cancelEdit = () => setEditing(false);
 
+  const isSingleUnit = compound.reorderType === 'single';
   const reorderLabel = isPeptide
-    ? `${compound.reorderQuantity} kit${compound.reorderQuantity !== 1 ? 's' : ''} (${compound.reorderQuantity * 10} vials)`
+    ? isSingleUnit
+      ? `${compound.reorderQuantity} vial${compound.reorderQuantity !== 1 ? 's' : ''}`
+      : `${compound.reorderQuantity} kit${compound.reorderQuantity !== 1 ? 's' : ''} (${compound.reorderQuantity * 10} vials)`
     : `${compound.reorderQuantity} ${compound.reorderType === 'kit' ? 'kit' : 'unit'}${compound.reorderQuantity !== 1 ? 's' : ''}`;
 
   return (
@@ -656,8 +668,13 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
           }
             onChange={v => setEditState(s => ({ ...s, dosePerUse: v }))} type="number" />
           {isPeptide ? (
-            <EditRow label="Kit Price" value={editState.kitPrice} prefix="$" suffix="/kit (10 vials)"
-              onChange={v => setEditState(s => ({ ...s, kitPrice: v }))} type="number" />
+            editState.reorderType === 'single' ? (
+              <EditRow label="Unit Price" value={editState.unitPrice || (parseFloat(editState.kitPrice || '0') / 10).toString()} prefix="$" suffix="/vial"
+                onChange={v => setEditState(s => ({ ...s, unitPrice: v }))} type="number" />
+            ) : (
+              <EditRow label="Kit Price" value={editState.kitPrice} prefix="$" suffix="/kit (10 vials)"
+                onChange={v => setEditState(s => ({ ...s, kitPrice: v }))} type="number" />
+            )
           ) : (
             <EditRow label="Price" value={editState.unitPrice} prefix="$" suffix={`/${isOil ? 'vial' : 'bottle'}`}
               onChange={v => setEditState(s => ({ ...s, unitPrice: v }))} type="number" />
@@ -793,8 +810,8 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
                   <span className="font-mono text-foreground">{displayDose}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Kit Price:</span>{' '}
-                  <span className="font-mono text-foreground">${compound.kitPrice || 0}</span>
+                  <span className="text-muted-foreground">{isSingleUnit ? 'Unit Price:' : 'Kit Price:'}</span>{' '}
+                  <span className="font-mono text-foreground">${isSingleUnit ? compound.unitPrice : (compound.kitPrice || 0)}</span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Reorder:</span>{' '}
