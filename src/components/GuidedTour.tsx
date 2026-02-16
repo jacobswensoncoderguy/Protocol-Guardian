@@ -188,17 +188,35 @@ const GuidedTour = ({ onComplete, onNavigateTab }: GuidedTourProps) => {
         />
       </svg>
 
-      {/* Spotlight border glow */}
+      {/* Spotlight border glow with pulse */}
       {rect && (
-        <div
-          className="absolute rounded-lg border-2 border-primary shadow-[0_0_20px_hsl(var(--primary)/0.4)] pointer-events-none transition-all duration-300"
-          style={{
-            top: rect.top,
-            left: rect.left,
-            width: rect.width,
-            height: rect.height,
-          }}
-        />
+        <>
+          <div
+            className="absolute rounded-lg border-2 border-primary pointer-events-none transition-all duration-300"
+            style={{
+              top: rect.top,
+              left: rect.left,
+              width: rect.width,
+              height: rect.height,
+              boxShadow: '0 0 20px hsl(var(--primary) / 0.4)',
+            }}
+          />
+          <div
+            className="absolute rounded-lg border-2 border-primary/60 pointer-events-none animate-[spotlight-pulse_2s_ease-in-out_infinite]"
+            style={{
+              top: rect.top - 4,
+              left: rect.left - 4,
+              width: rect.width + 8,
+              height: rect.height + 8,
+            }}
+          />
+          <style>{`
+            @keyframes spotlight-pulse {
+              0%, 100% { opacity: 0; transform: scale(1); }
+              50% { opacity: 0.6; transform: scale(1.02); }
+            }
+          `}</style>
+        </>
       )}
 
       {/* Click overlay */}
