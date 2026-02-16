@@ -63,7 +63,7 @@ const Index = () => {
   const { profile, currentTolerance, setTolerance, toleranceHistory, updateProfile, measurementSystem, doseUnitPreference } = useProfile(user?.id);
   const { compounds, loading, hasCompounds, updateCompound, addCompound, deleteCompound, refetch } = useCompounds(user?.id);
   const { isDark, toggle } = useTheme();
-  const { createGoals, goals: fullGoals, fetchGoals: fetchFullGoals } = useGoals(user?.id);
+  const { createGoals, updateGoal, deleteGoal, goals: fullGoals, fetchGoals: fetchFullGoals } = useGoals(user?.id);
 
   useEffect(() => { if (user?.id) fetchFullGoals(); }, [user?.id, fetchFullGoals]);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -278,7 +278,7 @@ const Index = () => {
             <CostProjectionView compounds={compounds} protocols={protocols} />
           </TabsContent>
           <TabsContent value="outcomes" className="animate-slide-up">
-            <OutcomesView userId={user?.id} goals={fullGoals} onRefreshGoals={fetchFullGoals} onUploadClick={() => setShowBiomarkerUpload(true)} profile={profile} measurementSystem={measurementSystem} />
+            <OutcomesView userId={user?.id} goals={fullGoals} onRefreshGoals={fetchFullGoals} onUploadClick={() => setShowBiomarkerUpload(true)} profile={profile} measurementSystem={measurementSystem} onCreateGoal={createGoals} onUpdateGoal={updateGoal} onDeleteGoal={deleteGoal} />
           </TabsContent>
           <TabsContent value="ai-insights" className="animate-slide-up">
             <AIInsightsView
