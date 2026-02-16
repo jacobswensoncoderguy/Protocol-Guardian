@@ -485,11 +485,51 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
                       <div className="space-y-2">
                         <NeonProgressBar progress={progress ?? 0} color={neon.solid} label="Goal Progress" />
                         {goal.target_date && (
-                          <NeonProgressBar
-                            progress={timeProgress}
-                            color={behindSchedule ? 'hsl(var(--destructive))' : 'hsl(var(--neon-amber))'}
-                            label={behindSchedule ? '⚠ Behind Schedule — Time Elapsed' : 'Time Elapsed'}
-                          />
+                          <>
+                            <NeonProgressBar
+                              progress={timeProgress}
+                              color={behindSchedule ? 'hsl(var(--destructive))' : 'hsl(var(--neon-amber))'}
+                              label={behindSchedule ? '⚠ Behind Schedule — Time Elapsed' : '✓ On Track — Time Elapsed'}
+                            />
+                            {/* Rationale + actions */}
+                            <div className={`p-2.5 rounded-lg text-[11px] leading-relaxed ${
+                              behindSchedule
+                                ? 'bg-destructive/10 border border-destructive/20 text-destructive'
+                                : 'bg-primary/5 border border-primary/20 text-primary'
+                            }`}>
+                              {behindSchedule ? (
+                                <>
+                                  <p className="font-medium mb-1">Why behind schedule?</p>
+                                  <p className="text-foreground/70">
+                                    You've used <strong>{timeProgress}%</strong> of the time but completed only <strong>{progress}%</strong> of the goal.
+                                    {timeProgress - (progress ?? 0) > 20
+                                      ? ' You need to accelerate progress significantly to meet your deadline.'
+                                      : ' A small push could get you back on track.'}
+                                  </p>
+                                </>
+                              ) : (
+                                <p className="text-foreground/70">
+                                  <strong>{progress}%</strong> progress with <strong>{timeProgress}%</strong> of time elapsed — you're {
+                                    (progress ?? 0) > timeProgress + 10 ? 'ahead of' : 'keeping up with'
+                                  } your pace.
+                                </p>
+                              )}
+                              <div className="flex gap-2 mt-2">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); startEditing(goal); }}
+                                  className="text-[10px] px-2 py-1 rounded-md bg-secondary text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                                >
+                                  <CalendarIcon className="w-3 h-3" /> Adjust Deadline
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setAddReadingGoal(goal.id!); setNewReadingUnit(goal.target_unit || ''); }}
+                                  className="text-[10px] px-2 py-1 rounded-md bg-secondary text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                                >
+                                  <Edit2 className="w-3 h-3" /> Log / Correct Reading
+                                </button>
+                              </div>
+                            </div>
+                          </>
                         )}
                       </div>
 
