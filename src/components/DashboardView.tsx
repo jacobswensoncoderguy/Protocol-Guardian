@@ -243,31 +243,22 @@ const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpda
         {onGenderChange && toleranceLevel && (
           <div className="w-px bg-border/40 self-stretch min-h-[48px]" />
         )}
-        {toleranceLevel && onToleranceChange && (
+        {toleranceLevel && (
           <div className="flex-1 min-w-0">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Dosing Tolerance</p>
-            <div className="flex flex-wrap gap-1">
-            {(['conservative', 'moderate', 'performance'] as ToleranceLevel[]).map(level => {
-                const meta = toleranceMeta[level];
-                const isActive = toleranceLevel === level;
-                return (
-                  <button
-                    key={level}
-                    onClick={() => handleToleranceSelect(level)}
-                    className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-1.5 rounded-lg border transition-all ${
-                      isActive
-                        ? level === 'conservative' ? 'bg-blue-500/10 border-blue-500/30 text-blue-400'
-                        : level === 'performance' ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
-                        : 'bg-primary/10 border-primary/30 text-primary'
-                        : 'bg-secondary/50 border-border/50 text-muted-foreground hover:bg-secondary'
-                    }`}
-                  >
-                    <meta.Icon className="w-3 h-3" />
-                    <span className="hidden xs:inline">{meta.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+            {(() => {
+              const meta = toleranceMeta[toleranceLevel];
+              if (!meta) return null;
+              const colorClass = toleranceLevel === 'conservative' ? 'bg-blue-500/10 border-blue-500/30 text-blue-400'
+                : toleranceLevel === 'performance' ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+                : 'bg-primary/10 border-primary/30 text-primary';
+              return (
+                <div className={`inline-flex items-center gap-1.5 text-[10px] font-medium px-2.5 py-1.5 rounded-lg border ${colorClass}`}>
+                  <meta.Icon className="w-3 h-3" />
+                  <span>{meta.label}</span>
+                </div>
+              );
+            })()}
             {latestTolerance && (
               <p className="text-[9px] text-muted-foreground/60 font-mono mt-1">
                 Set {new Date(latestTolerance.created_at).toLocaleDateString()}
