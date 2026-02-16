@@ -1,4 +1,5 @@
 import { Brain, Loader2, Lightbulb, RefreshCw } from 'lucide-react';
+import GeminiBadge from '@/components/GeminiBadge';
 import { CompoundAnalysis } from '@/hooks/useProtocolAnalysis';
 
 interface CompoundAISectionProps {
@@ -94,6 +95,7 @@ const CompoundAISection = ({ analysis, loading, onAnalyze }: CompoundAISectionPr
           ))}
         </div>
       )}
+      <GeminiBadge />
     </div>
   );
 };

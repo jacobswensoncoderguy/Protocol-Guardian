@@ -5,6 +5,7 @@ import { ToleranceLevel } from '@/hooks/useProtocolAnalysis';
 import ToleranceSelector from '@/components/ToleranceSelector';
 import MedicalDisclaimer from '@/components/MedicalDisclaimer';
 import ProtocolChat from '@/components/ProtocolChat';
+import GeminiBadge from '@/components/GeminiBadge';
 import { ChatMessage } from '@/hooks/useProtocolChat';
 import { useConversations } from '@/hooks/useConversations';
 
@@ -634,6 +635,7 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
         </div>
       )}
 
+      <GeminiBadge />
       <MedicalDisclaimer />
     </div>
   );
