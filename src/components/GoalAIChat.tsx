@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Loader2, Send, CheckCircle, Copy, Check, ThumbsUp, HelpCircle, X as XIcon, ChevronUp, ChevronDown } from 'lucide-react';
+import { Loader2, Send, CheckCircle, Copy, Check, ThumbsUp, HelpCircle, X as XIcon, ChevronUp, ChevronDown, Pencil } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import GeminiBadge from '@/components/GeminiBadge';
 import { OnboardingResponse } from './GoalInterview';
@@ -119,6 +119,10 @@ const GoalAIChat = ({ structuredResponses, onGoalsExtracted, onSkip, gender }: G
   const [extractedGoals, setExtractedGoals] = useState<ExtractedGoal[] | null>(null);
   const [goalInterests, setGoalInterests] = useState<Map<number, GoalInterest>>(new Map());
   const [userResponseCount, setUserResponseCount] = useState(0);
+  const [editingGoalIndex, setEditingGoalIndex] = useState<number | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editTargetValue, setEditTargetValue] = useState('');
+  const [editTargetUnit, setEditTargetUnit] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const startedRef = useRef(false);
@@ -265,6 +269,24 @@ const GoalAIChat = ({ structuredResponses, onGoalsExtracted, onSkip, gender }: G
     });
   };
 
+  const startEditGoal = (index: number) => {
+    const goal = extractedGoals![index];
+    setEditingGoalIndex(index);
+    setEditTitle(goal.title);
+    setEditTargetValue(goal.target_value?.toString() ?? '');
+    setEditTargetUnit(goal.target_unit ?? '');
+  };
+
+  const saveGoalEdit = (index: number) => {
+    setExtractedGoals(prev => prev!.map((g, i) => i === index ? {
+      ...g,
+      title: editTitle.trim() || g.title,
+      target_value: editTargetValue ? Number(editTargetValue) : g.target_value,
+      target_unit: editTargetUnit || g.target_unit,
+    } : g));
+    setEditingGoalIndex(null);
+  };
+
   const handleAcceptGoals = () => {
     if (!extractedGoals) return;
     const refined = extractedGoals
@@ -366,27 +388,76 @@ const GoalAIChat = ({ structuredResponses, onGoalsExtracted, onSkip, gender }: G
         )}
       </div>
 
-      {/* Extracted goals preview with interest toggles */}
+      {/* Extracted goals preview with inline editing */}
       {extractedGoals && (
         <div className="border border-primary/30 rounded-lg p-3 mb-3 bg-primary/5">
           <h3 className="text-sm font-semibold text-primary mb-2 flex items-center gap-1.5">
             <CheckCircle className="w-4 h-4" /> Your Personalized Goals
           </h3>
           <p className="text-[10px] text-muted-foreground mb-2">
-            Mark each goal and set your priority. "Not for me" goals will be excluded.
+            Tap the pencil to edit titles or targets. Mark each goal and set priority. "Not for me" goals will be excluded.
           </p>
           <div className="space-y-2.5">
             {extractedGoals.map((g, i) => {
               const interest = goalInterests.get(i);
               const isRejected = interest?.interest === 'not_interested';
+              const isEditing = editingGoalIndex === i;
               return (
                 <div key={i} className={`bg-card/50 rounded-lg px-2.5 py-2 space-y-1.5 border transition-all ${isRejected ? 'opacity-40 border-border/30' : 'border-border/50'}`}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-foreground font-medium">{g.title}</span>
-                    {g.target_value && g.target_unit && (
-                      <span className="text-primary font-mono text-[10px]">{g.target_value} {g.target_unit}</span>
-                    )}
-                  </div>
+                  {isEditing ? (
+                    <div className="space-y-1.5">
+                      <input
+                        value={editTitle}
+                        onChange={e => setEditTitle(e.target.value)}
+                        className="w-full px-2 py-1 rounded-md border border-primary/30 bg-background text-xs text-foreground focus:outline-none focus:border-primary/50"
+                        placeholder="Goal title"
+                        autoFocus
+                      />
+                      <div className="flex gap-1.5">
+                        <input
+                          value={editTargetValue}
+                          onChange={e => setEditTargetValue(e.target.value)}
+                          className="w-20 px-2 py-1 rounded-md border border-border/50 bg-background text-xs text-foreground focus:outline-none focus:border-primary/50"
+                          placeholder="Target"
+                          type="number"
+                        />
+                        <input
+                          value={editTargetUnit}
+                          onChange={e => setEditTargetUnit(e.target.value)}
+                          className="w-20 px-2 py-1 rounded-md border border-border/50 bg-background text-xs text-foreground focus:outline-none focus:border-primary/50"
+                          placeholder="Unit"
+                        />
+                        <button
+                          onClick={() => saveGoalEdit(i)}
+                          className="px-2 py-1 rounded-md bg-primary text-primary-foreground text-[10px] font-medium"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={() => setEditingGoalIndex(null)}
+                          className="px-2 py-1 rounded-md text-muted-foreground hover:text-foreground text-[10px]"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-xs text-foreground font-medium">{g.title}</span>
+                        <button
+                          onClick={() => startEditGoal(i)}
+                          className="p-0.5 rounded hover:bg-secondary/50 text-muted-foreground/40 hover:text-primary transition-colors flex-shrink-0"
+                          title="Edit goal"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                      </div>
+                      {g.target_value && g.target_unit && (
+                        <span className="text-primary font-mono text-[10px]">{g.target_value} {g.target_unit}</span>
+                      )}
+                    </div>
+                  )}
                   <InterestToggle value={interest?.interest} onChange={(v) => setInterest(i, v)} />
                   {interest?.interest === 'interested' && (
                     <PrioritySelector value={interest.priority} onChange={(v) => setPriority(i, v)} />
