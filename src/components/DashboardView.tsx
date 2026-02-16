@@ -465,7 +465,7 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
         onNavigateToInventory={onNavigateToInventory}
       />
 
-      {/* Protocol Coverage — compact zone bar */}
+      {/* Protocol Coverage — with body avatar */}
       <div className="rounded-xl border border-border/30 bg-card/40 backdrop-blur-sm p-4">
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-xs uppercase tracking-[0.15em] text-muted-foreground font-semibold">Protocol Coverage</h2>
@@ -477,6 +477,55 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
         <p className="text-[9px] text-muted-foreground/60 mb-3 leading-snug">
           {activeCompounds.length} active compounds · {coverageRationale}
         </p>
+
+        {/* Body avatar with floating zone badges */}
+        <div className="relative flex justify-center my-4">
+          <div className="relative">
+            <img
+              src={displayGender === 'female' ? bodyFemaleImg : bodyMaleImg}
+              alt={displayGender === 'female' ? 'Female body' : 'Male body'}
+              className="h-72 w-auto rounded-xl object-contain"
+            />
+            {/* Floating zone badges positioned around the body */}
+            {(() => {
+              const zonePositions: Record<BodyZone, { top: string; left?: string; right?: string }> = {
+                brain: { top: '2%', right: '-10%' },
+                heart: { top: '22%', right: '-12%' },
+                arms: { top: '28%', left: '-12%' },
+                core: { top: '45%', right: '-12%' },
+                hormonal: { top: '52%', left: '-12%' },
+                legs: { top: '72%', right: '-10%' },
+                immune: { top: '38%', left: '-10%' },
+              };
+              return (Object.entries(zoneIntensities) as Array<[BodyZone, number]>)
+                .filter(([, v]) => v > 0.1)
+                .map(([zone, intensity]) => {
+                  const pos = zonePositions[zone];
+                  if (!pos) return null;
+                  const pct = Math.round(intensity * 100);
+                  return (
+                    <button
+                      key={zone}
+                      onClick={() => handleZoneTap(zone)}
+                      className="absolute flex items-center gap-1 px-2 py-0.5 rounded-full bg-card/80 backdrop-blur-sm border border-border/30 hover:border-primary/50 transition-all active:scale-95 shadow-lg"
+                      style={{ top: pos.top, left: pos.left, right: pos.right }}
+                    >
+                      <div
+                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                        style={{
+                          backgroundColor: BODY_ZONES[zone].color,
+                          boxShadow: `0 0 ${4 + intensity * 8}px ${BODY_ZONES[zone].color}`,
+                        }}
+                      />
+                      <span className="text-[10px] font-mono font-semibold text-foreground">{pct}%</span>
+                    </button>
+                  );
+                });
+            })()}
+          </div>
+        </div>
+        <p className="text-[10px] text-muted-foreground/50 text-center mb-3">Tap a zone to view compounds &amp; impact</p>
+
         <ZoneLegend zoneIntensities={zoneIntensities} onZoneTap={handleZoneTap} />
       </div>
 
