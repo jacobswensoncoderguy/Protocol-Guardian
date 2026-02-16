@@ -399,15 +399,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
                             ) : (
                               <Circle className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                             )}
-                            <div className="min-w-0 flex-1">
-                              <span className="text-sm font-medium text-foreground">{compound.name}</span>
-                              {compound.timing_note && (
-                                <p className="text-[10px] text-muted-foreground truncate">{compound.timing_note}</p>
-                              )}
-                            </div>
-                            <span className="text-[10px] text-muted-foreground font-mono">
-                              {compound.dose_per_use} {compound.dose_label}
-                            </span>
+                            <span className="text-sm font-medium text-foreground">{compound.name}</span>
                           </button>
                         ))}
 
