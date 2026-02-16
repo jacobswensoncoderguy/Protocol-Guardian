@@ -378,8 +378,11 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
                           )}
                           {goal.target_date && (
                             <span className="text-[10px] text-muted-foreground/60">
-                              · Due: {new Date(goal.target_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              · Achieve by: {new Date(goal.target_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                             </span>
+                          )}
+                          {(!goal.target_value || !goal.target_unit) && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-mono ml-1">⚠ unmeasurable</span>
                           )}
                         </div>
                       </div>
@@ -451,7 +454,7 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
                             </div>
                             <div>
                               <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block mb-0.5 flex items-center gap-1">
-                                <CalendarIcon className="w-3 h-3" /> Deadline
+                                <CalendarIcon className="w-3 h-3" /> Achievement Date
                               </label>
                               <input
                                 type="date"

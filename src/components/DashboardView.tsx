@@ -629,6 +629,7 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
         toleranceLevel={toleranceLevel}
         measurementSystem={measurementSystem}
         profile={profile}
+        goals={goals}
       />
     </div>
   );
