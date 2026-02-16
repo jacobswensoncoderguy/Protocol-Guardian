@@ -117,7 +117,7 @@ const ChatSidebar = ({
             value={searchQuery}
             onChange={e => onSearch(e.target.value)}
             placeholder="Search chats & messages…"
-            className="w-full pl-7 pr-7 py-1.5 text-[11px] bg-background border border-border/50 rounded-md outline-none focus:border-primary/40 placeholder:text-muted-foreground"
+            className="w-full pl-7 pr-7 py-1.5 text-sm bg-background border border-border/50 rounded-md outline-none focus:border-primary/40 placeholder:text-muted-foreground"
           />
           {searchQuery && (
             <button onClick={() => onSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
@@ -135,7 +135,7 @@ const ChatSidebar = ({
               onChange={e => setNewProjectName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleCreateProject()}
               placeholder="Project name…"
-              className="flex-1 px-2 py-1 text-[11px] bg-background border border-border/50 rounded-md outline-none focus:border-primary/40"
+              className="flex-1 px-2 py-1 text-sm bg-background border border-border/50 rounded-md outline-none focus:border-primary/40"
             />
             <button onClick={handleCreateProject} className="p-1 rounded-md bg-primary/15 text-primary hover:bg-primary/25">
               <Plus className="w-3 h-3" />
