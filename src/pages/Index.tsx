@@ -112,6 +112,7 @@ const Index = () => {
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [showAccountSettings, setShowAccountSettings] = useState(false);
   const [showGuidedTour, setShowGuidedTour] = useState(false);
+  const [showTourPrompt, setShowTourPrompt] = useState(false);
 
   const handleRefresh = useCallback(async () => {
     await Promise.all([refetch(), refetchProtocols()]);
@@ -135,7 +136,7 @@ const Index = () => {
       <Onboarding
         onComplete={() => {
           setShowOnboarding(false);
-          setShowGuidedTour(true);
+          setShowTourPrompt(true);
           refetch();
         }}
       />
@@ -379,10 +380,33 @@ const Index = () => {
         />
       </main>
       <FloatingShareButton />
+      {showTourPrompt && (
+        <div className="fixed inset-0 z-[99] bg-background/80 flex items-center justify-center p-4">
+          <div className="bg-card border border-border/50 rounded-xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in-0 zoom-in-95 duration-300 text-center">
+            <h2 className="text-lg font-bold text-foreground mb-2">Welcome aboard! 🎉</h2>
+            <p className="text-sm text-muted-foreground mb-5">Want a quick guided tour of all the features?</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setShowTourPrompt(false); }}
+                className="flex-1 px-4 py-2.5 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors"
+              >
+                Skip
+              </button>
+              <button
+                onClick={() => { setShowTourPrompt(false); setShowGuidedTour(true); }}
+                className="flex-1 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all"
+              >
+                Take the tour
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {showGuidedTour && (
         <GuidedTour
           onComplete={() => { setShowGuidedTour(false); setActiveTab('dashboard'); }}
           onNavigateTab={setActiveTab}
+          onSkip={() => { setShowGuidedTour(false); setActiveTab('dashboard'); toast('You can replay the tour from Settings anytime.'); }}
         />
       )}
     </div>

@@ -102,9 +102,10 @@ interface SpotlightRect {
 interface GuidedTourProps {
   onComplete: () => void;
   onNavigateTab?: (tab: string) => void;
+  onSkip?: () => void;
 }
 
-const GuidedTour = ({ onComplete, onNavigateTab }: GuidedTourProps) => {
+const GuidedTour = ({ onComplete, onNavigateTab, onSkip }: GuidedTourProps) => {
   const [step, setStep] = useState(0);
   const [rect, setRect] = useState<SpotlightRect | null>(null);
   const current = TOUR_STEPS[step];
@@ -268,13 +269,21 @@ const GuidedTour = ({ onComplete, onNavigateTab }: GuidedTourProps) => {
         </div>
 
         <div className="flex items-center justify-between">
-          <button
-            onClick={() => setStep(Math.max(0, step - 1))}
-            disabled={step === 0}
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
-          >
-            <ChevronLeft className="w-3.5 h-3.5" /> Back
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setStep(Math.max(0, step - 1))}
+              disabled={step === 0}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" /> Back
+            </button>
+            <button
+              onClick={onSkip || onComplete}
+              className="text-[10px] text-muted-foreground/60 hover:text-muted-foreground underline transition-colors"
+            >
+              Skip tour
+            </button>
+          </div>
           <button
             onClick={() => {
               if (isLast) onComplete();
