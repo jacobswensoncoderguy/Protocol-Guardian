@@ -3,10 +3,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useGoals } from '@/hooks/useGoals';
 import { useProfile } from '@/hooks/useProfile';
-import { CheckCircle, Circle, Loader2, Zap, Target, User, ChevronDown, ChevronRight, Plus, Search, Info, X } from 'lucide-react';
+import { CheckCircle, Circle, Loader2, Zap, Target, User, ChevronDown, ChevronRight, Plus, Search, Info, X, Sliders } from 'lucide-react';
 import GoalInterview, { OnboardingResponse } from '@/components/GoalInterview';
 import GoalAIChat, { ExtractedGoal } from '@/components/GoalAIChat';
 import { compoundBenefits } from '@/data/compoundBenefits';
+import { AppFeatures, DEFAULT_APP_FEATURES } from '@/lib/appFeatures';
+import FeatureSelectionStep from '@/components/FeatureSelectionStep';
+import { toast } from 'sonner';
 import bodyMaleImg from '@/assets/body-male.jpeg';
 import bodyFemaleImg from '@/assets/body-female.jpeg';
 
@@ -109,7 +112,7 @@ const categoryDescriptions: Record<string, string> = {
   topical: 'Creams, gels, and transdermal applications',
 };
 
-type OnboardingPhase = 'gender' | 'goals' | 'ai-chat' | 'compounds';
+type OnboardingPhase = 'gender' | 'features' | 'goals' | 'ai-chat' | 'compounds';
 
 interface OnboardingProps {
   onComplete: () => void;
@@ -136,6 +139,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
   const [customName, setCustomName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedInfo, setExpandedInfo] = useState<string | null>(null);
+  const [appFeatures, setAppFeatures] = useState<AppFeatures>({ ...DEFAULT_APP_FEATURES });
 
   useEffect(() => {
     async function fetchLibrary() {
@@ -154,7 +158,22 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
   const handleGenderSelect = async (gender: string) => {
     setSelectedGender(gender);
     await updateProfile({ gender });
+    setPhase('features');
+  };
+
+  const handleFeaturesComplete = async () => {
+    await updateProfile({ app_features: appFeatures } as any);
     setPhase('goals');
+  };
+
+  const toggleFeature = (key: keyof AppFeatures) => {
+    setAppFeatures(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleFeatureRequest = async (text: string) => {
+    if (!user) return;
+    await (supabase as any).from('feature_requests').insert({ user_id: user.id, request_text: text });
+    toast.success('Feature request submitted!');
   };
 
   const handleInterviewComplete = (responses: OnboardingResponse) => {
@@ -314,6 +333,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
 
   const phases = [
     { key: 'gender', label: 'Profile', icon: User },
+    { key: 'features', label: 'Features', icon: Sliders },
     { key: 'goals', label: 'Goals', icon: Target },
     { key: 'ai-chat', label: 'Refine', icon: Zap },
     { key: 'compounds', label: 'Protocol', icon: CheckCircle },
@@ -383,6 +403,22 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
                 </button>
               ))}
             </div>
+          </div>
+        )}
+
+        {phase === 'features' && (
+          <div className="space-y-4">
+            <FeatureSelectionStep
+              features={appFeatures}
+              onToggle={toggleFeature}
+              onRequestFeature={handleFeatureRequest}
+            />
+            <button
+              onClick={handleFeaturesComplete}
+              className="w-full py-3 rounded-lg bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-all"
+            >
+              Continue
+            </button>
           </div>
         )}
 

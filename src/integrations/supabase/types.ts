@@ -160,6 +160,30 @@ export type Database = {
         }
         Relationships: []
       }
+      feature_requests: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean
+          request_text: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          request_text: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          request_text?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           compound_id: string
@@ -202,6 +226,7 @@ export type Database = {
       profiles: {
         Row: {
           age: number | null
+          app_features: Json | null
           avatar_url: string | null
           body_fat_pct: number | null
           created_at: string
@@ -218,6 +243,7 @@ export type Database = {
         }
         Insert: {
           age?: number | null
+          app_features?: Json | null
           avatar_url?: string | null
           body_fat_pct?: number | null
           created_at?: string
@@ -234,6 +260,7 @@ export type Database = {
         }
         Update: {
           age?: number | null
+          app_features?: Json | null
           avatar_url?: string | null
           body_fat_pct?: number | null
           created_at?: string

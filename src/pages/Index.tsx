@@ -24,6 +24,9 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import AccountSettingsDialog from '@/components/AccountSettingsDialog';
 import GuidedTour from '@/components/GuidedTour';
 import WhatsNewOverlay from '@/components/WhatsNewOverlay';
+import FeatureManagerDialog from '@/components/FeatureManagerDialog';
+import { AppFeatures } from '@/lib/appFeatures';
+import { supabase } from '@/integrations/supabase/client';
 
 import DashboardView from '@/components/DashboardView';
 import WeeklyScheduleView from '@/components/WeeklyScheduleView';
@@ -60,7 +63,7 @@ const LoadingSkeleton = () => (
 
 const Index = () => {
   const { user, signOut } = useAuth();
-  const { profile, currentTolerance, setTolerance, toleranceHistory, updateProfile, measurementSystem, doseUnitPreference } = useProfile(user?.id);
+  const { profile, currentTolerance, setTolerance, toleranceHistory, updateProfile, measurementSystem, doseUnitPreference, appFeatures, updateAppFeatures } = useProfile(user?.id);
   const { compounds, loading, hasCompounds, updateCompound, addCompound, deleteCompound, refetch } = useCompounds(user?.id);
   const { isDark, toggle } = useTheme();
   const { createGoals, updateGoal, deleteGoal, goals: fullGoals, fetchGoals: fetchFullGoals } = useGoals(user?.id);
@@ -114,6 +117,19 @@ const Index = () => {
   const [showAccountSettings, setShowAccountSettings] = useState(false);
   const [showGuidedTour, setShowGuidedTour] = useState(false);
   const [showTourPrompt, setShowTourPrompt] = useState(false);
+  const [showFeatureManager, setShowFeatureManager] = useState(false);
+
+  const handleToggleFeature = useCallback(async (key: keyof AppFeatures) => {
+    const updated = { ...appFeatures, [key]: !appFeatures[key] };
+    await updateAppFeatures(updated);
+    toast.success(`${appFeatures[key] ? 'Disabled' : 'Enabled'} ${key.replace(/_/g, ' ')}`);
+  }, [appFeatures, updateAppFeatures]);
+
+  const handleFeatureRequest = useCallback(async (text: string) => {
+    if (!user) return;
+    await (supabase as any).from('feature_requests').insert({ user_id: user.id, request_text: text });
+    toast.success('Feature request submitted! Thanks for the feedback.');
+  }, [user]);
 
   const handleRefresh = useCallback(async () => {
     await Promise.all([refetch(), refetchProtocols()]);
@@ -186,7 +202,7 @@ const Index = () => {
             <button onClick={() => setShowSignOutConfirm(true)} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground" title="Sign out">
               <LogOut className="w-4 h-4" />
             </button>
-            <button onClick={() => setShowProtocolManager(true)} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground" title="Protocol Groups">
+            <button onClick={() => setShowFeatureManager(true)} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground" title="Manage Features">
               <Plus className="w-4 h-4" />
             </button>
             <button onClick={() => setShowGoalExpansion(true)} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground" title="Goal Expansion">
@@ -256,6 +272,8 @@ const Index = () => {
               doseUnitPreference={doseUnitPreference}
               onNavigateToInventory={() => setActiveTab('inventory')}
               conversationManager={conversationManager}
+              appFeatures={appFeatures}
+              onEnableFeature={handleToggleFeature}
             />
           </TabsContent>
           <TabsContent value="outcomes" className="animate-slide-up">
@@ -379,6 +397,14 @@ const Index = () => {
           confirmLabel="Sign Out"
           onConfirm={signOut}
           destructive
+        />
+
+        <FeatureManagerDialog
+          open={showFeatureManager}
+          onOpenChange={setShowFeatureManager}
+          features={appFeatures}
+          onToggle={handleToggleFeature}
+          onRequestFeature={handleFeatureRequest}
         />
       </main>
       <FloatingShareButton />

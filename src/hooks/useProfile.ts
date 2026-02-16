@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { MeasurementSystem, DoseUnitPreference } from '@/lib/measurements';
+import { AppFeatures, DEFAULT_APP_FEATURES } from '@/lib/appFeatures';
 
 export interface UserProfile {
   gender?: string | null;
@@ -11,6 +12,7 @@ export interface UserProfile {
   display_name?: string | null;
   measurement_system?: MeasurementSystem;
   dose_unit_preference?: DoseUnitPreference;
+  app_features?: AppFeatures | null;
 }
 
 export interface ToleranceEntry {
@@ -28,7 +30,7 @@ export function useProfile(userId?: string) {
     if (!userId) return;
     const { data } = await (supabase as any)
       .from('profiles')
-      .select('gender, height_cm, weight_kg, body_fat_pct, age, display_name, measurement_system, dose_unit_preference')
+      .select('gender, height_cm, weight_kg, body_fat_pct, age, display_name, measurement_system, dose_unit_preference, app_features')
       .eq('user_id', userId)
       .maybeSingle();
     if (data) setProfile(data);
@@ -87,6 +89,11 @@ export function useProfile(userId?: string) {
 
   const measurementSystem: MeasurementSystem = profile?.measurement_system || 'metric';
   const doseUnitPreference: DoseUnitPreference = profile?.dose_unit_preference || 'mg';
+  const appFeatures: AppFeatures = (profile?.app_features as AppFeatures) || DEFAULT_APP_FEATURES;
+
+  const updateAppFeatures = useCallback(async (features: AppFeatures) => {
+    await updateProfile({ app_features: features } as any);
+  }, [updateProfile]);
 
   return {
     profile,
@@ -98,5 +105,7 @@ export function useProfile(userId?: string) {
     toleranceHistory,
     measurementSystem,
     doseUnitPreference,
+    appFeatures,
+    updateAppFeatures,
   };
 }
