@@ -1,14 +1,16 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { BodyZone, BODY_ZONES, getCompoundsForZone } from '@/data/bodyZoneMapping';
 import { Compound } from '@/data/compounds';
 import { compoundBenefits } from '@/data/compoundBenefits';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Loader2, Copy, Check } from 'lucide-react';
+import { Sparkles, Loader2, Copy, Check, TrendingUp, TrendingDown, ArrowRightLeft, Trash2, Plus, MessageSquare, Send, X, AlertTriangle, DollarSign, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import { MeasurementSystem, displayHeight, displayWeight } from '@/lib/measurements';
 import { UserProfile } from '@/hooks/useProfile';
+import { UserGoal } from '@/hooks/useGoals';
+import GeminiBadge from '@/components/GeminiBadge';
 
 interface ZoneDetailDrawerProps {
   zone: BodyZone | null;
@@ -18,6 +20,45 @@ interface ZoneDetailDrawerProps {
   toleranceLevel?: string;
   measurementSystem?: MeasurementSystem;
   profile?: UserProfile | null;
+  goals?: UserGoal[];
+  onUpdateCompound?: (id: string, updates: Partial<Compound>) => void;
+  onDeleteCompound?: (id: string) => void;
+}
+
+interface QuickAction {
+  type: 'simplify' | 'optimize' | 'add' | 'remove' | 'swap';
+  label: string;
+  description: string;
+  impact: number;
+  cost_impact: string;
+  compounds_involved: string[];
+  reasoning: string;
+}
+
+interface RedundantCompound {
+  name: string;
+  benefit_pct: number;
+  verdict: 'keep' | 'remove' | 'replace';
+  alternative: string | null;
+  reasoning: string;
+}
+
+interface ZoneAnalysis {
+  zone_score: number;
+  summary: string;
+  quick_actions: QuickAction[];
+  redundant_compounds: RedundantCompound[];
+  optimal_stack: {
+    keep: string[];
+    remove: string[];
+    add: string[];
+    projected_score: number;
+  };
+}
+
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
 }
 
 function normalizeBenefitKey(name: string): string {
@@ -31,16 +72,38 @@ function normalizeBenefitKey(name: string): string {
     .replace(/^-|-$/g, '');
 }
 
-const ZoneDetailDrawer = ({ zone, open, onOpenChange, compounds, toleranceLevel = 'moderate', measurementSystem = 'metric', profile }: ZoneDetailDrawerProps) => {
+const ACTION_ICONS: Record<string, React.ReactNode> = {
+  simplify: <Trash2 className="w-3.5 h-3.5" />,
+  optimize: <TrendingUp className="w-3.5 h-3.5" />,
+  add: <Plus className="w-3.5 h-3.5" />,
+  remove: <Trash2 className="w-3.5 h-3.5" />,
+  swap: <ArrowRightLeft className="w-3.5 h-3.5" />,
+};
+
+const ACTION_COLORS: Record<string, string> = {
+  simplify: 'border-amber-500/30 bg-amber-500/5',
+  optimize: 'border-primary/30 bg-primary/5',
+  add: 'border-emerald-500/30 bg-emerald-500/5',
+  remove: 'border-destructive/30 bg-destructive/5',
+  swap: 'border-chart-5/30 bg-chart-5/5',
+};
+
+const ZoneDetailDrawer = ({ zone, open, onOpenChange, compounds, toleranceLevel = 'moderate', measurementSystem = 'metric', profile, goals = [], onUpdateCompound, onDeleteCompound }: ZoneDetailDrawerProps) => {
+  const [analysis, setAnalysis] = useState<ZoneAnalysis | null>(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState<string>('');
   const [aiLoading, setAiLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   if (!zone) return null;
 
   const info = BODY_ZONES[zone];
-  // Only include active (non-dormant) compounds
   const activeCompounds = compounds.filter(c => !c.notes?.includes('[DORMANT]'));
   const compoundNameIds = activeCompounds.map(c => c.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''));
   const zoneCompounds = getCompoundsForZone(zone, compoundNameIds);
@@ -57,28 +120,78 @@ const ZoneDetailDrawer = ({ zone, open, onOpenChange, compounds, toleranceLevel 
   const intensityLabel = (w: number) => w >= 0.8 ? 'Primary' : w >= 0.5 ? 'Strong' : w >= 0.3 ? 'Supporting' : 'Minimal';
   const intensityColor = (w: number) => w >= 0.8 ? 'text-emerald-400' : w >= 0.5 ? 'text-primary' : w >= 0.3 ? 'text-muted-foreground' : 'text-muted-foreground/50';
 
-  // Compute what's keeping this zone from being stronger
+  const currentCoverage = Math.round(compoundDetails.reduce((max, cd) => Math.max(max, cd.weight), 0) * 100);
+
   const zoneGapAnalysis = (() => {
-    const currentIntensity = compoundDetails.reduce((max, cd) => Math.max(max, cd.weight), 0);
-    const pct = Math.round(currentIntensity * 100);
+    const pct = currentCoverage;
     const compoundCount = compoundDetails.length;
-    
     if (pct >= 90) return `${pct}% — Near maximum. ${compoundCount} compound${compoundCount > 1 ? 's' : ''} driving this zone at peak efficacy.`;
     if (pct >= 70) return `${pct}% — Strong coverage. Adding a synergistic compound or increasing frequency could push toward primary.`;
     if (pct >= 40) return `${pct}% — Moderate coverage. ${compoundCount === 0 ? 'No compounds target this zone directly.' : `${compoundCount} compound${compoundCount > 1 ? 's' : ''} contribute but at sub-optimal intensity.`} Consider higher doses or additional compounds.`;
-    if (pct > 0) return `${pct}% — Low coverage. Current compounds provide only supporting impact. A dedicated compound for this zone would significantly improve coverage.`;
-    return '0% — No active compounds target this zone. Add a compound to begin coverage.';
+    if (pct > 0) return `${pct}% — Low coverage. Current compounds provide only supporting impact.`;
+    return '0% — No active compounds target this zone.';
   })();
+
+  const fetchAnalysis = async () => {
+    setAnalysisLoading(true);
+    setAnalysis(null);
+    try {
+      const resp = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/zone-optimizer`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            zone,
+            zoneLabel: info.label,
+            zoneDescription: info.description,
+            compounds: activeCompounds.map(c => ({
+              name: c.name, category: c.category, dosePerUse: c.dosePerUse,
+              doseLabel: c.doseLabel, dosesPerDay: c.dosesPerDay, daysPerWeek: c.daysPerWeek,
+              unitPrice: c.unitPrice, cycleOnDays: c.cycleOnDays, cycleOffDays: c.cycleOffDays,
+            })),
+            zoneCompounds: compoundDetails.map(cd => ({
+              name: cd.compound?.name || cd.id,
+              weight: cd.weight,
+            })),
+            coverageScore: currentCoverage,
+            toleranceLevel,
+            goals: goals.filter(g => g.status === 'active').map(g => ({
+              title: g.title, goal_type: g.goal_type, target_value: g.target_value,
+              target_unit: g.target_unit, target_date: g.target_date,
+            })),
+            profile: profile ? {
+              gender: profile.gender, age: profile.age,
+              weight_kg: profile.weight_kg, body_fat_pct: profile.body_fat_pct,
+            } : null,
+          }),
+        }
+      );
+
+      if (!resp.ok) {
+        if (resp.status === 429) { toast.error('Rate limited — try again shortly'); return; }
+        if (resp.status === 402) { toast.error('AI credits needed'); return; }
+        throw new Error('Analysis failed');
+      }
+
+      const data = await resp.json();
+      setAnalysis(data);
+    } catch (e) {
+      console.error('Zone analysis error:', e);
+      toast.error('Could not analyze zone');
+    } finally {
+      setAnalysisLoading(false);
+    }
+  };
 
   const handleImproveImpact = async () => {
     setAiLoading(true);
     setAiSuggestion('');
     abortRef.current?.abort();
     abortRef.current = new AbortController();
-
-    const stackDesc = compounds.map(c =>
-      `- ${c.name} (${c.category}): ${c.dosePerUse} ${c.doseLabel} × ${c.dosesPerDay}/day × ${c.daysPerWeek}d/wk`
-    ).join('\n');
 
     const zoneCompoundNames = compoundDetails.map(cd => cd.compound?.name || cd.id).join(', ');
 
@@ -108,16 +221,7 @@ const ZoneDetailDrawer = ({ zone, open, onOpenChange, compounds, toleranceLevel 
 
 ${profile ? `My profile: ${profile.gender || 'unspecified'} · ${profile.height_cm ? displayHeight(profile.height_cm, measurementSystem) : 'height unknown'} · ${profile.weight_kg ? displayWeight(profile.weight_kg, measurementSystem) : 'weight unknown'}${profile.body_fat_pct != null ? ` · ${profile.body_fat_pct}% BF` : ''}${profile.age ? ` · ${profile.age}y` : ''}` : ''}
 
-My full stack:
-${stackDesc}
-
-Give me specific, actionable suggestions to increase ${info.label} impact — considering synergy with my entire stack. Include:
-1. Dose/timing/frequency adjustments to existing compounds
-2. New compounds or behaviors I should consider adding
-3. Lifestyle or behavioral optimizations (sleep, training, nutrition)
-4. Any compounds in my stack that might be antagonizing ${info.label} goals
-
-Keep it concise and practical. Calibrate to my ${toleranceLevel} tolerance level.${measurementSystem === 'imperial' ? ' Use imperial units (lb, ft/in) in your response.' : ' Use metric units (kg, cm) in your response.'}`
+Give me specific, actionable suggestions to increase ${info.label} impact — considering synergy with my entire stack. Include dose/timing adjustments, new compounds, and any compounds antagonizing ${info.label} goals. Keep it concise. Calibrate to ${toleranceLevel} tolerance.${measurementSystem === 'imperial' ? ' Use imperial units.' : ' Use metric units.'}`
             }],
           }),
           signal: abortRef.current.signal,
@@ -125,8 +229,8 @@ Keep it concise and practical. Calibrate to my ${toleranceLevel} tolerance level
       );
 
       if (!resp.ok) {
-        if (resp.status === 429) { toast.error('Rate limited — try again shortly'); setAiLoading(false); return; }
-        if (resp.status === 402) { toast.error('AI credits needed — add in Settings'); setAiLoading(false); return; }
+        if (resp.status === 429) { toast.error('Rate limited'); setAiLoading(false); return; }
+        if (resp.status === 402) { toast.error('AI credits needed'); setAiLoading(false); return; }
         throw new Error('AI request failed');
       }
 
@@ -140,7 +244,78 @@ Keep it concise and practical. Calibrate to my ${toleranceLevel} tolerance level
         const { done, value } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
+        let idx: number;
+        while ((idx = buffer.indexOf('\n')) !== -1) {
+          let line = buffer.slice(0, idx);
+          buffer = buffer.slice(idx + 1);
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (!line.startsWith('data: ')) continue;
+          const json = line.slice(6).trim();
+          if (json === '[DONE]') break;
+          try {
+            const parsed = JSON.parse(json);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) { fullText += content; setAiSuggestion(fullText); }
+          } catch { /* partial */ }
+        }
+      }
+    } catch (e: any) {
+      if (e.name !== 'AbortError') { console.error('AI error:', e); toast.error('Could not get suggestions'); }
+    } finally { setAiLoading(false); }
+  };
 
+  const sendChatMessage = async () => {
+    if (!chatInput.trim() || chatLoading) return;
+    const userMsg: ChatMessage = { role: 'user', content: chatInput.trim() };
+    const newMessages = [...chatMessages, userMsg];
+    setChatMessages(newMessages);
+    setChatInput('');
+    setChatLoading(true);
+
+    try {
+      const resp = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-protocol`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            compounds: activeCompounds.map(c => ({
+              name: c.name, category: c.category, dosePerUse: c.dosePerUse,
+              doseLabel: c.doseLabel, dosesPerDay: c.dosesPerDay, daysPerWeek: c.daysPerWeek,
+              timingNote: c.timingNote, cyclingNote: c.cyclingNote,
+              cycleOnDays: c.cycleOnDays, cycleOffDays: c.cycleOffDays,
+              unitPrice: c.unitPrice,
+            })),
+            protocols: [],
+            toleranceLevel,
+            analysisType: 'chat',
+            messages: [
+              { role: 'user', content: `Context: We're discussing the "${info.label}" zone (${info.description}). Current coverage: ${currentCoverage}%. Zone compounds: ${compoundDetails.map(cd => cd.compound?.name || cd.id).join(', ') || 'none'}. Apply the 40% rule: flag any compound with <40% additional benefit. Always prefer simplifying the stack.` },
+              ...newMessages,
+            ],
+          }),
+        }
+      );
+
+      if (!resp.ok) {
+        if (resp.status === 429) { toast.error('Rate limited'); setChatLoading(false); return; }
+        if (resp.status === 402) { toast.error('AI credits needed'); setChatLoading(false); return; }
+        throw new Error('Chat failed');
+      }
+
+      const reader = resp.body?.getReader();
+      if (!reader) throw new Error('No stream');
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let fullText = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
         let idx: number;
         while ((idx = buffer.indexOf('\n')) !== -1) {
           let line = buffer.slice(0, idx);
@@ -154,27 +329,30 @@ Keep it concise and practical. Calibrate to my ${toleranceLevel} tolerance level
             const content = parsed.choices?.[0]?.delta?.content;
             if (content) {
               fullText += content;
-              setAiSuggestion(fullText);
+              setChatMessages(prev => {
+                const last = prev[prev.length - 1];
+                if (last?.role === 'assistant') {
+                  return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: fullText } : m);
+                }
+                return [...prev, { role: 'assistant', content: fullText }];
+              });
             }
           } catch { /* partial */ }
         }
       }
-    } catch (e: any) {
-      if (e.name !== 'AbortError') {
-        console.error('AI zone suggestion error:', e);
-        toast.error('Could not get AI suggestions');
-      }
-    } finally {
-      setAiLoading(false);
-    }
+      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+    } catch (e) {
+      console.error('Chat error:', e);
+      toast.error('Chat failed');
+    } finally { setChatLoading(false); }
   };
 
   return (
     <Drawer open={open} onOpenChange={(o) => {
       onOpenChange(o);
-      if (!o) { setAiSuggestion(''); abortRef.current?.abort(); }
+      if (!o) { setAnalysis(null); setAiSuggestion(''); setChatMessages([]); setShowChat(false); abortRef.current?.abort(); }
     }}>
-      <DrawerContent className="max-h-[85vh]">
+      <DrawerContent className="max-h-[90vh]">
         <DrawerHeader className="pb-2">
           <div className="flex items-center gap-3">
             <div
@@ -182,20 +360,22 @@ Keep it concise and practical. Calibrate to my ${toleranceLevel} tolerance level
               style={{ backgroundColor: info.color, boxShadow: `0 0 10px ${info.color}` }}
             />
             <DrawerTitle className="text-base">{info.label}</DrawerTitle>
+            <span className="text-xs font-mono text-muted-foreground ml-auto">{currentCoverage}%</span>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">{info.description}</p>
         </DrawerHeader>
 
         <div className="px-4 pb-6 overflow-y-auto scrollbar-thin space-y-3">
-          {/* Zone gap analysis — always visible */}
+          {/* Zone gap analysis */}
           <div className="bg-secondary/30 rounded-lg border border-border/20 p-2.5">
             <p className="text-[11px] text-muted-foreground leading-snug">{zoneGapAnalysis}</p>
           </div>
 
+          {/* Compound List */}
           {compoundDetails.length === 0 ? (
             <div className="text-center py-6">
               <p className="text-sm text-muted-foreground">No compounds targeting this zone</p>
-              <p className="text-xs text-muted-foreground/60 mt-1">Add compounds to your protocol to improve coverage</p>
+              <p className="text-xs text-muted-foreground/60 mt-1">Add compounds to improve coverage</p>
             </div>
           ) : (
             <>
@@ -208,9 +388,7 @@ Keep it concise and practical. Calibrate to my ${toleranceLevel} tolerance level
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       {item.benefits && <span className="text-sm">{item.benefits.icon}</span>}
-                      <span className="text-sm font-medium text-foreground">
-                        {item.compound?.name || item.id}
-                      </span>
+                      <span className="text-sm font-medium text-foreground">{item.compound?.name || item.id}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <span className={`text-[10px] font-mono font-semibold ${intensityColor(item.weight)}`}>
@@ -233,11 +411,7 @@ Keep it concise and practical. Calibrate to my ${toleranceLevel} tolerance level
                     <div className="space-y-1">
                       {item.benefits.benefits.slice(0, 3).map((b, j) => (
                         <p key={j} className="text-[11px] text-muted-foreground leading-tight">
-                          {b.startsWith('📊') ? (
-                            <span className="text-primary font-medium">{b}</span>
-                          ) : (
-                            <>• {b}</>
-                          )}
+                          {b.startsWith('📊') ? <span className="text-primary font-medium">{b}</span> : <>• {b}</>}
                         </p>
                       ))}
                     </div>
@@ -247,43 +421,173 @@ Keep it concise and practical. Calibrate to my ${toleranceLevel} tolerance level
             </>
           )}
 
-          {/* AI Improve Impact Button */}
-          <div className="pt-2">
+          {/* Quick Action Buttons */}
+          <div className="grid grid-cols-3 gap-1.5 pt-2">
             <Button
               variant="outline"
-              className="w-full gap-2 border-primary/30 hover:border-primary/60 hover:bg-primary/5"
+              size="sm"
+              className="gap-1.5 text-xs border-primary/30 hover:border-primary/60 hover:bg-primary/5"
+              onClick={fetchAnalysis}
+              disabled={analysisLoading}
+            >
+              {analysisLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5 text-primary" />}
+              Optimize
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs border-amber-500/30 hover:border-amber-500/60 hover:bg-amber-500/5"
               onClick={handleImproveImpact}
               disabled={aiLoading}
             >
-              {aiLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Sparkles className="w-4 h-4 text-primary" />
-              )}
-              <span className="text-sm">
-                {aiLoading ? 'Analyzing stack synergies…' : `Improve ${info.label} Impact`}
-              </span>
+              {aiLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-400" />}
+              Improve
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs border-chart-5/30 hover:border-chart-5/60 hover:bg-chart-5/5"
+              onClick={() => setShowChat(!showChat)}
+            >
+              <MessageSquare className="w-3.5 h-3.5 text-chart-5" />
+              Chat
             </Button>
           </div>
 
-          {/* AI Loading Skeleton */}
-          {aiLoading && !aiSuggestion && (
+          {/* Analysis Results — Quick Actions */}
+          {analysisLoading && !analysis && (
             <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 space-y-3 animate-fade-in">
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles className="w-3.5 h-3.5 text-primary animate-pulse" />
-                <span className="text-[10px] uppercase tracking-wider text-primary font-semibold">Generating suggestions…</span>
+              <div className="flex items-center gap-2">
+                <Zap className="w-3.5 h-3.5 text-primary animate-pulse" />
+                <span className="text-[10px] uppercase tracking-wider text-primary font-semibold">Analyzing stack...</span>
               </div>
               <div className="space-y-2">
-                <div className="h-3 w-3/4 rounded bg-primary/10 animate-pulse" />
-                <div className="h-3 w-full rounded bg-primary/10 animate-pulse" />
-                <div className="h-3 w-5/6 rounded bg-primary/10 animate-pulse" />
-                <div className="h-3 w-2/3 rounded bg-primary/10 animate-pulse" />
-                <div className="h-3 w-4/5 rounded bg-primary/10 animate-pulse" />
+                {[1, 2, 3].map(i => <div key={i} className="h-12 rounded-lg bg-primary/10 animate-pulse" />)}
               </div>
             </div>
           )}
 
-          {/* AI Suggestion Result */}
+          {analysis && (
+            <div className="space-y-3 animate-fade-in">
+              {/* Summary Card */}
+              <div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-3.5 h-3.5 text-primary" />
+                    <span className="text-[10px] uppercase tracking-wider text-primary font-semibold">Stack Analysis</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono text-foreground">{analysis.zone_score}%</span>
+                    {analysis.optimal_stack && (
+                      <span className="text-[10px] font-mono text-emerald-400">→ {analysis.optimal_stack.projected_score}%</span>
+                    )}
+                  </div>
+                </div>
+                <p className="text-xs text-foreground/80 leading-relaxed">{analysis.summary}</p>
+              </div>
+
+              {/* Quick Actions */}
+              {analysis.quick_actions?.length > 0 && (
+                <div className="space-y-1.5">
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold px-1">Suggestions</span>
+                  {analysis.quick_actions.map((action, i) => (
+                    <div key={i} className={`rounded-lg border p-3 ${ACTION_COLORS[action.type] || 'border-border/30 bg-secondary/30'}`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-start gap-2 min-w-0 flex-1">
+                          <span className="mt-0.5 flex-shrink-0 text-foreground/70">{ACTION_ICONS[action.type]}</span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-foreground">{action.label}</p>
+                            <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{action.description}</p>
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end flex-shrink-0 gap-0.5">
+                          <span className={`text-xs font-mono font-semibold ${action.impact > 0 ? 'text-emerald-400' : action.impact < 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                            {action.impact > 0 ? '+' : ''}{action.impact}%
+                          </span>
+                          {action.cost_impact && action.cost_impact !== 'neutral' && (
+                            <span className="text-[10px] font-mono text-muted-foreground flex items-center gap-0.5">
+                              <DollarSign className="w-2.5 h-2.5" />{action.cost_impact}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      {action.reasoning && (
+                        <p className="text-[10px] text-muted-foreground/70 mt-2 leading-snug italic">{action.reasoning}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Redundant Compounds */}
+              {analysis.redundant_compounds?.filter(rc => rc.verdict !== 'keep').length > 0 && (
+                <div className="space-y-1.5">
+                  <span className="text-[10px] uppercase tracking-wider text-amber-400 font-semibold px-1 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" /> Below 40% Benefit
+                  </span>
+                  {analysis.redundant_compounds.filter(rc => rc.verdict !== 'keep').map((rc, i) => (
+                    <div key={i} className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-2.5 flex items-center justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-foreground">{rc.name}</span>
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400">
+                            {rc.benefit_pct}% benefit
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{rc.reasoning}</p>
+                        {rc.alternative && (
+                          <p className="text-[10px] text-primary mt-0.5">→ Consider: {rc.alternative}</p>
+                        )}
+                      </div>
+                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full flex-shrink-0 ml-2 ${
+                        rc.verdict === 'remove' ? 'bg-destructive/15 text-destructive' : 'bg-chart-5/15 text-chart-5'
+                      }`}>
+                        {rc.verdict}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Projected Optimal */}
+              {analysis.optimal_stack && (analysis.optimal_stack.remove.length > 0 || analysis.optimal_stack.add.length > 0) && (
+                <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] uppercase tracking-wider text-emerald-400 font-semibold">Optimal Stack</span>
+                    <span className="text-xs font-mono text-emerald-400">{analysis.optimal_stack.projected_score}% projected</span>
+                  </div>
+                  <div className="space-y-1">
+                    {analysis.optimal_stack.remove.length > 0 && (
+                      <p className="text-[10px] text-muted-foreground">
+                        <span className="text-destructive font-medium">Remove:</span> {analysis.optimal_stack.remove.join(', ')}
+                      </p>
+                    )}
+                    {analysis.optimal_stack.add.length > 0 && (
+                      <p className="text-[10px] text-muted-foreground">
+                        <span className="text-emerald-400 font-medium">Add:</span> {analysis.optimal_stack.add.join(', ')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <GeminiBadge />
+            </div>
+          )}
+
+          {/* AI Improve Impact (streaming) */}
+          {aiLoading && !aiSuggestion && (
+            <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 space-y-3 animate-fade-in">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles className="w-3.5 h-3.5 text-primary animate-pulse" />
+                <span className="text-[10px] uppercase tracking-wider text-primary font-semibold">Generating suggestions...</span>
+              </div>
+              <div className="space-y-2">
+                {[1, 2, 3, 4].map(i => <div key={i} className="h-3 rounded bg-primary/10 animate-pulse" style={{ width: `${60 + i * 10}%` }} />)}
+              </div>
+            </div>
+          )}
+
           {aiSuggestion && (
             <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 space-y-2 animate-fade-in">
               <div className="flex items-center justify-between mb-2">
@@ -292,15 +596,8 @@ Keep it concise and practical. Calibrate to my ${toleranceLevel} tolerance level
                   <span className="text-[10px] uppercase tracking-wider text-primary font-semibold">AI Suggestions</span>
                 </div>
                 <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-muted-foreground hover:text-primary"
-                  onClick={() => {
-                    navigator.clipboard.writeText(aiSuggestion);
-                    setCopied(true);
-                    toast.success('Copied to clipboard');
-                    setTimeout(() => setCopied(false), 2000);
-                  }}
+                  variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary"
+                  onClick={() => { navigator.clipboard.writeText(aiSuggestion); setCopied(true); toast.success('Copied'); setTimeout(() => setCopied(false), 2000); }}
                 >
                   {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                 </Button>
@@ -308,6 +605,75 @@ Keep it concise and practical. Calibrate to my ${toleranceLevel} tolerance level
               <div className="prose prose-sm prose-invert max-w-none text-xs leading-relaxed text-foreground/90 [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:text-foreground [&_h3]:mt-3 [&_h3]:mb-1 [&_ul]:pl-4 [&_li]:my-0.5 [&_strong]:text-foreground [&_blockquote]:border-primary/30 [&_blockquote]:text-muted-foreground [&_hr]:border-border/30">
                 <ReactMarkdown>{aiSuggestion}</ReactMarkdown>
               </div>
+              <GeminiBadge />
+            </div>
+          )}
+
+          {/* Chat Panel */}
+          {showChat && (
+            <div className="border border-chart-5/20 rounded-lg overflow-hidden animate-fade-in">
+              <div className="bg-chart-5/5 px-3 py-2 flex items-center justify-between border-b border-chart-5/20">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-3.5 h-3.5 text-chart-5" />
+                  <span className="text-[10px] uppercase tracking-wider text-chart-5 font-semibold">Zone Chat</span>
+                </div>
+                <button onClick={() => setShowChat(false)} className="text-muted-foreground hover:text-foreground">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {/* Messages */}
+              <div className="max-h-64 overflow-y-auto scrollbar-thin p-3 space-y-3">
+                {chatMessages.length === 0 && (
+                  <p className="text-[11px] text-muted-foreground text-center py-4">
+                    Ask anything about optimizing your {info.label} zone coverage
+                  </p>
+                )}
+                {chatMessages.map((msg, i) => (
+                  <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[85%] rounded-lg px-3 py-2 ${
+                      msg.role === 'user'
+                        ? 'bg-primary/15 text-foreground'
+                        : 'bg-secondary/50 text-foreground'
+                    }`}>
+                      {msg.role === 'assistant' ? (
+                        <div className="prose prose-sm prose-invert max-w-none text-xs leading-relaxed [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1 [&_ul]:pl-3 [&_li]:my-0.5 [&_strong]:text-foreground [&_p]:my-1">
+                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        </div>
+                      ) : (
+                        <p className="text-xs">{msg.content}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {chatLoading && chatMessages[chatMessages.length - 1]?.role === 'user' && (
+                  <div className="flex justify-start">
+                    <div className="bg-secondary/50 rounded-lg px-3 py-2">
+                      <Loader2 className="w-4 h-4 animate-spin text-chart-5" />
+                    </div>
+                  </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
+
+              {/* Chat Input */}
+              <div className="border-t border-chart-5/20 p-2 flex items-center gap-2">
+                <input
+                  value={chatInput}
+                  onChange={e => setChatInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendChatMessage()}
+                  placeholder={`Ask about ${info.label}...`}
+                  className="flex-1 px-3 py-2 rounded-lg bg-secondary text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none border border-border/30 focus:border-chart-5/40"
+                />
+                <Button
+                  variant="ghost" size="icon" className="h-8 w-8 text-chart-5 hover:bg-chart-5/10"
+                  onClick={sendChatMessage}
+                  disabled={chatLoading || !chatInput.trim()}
+                >
+                  <Send className="w-4 h-4" />
+                </Button>
+              </div>
+              <GeminiBadge />
             </div>
           )}
         </div>
