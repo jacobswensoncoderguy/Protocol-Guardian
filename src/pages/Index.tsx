@@ -210,6 +210,10 @@ const Index = () => {
               <LayoutDashboard className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
               <span className="hidden sm:inline">Dashboard</span>
             </TabsTrigger>
+            <TabsTrigger value="outcomes" className="flex-1 gap-1 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[11px] sm:text-xs py-2.5">
+              <Activity className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+              <span className="hidden sm:inline">Progress</span>
+            </TabsTrigger>
             <TabsTrigger value="schedule" className="flex-1 gap-1 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[11px] sm:text-xs py-2.5">
               <Calendar className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
               <span className="hidden sm:inline">Schedule</span>
@@ -225,10 +229,6 @@ const Index = () => {
             <TabsTrigger value="costs" className="flex-1 gap-1 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[11px] sm:text-xs py-2.5">
               <DollarSign className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
               <span className="hidden sm:inline">Costs</span>
-            </TabsTrigger>
-            <TabsTrigger value="outcomes" className="flex-1 gap-1 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[11px] sm:text-xs py-2.5">
-              <Activity className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-              <span className="hidden sm:inline">Outcomes</span>
             </TabsTrigger>
             <TabsTrigger value="ai-insights" className="flex-1 gap-1 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[11px] sm:text-xs py-2.5">
               <Brain className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
@@ -257,6 +257,9 @@ const Index = () => {
               onNavigateToInventory={() => setActiveTab('inventory')}
             />
           </TabsContent>
+          <TabsContent value="outcomes" className="animate-slide-up">
+            <OutcomesView userId={user?.id} goals={fullGoals} onRefreshGoals={fetchFullGoals} onUploadClick={() => setShowBiomarkerUpload(true)} profile={profile} measurementSystem={measurementSystem} onCreateGoal={createGoals} onUpdateGoal={updateGoal} onDeleteGoal={deleteGoal} />
+          </TabsContent>
           <TabsContent value="schedule" className="animate-slide-up">
             <WeeklyScheduleView compounds={compounds} protocols={protocols} />
           </TabsContent>
@@ -276,9 +279,6 @@ const Index = () => {
           </TabsContent>
           <TabsContent value="costs" className="animate-slide-up">
             <CostProjectionView compounds={compounds} protocols={protocols} />
-          </TabsContent>
-          <TabsContent value="outcomes" className="animate-slide-up">
-            <OutcomesView userId={user?.id} goals={fullGoals} onRefreshGoals={fetchFullGoals} onUploadClick={() => setShowBiomarkerUpload(true)} profile={profile} measurementSystem={measurementSystem} onCreateGoal={createGoals} onUpdateGoal={updateGoal} onDeleteGoal={deleteGoal} />
           </TabsContent>
           <TabsContent value="ai-insights" className="animate-slide-up">
             <AIInsightsView

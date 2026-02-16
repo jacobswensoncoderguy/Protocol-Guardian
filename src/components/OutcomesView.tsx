@@ -639,22 +639,6 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
             </div>
           </div>
 
-          {/* Summary Stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {Object.entries(
-              activeGoals.reduce((acc, g) => {
-                const type = g.goal_type.replace(/_/g, ' ');
-                acc[type] = (acc[type] || 0) + 1;
-                return acc;
-              }, {} as Record<string, number>)
-            ).map(([type, count]) => (
-              <div key={type} className="bg-card rounded-lg border border-border/50 px-3 py-2 text-center">
-                {(() => { const Icon = getGoalIcon(type.replace(/ /g, '_')); return <Icon className="w-5 h-5 text-primary" />; })()}
-                <p className="text-xs font-medium text-foreground capitalize mt-0.5">{type}</p>
-                <p className="text-[10px] text-muted-foreground">{count} goal{count !== 1 ? 's' : ''}</p>
-              </div>
-            ))}
-          </div>
         </>
       )}
 
