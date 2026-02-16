@@ -75,7 +75,14 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [deleteConfirmGoal, setDeleteConfirmGoal] = useState<string | null>(null);
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
-  const [editTitle, setEditTitle] = useState('');
+  const [editForm, setEditForm] = useState<{
+    title: string;
+    target_value: string;
+    baseline_value: string;
+    target_unit: string;
+    target_date: string;
+    description: string;
+  }>({ title: '', target_value: '', baseline_value: '', target_unit: '', target_date: '', description: '' });
 
   const activeGoals = goals.filter(g => g.status === 'active');
 
@@ -131,9 +138,29 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
     setDeleteConfirmGoal(null);
   };
 
-  const handleSaveTitle = async (goalId: string) => {
-    if (onUpdateGoal && editTitle.trim()) {
-      await onUpdateGoal(goalId, { title: editTitle.trim() });
+  const startEditing = (goal: UserGoal) => {
+    setEditingGoalId(goal.id!);
+    setEditForm({
+      title: goal.title,
+      target_value: goal.target_value?.toString() || '',
+      baseline_value: goal.baseline_value?.toString() || '',
+      target_unit: goal.target_unit || '',
+      target_date: goal.target_date || '',
+      description: goal.description || '',
+    });
+  };
+
+  const handleSaveEdit = async (goalId: string) => {
+    if (onUpdateGoal && editForm.title.trim()) {
+      await onUpdateGoal(goalId, {
+        title: editForm.title.trim(),
+        target_value: editForm.target_value ? parseFloat(editForm.target_value) : undefined,
+        baseline_value: editForm.baseline_value ? parseFloat(editForm.baseline_value) : undefined,
+        target_unit: editForm.target_unit || undefined,
+        target_date: editForm.target_date || undefined,
+        description: editForm.description || undefined,
+      });
+      toast.success('Goal updated');
     }
     setEditingGoalId(null);
   };
@@ -306,13 +333,13 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
                           {isEditing ? (
                             <div className="flex items-center gap-1 flex-1 mr-2" onClick={e => e.stopPropagation()}>
                               <input
-                                value={editTitle}
-                                onChange={e => setEditTitle(e.target.value)}
-                                onKeyDown={e => { if (e.key === 'Enter') handleSaveTitle(goal.id!); if (e.key === 'Escape') setEditingGoalId(null); }}
+                                value={editForm.title}
+                                onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))}
+                                onKeyDown={e => { if (e.key === 'Enter') handleSaveEdit(goal.id!); if (e.key === 'Escape') setEditingGoalId(null); }}
                                 className="flex-1 px-2 py-0.5 rounded border border-primary/50 bg-secondary text-sm text-foreground focus:outline-none"
                                 autoFocus
                               />
-                              <button onClick={() => handleSaveTitle(goal.id!)} className="p-0.5 text-primary"><Check className="w-3.5 h-3.5" /></button>
+                              <button onClick={() => handleSaveEdit(goal.id!)} className="p-0.5 text-primary"><Check className="w-3.5 h-3.5" /></button>
                               <button onClick={() => setEditingGoalId(null)} className="p-0.5 text-muted-foreground"><X className="w-3.5 h-3.5" /></button>
                             </div>
                           ) : (
@@ -365,7 +392,7 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
                         {/* Action buttons */}
                         <div className="flex items-center gap-2 justify-end">
                           <button
-                            onClick={() => { setEditingGoalId(goal.id!); setEditTitle(goal.title); }}
+                            onClick={() => startEditing(goal)}
                             className="text-[10px] flex items-center gap-1 px-2 py-1 rounded bg-secondary text-muted-foreground hover:text-foreground transition-colors"
                           >
                             <Edit2 className="w-3 h-3" /> Edit
@@ -377,6 +404,88 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
                             <Trash2 className="w-3 h-3" /> Delete
                           </button>
                         </div>
+
+                        {/* Inline Edit Form */}
+                        {isEditing && (
+                          <div className="space-y-2 p-3 rounded-lg bg-secondary/20 border border-primary/20" onClick={e => e.stopPropagation()}>
+                            <div>
+                              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block mb-0.5">Title</label>
+                              <input
+                                value={editForm.title}
+                                onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))}
+                                className="w-full px-2.5 py-1.5 rounded-lg border border-border/50 bg-secondary text-sm text-foreground focus:outline-none focus:border-primary/50"
+                              />
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                              <div>
+                                <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block mb-0.5">Baseline</label>
+                                <input
+                                  type="number"
+                                  step="any"
+                                  value={editForm.baseline_value}
+                                  onChange={e => setEditForm(f => ({ ...f, baseline_value: e.target.value }))}
+                                  placeholder="—"
+                                  className="w-full px-2 py-1.5 rounded-lg border border-border/50 bg-secondary text-sm text-foreground focus:outline-none focus:border-primary/50"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block mb-0.5">Target</label>
+                                <input
+                                  type="number"
+                                  step="any"
+                                  value={editForm.target_value}
+                                  onChange={e => setEditForm(f => ({ ...f, target_value: e.target.value }))}
+                                  placeholder="—"
+                                  className="w-full px-2 py-1.5 rounded-lg border border-border/50 bg-secondary text-sm text-foreground focus:outline-none focus:border-primary/50"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block mb-0.5">Unit</label>
+                                <input
+                                  value={editForm.target_unit}
+                                  onChange={e => setEditForm(f => ({ ...f, target_unit: e.target.value }))}
+                                  placeholder="e.g. lbs, %"
+                                  className="w-full px-2 py-1.5 rounded-lg border border-border/50 bg-secondary text-sm text-foreground focus:outline-none focus:border-primary/50"
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block mb-0.5 flex items-center gap-1">
+                                <CalendarIcon className="w-3 h-3" /> Deadline
+                              </label>
+                              <input
+                                type="date"
+                                value={editForm.target_date}
+                                onChange={e => setEditForm(f => ({ ...f, target_date: e.target.value }))}
+                                className="w-full px-2.5 py-1.5 rounded-lg border border-border/50 bg-secondary text-sm text-foreground focus:outline-none focus:border-primary/50"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block mb-0.5">Notes</label>
+                              <textarea
+                                value={editForm.description}
+                                onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
+                                placeholder="Additional context..."
+                                rows={2}
+                                className="w-full px-2.5 py-1.5 rounded-lg border border-border/50 bg-secondary text-sm text-foreground focus:outline-none focus:border-primary/50 resize-none"
+                              />
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleSaveEdit(goal.id!)}
+                                className="flex-1 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium"
+                              >
+                                Save Changes
+                              </button>
+                              <button
+                                onClick={() => setEditingGoalId(null)}
+                                className="px-3 py-1.5 rounded-lg bg-secondary text-muted-foreground text-xs"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        )}
 
                         {/* Stats row */}
                         <div className="grid grid-cols-3 gap-2">
