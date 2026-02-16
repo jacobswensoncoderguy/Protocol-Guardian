@@ -288,7 +288,7 @@ const CostProjectionView = ({ compounds, protocols = [] }: CostProjectionViewPro
                 <span className="text-sm font-bold font-mono text-status-good">
                   -${Math.round(totalAnnualSaved).toLocaleString()}/yr
                 </span>
-                <span className="text-muted-foreground text-xs">{showSavings ? '▲' : '▼'}</span>
+                <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform duration-200 ${showSavings ? 'rotate-180' : ''}`} />
               </div>
             </button>
 

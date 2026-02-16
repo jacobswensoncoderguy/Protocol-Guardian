@@ -188,10 +188,10 @@ const GoalExpansionDialog = ({ open, onOpenChange, goals, protocols, compounds, 
 
   const typeLabel = (type: string) => {
     switch (type) {
-      case 'add_compound': return '💊 Add Compound';
-      case 'adjust_dose': return '📐 Adjust Dose';
-      case 'adjust_timing': return '⏰ Adjust Timing';
-      case 'new_protocol': return '✨ New Protocol';
+      case 'add_compound': return 'Add Compound';
+      case 'adjust_dose': return 'Adjust Dose';
+      case 'adjust_timing': return 'Adjust Timing';
+      case 'new_protocol': return 'New Protocol';
       default: return type;
     }
   };

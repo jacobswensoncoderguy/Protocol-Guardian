@@ -1,15 +1,15 @@
 import { useState } from 'react';
-import { TrendingUp, ChevronDown } from 'lucide-react';
+import { TrendingUp, ChevronDown, Dumbbell, Flame, Heart, Bandage, Brain } from 'lucide-react';
 
 interface OutcomeCategory {
-  icon: string;
+  Icon: React.ComponentType<{ className?: string }>;
   label: string;
   items: string[];
 }
 
 const outcomes: OutcomeCategory[] = [
   {
-    icon: '💪',
+    Icon: Dumbbell,
     label: 'Lean Mass & Strength',
     items: [
       '+15-28 lb lean mass (Test Cyp + Deca + Anavar + IGF-1 LR3)',
@@ -18,7 +18,7 @@ const outcomes: OutcomeCategory[] = [
     ],
   },
   {
-    icon: '🔥',
+    Icon: Flame,
     label: 'Fat Loss & Recomposition',
     items: [
       '15-24% total body weight loss (Retatrutide)',
@@ -28,7 +28,7 @@ const outcomes: OutcomeCategory[] = [
     ],
   },
   {
-    icon: '🔥',
+    Icon: Heart,
     label: 'Vascular & Sexual Health',
     items: [
       'Penile blood flow +25-40% (Tadalafil)',
@@ -38,7 +38,7 @@ const outcomes: OutcomeCategory[] = [
     ],
   },
   {
-    icon: '🩹',
+    Icon: Bandage,
     label: 'Tissue Repair & Recovery',
     items: [
       '30-50% faster tendon/ligament healing (BPC-157)',
@@ -49,7 +49,7 @@ const outcomes: OutcomeCategory[] = [
     ],
   },
   {
-    icon: '🧠',
+    Icon: Brain,
     label: 'Cognitive & Longevity',
     items: [
       'VO2 max +5-10% (MOTS-C)',
@@ -94,7 +94,7 @@ const ProtocolOutcomesCard = () => {
             {outcomes.map((cat) => (
               <div key={cat.label}>
                 <div className="flex items-center gap-1.5 mb-1">
-                  <span className="text-sm">{cat.icon}</span>
+                  <cat.Icon className="w-4 h-4 text-primary" />
                   <span className="text-xs font-semibold text-foreground/90">{cat.label}</span>
                 </div>
                 <div className="space-y-0.5 ml-6">

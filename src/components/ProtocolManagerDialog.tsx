@@ -594,7 +594,7 @@ const ProtocolManagerDialog = ({
                           : 'bg-secondary text-muted-foreground border border-border/50'
                       }`}
                     >
-                      {t === 'morning' ? '☀️ AM' : t === 'afternoon' ? '💪 Mid' : '🌙 PM'}
+                      {t === 'morning' ? 'AM' : t === 'afternoon' ? 'Mid' : 'PM'}
                     </button>
                   ))}
                 </div>
