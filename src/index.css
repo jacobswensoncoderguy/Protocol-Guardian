@@ -99,6 +99,12 @@
     --sidebar-accent-foreground: 210 40% 85%;
     --sidebar-border: 230 25% 20%;
     --sidebar-ring: 190 100% 50%;
+
+    --neon-cyan: 190 100% 50%;
+    --neon-magenta: 320 100% 60%;
+    --neon-green: 142 80% 50%;
+    --neon-amber: 39 100% 55%;
+    --neon-violet: 270 100% 65%;
   }
 }
 
