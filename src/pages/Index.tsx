@@ -365,6 +365,7 @@ const Index = () => {
             setShowOnboarding(true);
             refetch();
           }}
+          onStartTour={() => setShowGuidedTour(true)}
         />
 
         <ConfirmDialog

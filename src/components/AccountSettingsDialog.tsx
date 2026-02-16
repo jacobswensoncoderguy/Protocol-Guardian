@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertTriangle, RotateCcw, Trash2 } from 'lucide-react';
+import { AlertTriangle, RotateCcw, Trash2, HelpCircle } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,6 +24,7 @@ interface AccountSettingsDialogProps {
   onOpenChange: (open: boolean) => void;
   userId?: string;
   onResetComplete: () => void;
+  onStartTour?: () => void;
 }
 
 const USER_TABLES = [
@@ -43,7 +44,7 @@ const USER_TABLES = [
   'profiles',
 ] as const;
 
-const AccountSettingsDialog = ({ open, onOpenChange, userId, onResetComplete }: AccountSettingsDialogProps) => {
+const AccountSettingsDialog = ({ open, onOpenChange, userId, onResetComplete, onStartTour }: AccountSettingsDialogProps) => {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTyped, setDeleteTyped] = useState('');
@@ -96,6 +97,18 @@ const AccountSettingsDialog = ({ open, onOpenChange, userId, onResetComplete }: 
             <DialogTitle>Account Settings</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 pt-2">
+            {onStartTour && (
+              <button
+                onClick={() => { onOpenChange(false); onStartTour(); }}
+                className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-secondary/50 transition-colors text-left"
+              >
+                <HelpCircle className="w-5 h-5 text-primary flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium">Guided Tour</p>
+                  <p className="text-xs text-muted-foreground">Replay the app walkthrough</p>
+                </div>
+              </button>
+            )}
             <button
               onClick={() => setShowResetConfirm(true)}
               className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-secondary/50 transition-colors text-left"
