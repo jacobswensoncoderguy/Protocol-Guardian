@@ -211,6 +211,13 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
   const parseDaysFromNote = (note: string): Set<number> => {
     const lower = note.toLowerCase();
     const days = new Set<number>();
+
+    // Check "daily" / "nightly" / "every day" FIRST — these mean all 7 days
+    if (/\bdaily\b|\bnightly\b|\bevery\s*day\b/i.test(lower)) {
+      [0,1,2,3,4,5,6].forEach(i => days.add(i));
+      return days;
+    }
+
     const patterns: [RegExp, number[]][] = [
       [/\bm[\/-]f\b|mon[\s-]*fri/i, [1,2,3,4,5]],
       [/\bm\/w\/f\b/i, [1,3,5]],
@@ -222,7 +229,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
     const dayMap: Record<string, number> = { su: 0, sun: 0, mo: 1, mon: 1, tu: 2, tue: 2, tues: 2, we: 3, wed: 3, th: 4, thu: 4, thurs: 4, fr: 5, fri: 5, sa: 6, sat: 6 };
     const matches = lower.match(/\b(su(?:n(?:day)?)?|mo(?:n(?:day)?)?|tu(?:e(?:s(?:day)?)?)?|we(?:d(?:nesday)?)?|th(?:u(?:rs(?:day)?)?)?|fr(?:i(?:day)?)?|sa(?:t(?:urday)?)?)\b/gi);
     if (matches) matches.forEach(m => { const i = dayMap[m.toLowerCase()]; if (i !== undefined) days.add(i); });
-    if (days.size === 0 && (/\bdaily\b|\bnightly\b|\bevery\s*day\b/i.test(lower) || compound.daysPerWeek === 7)) {
+    if (days.size === 0 && parseInt(editState.daysPerWeek || '0') === 7) {
       [0,1,2,3,4,5,6].forEach(i => days.add(i));
     }
     return days;
@@ -355,6 +362,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
     if (editIsOil) {
       const vialMl = parseFloat(editState.vialSizeMl || '10');
       updates.vialSizeMl = isNaN(vialMl) || vialMl <= 0 ? 10 : vialMl;
+      updates.unitLabel = 'mg/mL';
     }
 
     if (editIsPeptide) {
@@ -802,20 +810,30 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
             <div className="grid grid-cols-2 gap-x-3 text-[10px]">
               <div>
                 <span className="text-muted-foreground">Qty:</span>{' '}
-                <span className="font-mono text-foreground">{compound.currentQuantity} {compound.unitLabel}</span>
+                <span className="font-mono text-foreground">
+                  {isOil
+                    ? `${compound.currentQuantity} × ${compound.vialSizeMl || 10}mL`
+                    : `${compound.currentQuantity} ${compound.unitLabel}`}
+                </span>
               </div>
               <div>
                 <span className="text-muted-foreground">Price:</span>{' '}
                 <span className="font-mono text-foreground">${compound.unitPrice}/{isOil ? 'vial' : 'bottle'}</span>
               </div>
+              {isOil && (
+                <div>
+                  <span className="text-muted-foreground">Conc.:</span>{' '}
+                  <span className="font-mono text-foreground">{compound.unitSize} mg/mL</span>
+                </div>
+              )}
               <div>
                 <span className="text-muted-foreground">Dose:</span>{' '}
                 <span className="font-mono text-foreground">
                   {(() => {
                     if (!isOil || doseUnit === 'mg') return `${compound.dosePerUse} ${compound.doseLabel}`;
                     if (doseUnit === 'ml') {
-                      // Oil: concentration = unitSize / 10 mg/mL (10mL vial)
-                      const concMgPerMl = compound.unitSize / 10;
+                      // Oil: unitSize is now mg/mL directly
+                      const concMgPerMl = compound.unitSize;
                       if (concMgPerMl > 0) {
                         const ml = Math.round((compound.dosePerUse / concMgPerMl) * 1000) / 1000;
                         return `${ml} mL`;

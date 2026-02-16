@@ -68,7 +68,9 @@ export function getDaysRemainingWithCycling(compound: Compound): number {
 
   const totalSupply = compound.category === 'peptide' && compound.bacstatPerVial
     ? compound.currentQuantity * compound.bacstatPerVial
-    : compound.currentQuantity * compound.unitSize;
+    : compound.category === 'injectable-oil' && compound.vialSizeMl
+      ? compound.currentQuantity * compound.unitSize * compound.vialSizeMl
+      : compound.currentQuantity * compound.unitSize;
 
   if (!compound.cycleOnDays || !compound.cycleOffDays || !compound.cycleStartDate) {
     // No cycling — simple division
