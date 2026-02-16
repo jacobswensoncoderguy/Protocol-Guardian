@@ -1,3 +1,6 @@
+import { Target, Pill, Package, ShoppingCart, ClipboardList } from 'lucide-react';
+import { type LucideIcon } from 'lucide-react';
+
 export interface AppFeatures {
   goal_tracking: boolean;
   supplementation: boolean;
@@ -14,30 +17,30 @@ export const DEFAULT_APP_FEATURES: AppFeatures = {
   medical_records: true,
 };
 
-export const FEATURE_META: Record<keyof AppFeatures, { label: string; description: string; icon: string }> = {
+export const FEATURE_META: Record<keyof AppFeatures, { label: string; description: string; icon: LucideIcon }> = {
   goal_tracking: {
     label: 'Goal Tracking',
     description: 'Track health goals, progress readings, and milestones over time',
-    icon: '🎯',
+    icon: Target,
   },
   supplementation: {
     label: 'Supplementation Protocol',
     description: 'Manage compounds, dosing schedules, and protocol groups',
-    icon: '💊',
+    icon: Pill,
   },
   inventory_tracking: {
     label: 'Inventory Management',
     description: 'Track supply levels, depletion forecasts, and stock alerts',
-    icon: '📦',
+    icon: Package,
   },
   dosing_reorder: {
     label: 'Dosing & Reorder Tracking',
     description: 'Weekly dosing schedules, cost projections, and reorder management',
-    icon: '🛒',
+    icon: ShoppingCart,
   },
   medical_records: {
     label: 'Medical Records & Labs',
     description: 'Upload bloodwork, DEXA scans, and track biomarker changes over time',
-    icon: '📋',
+    icon: ClipboardList,
   },
 };

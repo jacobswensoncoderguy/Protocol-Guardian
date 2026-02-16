@@ -15,7 +15,7 @@ const FeatureTeaserCard = ({ featureKey, onEnable }: FeatureTeaserCardProps) => 
       className="w-full rounded-xl border border-dashed border-border/40 bg-card/30 p-4 text-left hover:border-primary/40 hover:bg-primary/5 transition-all group"
     >
       <div className="flex items-center gap-3">
-        <span className="text-xl opacity-40 group-hover:opacity-70 transition-opacity">{meta.icon}</span>
+        <meta.icon className="w-5 h-5 text-muted-foreground/40 group-hover:text-primary/70 transition-colors" />
         <div className="flex-1 min-w-0">
           <span className="text-sm font-semibold text-muted-foreground/60 group-hover:text-foreground/80 transition-colors block">
             {meta.label}

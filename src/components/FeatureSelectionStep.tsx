@@ -43,7 +43,7 @@ const FeatureSelectionStep = ({ features, onToggle, onRequestFeature, compact }:
                 : 'border-border/50 bg-card hover:border-border'
             }`}
           >
-            <span className="text-xl flex-shrink-0">{meta.icon}</span>
+            <meta.icon className="w-5 h-5 flex-shrink-0 text-primary/70" />
             <div className="flex-1 min-w-0">
               <span className={`text-sm font-semibold block ${enabled ? 'text-foreground' : 'text-muted-foreground'}`}>
                 {meta.label}
