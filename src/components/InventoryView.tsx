@@ -702,9 +702,13 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
             </div>
           )}
 
-          {compound.cyclingNote && (
+          {(compound.cycleOnDays && compound.cycleOffDays) ? (
+            <p className="text-[10px] text-accent mt-1.5 italic flex items-center gap-1">
+              <RefreshCcw className="w-3 h-3" /> {compound.cycleOnDays} days on / {compound.cycleOffDays} days off{compound.cyclingNote && !compound.cyclingNote.match(/^\d+\s*days?\s*(on|off)/i) ? ` (${compound.cyclingNote})` : ''}
+            </p>
+          ) : compound.cyclingNote ? (
             <p className="text-[10px] text-accent mt-1.5 italic flex items-center gap-1"><RefreshCcw className="w-3 h-3" /> {compound.cyclingNote}</p>
-          )}
+          ) : null}
         </>
       )}
     </div>
