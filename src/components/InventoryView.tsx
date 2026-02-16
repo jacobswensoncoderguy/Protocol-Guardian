@@ -248,6 +248,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
       unitSize: compound.unitSize.toString(),
       dosePerUse: compound.dosePerUse.toString(),
       reorderQuantity: compound.reorderQuantity.toString(),
+      reorderType: compound.reorderType || 'single',
     };
     if (isPeptide) {
       state.kitPrice = (compound.kitPrice || 0).toString();
@@ -280,6 +281,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
       unitSize: size,
       dosePerUse: dose,
       reorderQuantity: reorder,
+      reorderType: (editState.reorderType as 'single' | 'kit') || 'single',
     };
 
     const editIsPeptide = editState.category === 'peptide';
@@ -328,7 +330,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
 
   const reorderLabel = isPeptide
     ? `${compound.reorderQuantity} kit${compound.reorderQuantity !== 1 ? 's' : ''} (${compound.reorderQuantity * 10} vials)`
-    : `${compound.reorderQuantity}`;
+    : `${compound.reorderQuantity} ${compound.reorderType === 'kit' ? 'kit' : 'unit'}${compound.reorderQuantity !== 1 ? 's' : ''}`;
 
   return (
     <div className={`bg-card rounded-lg border p-2.5 sm:p-3 card-glow ${
@@ -551,11 +553,30 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
               onChange={v => setEditState(s => ({ ...s, purchaseDate: v }))} type="date" />
           )}
           <EditRow
-            label={isPeptide ? 'Kits (×10)' : 'Reorder'}
+            label="Reorder Qty"
             value={editState.reorderQuantity}
             onChange={v => setEditState(s => ({ ...s, reorderQuantity: v }))}
             type="number"
+            suffix={editState.reorderType === 'kit' ? 'kits' : 'units'}
           />
+          <div className="flex items-center gap-2 text-[11px]">
+            <span className="text-muted-foreground w-16 flex-shrink-0">Order As</span>
+            <div className="flex gap-1 flex-1">
+              {(['single', 'kit'] as const).map(t => (
+                <button
+                  key={t}
+                  onClick={() => setEditState(s => ({ ...s, reorderType: t }))}
+                  className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all ${
+                    editState.reorderType === t
+                      ? 'bg-primary/15 text-primary border border-primary/30'
+                      : 'bg-secondary text-muted-foreground border border-border/50'
+                  }`}
+                >
+                  {t === 'single' ? 'Single Unit' : 'Kit'}
+                </button>
+              ))}
+            </div>
+          </div>
           {editState.cycleOnDays !== undefined && (
             <>
               <EditRow label="Cycle ON" value={editState.cycleOnDays} suffix="days"
@@ -660,8 +681,8 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
                 </span>
               </div>
               <div>
-                <span className="text-muted-foreground">Reorder:</span>{' '}
-                <span className="font-mono text-foreground">{compound.reorderQuantity}</span>
+                <span className="text-muted-foreground">Reorder Qty:</span>{' '}
+                <span className="font-mono text-foreground">{compound.reorderQuantity} {compound.reorderType === 'kit' ? 'kit' : 'unit'}{compound.reorderQuantity !== 1 ? 's' : ''}</span>
               </div>
               {!isOil && (
                 <div>

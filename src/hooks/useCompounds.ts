@@ -23,6 +23,7 @@ interface DbUserCompound {
   current_quantity: number;
   purchase_date: string | null;
   reorder_quantity: number;
+  reorder_type: string | null;
   notes: string | null;
   cycle_on_days: number | null;
   cycle_off_days: number | null;
@@ -49,6 +50,7 @@ function dbToCompound(row: DbUserCompound): Compound {
     currentQuantity: row.current_quantity,
     purchaseDate: row.purchase_date ?? '',
     reorderQuantity: row.reorder_quantity,
+    reorderType: (row.reorder_type as 'single' | 'kit') ?? 'single',
     notes: row.notes ?? undefined,
     cycleOnDays: row.cycle_on_days ?? undefined,
     cycleOffDays: row.cycle_off_days ?? undefined,
@@ -116,6 +118,7 @@ export function useCompounds(userId: string | undefined) {
     if (updates.currentQuantity !== undefined) dbUpdates.current_quantity = updates.currentQuantity;
     if (updates.purchaseDate !== undefined) dbUpdates.purchase_date = updates.purchaseDate;
     if (updates.reorderQuantity !== undefined) dbUpdates.reorder_quantity = updates.reorderQuantity;
+    if (updates.reorderType !== undefined) dbUpdates.reorder_type = updates.reorderType;
     if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
 
     const { error } = await supabase

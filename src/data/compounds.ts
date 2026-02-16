@@ -30,6 +30,7 @@ export interface Compound {
   currentQuantity: number;
   purchaseDate: string; // ISO date (used for orals/powders only)
   reorderQuantity: number; // for peptides: number of kits; for others: number of units
+  reorderType?: 'single' | 'kit'; // whether reorder quantity is single units or kits
   notes?: string;
 }
 

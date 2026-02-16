@@ -367,6 +367,7 @@ export type Database = {
           purchase_date: string | null
           recon_volume: number | null
           reorder_quantity: number
+          reorder_type: string
           timing_note: string | null
           unit_label: string
           unit_price: number
@@ -395,6 +396,7 @@ export type Database = {
           purchase_date?: string | null
           recon_volume?: number | null
           reorder_quantity?: number
+          reorder_type?: string
           timing_note?: string | null
           unit_label: string
           unit_price: number
@@ -423,6 +425,7 @@ export type Database = {
           purchase_date?: string | null
           recon_volume?: number | null
           reorder_quantity?: number
+          reorder_type?: string
           timing_note?: string | null
           unit_label?: string
           unit_price?: number
@@ -565,6 +568,7 @@ export type Database = {
       user_goals: {
         Row: {
           baseline_date: string | null
+          baseline_label: string | null
           baseline_value: number | null
           body_area: string | null
           created_at: string
@@ -575,6 +579,7 @@ export type Database = {
           priority: number | null
           status: string
           target_date: string | null
+          target_label: string | null
           target_unit: string | null
           target_value: number | null
           title: string
@@ -583,6 +588,7 @@ export type Database = {
         }
         Insert: {
           baseline_date?: string | null
+          baseline_label?: string | null
           baseline_value?: number | null
           body_area?: string | null
           created_at?: string
@@ -593,6 +599,7 @@ export type Database = {
           priority?: number | null
           status?: string
           target_date?: string | null
+          target_label?: string | null
           target_unit?: string | null
           target_value?: number | null
           title: string
@@ -601,6 +608,7 @@ export type Database = {
         }
         Update: {
           baseline_date?: string | null
+          baseline_label?: string | null
           baseline_value?: number | null
           body_area?: string | null
           created_at?: string
@@ -611,6 +619,7 @@ export type Database = {
           priority?: number | null
           status?: string
           target_date?: string | null
+          target_label?: string | null
           target_unit?: string | null
           target_value?: number | null
           title?: string
