@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Target, Activity, Brain, Heart, Moon, Flame, Dumbbell, Zap, ChevronRight, ChevronLeft, Sparkles, MessageCircle } from 'lucide-react';
+import { Target, Activity, Brain, Heart, Moon, Flame, Dumbbell, Zap, ChevronRight, ChevronLeft, Sparkles, MessageCircle, Droplets, ScanLine, Camera, BarChart3, BookOpen, PlusCircle } from 'lucide-react';
 
 export interface OnboardingResponse {
   primaryGoals: string[];
@@ -91,11 +91,11 @@ const TIMELINE_OPTIONS = [
 ];
 
 const TRACKING_PREFS = [
-  { id: 'bloodwork', label: '🩸 Bloodwork Panels' },
-  { id: 'dexa', label: '🦴 DEXA / InBody Scans' },
-  { id: 'photos', label: '📸 Progress Photos' },
-  { id: 'performance', label: '🏋️ Performance Metrics' },
-  { id: 'subjective', label: '📝 Subjective Journals' },
+  { id: 'bloodwork', label: 'Bloodwork Panels', icon: Droplets },
+  { id: 'dexa', label: 'DEXA / InBody Scans', icon: ScanLine },
+  { id: 'photos', label: 'Progress Photos', icon: Camera },
+  { id: 'performance', label: 'Performance Metrics', icon: BarChart3 },
+  { id: 'subjective', label: 'Subjective Journals', icon: BookOpen },
 ];
 
 type Step = { title: string; subtitle: string };
@@ -131,6 +131,8 @@ const GoalInterview = ({ onComplete, gender }: GoalInterviewProps) => {
       ];
 
   const [step, setStep] = useState(0);
+  const [customConcern, setCustomConcern] = useState('');
+  const [showCustomInput, setShowCustomInput] = useState(false);
   const [responses, setResponses] = useState<OnboardingResponse>({
     primaryGoals: [],
     bodyFocus: [],
@@ -232,6 +234,7 @@ const GoalInterview = ({ onComplete, gender }: GoalInterviewProps) => {
         );
       case 3:
         return (
+          <>
           <div className="grid grid-cols-2 gap-2">
             {healthConcerns.map(c => {
               const selected = responses.healthConcerns.includes(c.id);
@@ -242,7 +245,44 @@ const GoalInterview = ({ onComplete, gender }: GoalInterviewProps) => {
                 </button>
               );
             })}
+            <button
+              onClick={() => setShowCustomInput(!showCustomInput)}
+              className={`px-3 py-2.5 rounded-lg border transition-all text-xs font-medium flex items-center justify-center gap-1 ${showCustomInput ? 'bg-primary/10 border-primary/40 text-primary' : 'bg-card border-border/50 hover:bg-secondary/50 text-foreground'}`}>
+              <PlusCircle className="w-3.5 h-3.5" /> Other
+            </button>
           </div>
+          {showCustomInput && (
+            <div className="mt-2 space-y-2">
+              <input
+                type="text"
+                value={customConcern}
+                onChange={e => setCustomConcern(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && customConcern.trim()) {
+                    const id = `custom_${customConcern.trim().toLowerCase().replace(/\s+/g, '_')}`;
+                    if (!responses.healthConcerns.includes(id)) {
+                      toggleMulti('healthConcerns', id);
+                    }
+                    setCustomConcern('');
+                  }
+                }}
+                placeholder="Type your health concern and press Enter..."
+                autoFocus
+                className="w-full px-3 py-2 rounded-lg border border-border/50 bg-card text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50"
+              />
+              {responses.healthConcerns
+                .filter(c => c.startsWith('custom_'))
+                .map(c => (
+                  <div key={c} className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-primary/10 border border-primary/30">
+                    <span className="text-xs text-primary font-medium flex-1">{c.replace('custom_', '').replace(/_/g, ' ')}</span>
+                    <button onClick={() => toggleMulti('healthConcerns', c)} className="text-muted-foreground hover:text-destructive">
+                      <PlusCircle className="w-3 h-3 rotate-45" />
+                    </button>
+                  </div>
+                ))}
+            </div>
+          )}
+          </>
         );
       case 4:
         return (
@@ -263,10 +303,12 @@ const GoalInterview = ({ onComplete, gender }: GoalInterviewProps) => {
         return (
           <div className="grid grid-cols-1 gap-2">
             {TRACKING_PREFS.map(p => {
+              const Icon = p.icon;
               const selected = responses.trackingPreferences.includes(p.id);
               return (
                 <button key={p.id} onClick={() => toggleMulti('trackingPreferences', p.id)}
-                  className={`px-4 py-3 rounded-lg border transition-all text-left text-sm font-medium ${selected ? 'bg-primary/10 border-primary/40 text-primary' : 'bg-card border-border/50 hover:bg-secondary/50 text-foreground'}`}>
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg border transition-all text-left text-sm font-medium ${selected ? 'bg-primary/10 border-primary/40 text-primary' : 'bg-card border-border/50 hover:bg-secondary/50 text-foreground'}`}>
+                  <Icon className={`w-4 h-4 ${selected ? 'text-primary' : 'text-muted-foreground'}`} />
                   {p.label}
                 </button>
               );
