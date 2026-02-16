@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Target, TrendingUp, Plus, Activity, ChevronDown, ChevronUp, Ruler, Weight, Percent, Calendar as CalendarIcon, Trash2, Edit2, X, Check, MessageCircle, Clock } from 'lucide-react';
+import { Target, TrendingUp, Plus, Activity, ChevronDown, ChevronUp, Ruler, Weight, Percent, Calendar as CalendarIcon, Trash2, Edit2, X, Check, MessageCircle, Clock, Trophy, Pause, RotateCcw, Archive } from 'lucide-react';
 import { getGoalIcon } from '@/lib/goalIcons';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { UserGoal } from '@/hooks/useGoals';
@@ -11,6 +11,7 @@ import BiomarkerHistoryView from './BiomarkerHistoryView';
 import AddGoalDialog from './AddGoalDialog';
 import ConfirmDialog from './ConfirmDialog';
 import GoalCardChat from './GoalCardChat';
+import GoalCelebration from './GoalCelebration';
 import { toast } from 'sonner';
 
 interface OutcomesViewProps {
@@ -118,8 +119,11 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
   const [editForm, setEditForm] = useState<{
     title: string; target_value: string; baseline_value: string; target_unit: string; target_date: string; description: string; baseline_date: string;
   }>({ title: '', target_value: '', baseline_value: '', target_unit: '', target_date: '', description: '', baseline_date: '' });
+  const [celebrateGoal, setCelebrateGoal] = useState<UserGoal | null>(null);
+  const [showAchievements, setShowAchievements] = useState(false);
 
   const activeGoals = goals.filter(g => g.status === 'active');
+  const inactiveGoals = goals.filter(g => ['achieved', 'paused', 'archived'].includes(g.status));
 
   useEffect(() => {
     if (activeGoals.length > 0) {
@@ -139,6 +143,31 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
     setNewReadingDate('');
     onRefreshGoals();
     toast.success('Reading logged');
+
+    // Check if goal achieved (milestone detection)
+    const goal = goals.find(g => g.id === goalId);
+    if (goal && goal.target_value != null && goal.baseline_value != null) {
+      const range = goal.target_value - goal.baseline_value;
+      const progress = range !== 0 ? ((val - goal.baseline_value) / range) : 0;
+      if (progress >= 0.95) {
+        setCelebrateGoal({ ...goal, current_value: val });
+      }
+    }
+  };
+
+  const handleChangeGoalStatus = async (goalId: string, newStatus: string) => {
+    if (onUpdateGoal) {
+      await onUpdateGoal(goalId, { status: newStatus } as any);
+      toast.success(newStatus === 'achieved' ? '🏆 Goal achieved!' : newStatus === 'paused' ? 'Goal paused' : 'Goal archived');
+    }
+  };
+
+  const handleReactivateGoal = async (goalId: string) => {
+    if (onUpdateGoal) {
+      await onUpdateGoal(goalId, { status: 'active' } as any);
+      toast.success('Goal reactivated');
+    }
+  };
   };
 
   const handleDeleteGoal = async (goalId: string) => {
@@ -349,6 +378,14 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
                           className="text-[11px] flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-secondary text-muted-foreground hover:text-destructive transition-colors">
                           <Trash2 className="w-3 h-3" /> Delete
                         </button>
+                        <button onClick={() => handleChangeGoalStatus(goal.id!, 'achieved')}
+                          className="text-[11px] flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-secondary text-muted-foreground hover:text-primary transition-colors">
+                          <Trophy className="w-3 h-3" /> Achieved
+                        </button>
+                        <button onClick={() => handleChangeGoalStatus(goal.id!, 'paused')}
+                          className="text-[11px] flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-secondary text-muted-foreground hover:text-foreground transition-colors">
+                          <Pause className="w-3 h-3" /> Stop Tracking
+                        </button>
                       </div>
 
                       {/* Inline Edit Form */}
@@ -538,6 +575,42 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
         </>
       )}
 
+      {/* ── Achievements & Past Goals ── */}
+      {inactiveGoals.length > 0 && (
+        <div className="mt-2">
+          <button onClick={() => setShowAchievements(!showAchievements)}
+            className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-secondary/30 border border-border/20 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors">
+            <span className="flex items-center gap-1.5">
+              <Trophy className="w-3.5 h-3.5 text-primary" />
+              Past Goals & Achievements ({inactiveGoals.length})
+            </span>
+            {showAchievements ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
+          {showAchievements && (
+            <div className="space-y-2 mt-2">
+              {inactiveGoals.map(goal => {
+                const GoalIcon = getGoalIcon(goal.goal_type);
+                const neon = NEON_COLORS[goal.goal_type] || NEON_COLORS.custom;
+                const statusLabel = goal.status === 'achieved' ? '🏆 Achieved' : goal.status === 'paused' ? '⏸ Paused' : '📦 Archived';
+                return (
+                  <div key={goal.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-card border border-border/20 opacity-75 hover:opacity-100 transition-opacity">
+                    <GoalIcon className="w-4 h-4 flex-shrink-0" style={{ color: neon.solid }} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-foreground truncate">{goal.title}</p>
+                      <p className="text-[10px] text-muted-foreground">{statusLabel}</p>
+                    </div>
+                    <button onClick={() => handleReactivateGoal(goal.id!)}
+                      className="text-[10px] flex items-center gap-1 px-2 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors flex-shrink-0">
+                      <RotateCcw className="w-3 h-3" /> Reactivate
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Biomarker History */}
       <BiomarkerHistoryView userId={userId} onUploadClick={onUploadClick || (() => {})} />
 
@@ -569,6 +642,24 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
         destructive
         onConfirm={() => deleteConfirmGoal && handleDeleteGoal(deleteConfirmGoal)}
       />
+
+      {/* Celebration Overlay */}
+      {celebrateGoal && (
+        <GoalCelebration
+          open={!!celebrateGoal}
+          goal={celebrateGoal}
+          onClose={() => setCelebrateGoal(null)}
+          onSetNewTarget={() => {
+            setCelebrateGoal(null);
+            startEditing(celebrateGoal);
+          }}
+          onArchieve={() => {
+            handleChangeGoalStatus(celebrateGoal.id!, 'achieved');
+            setCelebrateGoal(null);
+          }}
+          onKeepTracking={() => setCelebrateGoal(null)}
+        />
+      )}
     </div>
   );
 };
