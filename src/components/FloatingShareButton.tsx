@@ -18,7 +18,7 @@ const FloatingShareButton = () => {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" side="top" className="w-48 mb-2">
           <DropdownMenuItem onClick={() => {
-            const body = `Check out SUPERHUMAN Tracker — track your protocol and optimize your performance. Create your account here: ${url}`;
+            const body = `Check out SUPERHUMAN Tracker — track your protocol and optimize your performance. Open this link in your browser (not in-app): ${url}`;
             window.open(`sms:?&body=${encodeURIComponent(body)}`);
           }}>
             <MessageSquare className="w-4 h-4 mr-2" />
