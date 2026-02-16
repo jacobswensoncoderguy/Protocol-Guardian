@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { Compound, getStatus, getReorderDateString, CompoundCategory } from '@/data/compounds';
 import { getCycleStatus, getDaysRemainingWithCycling } from '@/lib/cycling';
 import { UserProtocol } from '@/hooks/useProtocols';
-import { Pencil, Check, X, Trash2, Plus, ChevronDown, Syringe, Clock, SortAsc, Moon as MoonIcon, Sun, Dumbbell, RefreshCcw } from 'lucide-react';
+import { Pencil, Check, X, Trash2, Plus, ChevronDown, Syringe, Clock, SortAsc, Moon as MoonIcon, Sun, Dumbbell, RefreshCcw, Package } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import ToleranceSelector from '@/components/ToleranceSelector';
@@ -354,7 +354,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
               cycleStatus.isOn
                 ? 'bg-status-good/15 text-status-good'
                 : 'bg-muted text-muted-foreground'
-            }`}>
+            }`} title={cycleStatus.isOn ? `${cycleStatus.daysLeftInPhase} days left in ON phase` : `${cycleStatus.daysLeftInPhase} days left in OFF phase`}>
               {cycleStatus.isOn ? `ON ${cycleStatus.daysLeftInPhase}d` : `OFF ${cycleStatus.daysLeftInPhase}d`}
             </span>
           )}
@@ -362,8 +362,8 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
             status === 'critical' ? 'bg-destructive/20 text-status-critical' :
             status === 'warning' ? 'bg-accent/20 text-status-warning' :
             'bg-status-good/10 text-status-good'
-          }`}>
-            {days}d
+          }`} title={`${days} days of supply remaining`}>
+            <Package className="w-3 h-3 inline -mt-px" /> {days}d
           </span>
           {!editing && (
             <div className="flex items-center gap-1">
