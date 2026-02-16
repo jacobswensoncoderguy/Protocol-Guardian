@@ -564,6 +564,7 @@ export type Database = {
       }
       user_goals: {
         Row: {
+          baseline_date: string | null
           baseline_value: number | null
           body_area: string | null
           created_at: string
@@ -581,6 +582,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          baseline_date?: string | null
           baseline_value?: number | null
           body_area?: string | null
           created_at?: string
@@ -598,6 +600,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          baseline_date?: string | null
           baseline_value?: number | null
           body_area?: string | null
           created_at?: string

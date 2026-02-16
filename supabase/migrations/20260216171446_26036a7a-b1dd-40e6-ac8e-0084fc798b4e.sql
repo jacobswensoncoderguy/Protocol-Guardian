@@ -1,0 +1,1 @@
+ALTER TABLE public.user_goals ADD COLUMN baseline_date date;

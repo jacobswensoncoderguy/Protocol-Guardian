@@ -110,13 +110,14 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
   const [addReadingGoal, setAddReadingGoal] = useState<string | null>(null);
   const [newReadingValue, setNewReadingValue] = useState('');
   const [newReadingUnit, setNewReadingUnit] = useState('');
+  const [newReadingDate, setNewReadingDate] = useState('');
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [deleteConfirmGoal, setDeleteConfirmGoal] = useState<string | null>(null);
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
   const [chatGoal, setChatGoal] = useState<UserGoal | null>(null);
   const [editForm, setEditForm] = useState<{
-    title: string; target_value: string; baseline_value: string; target_unit: string; target_date: string; description: string;
-  }>({ title: '', target_value: '', baseline_value: '', target_unit: '', target_date: '', description: '' });
+    title: string; target_value: string; baseline_value: string; target_unit: string; target_date: string; description: string; baseline_date: string;
+  }>({ title: '', target_value: '', baseline_value: '', target_unit: '', target_date: '', description: '', baseline_date: '' });
 
   const activeGoals = goals.filter(g => g.status === 'active');
 
@@ -129,11 +130,13 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
   const handleAddReading = async (goalId: string) => {
     const val = parseFloat(newReadingValue);
     if (isNaN(val)) return;
-    await addReading(goalId, val, newReadingUnit || 'units');
+    const dateToUse = newReadingDate || undefined;
+    await addReading(goalId, val, newReadingUnit || 'units', undefined, dateToUse);
     await (supabase as any).from('user_goals').update({ current_value: val }).eq('id', goalId);
     setAddReadingGoal(null);
     setNewReadingValue('');
     setNewReadingUnit('');
+    setNewReadingDate('');
     onRefreshGoals();
     toast.success('Reading logged');
   };
@@ -155,19 +158,25 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
       target_unit: goal.target_unit || '',
       target_date: goal.target_date || '',
       description: goal.description || '',
+      baseline_date: (goal as any).baseline_date || '',
     });
   };
 
   const handleSaveEdit = async (goalId: string) => {
     if (onUpdateGoal && editForm.title.trim()) {
-      await onUpdateGoal(goalId, {
+      const updates: Partial<UserGoal> & { baseline_date?: string } = {
         title: editForm.title.trim(),
         target_value: editForm.target_value ? parseFloat(editForm.target_value) : undefined,
         baseline_value: editForm.baseline_value ? parseFloat(editForm.baseline_value) : undefined,
         target_unit: editForm.target_unit || undefined,
         target_date: editForm.target_date || undefined,
         description: editForm.description || undefined,
-      });
+      };
+      // Save baseline_date directly via supabase
+      if (editForm.baseline_date) {
+        await (supabase as any).from('user_goals').update({ baseline_date: editForm.baseline_date }).eq('id', goalId);
+      }
+      await onUpdateGoal(goalId, updates);
       toast.success('Goal updated');
     }
     setEditingGoalId(null);
@@ -258,13 +267,19 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
 
               // Compute time progress for deadline gauge
               let timeProgress = 0;
-              if (goal.target_date) {
-                const created = goal.id ? new Date(goalReadings[0]?.reading_date || Date.now()) : new Date();
-                const target = new Date(goal.target_date);
-                const total = target.getTime() - created.getTime();
-                const elapsed = Date.now() - created.getTime();
+              const behindSchedule = goal.target_date && progress !== null && (() => {
+                const baselineDate = (goal as any).baseline_date
+                  ? new Date((goal as any).baseline_date)
+                  : goalReadings[0]?.reading_date
+                    ? new Date(goalReadings[0].reading_date)
+                    : null;
+                if (!baselineDate) return false;
+                const target = new Date(goal.target_date!);
+                const total = target.getTime() - baselineDate.getTime();
+                const elapsed = Date.now() - baselineDate.getTime();
                 timeProgress = total > 0 ? Math.min(100, Math.round((elapsed / total) * 100)) : 100;
-              }
+                return timeProgress > progress;
+              })();
 
               return (
                 <div key={goal.id} className={`bg-card rounded-xl border overflow-hidden transition-all ${isExpanded ? `border-border/60 ${neon.ring}` : 'border-border/30'}`}>
@@ -281,6 +296,11 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-semibold text-foreground truncate">{goal.title}</span>
                         <div className="flex items-center gap-1.5 ml-2 flex-shrink-0">
+                          {behindSchedule && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full font-mono bg-destructive/15 text-destructive animate-pulse">
+                              ⚠ behind
+                            </span>
+                          )}
                           {deadline && (
                             <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono ${
                               deadline === 'overdue' ? 'bg-destructive/15 text-destructive' :
@@ -358,6 +378,13 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
                           </div>
                           <div>
                             <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block mb-0.5 flex items-center gap-1">
+                              <CalendarIcon className="w-3 h-3" /> Baseline Date
+                            </label>
+                            <input type="date" value={editForm.baseline_date} onChange={e => setEditForm(f => ({ ...f, baseline_date: e.target.value }))}
+                              className="w-full px-2.5 py-1.5 rounded-lg border border-border/50 bg-secondary text-sm text-foreground focus:outline-none focus:border-primary/50" />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block mb-0.5 flex items-center gap-1">
                               <CalendarIcon className="w-3 h-3" /> Achievement Date
                             </label>
                             <input type="date" value={editForm.target_date} onChange={e => setEditForm(f => ({ ...f, target_date: e.target.value }))}
@@ -405,7 +432,11 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
                       <div className="space-y-2">
                         <NeonProgressBar progress={progress ?? 0} color={neon.solid} label="Goal Progress" />
                         {goal.target_date && (
-                          <NeonProgressBar progress={timeProgress} color="hsl(var(--neon-amber))" label="Time Elapsed" />
+                          <NeonProgressBar
+                            progress={timeProgress}
+                            color={behindSchedule ? 'hsl(var(--destructive))' : 'hsl(var(--neon-amber))'}
+                            label={behindSchedule ? '⚠ Behind Schedule — Time Elapsed' : 'Time Elapsed'}
+                          />
                         )}
                       </div>
 
@@ -468,16 +499,26 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
 
                       {/* ── Log Reading ── */}
                       {isAdding ? (
-                        <div className="flex items-center gap-2">
-                          <input type="number" step="any" value={newReadingValue} onChange={e => setNewReadingValue(e.target.value)}
-                            placeholder={goal.target_unit || 'Value'} autoFocus
-                            className="flex-1 px-2.5 py-2 rounded-lg border border-border/50 bg-secondary text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50" />
-                          <span className="text-[10px] text-muted-foreground flex-shrink-0">{goal.target_unit || ''}</span>
-                          <button onClick={() => handleAddReading(goal.id!)} disabled={!newReadingValue}
-                            className="px-3 py-2 rounded-lg text-xs font-medium disabled:opacity-40 transition-all"
-                            style={{ background: neon.solid, color: 'hsl(var(--card))' }}>Save</button>
-                          <button onClick={() => { setAddReadingGoal(null); setNewReadingValue(''); }}
-                            className="px-2 py-2 rounded-lg bg-secondary text-muted-foreground text-xs">✕</button>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <input type="number" step="any" value={newReadingValue} onChange={e => setNewReadingValue(e.target.value)}
+                              placeholder={goal.target_unit || 'Value'} autoFocus
+                              className="flex-1 px-2.5 py-2 rounded-lg border border-border/50 bg-secondary text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50" />
+                            <span className="text-[10px] text-muted-foreground flex-shrink-0">{goal.target_unit || ''}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1">
+                              <label className="text-[10px] text-muted-foreground mb-0.5 block">Date (optional, defaults to today)</label>
+                              <input type="date" value={newReadingDate} onChange={e => setNewReadingDate(e.target.value)}
+                                max={new Date().toISOString().split('T')[0]}
+                                className="w-full px-2.5 py-2 rounded-lg border border-border/50 bg-secondary text-sm text-foreground focus:outline-none focus:border-primary/50" />
+                            </div>
+                            <button onClick={() => handleAddReading(goal.id!)} disabled={!newReadingValue}
+                              className="px-3 py-2 rounded-lg text-xs font-medium disabled:opacity-40 transition-all mt-4"
+                              style={{ background: neon.solid, color: 'hsl(var(--card))' }}>Save</button>
+                            <button onClick={() => { setAddReadingGoal(null); setNewReadingValue(''); setNewReadingDate(''); }}
+                              className="px-2 py-2 rounded-lg bg-secondary text-muted-foreground text-xs mt-4">✕</button>
+                          </div>
                         </div>
                       ) : (
                         <button
