@@ -116,6 +116,7 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
   const [deleteConfirmGoal, setDeleteConfirmGoal] = useState<string | null>(null);
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
   const [editingReadingId, setEditingReadingId] = useState<string | null>(null);
+  const [deleteReadingConfirm, setDeleteReadingConfirm] = useState<{ id: string; goalId: string } | null>(null);
   const [editReadingForm, setEditReadingForm] = useState<{ value: string; unit: string; reading_date: string }>({ value: '', unit: '', reading_date: '' });
   const [chatGoal, setChatGoal] = useState<UserGoal | null>(null);
   const [editForm, setEditForm] = useState<{
@@ -634,10 +635,8 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
                                       }} className="p-0.5 rounded hover:bg-secondary/50 text-muted-foreground hover:text-foreground">
                                         <Edit2 className="w-3 h-3" />
                                       </button>
-                                      <button onClick={async () => {
-                                        await deleteReading(r.id, goal.id!);
-                                        toast.success('Reading deleted');
-                                      }} className="p-0.5 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive">
+                                      <button onClick={() => setDeleteReadingConfirm({ id: r.id, goalId: goal.id! })}
+                                        className="p-0.5 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive">
                                         <Trash2 className="w-3 h-3" />
                                       </button>
                                     </div>
@@ -756,6 +755,23 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
         confirmLabel="Delete"
         destructive
         onConfirm={() => deleteConfirmGoal && handleDeleteGoal(deleteConfirmGoal)}
+      />
+
+      {/* Delete Reading Confirmation */}
+      <ConfirmDialog
+        open={!!deleteReadingConfirm}
+        onOpenChange={(o) => { if (!o) setDeleteReadingConfirm(null); }}
+        title="Delete Reading"
+        description="This will permanently remove this reading from your history. Are you sure?"
+        confirmLabel="Delete"
+        destructive
+        onConfirm={async () => {
+          if (deleteReadingConfirm) {
+            await deleteReading(deleteReadingConfirm.id, deleteReadingConfirm.goalId);
+            toast.success('Reading deleted');
+            setDeleteReadingConfirm(null);
+          }
+        }}
       />
 
       {/* Celebration Overlay */}
