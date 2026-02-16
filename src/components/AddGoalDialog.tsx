@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, Target, Sparkles, ChevronRight, Calendar as CalendarIcon, ArrowLeft, Info } from 'lucide-react';
+import { Plus, Target, Sparkles, ChevronRight, Calendar as CalendarIcon, ArrowLeft, Info, MessageCircle, Loader2, Send } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+
 import { getGoalIcon, GOAL_TYPE_LUCIDE_ICONS } from '@/lib/goalIcons';
 import { UserGoal } from '@/hooks/useGoals';
 
@@ -138,7 +140,7 @@ interface AddGoalDialogProps {
   existingGoals: UserGoal[];
 }
 
-type Step = 'category' | 'configure';
+type Step = 'category' | 'configure' | 'interview';
 
 const AddGoalDialog = ({ open, onOpenChange, onCreateGoal, existingGoals }: AddGoalDialogProps) => {
   const [step, setStep] = useState<Step>('category');
@@ -156,6 +158,14 @@ const AddGoalDialog = ({ open, onOpenChange, onCreateGoal, existingGoals }: AddG
   const [priority, setPriority] = useState(2);
   const [saving, setSaving] = useState(false);
 
+  // Interview step state
+  const [interviewMessages, setInterviewMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
+  const [interviewInput, setInterviewInput] = useState('');
+  const [interviewStreaming, setInterviewStreaming] = useState(false);
+  const [interviewCount, setInterviewCount] = useState(0);
+  const interviewRef = useRef<HTMLDivElement>(null);
+  const interviewStarted = useRef(false);
+
   const resetForm = () => {
     setStep('category');
     setSelectedCategory(null);
@@ -168,6 +178,10 @@ const AddGoalDialog = ({ open, onOpenChange, onCreateGoal, existingGoals }: AddG
     setTargetDate('');
     setDescription('');
     setPriority(2);
+    setInterviewMessages([]);
+    setInterviewInput('');
+    setInterviewCount(0);
+    interviewStarted.current = false;
   };
 
   const handleCategorySelect = (cat: typeof GOAL_CATEGORIES[0]) => {
@@ -197,6 +211,100 @@ const AddGoalDialog = ({ open, onOpenChange, onCreateGoal, existingGoals }: AddG
       // Auto-fill title from metric
       setTitle(metric.label.replace(/\s*\(.*\)/, ''));
     }
+  };
+
+  const handleGoToInterview = () => {
+    if (!selectedCategory || !title.trim()) return;
+    setStep('interview');
+  };
+
+  // Start interview when entering interview step
+  useEffect(() => {
+    if (step === 'interview' && !interviewStarted.current && interviewMessages.length === 0) {
+      interviewStarted.current = true;
+      const intro = `I'm setting up a new ${selectedCategory?.label} goal: "${title}". Baseline: ${baselineValue || 'unknown'}, Target: ${targetValue || 'unknown'} ${selectedMetric?.unit || customUnit || ''}. Help me refine this to be specific and achievable.`;
+      const userMsg = { role: 'user' as const, content: intro };
+      setInterviewMessages([userMsg]);
+      sendInterviewMsg([userMsg]);
+    }
+  }, [step]);
+
+  useEffect(() => {
+    interviewRef.current?.scrollTo({ top: interviewRef.current.scrollHeight, behavior: 'smooth' });
+  }, [interviewMessages]);
+
+  const sendInterviewMsg = useCallback(async (msgHistory: { role: 'user' | 'assistant'; content: string }[]) => {
+    setInterviewStreaming(true);
+    let content = '';
+    let toolCallArgs = '';
+    let inToolCall = false;
+    try {
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/goal-refine`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        body: JSON.stringify({ messages: msgHistory, goal: { title, goal_type: selectedCategory?.key, baseline_value: baselineValue ? parseFloat(baselineValue) : null, target_value: targetValue ? parseFloat(targetValue) : null, target_unit: selectedMetric?.unit || customUnit || null } }),
+      });
+      if (!resp.ok || !resp.body) throw new Error('Stream failed');
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let nl: number;
+        while ((nl = buffer.indexOf('\n')) !== -1) {
+          let line = buffer.slice(0, nl);
+          buffer = buffer.slice(nl + 1);
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (!line.startsWith('data: ')) continue;
+          const json = line.slice(6).trim();
+          if (json === '[DONE]') break;
+          try {
+            const parsed = JSON.parse(json);
+            const delta = parsed.choices?.[0]?.delta;
+            if (delta?.tool_calls) { inToolCall = true; const tc = delta.tool_calls[0]; if (tc?.function?.arguments) toolCallArgs += tc.function.arguments; continue; }
+            const c = delta?.content;
+            if (c && !inToolCall) {
+              content += c;
+              setInterviewMessages(prev => {
+                const last = prev[prev.length - 1];
+                if (last?.role === 'assistant') return prev.map((m, i) => i === prev.length - 1 ? { ...m, content } : m);
+                return [...prev, { role: 'assistant', content }];
+              });
+            }
+          } catch {}
+        }
+      }
+      if (inToolCall && toolCallArgs) {
+        try {
+          const parsed = JSON.parse(toolCallArgs);
+          if (parsed.updates) {
+            if (parsed.updates.title) setTitle(parsed.updates.title);
+            if (parsed.updates.target_value != null) setTargetValue(String(parsed.updates.target_value));
+            if (parsed.updates.baseline_value != null) setBaselineValue(String(parsed.updates.baseline_value));
+            if (parsed.updates.target_unit) setCustomUnit(parsed.updates.target_unit);
+            if (parsed.updates.target_date) setTargetDate(parsed.updates.target_date);
+            if (parsed.updates.description) setDescription(parsed.updates.description);
+          }
+        } catch {}
+      }
+    } catch (e) {
+      console.error('Interview error:', e);
+      setInterviewMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I had trouble connecting. You can create the goal as-is.' }]);
+    } finally {
+      setInterviewStreaming(false);
+    }
+  }, [title, selectedCategory, baselineValue, targetValue, selectedMetric, customUnit]);
+
+  const handleInterviewSend = () => {
+    if (!interviewInput.trim() || interviewStreaming) return;
+    const userMsg = { role: 'user' as const, content: interviewInput.trim() };
+    const newHistory = [...interviewMessages, userMsg];
+    setInterviewMessages(newHistory);
+    setInterviewInput('');
+    setInterviewCount(c => c + 1);
+    sendInterviewMsg(newHistory);
   };
 
   const handleSave = async () => {
@@ -243,13 +351,13 @@ const AddGoalDialog = ({ open, onOpenChange, onCreateGoal, existingGoals }: AddG
       <DialogContent className="max-w-md max-h-[85vh] overflow-hidden flex flex-col p-0">
         <DialogHeader className="px-4 pt-4 pb-2 flex-shrink-0">
           <DialogTitle className="flex items-center gap-2 text-sm">
-            {step === 'configure' && (
-              <button onClick={() => setStep('category')} className="p-0.5 rounded hover:bg-secondary transition-colors">
+            {(step === 'configure' || step === 'interview') && (
+              <button onClick={() => step === 'interview' ? setStep('configure') : setStep('category')} className="p-0.5 rounded hover:bg-secondary transition-colors">
                 <ArrowLeft className="w-4 h-4" />
               </button>
             )}
             <Plus className="w-4 h-4 text-primary" />
-            {step === 'category' ? 'Add New Goal' : `${selectedCategory?.label}`}
+            {step === 'category' ? 'Add New Goal' : step === 'interview' ? 'Fine-tune with AI' : `${selectedCategory?.label}`}
           </DialogTitle>
         </DialogHeader>
 
@@ -308,7 +416,7 @@ const AddGoalDialog = ({ open, onOpenChange, onCreateGoal, existingGoals }: AddG
                 </div>
               </div>
             </div>
-          ) : selectedCategory && (
+          ) : step === 'configure' && selectedCategory ? (
             <div className="space-y-4">
               {/* Sub-goal hints */}
               {selectedCategory.subGoalHints.length > 0 && (
@@ -490,16 +598,85 @@ const AddGoalDialog = ({ open, onOpenChange, onCreateGoal, existingGoals }: AddG
                 <p className="text-[10px] text-muted-foreground mt-1">1 = highest priority</p>
               </div>
 
-              {/* Save button */}
+              {/* Action buttons */}
+              <div className="flex gap-2">
+                <button
+                  onClick={handleGoToInterview}
+                  disabled={!title.trim()}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-sm disabled:opacity-40 transition-all hover:opacity-90"
+                  style={{ background: 'hsl(var(--neon-cyan))', color: 'hsl(var(--card))' }}
+                >
+                  <MessageCircle className="w-4 h-4" /> Fine-tune with AI
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving || !title.trim()}
+                  className="flex-1 py-2.5 rounded-lg bg-primary text-primary-foreground font-medium text-sm disabled:opacity-40 transition-all hover:opacity-90"
+                >
+                  {saving ? 'Creating...' : 'Create Now'}
+                </button>
+              </div>
+            </div>
+          ) : step === 'interview' ? (
+            /* ── AI Interview Step ── */
+            <div className="flex flex-col h-[55vh]">
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/15 mb-3">
+                <Sparkles className="w-4 h-4 text-primary flex-shrink-0" />
+                <p className="text-[11px] text-muted-foreground">
+                  AI is helping you refine <strong className="text-foreground">{title}</strong> into a specific, measurable goal. Chat to adjust targets.
+                </p>
+              </div>
+
+              <div ref={interviewRef} className="flex-1 overflow-y-auto space-y-3 mb-3 scrollbar-thin">
+                {interviewMessages.map((msg, i) => (
+                  <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
+                      msg.role === 'user'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-card border border-border/50 text-foreground'
+                    }`}>
+                      {msg.role === 'assistant' ? (
+                        <div className="prose prose-sm prose-invert max-w-none">
+                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        </div>
+                      ) : msg.content}
+                    </div>
+                  </div>
+                ))}
+                {interviewStreaming && interviewMessages[interviewMessages.length - 1]?.role !== 'assistant' && (
+                  <div className="flex justify-start">
+                    <div className="bg-card border border-border/50 rounded-lg px-3 py-2">
+                      <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 mb-3">
+                <input
+                  value={interviewInput}
+                  onChange={e => setInterviewInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleInterviewSend()}
+                  placeholder="Tell AI what to adjust..."
+                  disabled={interviewStreaming}
+                  className="flex-1 px-3 py-2 rounded-lg border border-border/50 bg-card text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 disabled:opacity-50"
+                />
+                <button onClick={handleInterviewSend} disabled={interviewStreaming || !interviewInput.trim()}
+                  className="p-2 rounded-lg bg-primary text-primary-foreground disabled:opacity-40 transition-all">
+                  <Send className="w-4 h-4" />
+                </button>
+              </div>
+
               <button
                 onClick={handleSave}
-                disabled={saving || !title.trim()}
-                className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-medium text-sm disabled:opacity-40 transition-all hover:opacity-90"
+                disabled={saving}
+                className="w-full py-2.5 rounded-lg font-medium text-sm disabled:opacity-40 transition-all hover:opacity-90"
+                style={{ background: 'hsl(var(--neon-cyan))', color: 'hsl(var(--card))' }}
               >
-                {saving ? 'Creating...' : 'Create Goal'}
+                {saving ? 'Creating...' : '✓ Create Goal with Refined Targets'}
               </button>
             </div>
-          )}
+          ) : null}
         </div>
       </DialogContent>
     </Dialog>
