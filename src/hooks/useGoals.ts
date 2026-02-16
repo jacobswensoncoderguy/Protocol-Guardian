@@ -55,6 +55,50 @@ export function useGoals(userId?: string) {
     else await fetchGoals();
   }, [userId, fetchGoals]);
 
+  const updateGoal = useCallback(async (goalId: string, updates: Partial<UserGoal>) => {
+    if (!userId) return;
+    // Optimistic update
+    setGoals(prev => prev.map(g => g.id === goalId ? { ...g, ...updates } : g));
+
+    const dbUpdates: Record<string, unknown> = {};
+    if (updates.title !== undefined) dbUpdates.title = updates.title;
+    if (updates.description !== undefined) dbUpdates.description = updates.description;
+    if (updates.goal_type !== undefined) dbUpdates.goal_type = updates.goal_type;
+    if (updates.body_area !== undefined) dbUpdates.body_area = updates.body_area;
+    if (updates.target_value !== undefined) dbUpdates.target_value = updates.target_value;
+    if (updates.target_unit !== undefined) dbUpdates.target_unit = updates.target_unit;
+    if (updates.baseline_value !== undefined) dbUpdates.baseline_value = updates.baseline_value;
+    if (updates.current_value !== undefined) dbUpdates.current_value = updates.current_value;
+    if (updates.target_date !== undefined) dbUpdates.target_date = updates.target_date;
+    if (updates.status !== undefined) dbUpdates.status = updates.status;
+    if (updates.priority !== undefined) dbUpdates.priority = updates.priority;
+
+    const { error } = await (supabase as any)
+      .from('user_goals')
+      .update(dbUpdates)
+      .eq('id', goalId);
+
+    if (error) {
+      console.error('Failed to update goal:', error);
+      await fetchGoals(); // rollback
+    }
+  }, [userId, fetchGoals]);
+
+  const deleteGoal = useCallback(async (goalId: string) => {
+    if (!userId) return;
+    setGoals(prev => prev.filter(g => g.id !== goalId));
+
+    const { error } = await (supabase as any)
+      .from('user_goals')
+      .delete()
+      .eq('id', goalId);
+
+    if (error) {
+      console.error('Failed to delete goal:', error);
+      await fetchGoals();
+    }
+  }, [userId, fetchGoals]);
+
   const saveOnboarding = useCallback(async (responses: Record<string, unknown>, aiConversation?: string) => {
     if (!userId) return;
     const { error } = await (supabase as any).from('user_onboarding').upsert({
@@ -66,5 +110,5 @@ export function useGoals(userId?: string) {
     if (error) console.error('Failed to save onboarding:', error);
   }, [userId]);
 
-  return { goals, loading, fetchGoals, createGoals, saveOnboarding };
+  return { goals, loading, fetchGoals, createGoals, updateGoal, deleteGoal, saveOnboarding };
 }
