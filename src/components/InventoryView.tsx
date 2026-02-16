@@ -192,7 +192,7 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
 const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; onUpdate: (id: string, updates: Partial<Compound>) => void; onDelete?: (id: string) => void }) => {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmDormant, setConfirmDormant] = useState(false);
-  const [doseUnit, setDoseUnit] = useState<'mg' | 'iu'>('mg');
+  const [doseUnit, setDoseUnit] = useState<'mg' | 'ml' | 'iu'>('mg');
   const [editing, setEditing] = useState(false);
   const [editState, setEditState] = useState<Record<string, string>>({});
 
@@ -661,11 +661,11 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
           {(isPeptide || isOil) && (
             <div className="flex justify-end mb-1.5">
               <button
-                onClick={() => setDoseUnit(u => u === 'mg' ? 'iu' : 'mg')}
+                onClick={() => setDoseUnit(u => u === 'mg' ? 'ml' : u === 'ml' ? 'iu' : 'mg')}
                 className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-medium bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors"
               >
                 <Syringe className="w-2.5 h-2.5" />
-                {doseUnit === 'mg' ? 'mg/mcg' : 'IU'}
+                {doseUnit === 'mg' ? 'mg/mcg' : doseUnit === 'ml' ? 'mg/mL' : 'IU'}
               </button>
             </div>
           )}
@@ -676,12 +676,20 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
             const vialMg = compound.unitSize;
 
             let displayDose = `${compound.dosePerUse} ${compound.doseLabel}`;
-            if (doseUnit === 'iu' && storedIsMg && vialMg > 0) {
-              // Convert mg → IU: (mg / vialMg) * reconVolIU
+            if (doseUnit === 'ml') {
+              // Convert to mL: IU / 100 or mg-based
+              if (storedIsIu) {
+                const ml = Math.round((compound.dosePerUse / 100) * 1000) / 1000;
+                displayDose = `${ml} mL`;
+              } else if (storedIsMg && vialMg > 0) {
+                const iu = (compound.dosePerUse / vialMg) * reconVolIU;
+                const ml = Math.round((iu / 100) * 1000) / 1000;
+                displayDose = `${ml} mL`;
+              }
+            } else if (doseUnit === 'iu' && storedIsMg && vialMg > 0) {
               const iu = Math.round((compound.dosePerUse / vialMg) * reconVolIU * 100) / 100;
               displayDose = `${iu} IU`;
             } else if (doseUnit === 'mg' && storedIsIu && vialMg > 0) {
-              // Convert IU → mg: (IU / reconVolIU) * vialMg
               const mg = Math.round((compound.dosePerUse / reconVolIU) * vialMg * 1000) / 1000;
               displayDose = `${mg} mg`;
             }
@@ -729,6 +737,15 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
                 <span className="font-mono text-foreground">
                   {(() => {
                     if (!isOil || doseUnit === 'mg') return `${compound.dosePerUse} ${compound.doseLabel}`;
+                    if (doseUnit === 'ml') {
+                      // Oil: concentration = unitSize / 10 mg/mL (10mL vial)
+                      const concMgPerMl = compound.unitSize / 10;
+                      if (concMgPerMl > 0) {
+                        const ml = Math.round((compound.dosePerUse / concMgPerMl) * 1000) / 1000;
+                        return `${ml} mL`;
+                      }
+                      return `${compound.dosePerUse} ${compound.doseLabel}`;
+                    }
                     const storedIsIu = compound.doseLabel.toLowerCase().includes('iu');
                     if (storedIsIu) return `${compound.dosePerUse} ${compound.doseLabel}`;
                     // mg → IU for oils

@@ -4,7 +4,7 @@ import { Compound } from '@/data/compounds';
 import { getCycleStatus } from '@/lib/cycling';
 import { generateScheduleFromCompounds } from '@/lib/scheduleGenerator';
 import { UserProtocol } from '@/hooks/useProtocols';
-import { Sun, Moon, Dumbbell, Info } from 'lucide-react';
+import { Sun, Moon, Dumbbell, Info, Syringe } from 'lucide-react';
 
 function getFrequencyLabel(compound: Compound): string {
   const dpw = compound.daysPerWeek;
@@ -56,6 +56,7 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
   const [selectedDay, setSelectedDay] = useState(today);
   const [selectedCompound, setSelectedCompound] = useState<Compound | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [doseUnit, setDoseUnit] = useState<'mg' | 'ml'>('mg');
 
   const weeklySchedule = useMemo(() => generateScheduleFromCompounds(compounds), [compounds]);
   const schedule = weeklySchedule[selectedDay];
@@ -117,6 +118,15 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
               <p>Some compounds follow cycling protocols to maintain effectiveness and reduce tolerance. <span className="text-status-warning">OFF</span> items show their resume date. <span className="text-status-good">Active</span> items show days remaining in the current ON phase. Tap any compound for details.</p>
             </TooltipContent>
           </Tooltip>
+          <div className="ml-auto">
+            <button
+              onClick={() => setDoseUnit(u => u === 'mg' ? 'ml' : 'mg')}
+              className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-medium bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors"
+            >
+              <Syringe className="w-2.5 h-2.5" />
+              {doseUnit === 'mg' ? 'mg' : 'mL'}
+            </button>
+          </div>
         </div>
 
         {/* Morning */}
@@ -130,6 +140,7 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
           offCycleIds={offCycleIds}
           onCompoundClick={handleCompoundClick}
           protocols={protocols}
+          doseUnit={doseUnit}
         />
 
         {/* Afternoon */}
@@ -144,6 +155,7 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
             offCycleIds={offCycleIds}
             onCompoundClick={handleCompoundClick}
             protocols={protocols}
+            doseUnit={doseUnit}
           />
         )}
 
@@ -158,6 +170,7 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
           offCycleIds={offCycleIds}
           onCompoundClick={handleCompoundClick}
           protocols={protocols}
+          doseUnit={doseUnit}
         />
 
         <CompoundInfoDrawer
@@ -184,6 +197,7 @@ const DoseSection = ({
   offCycleIds,
   onCompoundClick,
   protocols,
+  doseUnit,
 }: {
   icon: React.ReactNode;
   title: string;
@@ -194,12 +208,12 @@ const DoseSection = ({
   offCycleIds: Set<string>;
   onCompoundClick: (id: string) => void;
   protocols: UserProtocol[];
+  doseUnit: 'mg' | 'ml';
 }) => {
   const allPeptides = doses.filter(d => d.category === 'peptide' || d.category === 'injectable-oil');
   const allOrals = doses.filter(d => d.category === 'oral');
   const allPowders = doses.filter(d => d.category === 'powder');
 
-  // Build protocol groups from user-defined protocols
   const protocolCompoundIds = new Set<string>();
   const protocolGroups: { label: string; doses: DayDose[] }[] = [];
 
@@ -226,16 +240,16 @@ const DoseSection = ({
 
       <div className="space-y-3">
         {allPeptides.length > 0 && (
-          <DoseGroup label="Injectables" doses={allPeptides} compoundMap={compoundMap} offCycleIds={offCycleIds} onCompoundClick={onCompoundClick} />
+          <DoseGroup label="Injectables" doses={allPeptides} compoundMap={compoundMap} offCycleIds={offCycleIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} />
         )}
         {protocolGroups.map(pg => (
-          <DoseGroup key={pg.label} label={pg.label} doses={pg.doses} compoundMap={compoundMap} offCycleIds={offCycleIds} onCompoundClick={onCompoundClick} />
+          <DoseGroup key={pg.label} label={pg.label} doses={pg.doses} compoundMap={compoundMap} offCycleIds={offCycleIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} />
         ))}
         {ungroupedOrals.length > 0 && (
-          <DoseGroup label="Oral Supplements" doses={ungroupedOrals} compoundMap={compoundMap} offCycleIds={offCycleIds} onCompoundClick={onCompoundClick} />
+          <DoseGroup label="Oral Supplements" doses={ungroupedOrals} compoundMap={compoundMap} offCycleIds={offCycleIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} />
         )}
         {ungroupedPowders.length > 0 && (
-          <DoseGroup label="Powders" doses={ungroupedPowders} compoundMap={compoundMap} offCycleIds={offCycleIds} onCompoundClick={onCompoundClick} />
+          <DoseGroup label="Powders" doses={ungroupedPowders} compoundMap={compoundMap} offCycleIds={offCycleIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} />
         )}
       </div>
     </div>
@@ -248,14 +262,15 @@ const DoseGroup = ({
   compoundMap,
   offCycleIds,
   onCompoundClick,
+  doseUnit,
 }: {
   label: string;
   doses: DayDose[];
   compoundMap: Map<string, Compound>;
   offCycleIds: Set<string>;
   onCompoundClick: (id: string) => void;
+  doseUnit: 'mg' | 'ml';
 }) => {
-  // Deduplicate off-cycle compounds
   const seenOff = new Set<string>();
   const filteredDoses = doses.filter(d => {
     if (offCycleIds.has(d.compoundId)) {
@@ -264,6 +279,41 @@ const DoseGroup = ({
     }
     return true;
   });
+
+  const convertToMl = (compound: Compound, doseStr: string): string => {
+    if (doseUnit !== 'ml') return doseStr;
+    const isPeptide = compound.category === 'peptide';
+    const isOil = compound.category === 'injectable-oil';
+    if (!isPeptide && !isOil) return doseStr;
+
+    if (isPeptide) {
+      // Peptide: dose is in IU, 1mL = 100 IU
+      const reconVolIU = (compound.reconVolume || 2) * 100;
+      const vialMg = compound.unitSize;
+      const isIu = compound.doseLabel.toLowerCase().includes('iu');
+      const isMg = compound.doseLabel.toLowerCase().includes('mg');
+      if (isIu) {
+        const ml = Math.round((compound.dosePerUse / 100) * 1000) / 1000;
+        return `${ml} mL`;
+      }
+      if (isMg && vialMg > 0) {
+        const iu = (compound.dosePerUse / vialMg) * reconVolIU;
+        const ml = Math.round((iu / 100) * 1000) / 1000;
+        return `${ml} mL`;
+      }
+    }
+
+    if (isOil) {
+      // Oil: concentration = unitSize / 10 mg/mL
+      const concMgPerMl = compound.unitSize / 10;
+      if (concMgPerMl > 0 && compound.doseLabel.toLowerCase().includes('mg')) {
+        const ml = Math.round((compound.dosePerUse / concMgPerMl) * 1000) / 1000;
+        return `${ml} mL`;
+      }
+    }
+
+    return doseStr;
+  };
 
   return (
     <div>
@@ -274,6 +324,7 @@ const DoseGroup = ({
           const status = compound ? getCycleStatus(compound) : null;
           const isOff = offCycleIds.has(dose.compoundId);
           const showCycleDays = status?.hasCycle && status.isOn;
+          const displayDose = compound ? convertToMl(compound, dose.dose) : dose.dose;
           return (
             <button
               key={`${dose.compoundId}-${i}`}
@@ -295,7 +346,7 @@ const DoseGroup = ({
                 {showCycleDays && (
                   <span className="text-[10px] font-mono text-muted-foreground">{status.daysLeftInPhase}d</span>
                 )}
-                {!isOff && <span className="text-xs font-mono text-primary">{dose.dose}</span>}
+                {!isOff && <span className="text-xs font-mono text-primary">{displayDose}</span>}
               </div>
             </button>
           );
