@@ -1,5 +1,6 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
+import { supabase } from '@/integrations/supabase/client';
 import { BodyZone, BODY_ZONES, getCompoundsForZone } from '@/data/bodyZoneMapping';
 import { Compound } from '@/data/compounds';
 import { compoundBenefits } from '@/data/compoundBenefits';
@@ -23,6 +24,13 @@ interface ZoneDetailDrawerProps {
   goals?: UserGoal[];
   onUpdateCompound?: (id: string, updates: Partial<Compound>) => void;
   onDeleteCompound?: (id: string) => void;
+  userId?: string;
+  conversationManager?: {
+    createProject: (name: string, description?: string, color?: string) => Promise<any>;
+    createConversation: (title?: string, projectId?: string) => Promise<any>;
+    projects: { id: string; name: string }[];
+    refreshConversation: (convId: string, lastContent: string) => void;
+  };
 }
 
 interface QuickAction {
@@ -88,7 +96,7 @@ const ACTION_COLORS: Record<string, string> = {
   swap: 'border-chart-5/30 bg-chart-5/5',
 };
 
-const ZoneDetailDrawer = ({ zone, open, onOpenChange, compounds, toleranceLevel = 'moderate', measurementSystem = 'metric', profile, goals = [], onUpdateCompound, onDeleteCompound }: ZoneDetailDrawerProps) => {
+const ZoneDetailDrawer = ({ zone, open, onOpenChange, compounds, toleranceLevel = 'moderate', measurementSystem = 'metric', profile, goals = [], onUpdateCompound, onDeleteCompound, userId, conversationManager }: ZoneDetailDrawerProps) => {
   const [analysis, setAnalysis] = useState<ZoneAnalysis | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -98,6 +106,7 @@ const ZoneDetailDrawer = ({ zone, open, onOpenChange, compounds, toleranceLevel 
   const [copied, setCopied] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState<string>('');
   const [aiLoading, setAiLoading] = useState(false);
+  const [zoneConversationId, setZoneConversationId] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -264,6 +273,41 @@ Give me specific, actionable suggestions to increase ${info.label} impact — co
     } finally { setAiLoading(false); }
   };
 
+  // Get or create the "Body Coverage" project and a conversation for this zone
+  const ensureZoneConversation = async (): Promise<string | null> => {
+    if (zoneConversationId) return zoneConversationId;
+    if (!userId || !conversationManager) return null;
+
+    try {
+      // Find or create the "Body Coverage" project
+      let project = conversationManager.projects.find(p => p.name === 'Body Coverage');
+      if (!project) {
+        project = await conversationManager.createProject('Body Coverage', 'Zone optimization chats', '#06b6d4');
+      }
+
+      // Create a conversation for this zone
+      const conv = await conversationManager.createConversation(`${info.label} Zone`, project?.id);
+      if (conv) {
+        setZoneConversationId(conv.id);
+        return conv.id;
+      }
+    } catch (e) {
+      console.error('Failed to create zone conversation:', e);
+    }
+    return null;
+  };
+
+  const persistMessage = async (convId: string, role: string, content: string) => {
+    if (!userId) return;
+    await supabase.from('protocol_chat_messages').insert({
+      user_id: userId,
+      conversation_id: convId,
+      role,
+      content,
+    });
+    conversationManager?.refreshConversation(convId, content);
+  };
+
   const sendChatMessage = async () => {
     if (!chatInput.trim() || chatLoading) return;
     const userMsg: ChatMessage = { role: 'user', content: chatInput.trim() };
@@ -271,6 +315,10 @@ Give me specific, actionable suggestions to increase ${info.label} impact — co
     setChatMessages(newMessages);
     setChatInput('');
     setChatLoading(true);
+
+    // Persist to conversation history
+    const convId = await ensureZoneConversation();
+    if (convId) await persistMessage(convId, 'user', userMsg.content);
 
     try {
       const resp = await fetch(
@@ -340,6 +388,10 @@ Give me specific, actionable suggestions to increase ${info.label} impact — co
           } catch { /* partial */ }
         }
       }
+
+      // Persist assistant response
+      if (convId && fullText) await persistMessage(convId, 'assistant', fullText);
+
       setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     } catch (e) {
       console.error('Chat error:', e);
@@ -350,7 +402,7 @@ Give me specific, actionable suggestions to increase ${info.label} impact — co
   return (
     <Drawer open={open} onOpenChange={(o) => {
       onOpenChange(o);
-      if (!o) { setAnalysis(null); setAiSuggestion(''); setChatMessages([]); setShowChat(false); abortRef.current?.abort(); }
+      if (!o) { setAnalysis(null); setAiSuggestion(''); setChatMessages([]); setShowChat(false); setZoneConversationId(null); abortRef.current?.abort(); }
     }}>
       <DrawerContent className="max-h-[90vh]">
         <DrawerHeader className="pb-2">
@@ -369,6 +421,39 @@ Give me specific, actionable suggestions to increase ${info.label} impact — co
           {/* Zone gap analysis */}
           <div className="bg-secondary/30 rounded-lg border border-border/20 p-2.5">
             <p className="text-[11px] text-muted-foreground leading-snug">{zoneGapAnalysis}</p>
+          </div>
+
+          {/* Quick Action Buttons — TOP */}
+          <div className="grid grid-cols-3 gap-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs border-primary/30 hover:border-primary/60 hover:bg-primary/5"
+              onClick={fetchAnalysis}
+              disabled={analysisLoading}
+            >
+              {analysisLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5 text-primary" />}
+              Optimize
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs border-amber-500/30 hover:border-amber-500/60 hover:bg-amber-500/5"
+              onClick={handleImproveImpact}
+              disabled={aiLoading}
+            >
+              {aiLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-400" />}
+              Improve
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs border-chart-5/30 hover:border-chart-5/60 hover:bg-chart-5/5"
+              onClick={() => setShowChat(!showChat)}
+            >
+              <MessageSquare className="w-3.5 h-3.5 text-chart-5" />
+              Chat
+            </Button>
           </div>
 
           {/* Compound List */}
@@ -421,38 +506,6 @@ Give me specific, actionable suggestions to increase ${info.label} impact — co
             </>
           )}
 
-          {/* Quick Action Buttons */}
-          <div className="grid grid-cols-3 gap-1.5 pt-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 text-xs border-primary/30 hover:border-primary/60 hover:bg-primary/5"
-              onClick={fetchAnalysis}
-              disabled={analysisLoading}
-            >
-              {analysisLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5 text-primary" />}
-              Optimize
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 text-xs border-amber-500/30 hover:border-amber-500/60 hover:bg-amber-500/5"
-              onClick={handleImproveImpact}
-              disabled={aiLoading}
-            >
-              {aiLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-400" />}
-              Improve
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 text-xs border-chart-5/30 hover:border-chart-5/60 hover:bg-chart-5/5"
-              onClick={() => setShowChat(!showChat)}
-            >
-              <MessageSquare className="w-3.5 h-3.5 text-chart-5" />
-              Chat
-            </Button>
-          </div>
 
           {/* Analysis Results — Quick Actions */}
           {analysisLoading && !analysis && (

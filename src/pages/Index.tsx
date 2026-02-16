@@ -255,6 +255,7 @@ const Index = () => {
               measurementSystem={measurementSystem}
               doseUnitPreference={doseUnitPreference}
               onNavigateToInventory={() => setActiveTab('inventory')}
+              conversationManager={conversationManager}
             />
           </TabsContent>
           <TabsContent value="outcomes" className="animate-slide-up">

@@ -43,6 +43,12 @@ interface DashboardViewProps {
   measurementSystem?: MeasurementSystem;
   doseUnitPreference?: DoseUnitPreference;
   onNavigateToInventory?: () => void;
+  conversationManager?: {
+    createProject: (name: string, description?: string, color?: string) => Promise<any>;
+    createConversation: (title?: string, projectId?: string) => Promise<any>;
+    projects: { id: string; name: string }[];
+    refreshConversation: (convId: string, lastContent: string) => void;
+  };
 }
 
 const toleranceMeta: Record<string, { Icon: typeof Shield; label: string; color: string }> = {
@@ -361,7 +367,7 @@ const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpda
   );
 };
 
-const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, toleranceLevel, onAnalyzeStack, onViewAIInsights, onViewOutcomes, goals = [], userId, profile, toleranceHistory = [], onUpdateProfile, onToleranceChange, measurementSystem = 'metric', doseUnitPreference = 'mg', onNavigateToInventory }: DashboardViewProps) => {
+const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, toleranceLevel, onAnalyzeStack, onViewAIInsights, onViewOutcomes, goals = [], userId, profile, toleranceHistory = [], onUpdateProfile, onToleranceChange, measurementSystem = 'metric', doseUnitPreference = 'mg', onNavigateToInventory, conversationManager }: DashboardViewProps) => {
   const { readings, fetchReadings, addReading } = useGoalReadings(userId);
   const [selectedZone, setSelectedZone] = useState<BodyZone | null>(null);
   const [zoneDrawerOpen, setZoneDrawerOpen] = useState(false);
@@ -555,6 +561,8 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
         measurementSystem={measurementSystem}
         profile={profile}
         goals={goals}
+        userId={userId}
+        conversationManager={conversationManager}
       />
     </div>
   );
