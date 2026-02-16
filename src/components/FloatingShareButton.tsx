@@ -1,5 +1,6 @@
-import { Share2, Mail, MessageSquare } from 'lucide-react';
+import { Share2, Mail, MessageSquare, Link } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { toast } from 'sonner';
 
 const FloatingShareButton = () => {
   const url = 'https://superhumanprotocol.lovable.app';
@@ -27,6 +28,13 @@ const FloatingShareButton = () => {
           }}>
             <Mail className="w-4 h-4 mr-2" />
             Share via Email
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => {
+            navigator.clipboard.writeText(url);
+            toast.success('Link copied to clipboard!');
+          }}>
+            <Link className="w-4 h-4 mr-2" />
+            Copy Link
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
