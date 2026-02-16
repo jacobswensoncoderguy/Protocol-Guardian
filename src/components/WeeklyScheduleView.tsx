@@ -39,6 +39,9 @@ import CompoundInfoDrawer from '@/components/CompoundInfoDrawer';
 interface WeeklyScheduleViewProps {
   compounds: Compound[];
   protocols?: UserProtocol[];
+  compoundAnalyses?: Record<string, any>;
+  compoundLoading?: string | null;
+  onAnalyzeCompound?: (compoundId: string) => void;
 }
 
 function getResumeDate(daysLeft: number): string {
@@ -48,7 +51,7 @@ function getResumeDate(daysLeft: number): string {
   return `${months[d.getMonth()]} ${d.getDate()}`;
 }
 
-const WeeklyScheduleView = ({ compounds, protocols = [] }: WeeklyScheduleViewProps) => {
+const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compoundLoading, onAnalyzeCompound }: WeeklyScheduleViewProps) => {
   const today = new Date().getDay();
   const [selectedDay, setSelectedDay] = useState(today);
   const [selectedCompound, setSelectedCompound] = useState<Compound | null>(null);
@@ -161,6 +164,9 @@ const WeeklyScheduleView = ({ compounds, protocols = [] }: WeeklyScheduleViewPro
           compound={selectedCompound}
           open={drawerOpen}
           onOpenChange={setDrawerOpen}
+          compoundAnalysis={selectedCompound ? compoundAnalyses?.[selectedCompound.id] ?? null : null}
+          compoundLoading={selectedCompound ? compoundLoading === selectedCompound.id : false}
+          onAnalyzeCompound={onAnalyzeCompound}
         />
       </div>
     </TooltipProvider>
