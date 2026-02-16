@@ -37,7 +37,7 @@ export function useGoalReadings(userId?: string) {
     setLoading(false);
   }, [userId]);
 
-  const addReading = useCallback(async (goalId: string, value: number, unit: string, notes?: string) => {
+  const addReading = useCallback(async (goalId: string, value: number, unit: string, notes?: string, readingDate?: string) => {
     if (!userId) return;
     const { error } = await supabase
       .from('user_goal_readings')
@@ -46,7 +46,7 @@ export function useGoalReadings(userId?: string) {
         user_goal_id: goalId,
         value,
         unit,
-        reading_date: new Date().toISOString().split('T')[0],
+        reading_date: readingDate || new Date().toISOString().split('T')[0],
         notes: notes || null,
       });
     if (error) console.error('Failed to add reading:', error);
