@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Package, DollarSign, LayoutDashboard, ShoppingCart, Sun, Moon, RefreshCw, LogOut, Sparkles, Brain, Target, Activity, FileText } from 'lucide-react';
+import { Calendar, Package, DollarSign, LayoutDashboard, ShoppingCart, Sun, Moon, RefreshCw, LogOut, Plus, Brain, Target, Activity, FileText } from 'lucide-react';
 import { Compound } from '@/data/compounds';
 import { useCompounds } from '@/hooks/useCompounds';
 import { useProtocols } from '@/hooks/useProtocols';
@@ -177,7 +177,7 @@ const Index = () => {
               <LogOut className="w-4 h-4" />
             </button>
             <button onClick={() => setShowProtocolManager(true)} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground" title="Protocol Groups">
-              <Sparkles className="w-4 h-4" />
+              <Plus className="w-4 h-4" />
             </button>
             <button onClick={() => setShowGoalExpansion(true)} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground" title="Goal Expansion">
               <Target className="w-4 h-4" />
