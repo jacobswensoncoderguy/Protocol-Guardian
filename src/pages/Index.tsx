@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Package, DollarSign, LayoutDashboard, ShoppingCart, Sun, Moon, RefreshCw, LogOut, Sparkles, Brain, Target, Activity, FileText } from 'lucide-react';
+import { Calendar, Package, DollarSign, LayoutDashboard, ShoppingCart, Sun, Moon, RefreshCw, LogOut, Sparkles, Brain, Target, Activity, FileText, Share2, Mail, MessageSquare } from 'lucide-react';
 import { Compound } from '@/data/compounds';
 import { useCompounds } from '@/hooks/useCompounds';
 import { useProtocols } from '@/hooks/useProtocols';
@@ -12,7 +12,9 @@ import { useProtocolAnalysis } from '@/hooks/useProtocolAnalysis';
 import { useProtocolChat } from '@/hooks/useProtocolChat';
 import { useConversations } from '@/hooks/useConversations';
 import { Skeleton } from '@/components/ui/skeleton';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useCallback, useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import Onboarding from './Onboarding';
 import AddCompoundDialog from '@/components/AddCompoundDialog';
 import ProtocolManagerDialog from '@/components/ProtocolManagerDialog';
@@ -168,6 +170,32 @@ const Index = () => {
             </h1>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground" title="Share App">
+                  <Share2 className="w-4 h-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => {
+                  const url = 'https://superhumanprotocol.lovable.app';
+                  const body = `Check out SUPERHUMAN Tracker — track your protocol and optimize your performance. Create your account here: ${url}`;
+                  window.open(`sms:?&body=${encodeURIComponent(body)}`);
+                }}>
+                  <MessageSquare className="w-4 h-4 mr-2" />
+                  Share via Text
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => {
+                  const url = 'https://superhumanprotocol.lovable.app';
+                  const subject = 'Try SUPERHUMAN Tracker';
+                  const body = `Check out SUPERHUMAN Tracker — track your protocol and optimize your performance.\n\nCreate your account here: ${url}`;
+                  window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+                }}>
+                  <Mail className="w-4 h-4 mr-2" />
+                  Share via Email
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <button onClick={toggle} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground">
               {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
