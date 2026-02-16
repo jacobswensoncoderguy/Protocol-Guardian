@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useGoals } from '@/hooks/useGoals';
 import { useProfile } from '@/hooks/useProfile';
-import { CheckCircle, Circle, Loader2, Zap, Target, ArrowLeft, User } from 'lucide-react';
+import { CheckCircle, Circle, Loader2, Zap, Target, User, ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import GoalInterview, { OnboardingResponse } from '@/components/GoalInterview';
 import GoalAIChat, { ExtractedGoal } from '@/components/GoalAIChat';
 import bodyMaleImg from '@/assets/body-male.jpeg';
@@ -39,14 +39,48 @@ const categoryLabels: Record<string, string> = {
   'injectable-oil': 'Injectable Oils',
   oral: 'Oral Supplements',
   powder: 'Powders',
+  prescription: 'Prescription Medications',
+  holistic: 'Holistic Compounds',
+  'essential-oil': 'Essential Oils',
+  'alternative-medicine': 'Alternative Medicines',
+  vitamin: 'Vitamins & Minerals',
+  adaptogen: 'Adaptogens',
+  probiotic: 'Probiotics & Gut Health',
+  nootropic: 'Nootropics',
+  topical: 'Topicals & Creams',
 };
 
-const categoryOrder = ['peptide', 'injectable-oil', 'oral', 'powder'];
+const categoryOrder = [
+  'peptide', 'injectable-oil', 'oral', 'powder',
+  'prescription', 'holistic', 'essential-oil', 'alternative-medicine',
+  'vitamin', 'adaptogen', 'probiotic', 'nootropic', 'topical',
+];
+
+const categoryDescriptions: Record<string, string> = {
+  peptide: 'Injectable peptides for recovery, growth, and optimization',
+  'injectable-oil': 'Hormone and therapeutic injectable compounds',
+  oral: 'Oral supplements, capsules, and tablets',
+  powder: 'Powdered supplements and drink mixes',
+  prescription: 'Doctor-prescribed medications and treatments',
+  holistic: 'Natural whole-body wellness compounds',
+  'essential-oil': 'Therapeutic aromatherapy and topical oils',
+  'alternative-medicine': 'Traditional and complementary medicine compounds',
+  vitamin: 'Essential vitamins and mineral supplements',
+  adaptogen: 'Stress-modulating herbs and compounds',
+  probiotic: 'Gut health and microbiome support',
+  nootropic: 'Cognitive enhancers and brain health supplements',
+  topical: 'Creams, gels, and transdermal applications',
+};
 
 type OnboardingPhase = 'gender' | 'goals' | 'ai-chat' | 'compounds';
 
 interface OnboardingProps {
   onComplete: () => void;
+}
+
+interface CustomCompoundForm {
+  name: string;
+  category: string;
 }
 
 const Onboarding = ({ onComplete }: OnboardingProps) => {
@@ -60,6 +94,9 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [addingCustom, setAddingCustom] = useState<string | null>(null);
+  const [customName, setCustomName] = useState('');
 
   useEffect(() => {
     async function fetchLibrary() {
@@ -95,7 +132,6 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
   };
 
   const handleSkipAI = async () => {
-    // Create basic goals from structured responses
     if (interviewResponses) {
       const basicGoals = interviewResponses.primaryGoals.map((gt, i) => ({
         goal_type: gt,
@@ -117,9 +153,46 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
     });
   };
 
-  const selectAll = () => {
-    if (selected.size === library.length) setSelected(new Set());
-    else setSelected(new Set(library.map(c => c.id)));
+  const toggleCategory = (cat: string) => {
+    setExpandedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      return next;
+    });
+  };
+
+  const handleAddCustomCompound = (category: string) => {
+    if (!customName.trim()) return;
+    const customId = `custom-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const newCompound: LibraryCompound = {
+      id: customId,
+      name: customName.trim(),
+      category,
+      unit_size: 1,
+      unit_label: category === 'peptide' ? 'mg vial' : category === 'oral' ? 'caps' : 'units',
+      unit_price: 0,
+      kit_price: null,
+      dose_per_use: 1,
+      dose_label: category === 'peptide' ? 'IU' : 'caps',
+      bacstat_per_vial: category === 'peptide' ? 200 : null,
+      recon_volume: category === 'peptide' ? 2 : null,
+      doses_per_day: 1,
+      days_per_week: 7,
+      timing_note: null,
+      cycling_note: null,
+      cycle_on_days: null,
+      cycle_off_days: null,
+      cycle_start_date: null,
+      current_quantity: 1,
+      purchase_date: null,
+      reorder_quantity: 1,
+      notes: null,
+    };
+    setLibrary(prev => [...prev, newCompound]);
+    setSelected(prev => new Set(prev).add(customId));
+    setCustomName('');
+    setAddingCustom(null);
   };
 
   const handleSave = async () => {
@@ -163,9 +236,11 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
     onComplete();
   };
 
-  const grouped = categoryOrder
-    .map(cat => ({ category: cat, items: library.filter(c => c.category === cat) }))
-    .filter(g => g.items.length > 0);
+  // Group compounds by category - include all categories even if empty
+  const grouped = categoryOrder.map(cat => ({
+    category: cat,
+    items: library.filter(c => c.category === cat),
+  }));
 
   if (loading) {
     return (
@@ -175,7 +250,6 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
     );
   }
 
-  // Phase indicators
   const phases = [
     { key: 'gender', label: 'Profile', icon: User },
     { key: 'goals', label: 'Goals', icon: Target },
@@ -196,7 +270,6 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
             </h1>
           </div>
 
-          {/* Phase progress */}
           <div className="flex items-center gap-2">
             {phases.map((p, i) => {
               const Icon = p.icon;
@@ -252,7 +325,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
         )}
 
         {phase === 'goals' && (
-          <GoalInterview onComplete={handleInterviewComplete} />
+          <GoalInterview onComplete={handleInterviewComplete} gender={selectedGender} />
         )}
 
         {phase === 'ai-chat' && interviewResponses && (
@@ -260,6 +333,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
             structuredResponses={interviewResponses}
             onGoalsExtracted={handleGoalsExtracted}
             onSkip={handleSkipAI}
+            gender={selectedGender}
           />
         )}
 
@@ -267,55 +341,121 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
           <>
             <div className="text-center mb-4">
               <h2 className="text-lg font-bold text-foreground">Build Your Protocol</h2>
-              <p className="text-sm text-muted-foreground">Select compounds to track. You can add or remove them later.</p>
+              <p className="text-sm text-muted-foreground">Tap a category to expand. Select compounds or add your own.</p>
             </div>
 
-            <button onClick={selectAll} className="text-xs text-primary mb-3 hover:underline">
-              {selected.size === library.length ? 'Deselect All' : 'Select All'}
-            </button>
+            <div className="space-y-2">
+              {grouped.map(group => {
+                const isExpanded = expandedCategories.has(group.category);
+                const selectedCount = group.items.filter(c => selected.has(c.id)).length;
+                const hasItems = group.items.length > 0;
 
-            <div className="space-y-4">
-              {grouped.map(group => (
-                <div key={group.category}>
-                  <h3 className="text-sm font-semibold text-foreground mb-2">
-                    {categoryLabels[group.category] || group.category}
-                  </h3>
-                  <div className="space-y-1">
-                    {group.items.map(compound => (
-                      <button
-                        key={compound.id}
-                        onClick={() => toggleCompound(compound.id)}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-all text-left ${
-                          selected.has(compound.id)
-                            ? 'bg-primary/10 border-primary/30'
-                            : 'bg-card border-border/50 hover:bg-secondary/50'
-                        }`}
-                      >
-                        {selected.has(compound.id) ? (
-                          <CheckCircle className="w-4 h-4 text-primary flex-shrink-0" />
-                        ) : (
-                          <Circle className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <span className="text-sm font-medium text-foreground">{compound.name}</span>
-                          {compound.timing_note && (
-                            <p className="text-[10px] text-muted-foreground truncate">{compound.timing_note}</p>
-                          )}
+                return (
+                  <div key={group.category} className="border border-border/50 rounded-lg overflow-hidden">
+                    {/* Category header */}
+                    <button
+                      onClick={() => toggleCategory(group.category)}
+                      className="w-full flex items-center justify-between px-3 py-3 bg-card hover:bg-secondary/30 transition-colors"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        {isExpanded ? <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" /> : <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
+                        <div className="text-left min-w-0">
+                          <span className="text-sm font-semibold text-foreground block">{categoryLabels[group.category]}</span>
+                          <span className="text-[10px] text-muted-foreground">{categoryDescriptions[group.category]}</span>
                         </div>
-                        <span className="text-[10px] text-muted-foreground font-mono">
-                          {compound.dose_per_use} {compound.dose_label}
-                        </span>
-                      </button>
-                    ))}
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {selectedCount > 0 && (
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-primary/15 text-primary">
+                            {selectedCount}
+                          </span>
+                        )}
+                        {hasItems && (
+                          <span className="text-[10px] text-muted-foreground">{group.items.length}</span>
+                        )}
+                      </div>
+                    </button>
+
+                    {/* Expanded content */}
+                    {isExpanded && (
+                      <div className="border-t border-border/30 px-2 py-2 space-y-1">
+                        {hasItems && (
+                          <p className="text-[10px] text-muted-foreground/70 uppercase tracking-wider px-1 mb-1 font-semibold">
+                            Suggested Compounds
+                          </p>
+                        )}
+                        {group.items.map(compound => (
+                          <button
+                            key={compound.id}
+                            onClick={() => toggleCompound(compound.id)}
+                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-all text-left ${
+                              selected.has(compound.id)
+                                ? 'bg-primary/10 border-primary/30'
+                                : 'bg-card border-border/50 hover:bg-secondary/50'
+                            }`}
+                          >
+                            {selected.has(compound.id) ? (
+                              <CheckCircle className="w-4 h-4 text-primary flex-shrink-0" />
+                            ) : (
+                              <Circle className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <span className="text-sm font-medium text-foreground">{compound.name}</span>
+                              {compound.timing_note && (
+                                <p className="text-[10px] text-muted-foreground truncate">{compound.timing_note}</p>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-muted-foreground font-mono">
+                              {compound.dose_per_use} {compound.dose_label}
+                            </span>
+                          </button>
+                        ))}
+
+                        {/* Add custom compound */}
+                        {addingCustom === group.category ? (
+                          <div className="flex items-center gap-2 px-2 py-1.5">
+                            <input
+                              type="text"
+                              value={customName}
+                              onChange={e => setCustomName(e.target.value)}
+                              onKeyDown={e => e.key === 'Enter' && handleAddCustomCompound(group.category)}
+                              placeholder="Compound name..."
+                              autoFocus
+                              className="flex-1 px-2 py-1.5 rounded-md border border-border/50 bg-background text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50"
+                            />
+                            <button
+                              onClick={() => handleAddCustomCompound(group.category)}
+                              disabled={!customName.trim()}
+                              className="px-2.5 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium disabled:opacity-40"
+                            >
+                              Add
+                            </button>
+                            <button
+                              onClick={() => { setAddingCustom(null); setCustomName(''); }}
+                              className="px-2 py-1.5 rounded-md text-muted-foreground hover:text-foreground text-xs"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => { setAddingCustom(group.category); setCustomName(''); }}
+                            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-border/50 text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors text-left"
+                          >
+                            <Plus className="w-4 h-4" />
+                            <span className="text-xs">Add custom {categoryLabels[group.category]?.toLowerCase() || 'compound'}</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </>
         )}
       </main>
 
-      {/* Fixed bottom bar for compounds phase */}
       {phase === 'compounds' && (
         <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur border-t border-border/50 px-4 py-3">
           <div className="container mx-auto max-w-lg">

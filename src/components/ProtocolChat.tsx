@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Square, Trash2, Check, X, CheckCheck, Brain, ArrowRight, Mic, MicOff, Maximize2, Minimize2, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
+import { Send, Square, Trash2, Check, X, CheckCheck, Brain, ArrowRight, Mic, MicOff, Maximize2, Minimize2, PanelLeftOpen, PanelLeftClose, Copy } from 'lucide-react';
+import { toast } from 'sonner';
 import ChatMarkdown from '@/components/ChatMarkdown';
 import { ChatMessage, ChangeProposal, ProposedChange } from '@/hooks/useProtocolChat';
 import { useConversations } from '@/hooks/useConversations';
@@ -363,7 +364,7 @@ const ProtocolChat = ({
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 space-y-3 scrollbar-thin">
             {messages.map(msg => (
               <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[90%] sm:max-w-[85%] rounded-lg px-3 py-2.5 ${
+                <div className={`max-w-[90%] sm:max-w-[85%] rounded-lg px-3 py-2.5 relative group ${
                   msg.role === 'user' ? 'bg-primary/15 text-foreground' : 'bg-secondary/50 text-foreground'
                 }`}>
                   {msg.content && (
@@ -377,6 +378,16 @@ const ProtocolChat = ({
                       onApplyAll={() => onApplyAll(msg.proposal!.id)}
                     />
                   )}
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(msg.content || '');
+                      toast.success('Copied to clipboard');
+                    }}
+                    className="absolute -bottom-1 right-1 p-1 rounded hover:bg-secondary/80 text-muted-foreground/40 hover:text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Copy message"
+                  >
+                    <Copy className="w-3 h-3" />
+                  </button>
                 </div>
               </div>
             ))}
