@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Target, TrendingUp, Plus, Loader2, RefreshCw, Activity, Sparkles, ChevronDown, ChevronUp, Ruler, Weight, Percent, Calendar as CalendarIcon } from 'lucide-react';
+import { getGoalIcon } from '@/lib/goalIcons';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import { UserGoal } from '@/hooks/useGoals';
 import { GoalReading, useGoalReadings } from '@/hooks/useGoalReadings';
@@ -30,18 +31,7 @@ const GOAL_TYPE_COLORS: Record<string, string> = {
   custom: 'hsl(var(--muted-foreground))',
 };
 
-const GOAL_TYPE_ICONS: Record<string, string> = {
-  muscle_gain: '💪',
-  fat_loss: '🔥',
-  cardiovascular: '❤️',
-  cognitive: '🧠',
-  hormonal: '⚡',
-  longevity: '✨',
-  recovery: '🩹',
-  sleep: '🌙',
-  libido: '🔥',
-  custom: '🎯',
-};
+// Goal type icons now use Lucide — see goalIcons.tsx
 
 function getProgress(goal: UserGoal, firstReading?: number): number | null {
   const baseline = goal.baseline_value ?? firstReading ?? null;
@@ -127,7 +117,7 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
       <div className="text-center py-12">
         <Target className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
         <h3 className="text-sm font-semibold text-foreground mb-1">No Active Goals</h3>
-        <p className="text-xs text-muted-foreground">Use the Goal Expansion tool (🎯) to define measurable health targets.</p>
+        <p className="text-xs text-muted-foreground">Use the Goal Expansion tool to define measurable health targets.</p>
       </div>
     );
   }
@@ -235,7 +225,7 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
             const isExpanded = expandedGoal === goal.id;
             const isAdding = addReadingGoal === goal.id;
             const color = GOAL_TYPE_COLORS[goal.goal_type] || GOAL_TYPE_COLORS.custom;
-            const icon = GOAL_TYPE_ICONS[goal.goal_type] || '🎯';
+            const GoalIcon = getGoalIcon(goal.goal_type);
 
             const chartData = goalReadings.map(r => ({
               date: new Date(r.reading_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
@@ -254,7 +244,7 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
                   onClick={() => setExpandedGoal(isExpanded ? null : goal.id!)}
                   className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-secondary/30 transition-colors"
                 >
-                  <span className="text-base">{icon}</span>
+                  <span className="text-base"><GoalIcon className="w-4 h-4 text-primary" /></span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-foreground truncate">{goal.title}</span>
@@ -445,7 +435,7 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
           }, {} as Record<string, number>)
         ).map(([type, count]) => (
           <div key={type} className="bg-card rounded-lg border border-border/50 px-3 py-2 text-center">
-            <span className="text-lg">{GOAL_TYPE_ICONS[type.replace(/ /g, '_')] || '🎯'}</span>
+            {(() => { const Icon = getGoalIcon(type.replace(/ /g, '_')); return <Icon className="w-5 h-5 text-primary" />; })()}
             <p className="text-xs font-medium text-foreground capitalize mt-0.5">{type}</p>
             <p className="text-[10px] text-muted-foreground">{count} goal{count !== 1 ? 's' : ''}</p>
           </div>

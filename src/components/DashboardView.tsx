@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Compound } from '@/data/compounds';
 import { Target, Plus, ChevronLeft, ChevronRight, Shield, Scale, Rocket, Ruler, Weight, Percent, Calendar as CalendarIcon, Check, ToggleLeft } from 'lucide-react';
+import { getGoalIcon } from '@/lib/goalIcons';
 import { kgToLbs, lbsToKg } from '@/lib/measurements';
 import { StackAnalysis } from '@/hooks/useProtocolAnalysis';
 import { ToleranceLevel } from '@/hooks/useProtocolAnalysis';
@@ -50,10 +51,7 @@ const toleranceMeta: Record<string, { Icon: typeof Shield; label: string; color:
   performance: { Icon: Rocket, label: 'Performance', color: 'text-rose-400' },
 };
 
-const GOAL_TYPE_ICONS: Record<string, string> = {
-  muscle_gain: '💪', fat_loss: '🔥', cardiovascular: '❤️', cognitive: '🧠',
-  hormonal: '⚡', longevity: '✨', recovery: '🩹', sleep: '🌙', libido: '🔥', custom: '🎯',
-};
+// Goal type icons now use Lucide — see goalIcons.tsx
 
 function getProgress(goal: UserGoal, firstReading?: number): number | null {
   const baseline = goal.baseline_value ?? firstReading ?? null;
@@ -64,8 +62,8 @@ function getProgress(goal: UserGoal, firstReading?: number): number | null {
   return Math.min(100, Math.max(0, Math.round(((current - baseline) / range) * 100)));
 }
 
-const GoalCard = ({ goal, icon, progress, progressVal, barColor, sparkData, onViewOutcomes, onAddReading }: {
-  goal: UserGoal; icon: string; progress: number | null; progressVal: number; barColor: string;
+const GoalCard = ({ goal, GoalIcon, progress, progressVal, barColor, sparkData, onViewOutcomes, onAddReading }: {
+  goal: UserGoal; GoalIcon: React.ComponentType<{ className?: string }>; progress: number | null; progressVal: number; barColor: string;
   sparkData: number[]; onViewOutcomes?: () => void; onAddReading: (value: number) => Promise<void>;
 }) => {
   const [open, setOpen] = useState(false);
@@ -87,7 +85,7 @@ const GoalCard = ({ goal, icon, progress, progressVal, barColor, sparkData, onVi
     <div className="bg-card/60 backdrop-blur-sm rounded-lg border border-border/30 p-3 hover:border-primary/30 transition-all duration-300">
       <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-2 min-w-0 cursor-pointer hover:opacity-80 transition-opacity" onClick={onViewOutcomes}>
-          <span className="text-sm flex-shrink-0">{icon}</span>
+          <span className="text-sm flex-shrink-0"><GoalIcon className="w-4 h-4 text-primary" /></span>
           <span className="text-xs font-medium text-foreground truncate">{goal.title}</span>
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -567,7 +565,7 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
                     const goalReadings = readings.get(goal.id!) || [];
                     const firstReading = goalReadings.length > 0 ? goalReadings[0].value : undefined;
                     const progress = getProgress(goal, firstReading);
-                    const icon = GOAL_TYPE_ICONS[goal.goal_type] || '🎯';
+                    const GoalIcon = getGoalIcon(goal.goal_type);
                     const progressVal = progress ?? 0;
                     const barColor = progressVal >= 75 ? 'bg-emerald-500' : progressVal >= 40 ? 'bg-primary' : progressVal >= 15 ? 'bg-amber-500' : 'bg-muted-foreground/40';
                     const sparkData = goalReadings.slice(-7).map(r => r.value);
@@ -576,7 +574,7 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
                       <GoalCard
                         key={goal.id}
                         goal={goal}
-                        icon={icon}
+                        GoalIcon={GoalIcon}
                         progress={progress}
                         progressVal={progressVal}
                         barColor={barColor}

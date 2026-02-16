@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { Compound, getStatus, getReorderDateString, CompoundCategory } from '@/data/compounds';
 import { getCycleStatus, getDaysRemainingWithCycling } from '@/lib/cycling';
 import { UserProtocol } from '@/hooks/useProtocols';
-import { Pencil, Check, X, Trash2, Plus, ChevronDown, Syringe } from 'lucide-react';
+import { Pencil, Check, X, Trash2, Plus, ChevronDown, Syringe, Clock, SortAsc, Moon as MoonIcon, Sun, Dumbbell, RefreshCcw } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import ToleranceSelector from '@/components/ToleranceSelector';
@@ -114,7 +114,7 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
           onClick={() => setSortBy(s => s === 'days' ? 'name' : 'days')}
           className="ml-auto px-2.5 py-1.5 sm:py-1 rounded-md text-[11px] sm:text-xs bg-secondary text-secondary-foreground active:bg-secondary/60 touch-manipulation"
         >
-          {sortBy === 'days' ? '⏰ Days' : '🔤 Name'}
+          {sortBy === 'days' ? <><Clock className="w-3 h-3 inline mr-0.5" /> Days</> : <><SortAsc className="w-3 h-3 inline mr-0.5" /> Name</>}
         </button>
       </div>
 
@@ -154,7 +154,7 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
         <Collapsible>
           <CollapsibleTrigger className="flex items-center gap-1.5 w-full text-left mb-2 group">
             <ChevronDown className="w-3.5 h-3.5 text-muted-foreground transition-transform duration-200 group-data-[state=closed]:-rotate-90" />
-            <span className="text-xs">💤</span>
+            <MoonIcon className="w-3.5 h-3.5 text-muted-foreground" />
             <h3 className="text-sm font-semibold text-muted-foreground">Dormant</h3>
             <span className="text-[10px] text-muted-foreground font-mono">({dormantCompounds.length})</span>
           </CollapsibleTrigger>
@@ -376,7 +376,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
                 className="p-1.5 rounded active:bg-secondary/80 transition-colors text-muted-foreground touch-manipulation"
                 title={compound.notes?.includes('[DORMANT]') ? 'Reactivate compound' : 'Set dormant'}
               >
-                <span className="text-[11px]">💤</span>
+                <MoonIcon className="w-3.5 h-3.5" />
               </button>
               {/* Delete — spaced away from other actions */}
               {onDelete && !confirmDelete && (
@@ -410,7 +410,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
         onOpenChange={setConfirmDormant}
         title="Set Compound Dormant?"
         description={`Mark "${compound.name}" as dormant? It will be moved to the dormant section but kept in your inventory for future use.`}
-        confirmLabel="Set Dormant 💤"
+        confirmLabel="Set Dormant"
         onConfirm={() => {
           const newNotes = `[DORMANT] ${compound.notes || ''}`.trim();
           onUpdate(compound.id, { notes: newNotes });
@@ -481,7 +481,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
                         : 'bg-secondary text-muted-foreground border border-border/50'
                     }`}
                   >
-                    {t === 'morning' ? '☀️ AM' : t === 'afternoon' ? '💪 Mid' : '🌙 PM'}
+                    {t === 'morning' ? <><Sun className="w-3 h-3 inline mr-0.5" />AM</> : t === 'afternoon' ? <><Dumbbell className="w-3 h-3 inline mr-0.5" />Mid</> : <><MoonIcon className="w-3 h-3 inline mr-0.5" />PM</>}
                   </button>
                 );
               })}
@@ -675,7 +675,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
           )}
 
           {compound.cyclingNote && (
-            <p className="text-[10px] text-accent mt-1.5 italic">⟳ {compound.cyclingNote}</p>
+            <p className="text-[10px] text-accent mt-1.5 italic flex items-center gap-1"><RefreshCcw className="w-3 h-3" /> {compound.cyclingNote}</p>
           )}
         </>
       )}
