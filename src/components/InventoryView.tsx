@@ -141,8 +141,10 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
           )}
           <CollapsibleContent className="animate-accordion-down data-[state=closed]:animate-accordion-up">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-              {group.items.map(compound => (
-                <CompoundCard key={compound.id} compound={compound} onUpdate={onUpdateCompound} onDelete={onDeleteCompound} />
+              {group.items.map((compound, compoundIdx) => (
+                <div key={compound.id} {...(compoundIdx === 0 && groups.indexOf(group) === 0 ? { 'data-tour': 'compound-card' } : {})}>
+                  <CompoundCard compound={compound} onUpdate={onUpdateCompound} onDelete={onDeleteCompound} />
+                </div>
               ))}
             </div>
           </CollapsibleContent>
