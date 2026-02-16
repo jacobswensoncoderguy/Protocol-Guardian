@@ -211,6 +211,7 @@ export type Database = {
           height_cm: number | null
           id: string
           measurement_system: string
+          referred_by: string | null
           updated_at: string
           user_id: string
           weight_kg: number | null
@@ -226,6 +227,7 @@ export type Database = {
           height_cm?: number | null
           id?: string
           measurement_system?: string
+          referred_by?: string | null
           updated_at?: string
           user_id: string
           weight_kg?: number | null
@@ -241,6 +243,7 @@ export type Database = {
           height_cm?: number | null
           id?: string
           measurement_system?: string
+          referred_by?: string | null
           updated_at?: string
           user_id?: string
           weight_kg?: number | null

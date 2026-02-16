@@ -1,10 +1,20 @@
 import { lovable } from '@/integrations/lovable/index';
 import { useAuth } from '@/hooks/useAuth';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { Zap, Loader2 } from 'lucide-react';
+import { useEffect } from 'react';
 
 const Auth = () => {
   const { user, loading } = useAuth();
+  const [searchParams] = useSearchParams();
+
+  // Persist ref param so it survives the OAuth redirect
+  useEffect(() => {
+    const ref = searchParams.get('ref');
+    if (ref) {
+      sessionStorage.setItem('referrer_id', ref);
+    }
+  }, [searchParams]);
 
   const handleGoogleSignIn = async () => {
     const { error } = await lovable.auth.signInWithOAuth('google', {

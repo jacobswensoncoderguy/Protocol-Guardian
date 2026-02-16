@@ -23,7 +23,10 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (!user) {
-    return <Navigate to="/auth" replace />;
+    // Preserve ref param through redirect to auth
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    return <Navigate to={ref ? `/auth?ref=${ref}` : '/auth'} replace />;
   }
 
   return <>{children}</>;
