@@ -168,7 +168,8 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
       toast.success('Goal reactivated');
     }
   };
-  };
+
+
 
   const handleDeleteGoal = async (goalId: string) => {
     if (onDeleteGoal) {
