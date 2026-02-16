@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import Invite from "./pages/Invite";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
 
@@ -40,6 +41,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/auth" element={<Auth />} />
+          <Route path="/invite" element={<Invite />} />
           <Route
             path="/"
             element={
