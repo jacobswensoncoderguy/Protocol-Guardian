@@ -34,7 +34,9 @@ function getReorderSupplyDays(compound: Compound): number {
     : compound.reorderQuantity;
   const unitsPerUnit = compound.category === 'peptide' && compound.bacstatPerVial
     ? compound.bacstatPerVial
-    : compound.unitSize;
+    : compound.category === 'injectable-oil' && compound.vialSizeMl
+      ? compound.unitSize * compound.vialSizeMl
+      : compound.unitSize;
   return (reorderUnits * unitsPerUnit) / effectiveDaily;
 }
 

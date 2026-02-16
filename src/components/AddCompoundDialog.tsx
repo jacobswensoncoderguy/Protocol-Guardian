@@ -205,14 +205,16 @@ const AddCompoundDialog = ({ open, onOpenChange, existingCompoundIds, onAdd }: A
     if ([qty, size, dose, price, dpd, dpw, reorder].some(v => isNaN(v) || v < 0)) return;
     if (isPeptide && (isNaN(kit) || kit < 0)) return;
 
+    const isOil = selected.category === 'injectable-oil';
     const compound: Compound = {
       id: selected.id,
       name: selected.name,
       category: selected.category as CompoundCategory,
       unitSize: size,
-      unitLabel: selected.unit_label,
+      unitLabel: isOil ? 'mg/mL' : selected.unit_label,
       unitPrice: price,
       kitPrice: isPeptide ? kit : undefined,
+      vialSizeMl: isOil ? (parseFloat((form as any).vialSizeMl) || 10) : undefined,
       dosePerUse: dose,
       doseLabel: selected.dose_label,
       bacstatPerVial: isPeptide ? parseFloat(form.bacstatPerVial) || 200 : undefined,

@@ -304,8 +304,8 @@ const DoseGroup = ({
     }
 
     if (isOil) {
-      // Oil: concentration = unitSize / 10 mg/mL
-      const concMgPerMl = compound.unitSize / 10;
+      // Oil: unitSize is now mg/mL directly
+      const concMgPerMl = compound.unitSize;
       if (concMgPerMl > 0 && compound.doseLabel.toLowerCase().includes('mg')) {
         const ml = Math.round((compound.dosePerUse / concMgPerMl) * 1000) / 1000;
         return `${ml} mL`;

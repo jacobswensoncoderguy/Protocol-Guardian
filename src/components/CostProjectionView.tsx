@@ -29,7 +29,9 @@ function getReorderSupplyDays(compound: Compound): number {
     : compound.reorderQuantity;
   const unitsPerUnit = compound.category === 'peptide' && compound.bacstatPerVial
     ? compound.bacstatPerVial
-    : compound.unitSize;
+    : compound.category === 'injectable-oil' && compound.vialSizeMl
+      ? compound.unitSize * compound.vialSizeMl
+      : compound.unitSize;
   return (reorderUnits * unitsPerUnit) / effectiveDaily;
 }
 
@@ -126,7 +128,9 @@ const CostProjectionView = ({ compounds, protocols = [] }: CostProjectionViewPro
       return sum + kitsPerMonth * (c.kitPrice || 0);
     }
 
-    const unitsPerMonth = monthlyConsumption / c.unitSize;
+    const totalMgPerUnit = c.category === 'injectable-oil' && c.vialSizeMl
+      ? c.unitSize * c.vialSizeMl : c.unitSize;
+    const unitsPerMonth = monthlyConsumption / totalMgPerUnit;
     return sum + unitsPerMonth * c.unitPrice;
   }, 0);
 
@@ -235,7 +239,9 @@ const CostProjectionView = ({ compounds, protocols = [] }: CostProjectionViewPro
               const kitsPerMonth = vialsPerMonth / 10;
               return kitsPerMonth * (c.kitPrice || 0);
             }
-            const unitsPerMonth = monthly / c.unitSize;
+            const totalMg = c.category === 'injectable-oil' && c.vialSizeMl
+              ? c.unitSize * c.vialSizeMl : c.unitSize;
+            const unitsPerMonth = monthly / totalMg;
             return unitsPerMonth * c.unitPrice;
           };
 
