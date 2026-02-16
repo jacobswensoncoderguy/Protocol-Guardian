@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Package, DollarSign, LayoutDashboard, ShoppingCart, Sun, Moon, RefreshCw, LogOut, Plus, Brain, Target, Activity, FileText } from 'lucide-react';
+import { Calendar, Package, DollarSign, LayoutDashboard, ShoppingCart, Sun, Moon, RefreshCw, LogOut, Plus, Brain, Target, Activity, FileText, Settings } from 'lucide-react';
 import { Compound } from '@/data/compounds';
 import { useCompounds } from '@/hooks/useCompounds';
 import { useProtocols } from '@/hooks/useProtocols';
@@ -21,6 +21,7 @@ import ProtocolManagerDialog from '@/components/ProtocolManagerDialog';
 import GoalExpansionDialog from '@/components/GoalExpansionDialog';
 import BiomarkerUploadDialog from '@/components/BiomarkerUploadDialog';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import AccountSettingsDialog from '@/components/AccountSettingsDialog';
 
 import DashboardView from '@/components/DashboardView';
 import WeeklyScheduleView from '@/components/WeeklyScheduleView';
@@ -108,6 +109,7 @@ const Index = () => {
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+  const [showAccountSettings, setShowAccountSettings] = useState(false);
 
   const handleRefresh = useCallback(async () => {
     await Promise.all([refetch(), refetchProtocols()]);
@@ -172,6 +174,9 @@ const Index = () => {
           <div className="flex items-center gap-2 flex-shrink-0">
             <button onClick={toggle} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground">
               {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+            <button onClick={() => setShowAccountSettings(true)} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground" title="Account Settings">
+              <Settings className="w-4 h-4" />
             </button>
             <button onClick={() => setShowSignOutConfirm(true)} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground" title="Sign out">
               <LogOut className="w-4 h-4" />
@@ -347,6 +352,16 @@ const Index = () => {
           userId={user?.id}
           goals={fullGoals}
           onReadingsCreated={() => fetchFullGoals()}
+        />
+
+        <AccountSettingsDialog
+          open={showAccountSettings}
+          onOpenChange={setShowAccountSettings}
+          userId={user?.id}
+          onResetComplete={() => {
+            setShowOnboarding(true);
+            refetch();
+          }}
         />
 
         <ConfirmDialog
