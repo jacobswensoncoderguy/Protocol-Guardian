@@ -307,7 +307,12 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
       if (!isNaN(on) && on > 0 && !isNaN(off) && off > 0) {
         updates.cycleOnDays = on;
         updates.cycleOffDays = off;
-        updates.cycleStartDate = editState.cycleStartDate || undefined;
+        updates.cycleStartDate = editState.cycleStartDate || compound.cycleStartDate || new Date().toISOString().split('T')[0];
+      } else if (on === 0 || off === 0) {
+        // User cleared cycling — remove it
+        updates.cycleOnDays = undefined;
+        updates.cycleOffDays = undefined;
+        updates.cycleStartDate = undefined;
       }
     }
 
