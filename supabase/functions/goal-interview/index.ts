@@ -9,11 +9,13 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, structuredResponses, gender } = await req.json();
+    const { messages, structuredResponses, gender, questionNumber, maxQuestions, forceExtract } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     const isFemale = gender === 'female';
+    const qNum = questionNumber || 1;
+    const maxQ = maxQuestions || 3;
 
     const genderContext = isFemale
       ? `The user is female. Focus on female-specific health topics: hormonal balance (estrogen, progesterone, cortisol), 
@@ -23,23 +25,41 @@ Frame muscle goals as "body composition" and "toning" rather than "bulk" unless 
 Consider female-appropriate peptide doses and supplement recommendations.`
       : `The user is male. You can discuss testosterone optimization, muscle building, libido, and male-specific health concerns.`;
 
-    const systemPrompt = `You are a biohacking and health optimization coach conducting a brief, conversational follow-up interview. 
-The user has already answered structured questions about their goals. Here's what they shared:
+    const progressInstruction = forceExtract
+      ? `This is the user's FINAL answer (question ${qNum} of ${maxQ}). You MUST now call the create_goals tool to generate their personalized goals. Do NOT ask any more questions. Instead, briefly acknowledge their answer (1 sentence max), then immediately call create_goals with specific, measurable goals.`
+      : `This is question ${qNum} of ${maxQ}. You have ${maxQ - qNum} question(s) remaining.
+
+QUESTION STRATEGY:
+- Question 1: Ask about their MOST important goal — what specific outcome would make them feel successful? Be direct.
+- Question 2: Ask about current barriers or constraints (time, budget, experience) that affect their plan.
+- Question 3: Ask about their measurement preferences — how will they know it's working?
+
+RULES:
+- Ask exactly ONE clear question per turn. Never ask multiple questions.
+- Start each response by briefly explaining WHY you're asking (1 short sentence).
+- Keep total response under 3 sentences.
+- Be specific to their stated goals — don't ask generic questions.
+- If this is question ${maxQ}, make it count — ask the most important remaining thing.`;
+
+    const systemPrompt = `You are a biohacking and health optimization coach conducting a BRIEF, focused goal-setting session.
+The user already answered structured questions. Here's what they shared:
 
 ${JSON.stringify(structuredResponses, null, 2)}
 
 Gender context:
 ${genderContext}
 
-Your role:
-1. Ask 2-3 focused follow-up questions based on their answers to get specific, actionable details
-2. Be warm, encouraging, and knowledgeable about peptides, supplements, and performance optimization
-3. After gathering enough info, summarize their goal profile and suggest specific, measurable targets
-4. Use tool calling to extract structured goals when the conversation feels complete
-5. Tailor all recommendations and language to be appropriate for the user's gender
+CONVERSATION FORMAT:
+${progressInstruction}
 
-Keep responses concise (2-3 sentences max per turn). Be direct and avoid generic wellness advice.
-Format your responses in markdown. Use bold for emphasis.`;
+Your role:
+1. Ask focused, specific follow-up questions that add real value
+2. Each question should directly help create better, more personalized goals
+3. Be warm but efficient — respect the user's time
+4. When calling create_goals, create 3-6 specific, measurable goals with clear targets
+
+CRITICAL: Never exceed ${maxQ} questions total. The user sees a progress bar and expects to be done after ${maxQ} answers.
+Format responses in markdown. Use **bold** for emphasis.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -59,7 +79,7 @@ Format your responses in markdown. Use bold for emphasis.`;
             type: "function",
             function: {
               name: "create_goals",
-              description: "Create structured goals from the conversation. Call this when you have enough information to define specific, measurable goals.",
+              description: "Create structured goals from the conversation. Call this when you have enough information to define specific, measurable goals. MUST be called after the final question is answered.",
               parameters: {
                 type: "object",
                 properties: {
@@ -75,10 +95,10 @@ Format your responses in markdown. Use bold for emphasis.`;
                             : ["muscle_gain", "fat_loss", "cardiovascular", "cognitive", "hormonal", "longevity", "recovery", "sleep", "libido", "custom"]
                         },
                         title: { type: "string", description: "Short, specific goal title" },
-                        description: { type: "string", description: "Detailed description" },
+                        description: { type: "string", description: "Detailed description of the goal" },
                         body_area: { type: "string", enum: ["arms", "chest", "legs", "core", "back", "full_body", "brain", "heart"], description: "Body area if applicable" },
-                        target_value: { type: "number", description: "Numeric target" },
-                        target_unit: { type: "string", description: "Unit of measurement" },
+                        target_value: { type: "number", description: "Numeric target value" },
+                        target_unit: { type: "string", description: "Unit of measurement (e.g., lbs, %, ng/dL)" },
                         priority: { type: "number", enum: [1, 2, 3], description: "1=high, 2=medium, 3=low" },
                       },
                       required: ["goal_type", "title", "priority"],
@@ -90,6 +110,7 @@ Format your responses in markdown. Use bold for emphasis.`;
             },
           },
         ],
+        ...(forceExtract ? { tool_choice: { type: "function", function: { name: "create_goals" } } } : {}),
       }),
     });
 

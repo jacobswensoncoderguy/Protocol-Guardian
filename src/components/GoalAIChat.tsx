@@ -32,8 +32,28 @@ type InterestLevel = 'interested' | 'need_info' | 'not_interested';
 interface GoalInterest {
   goalIndex: number;
   interest: InterestLevel;
-  priority: number; // 1-5
+  priority: number;
 }
+
+const MAX_QUESTIONS = 3;
+
+const STEP_CONTEXT = [
+  {
+    label: 'Understanding your targets',
+    why: 'So we can set specific, measurable goals instead of vague ones',
+    icon: '🎯',
+  },
+  {
+    label: 'Refining your approach',
+    why: 'To match recommendations to your experience and lifestyle',
+    icon: '⚡',
+  },
+  {
+    label: 'Finalizing your plan',
+    why: 'Creating your personalized goal targets — almost done!',
+    icon: '✅',
+  },
+];
 
 const CopyButton = ({ text }: { text: string }) => {
   const [copied, setCopied] = useState(false);
@@ -98,6 +118,7 @@ const GoalAIChat = ({ structuredResponses, onGoalsExtracted, onSkip, gender }: G
   const [isStreaming, setIsStreaming] = useState(false);
   const [extractedGoals, setExtractedGoals] = useState<ExtractedGoal[] | null>(null);
   const [goalInterests, setGoalInterests] = useState<Map<number, GoalInterest>>(new Map());
+  const [userResponseCount, setUserResponseCount] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const startedRef = useRef(false);
@@ -113,7 +134,14 @@ const GoalAIChat = ({ structuredResponses, onGoalsExtracted, onSkip, gender }: G
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages]);
 
-  const sendToAI = async (msgHistory: AIChatMessage[]) => {
+  // Current step (0-indexed, capped at MAX_QUESTIONS - 1)
+  const currentStep = Math.min(userResponseCount, MAX_QUESTIONS - 1);
+  const isLastStep = userResponseCount >= MAX_QUESTIONS - 1;
+  const progressPercent = extractedGoals
+    ? 100
+    : Math.round(((userResponseCount) / MAX_QUESTIONS) * 100);
+
+  const sendToAI = async (msgHistory: AIChatMessage[], forceExtract = false) => {
     setIsStreaming(true);
     let assistantContent = '';
 
@@ -124,7 +152,14 @@ const GoalAIChat = ({ structuredResponses, onGoalsExtracted, onSkip, gender }: G
           'Content-Type': 'application/json',
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ messages: msgHistory, structuredResponses, gender }),
+        body: JSON.stringify({
+          messages: msgHistory,
+          structuredResponses,
+          gender,
+          questionNumber: userResponseCount + 1,
+          maxQuestions: MAX_QUESTIONS,
+          forceExtract,
+        }),
       });
 
       if (!resp.ok || !resp.body) throw new Error('Stream failed');
@@ -188,7 +223,7 @@ const GoalAIChat = ({ structuredResponses, onGoalsExtracted, onSkip, gender }: G
         }
       }
 
-      if (!assistantContent && extractedGoals) {
+      if (!assistantContent && !inToolCall) {
         setMessages(prev => [...prev, { role: 'assistant', content: "I've defined your goals based on our conversation. Review them below!" }]);
       }
     } catch (e) {
@@ -203,9 +238,13 @@ const GoalAIChat = ({ structuredResponses, onGoalsExtracted, onSkip, gender }: G
     if (!input.trim() || isStreaming) return;
     const userMsg: AIChatMessage = { role: 'user', content: input.trim() };
     const newHistory = [...messages, userMsg];
+    const newCount = userResponseCount + 1;
     setMessages(newHistory);
     setInput('');
-    sendToAI(newHistory);
+    setUserResponseCount(newCount);
+
+    // Force goal extraction on last question
+    sendToAI(newHistory, newCount >= MAX_QUESTIONS);
   };
 
   const setInterest = (index: number, interest: InterestLevel) => {
@@ -238,14 +277,68 @@ const GoalAIChat = ({ structuredResponses, onGoalsExtracted, onSkip, gender }: G
     onGoalsExtracted(refined);
   };
 
+  const stepInfo = STEP_CONTEXT[currentStep] || STEP_CONTEXT[MAX_QUESTIONS - 1];
+
   return (
     <div className="flex flex-col h-full">
-      <div className="text-center mb-3">
-        <h2 className="text-lg font-bold text-foreground">Refine Your Goals</h2>
-        <p className="text-xs text-muted-foreground">Chat with AI to turn your answers into specific, measurable targets</p>
+      {/* Header with progress */}
+      <div className="mb-3">
+        <div className="text-center mb-2">
+          <h2 className="text-lg font-bold text-foreground">Refine Your Goals</h2>
+          <p className="text-xs text-muted-foreground">
+            {extractedGoals
+              ? 'Review your personalized goals below'
+              : `${MAX_QUESTIONS - userResponseCount} quick question${MAX_QUESTIONS - userResponseCount !== 1 ? 's' : ''} to personalize your plan`}
+          </p>
+        </div>
+
+        {/* Progress bar */}
+        <div className="relative">
+          <div className="h-1.5 bg-border/30 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+          {/* Step indicators */}
+          <div className="flex justify-between mt-1.5">
+            {Array.from({ length: MAX_QUESTIONS }).map((_, i) => (
+              <div key={i} className="flex items-center gap-1">
+                <div className={`w-2 h-2 rounded-full transition-all ${
+                  i < userResponseCount ? 'bg-primary' :
+                  i === userResponseCount && !extractedGoals ? 'bg-primary/50 ring-2 ring-primary/20' :
+                  extractedGoals ? 'bg-primary' : 'bg-border/50'
+                }`} />
+                <span className={`text-[9px] ${
+                  i === currentStep && !extractedGoals ? 'text-primary font-semibold' : 'text-muted-foreground/50'
+                }`}>
+                  {i + 1}
+                </span>
+              </div>
+            ))}
+            <div className="flex items-center gap-1">
+              <div className={`w-2 h-2 rounded-full transition-all ${extractedGoals ? 'bg-primary' : 'bg-border/50'}`} />
+              <span className={`text-[9px] ${extractedGoals ? 'text-primary font-semibold' : 'text-muted-foreground/50'}`}>
+                ✓
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Current step context card */}
+        {!extractedGoals && (
+          <div className="mt-3 flex items-start gap-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/15">
+            <span className="text-base">{stepInfo.icon}</span>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-foreground">{stepInfo.label}</p>
+              <p className="text-[10px] text-muted-foreground leading-relaxed">{stepInfo.why}</p>
+            </div>
+          </div>
+        )}
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 mb-3 max-h-[45vh] scrollbar-thin">
+      {/* Chat messages */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 mb-3 max-h-[35vh] scrollbar-thin">
         {messages.map((msg, i) => (
           <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[85%] rounded-lg px-3 py-2 text-sm relative group ${
@@ -277,8 +370,11 @@ const GoalAIChat = ({ structuredResponses, onGoalsExtracted, onSkip, gender }: G
       {extractedGoals && (
         <div className="border border-primary/30 rounded-lg p-3 mb-3 bg-primary/5">
           <h3 className="text-sm font-semibold text-primary mb-2 flex items-center gap-1.5">
-            <CheckCircle className="w-4 h-4" /> AI-Generated Goals
+            <CheckCircle className="w-4 h-4" /> Your Personalized Goals
           </h3>
+          <p className="text-[10px] text-muted-foreground mb-2">
+            Mark each goal and set your priority. "Not for me" goals will be excluded.
+          </p>
           <div className="space-y-2.5">
             {extractedGoals.map((g, i) => {
               const interest = goalInterests.get(i);
@@ -306,22 +402,24 @@ const GoalAIChat = ({ structuredResponses, onGoalsExtracted, onSkip, gender }: G
         </div>
       )}
 
-      {/* Input */}
-      <div className="flex items-center gap-2">
-        <input
-          ref={inputRef}
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && handleSend()}
-          placeholder="Tell the AI more about your goals..."
-          disabled={isStreaming}
-          className="flex-1 px-3 py-2 rounded-lg border border-border/50 bg-card text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 disabled:opacity-50"
-        />
-        <button onClick={handleSend} disabled={isStreaming || !input.trim()}
-          className="p-2 rounded-lg bg-primary text-primary-foreground disabled:opacity-40 transition-all">
-          <Send className="w-4 h-4" />
-        </button>
-      </div>
+      {/* Input - hidden once goals are extracted */}
+      {!extractedGoals && (
+        <div className="flex items-center gap-2">
+          <input
+            ref={inputRef}
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleSend()}
+            placeholder={isLastStep ? 'Last answer — then we\'ll build your goals!' : 'Your answer...'}
+            disabled={isStreaming}
+            className="flex-1 px-3 py-2 rounded-lg border border-border/50 bg-card text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 disabled:opacity-50"
+          />
+          <button onClick={handleSend} disabled={isStreaming || !input.trim()}
+            className="p-2 rounded-lg bg-primary text-primary-foreground disabled:opacity-40 transition-all">
+            <Send className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       <GeminiBadge />
 
