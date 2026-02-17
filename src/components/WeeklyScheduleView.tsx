@@ -5,7 +5,7 @@ import { getCycleStatus, isPaused } from '@/lib/cycling';
 import { generateScheduleFromCompounds } from '@/lib/scheduleGenerator';
 import { CustomField } from '@/hooks/useCustomFields';
 import { UserProtocol } from '@/hooks/useProtocols';
-import { Sun, Moon, Dumbbell, Info, Syringe } from 'lucide-react';
+import { Sun, Moon, Dumbbell, Info, Syringe, Pause } from 'lucide-react';
 
 function getFrequencyLabel(compound: Compound): string {
   const dpw = compound.daysPerWeek;
@@ -342,30 +342,40 @@ const DoseGroup = ({
           const compound = compoundMap.get(dose.compoundId);
           const status = compound ? getCycleStatus(compound) : null;
           const isOff = offCycleIds.has(dose.compoundId);
-          const showCycleDays = status?.hasCycle && status.isOn;
+          const isPausedItem = pausedIds.has(dose.compoundId);
+          const showCycleDays = status?.hasCycle && status.isOn && !isPausedItem;
           const displayDose = compound ? convertToMl(compound, dose.dose) : dose.dose;
+          const pauseRestart = compound?.pauseRestartDate
+            ? new Date(compound.pauseRestartDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+            : null;
           return (
             <button
               key={`${dose.compoundId}-${i}`}
               onClick={() => onCompoundClick(dose.compoundId)}
-              className={`flex items-center justify-between rounded px-2.5 py-1.5 text-left transition-colors hover:bg-card/80 active:bg-card ${isOff ? 'bg-card/20 opacity-50' : 'bg-card/50'}`}
+              className={`flex items-center justify-between rounded px-2.5 py-1.5 text-left transition-colors hover:bg-card/80 active:bg-card ${isOff || isPausedItem ? 'bg-card/20 opacity-50' : 'bg-card/50'}`}
             >
-              <span className={`text-xs truncate mr-2 ${isOff ? 'text-muted-foreground' : 'text-foreground/90'}`}>
+              <span className={`text-xs truncate mr-2 ${isOff || isPausedItem ? 'text-muted-foreground' : 'text-foreground/90'}`}>
                 {compound?.name || dose.compoundId}
-                {compound && (
+                {compound && !isPausedItem && (
                   <span className="ml-1.5 text-[10px] text-muted-foreground font-normal">
                     ({getFrequencyLabel(compound)})
                   </span>
                 )}
               </span>
               <div className="flex items-center gap-1.5 flex-shrink-0">
-                {isOff && status?.hasCycle && (
+                {isPausedItem && (
+                  <span className="flex items-center gap-1 text-[10px] font-mono text-muted-foreground">
+                    <Pause className="w-3 h-3" />
+                    {pauseRestart ? `→ ${pauseRestart}` : 'Paused'}
+                  </span>
+                )}
+                {!isPausedItem && isOff && status?.hasCycle && (
                   <span className="text-[10px] font-mono text-status-warning">OFF → {getResumeDate(status.daysLeftInPhase)}</span>
                 )}
                 {showCycleDays && (
                   <span className="text-[10px] font-mono text-muted-foreground">{status.daysLeftInPhase}d</span>
                 )}
-                {!isOff && <span className="text-xs font-mono text-primary">{displayDose}</span>}
+                {!isOff && !isPausedItem && <span className="text-xs font-mono text-primary">{displayDose}</span>}
               </div>
             </button>
           );
