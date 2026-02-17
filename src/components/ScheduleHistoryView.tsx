@@ -89,6 +89,7 @@ const WeekCard = ({
   );
 
   // Calculate weekly compliance
+  // Count check-offs directly from stored DB data (keys match schedule view's key format)
   const { totalPlanned, totalTaken } = useMemo(() => {
     let planned = 0;
     let taken = 0;
@@ -103,10 +104,8 @@ const WeekCard = ({
         return !(status.hasCycle && !status.isOn) && !isPaused(compound);
       });
       planned += activeDoses.length;
-      activeDoses.forEach((d, i) => {
-        const key = `${d.compoundId}-${d.timing}-${i}`;
-        if (dayChecks.has(key)) taken++;
-      });
+      // Count actual check-offs for this date (directly from DB data)
+      taken += dayChecks.size;
     });
     return { totalPlanned: planned, totalTaken: taken };
   }, [schedule, snapshot, checkedDosesMap]);
@@ -149,9 +148,9 @@ const WeekCard = ({
                 const status = getCycleStatus(compound);
                 return !(status.hasCycle && !status.isOn) && !isPaused(compound);
               });
-              const dayTaken = activeDoses.filter((d, i) => dayChecks.has(`${d.compoundId}-${d.timing}-${i}`)).length;
+              const dayTaken = dayChecks.size;
               const dayTotal = activeDoses.length;
-              const dayPct = dayTotal > 0 ? dayTaken / dayTotal : 0;
+              const dayPct = dayTotal > 0 ? Math.min(dayTaken / dayTotal, 1) : 0;
 
               return (
                 <div key={colIdx} className="text-center">
