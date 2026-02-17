@@ -296,35 +296,62 @@ const FoodTrackerView = () => {
     setLiveScannerError(null);
   }, []);
 
-  // Lookup barcode from Open Food Facts and fill form
+  // Lookup barcode from Open Food Facts (with UPC fallback) and fill form
   const lookupAndFillBarcode = useCallback(async (barcode: string) => {
     stopLiveScanner();
     setBarcodeLoading(true);
     try {
-      const res = await fetch(
+      // 1️⃣ Try Open Food Facts first
+      const offRes = await fetch(
         `https://world.openfoodfacts.org/api/v2/product/${barcode}?fields=product_name,brands,nutriments,serving_quantity,serving_quantity_unit`
       );
-      const json = await res.json();
-      if (json.status !== 1 || !json.product) {
-        toast.error('Product not found', { description: 'Try a different barcode or enter nutrition manually.' });
+      const offJson = await offRes.json();
+
+      if (offJson.status === 1 && offJson.product) {
+        const p = offJson.product;
+        const n = p.nutriments || {};
+        const servQty = p.serving_quantity ? parseFloat(p.serving_quantity) : 100;
+        const factor = servQty / 100;
+        setFoodName(p.product_name || '');
+        setServingSize(String(servQty));
+        setServingUnit(p.serving_quantity_unit || 'g');
+        setCalories(String(Math.round((n['energy-kcal_100g'] ?? 0) * factor)));
+        setProtein(String(Math.round((n.proteins_100g ?? 0) * factor)));
+        setCarbs(String(Math.round((n.carbohydrates_100g ?? 0) * factor)));
+        setFat(String(Math.round((n.fat_100g ?? 0) * factor)));
+        setFiber(String(Math.round((n.fiber_100g ?? 0) * factor)));
+        const brand = p.brands ? ` (${p.brands.split(',')[0].trim()})` : '';
+        setScanResult({ confidence: 'high', notes: `Open Food Facts${p.brands ? ' · ' + p.brands.split(',')[0].trim() : ''}` });
+        toast.success(`Found: ${p.product_name}${brand}`, { description: '✓ Nutrition pre-filled from barcode.' });
         setBarcodeLoading(false);
         return;
       }
-      const p = json.product;
-      const n = p.nutriments || {};
-      const servQty = p.serving_quantity ? parseFloat(p.serving_quantity) : 100;
-      const factor = servQty / 100;
-      setFoodName(p.product_name || '');
-      setServingSize(String(servQty));
-      setServingUnit(p.serving_quantity_unit || 'g');
-      setCalories(String(Math.round((n['energy-kcal_100g'] ?? 0) * factor)));
-      setProtein(String(Math.round((n.proteins_100g ?? 0) * factor)));
-      setCarbs(String(Math.round((n.carbohydrates_100g ?? 0) * factor)));
-      setFat(String(Math.round((n.fat_100g ?? 0) * factor)));
-      setFiber(String(Math.round((n.fiber_100g ?? 0) * factor)));
-      const brand = p.brands ? ` (${p.brands.split(',')[0].trim()})` : '';
-      setScanResult({ confidence: 'high', notes: `Open Food Facts${p.brands ? ' · ' + p.brands.split(',')[0].trim() : ''}` });
-      toast.success(`Found: ${p.product_name}${brand}`, { description: '✓ Nutrition pre-filled from barcode.' });
+
+      // 2️⃣ Fallback: UPC Item DB (covers US products like Mountain Dew)
+      const upcRes = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${barcode}`);
+      const upcJson = await upcRes.json();
+      const item = upcJson?.items?.[0];
+
+      if (item) {
+        const name = item.title || item.brand || 'Unknown Product';
+        setFoodName(name);
+        if (item.brand) setServingUnit('serving');
+        // UPC Item DB has nutrition in some entries
+        if (item.ean && item.nutritional_info) {
+          const ni = item.nutritional_info;
+          setCalories(String(ni.calories ?? ''));
+          setProtein(String(ni.protein ?? ''));
+          setCarbs(String(ni.total_carbohydrate ?? ''));
+          setFat(String(ni.total_fat ?? ''));
+        }
+        setScanResult({ confidence: 'medium', notes: `UPC ItemDB · ${item.brand || ''}` });
+        toast.success(`Found: ${name}`, { description: 'Product identified — fill in nutrition if needed.' });
+        setBarcodeLoading(false);
+        return;
+      }
+
+      // 3️⃣ Nothing found
+      toast.error('Product not found', { description: `Barcode ${barcode} not in database. Enter nutrition manually.` });
     } catch {
       toast.error('Barcode lookup failed', { description: 'Check your connection and try again.' });
     }
@@ -381,6 +408,11 @@ const FoodTrackerView = () => {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
 
+        // Require the same barcode 3 consecutive times to prevent false fires
+        let lastBarcode = '';
+        let confirmCount = 0;
+        const CONFIRM_NEEDED = 3;
+
         const tick = () => {
           // Use the shared ref so stopLiveScanner can kill this loop synchronously
           if (scanCancelledRef.current || !ctx || !videoRef.current) return;
@@ -391,12 +423,27 @@ const FoodTrackerView = () => {
             ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
             try {
               const result = codeReader.decodeFromCanvas(canvas);
-              if (result && !scanCancelledRef.current) {
-                lookupAndFillBarcode(result.getText());
-                return; // stop loop — lookupAndFillBarcode calls stopLiveScanner which sets scanCancelledRef
+              if (result) {
+                const text = result.getText();
+                if (text === lastBarcode) {
+                  confirmCount++;
+                } else {
+                  lastBarcode = text;
+                  confirmCount = 1;
+                }
+                if (confirmCount >= CONFIRM_NEEDED && !scanCancelledRef.current) {
+                  lookupAndFillBarcode(text);
+                  return; // stop loop
+                }
+              } else {
+                // No result — reset confirmation streak
+                lastBarcode = '';
+                confirmCount = 0;
               }
             } catch {
-              // NotFoundException on every empty frame — expected, continue
+              // NotFoundException on every empty frame — expected, reset streak
+              lastBarcode = '';
+              confirmCount = 0;
             }
           }
           scanAnimRef.current = requestAnimationFrame(tick);
