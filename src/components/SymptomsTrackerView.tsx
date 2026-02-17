@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Plus, AlertCircle, Activity, Smile, Zap, Moon, ChevronDown, ChevronUp, Trash2, Calendar, ClipboardList, ArrowRightLeft, X } from 'lucide-react';
+import { Plus, AlertCircle, Activity, Smile, Zap, Moon, Trash2, ArrowRightLeft, X, Brain, Loader2, TrendingUp, TrendingDown, Minus, ChevronRight, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { format, parseISO, subDays } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 
 interface SymptomDefinition {
   id: string;
@@ -104,6 +104,11 @@ const SymptomsTrackerView = () => {
   const [changes, setChanges] = useState<ProtocolChange[]>([]);
   const [loading, setLoading] = useState(true);
   const [subTab, setSubTab] = useState('log');
+
+  // AI correlation state
+  const [aiAnalysis, setAiAnalysis] = useState<any>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiDays, setAiDays] = useState(30);
 
   // Dialogs
   const [showAddSymptom, setShowAddSymptom] = useState(false);
@@ -273,6 +278,9 @@ const SymptomsTrackerView = () => {
           <TabsTrigger value="changes" className="flex-1 text-[10px] font-semibold rounded data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <ArrowRightLeft className="w-3 h-3 mr-1" />Changes
           </TabsTrigger>
+          <TabsTrigger value="ai" className="flex-1 text-[10px] font-semibold rounded data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <Brain className="w-3 h-3 mr-1" />AI
+          </TabsTrigger>
         </TabsList>
 
         {/* Symptoms log tab */}
@@ -385,6 +393,170 @@ const SymptomsTrackerView = () => {
               ))}
             </div>
           )}
+        </TabsContent>
+
+        {/* AI Correlation tab */}
+        <TabsContent value="ai" className="space-y-3 mt-3">
+          <Card className="border-border/50 bg-gradient-to-br from-primary/5 to-transparent">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3 mb-3">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <Brain className="w-4 h-4 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-foreground">AI Symptom Analysis</h3>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Correlates your symptoms with protocol changes and compound timelines to surface meaningful patterns.</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-xs text-muted-foreground">Analyze last</span>
+                {[7, 14, 30, 60].map(d => (
+                  <button key={d} onClick={() => setAiDays(d)}
+                    className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition-all ${aiDays === d ? 'bg-primary text-primary-foreground' : 'bg-secondary/50 text-muted-foreground hover:bg-secondary'}`}>
+                    {d}d
+                  </button>
+                ))}
+              </div>
+              <Button
+                onClick={async () => {
+                  if (!user) return;
+                  setAiLoading(true);
+                  const { data, error } = await supabase.functions.invoke('symptom-analysis', {
+                    body: { userId: user.id, days: aiDays },
+                  });
+                  setAiLoading(false);
+                  if (error || data?.error) { toast.error(data?.error || 'Analysis failed'); return; }
+                  setAiAnalysis(data);
+                }}
+                disabled={aiLoading}
+                className="w-full gap-2"
+              >
+                {aiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                {aiLoading ? 'Analyzing your data…' : 'Run Analysis'}
+              </Button>
+            </CardContent>
+          </Card>
+
+          {aiAnalysis && !aiLoading && (() => {
+            const { analysis, dataPoints } = aiAnalysis;
+            return (
+              <div className="space-y-3">
+                {/* Data summary */}
+                <div className="flex gap-2">
+                  {[
+                    { label: 'Symptom logs', value: dataPoints.logs },
+                    { label: 'Check-ins', value: dataPoints.checkins },
+                    { label: 'Protocol changes', value: dataPoints.changes },
+                  ].map(item => (
+                    <div key={item.label} className="flex-1 p-2 rounded-lg bg-secondary/30 text-center">
+                      <div className="text-lg font-bold text-foreground">{item.value}</div>
+                      <div className="text-[9px] text-muted-foreground">{item.label}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Key insight */}
+                {analysis.key_insight && (
+                  <Card className="border-primary/30 bg-primary/5">
+                    <CardContent className="p-3">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Brain className="w-3.5 h-3.5 text-primary" />
+                        <span className="text-[10px] font-semibold text-primary uppercase tracking-wide">Key Insight</span>
+                      </div>
+                      <p className="text-xs text-foreground">{analysis.key_insight}</p>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Overall summary */}
+                <Card className="border-border/50">
+                  <CardContent className="p-3">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      {analysis.wellness_trend === 'improving' ? <TrendingUp className="w-3.5 h-3.5 text-status-good" /> :
+                       analysis.wellness_trend === 'declining' ? <TrendingDown className="w-3.5 h-3.5 text-destructive" /> :
+                       <Minus className="w-3.5 h-3.5 text-status-warning" />}
+                      <span className="text-xs font-semibold text-foreground capitalize">{analysis.wellness_trend} trend</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{analysis.summary}</p>
+                  </CardContent>
+                </Card>
+
+                {/* Correlations */}
+                {analysis.correlations?.length > 0 && (
+                  <Card className="border-border/50">
+                    <CardHeader className="p-3 pb-1">
+                      <CardTitle className="text-xs text-muted-foreground font-semibold uppercase tracking-wide">Correlations Found</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-3 pt-0 space-y-2">
+                      {analysis.correlations.map((c: any, i: number) => (
+                        <div key={i} className="flex items-start gap-2 py-1.5 border-b border-border/30 last:border-0">
+                          <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${c.type === 'positive' ? 'bg-status-good' : c.type === 'negative' ? 'bg-destructive' : 'bg-muted-foreground'}`} />
+                          <div className="flex-1">
+                            <p className="text-xs text-foreground">{c.finding}</p>
+                            <span className={`text-[9px] ${c.confidence === 'high' ? 'text-status-good' : c.confidence === 'medium' ? 'text-status-warning' : 'text-muted-foreground'}`}>{c.confidence} confidence</span>
+                          </div>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Concerning trends */}
+                {analysis.concerning_trends?.length > 0 && (
+                  <Card className="border-destructive/30 bg-destructive/5">
+                    <CardHeader className="p-3 pb-1">
+                      <CardTitle className="text-xs text-destructive font-semibold uppercase tracking-wide flex items-center gap-1.5">
+                        <AlertCircle className="w-3.5 h-3.5" />Watch closely
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-3 pt-0 space-y-1">
+                      {analysis.concerning_trends.map((t: string, i: number) => (
+                        <p key={i} className="text-xs text-foreground flex items-start gap-1.5"><ChevronRight className="w-3 h-3 text-destructive flex-shrink-0 mt-0.5" />{t}</p>
+                      ))}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Positive trends */}
+                {analysis.positive_trends?.length > 0 && (
+                  <Card className="border-status-good/30 bg-status-good/5">
+                    <CardHeader className="p-3 pb-1">
+                      <CardTitle className="text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5" style={{ color: 'hsl(var(--status-good))' }}>
+                        <TrendingUp className="w-3.5 h-3.5" />Positive signals
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-3 pt-0 space-y-1">
+                      {analysis.positive_trends.map((t: string, i: number) => (
+                        <p key={i} className="text-xs text-foreground flex items-start gap-1.5"><ChevronRight className="w-3 h-3 flex-shrink-0 mt-0.5" style={{ color: 'hsl(var(--status-good))' }} />{t}</p>
+                      ))}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Suggestions */}
+                {analysis.suggestions?.length > 0 && (
+                  <Card className="border-border/50">
+                    <CardHeader className="p-3 pb-1">
+                      <CardTitle className="text-xs text-muted-foreground font-semibold uppercase tracking-wide">Suggestions</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-3 pt-0 space-y-2">
+                      {analysis.suggestions.map((s: any, i: number) => (
+                        <div key={i} className="p-2.5 rounded-lg bg-secondary/30 space-y-1">
+                          <div className="flex items-center gap-1.5">
+                            <Badge variant={s.priority === 'high' ? 'destructive' : 'secondary'} className="text-[9px] h-4">{s.priority}</Badge>
+                            <span className="text-xs font-medium text-foreground">{s.action}</span>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground">{s.rationale}</p>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                )}
+
+                <p className="text-[10px] text-muted-foreground text-center px-2">⚕️ Always discuss protocol changes with your healthcare provider before making adjustments.</p>
+              </div>
+            );
+          })()}
         </TabsContent>
       </Tabs>
 

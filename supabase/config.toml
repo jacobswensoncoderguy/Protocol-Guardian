@@ -11,3 +11,9 @@ verify_jwt = false
 
 [functions.parse-biomarkers]
 verify_jwt = false
+
+[functions.parse-food-image]
+verify_jwt = false
+
+[functions.symptom-analysis]
+verify_jwt = false
