@@ -1057,12 +1057,21 @@ const FoodTrackerView = () => {
 
             {scanResult && (
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/20">
-                {scanResult.notes?.includes('Open Food Facts')
-                  ? <Barcode className="w-3.5 h-3.5 text-accent flex-shrink-0" />
-                  : <Sparkles className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
+                {productImage ? (
+                  <img
+                    src={productImage}
+                    alt="Product"
+                    className="w-10 h-10 rounded object-cover flex-shrink-0 border border-border/40 bg-muted"
+                    onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                  />
+                ) : (
+                  scanResult.notes?.includes('Open Food Facts')
+                    ? <Barcode className="w-3.5 h-3.5 text-accent flex-shrink-0" />
+                    : <Sparkles className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                )}
                 <div className="min-w-0">
                   <p className="text-xs font-medium text-primary">
-                    {scanResult.notes?.includes('Open Food Facts') ? 'Open Food Facts' : 'AI scanned'}
+                    {scanResult.notes?.includes('Open Food Facts') ? 'Open Food Facts' : scanResult.notes?.includes('UPC') ? 'UPC ItemDB' : 'AI scanned'}
                   </p>
                   <p className="text-[10px] text-muted-foreground truncate">{scanResult.notes || `Confidence: ${scanResult.confidence}`}</p>
                 </div>
