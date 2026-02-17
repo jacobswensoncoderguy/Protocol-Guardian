@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Package, DollarSign, LayoutDashboard, ShoppingCart, RefreshCw, Brain, Activity, History } from 'lucide-react';
+import { Calendar, Package, DollarSign, LayoutDashboard, ShoppingCart, RefreshCw, Brain, Activity } from 'lucide-react';
 import { getDaysRemainingWithCycling } from '@/lib/cycling';
 import { getStatus } from '@/data/compounds';
 import { Compound } from '@/data/compounds';
@@ -262,10 +262,6 @@ const Index = () => {
               <Calendar className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
               <span>Schedule</span>
             </TabsTrigger>
-            <TabsTrigger value="history" className="flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
-              <History className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-              <span>History</span>
-            </TabsTrigger>
             <TabsTrigger value="inventory" className="relative flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
               <Package className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
               <span>Inventory</span>
@@ -283,10 +279,6 @@ const Index = () => {
                   {lowStockCounts.reorder}
                 </span>
               )}
-            </TabsTrigger>
-            <TabsTrigger value="costs" className="flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
-              <DollarSign className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-              <span>Costs</span>
             </TabsTrigger>
             <TabsTrigger value="ai-insights" className="flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
               <Brain className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
@@ -323,33 +315,49 @@ const Index = () => {
             <OutcomesView userId={user?.id} goals={fullGoals} onRefreshGoals={fetchFullGoals} onUploadClick={() => setShowBiomarkerUpload(true)} profile={profile} measurementSystem={measurementSystem} onCreateGoal={createGoals} onUpdateGoal={updateGoal} onDeleteGoal={deleteGoal} />
           </TabsContent>
           <TabsContent value="schedule" className="animate-slide-up">
-            <WeeklyScheduleView compounds={compounds} protocols={protocols} compoundAnalyses={compoundAnalyses} compoundLoading={compoundLoading} onAnalyzeCompound={analyzeCompound} customFields={customFields} customFieldValues={customFieldValues} checkedDoses={checkedDoses} onToggleChecked={toggleDoseCheck} />
-          </TabsContent>
-          <TabsContent value="history" className="animate-slide-up">
-            <ScheduleHistoryView snapshots={scheduleSnapshots} loading={snapshotsLoading} checkedDosesMap={historicalCheckOffs} />
+            <Tabs defaultValue="this-week" className="w-full">
+              <TabsList className="w-full bg-secondary/30 border border-border/30 mb-3 h-9">
+                <TabsTrigger value="this-week" className="flex-1 text-xs data-[state=active]:bg-primary/10 data-[state=active]:text-primary">This Week</TabsTrigger>
+                <TabsTrigger value="history" className="flex-1 text-xs data-[state=active]:bg-primary/10 data-[state=active]:text-primary">History</TabsTrigger>
+              </TabsList>
+              <TabsContent value="this-week">
+                <WeeklyScheduleView compounds={compounds} protocols={protocols} compoundAnalyses={compoundAnalyses} compoundLoading={compoundLoading} onAnalyzeCompound={analyzeCompound} customFields={customFields} customFieldValues={customFieldValues} checkedDoses={checkedDoses} onToggleChecked={toggleDoseCheck} />
+              </TabsContent>
+              <TabsContent value="history">
+                <ScheduleHistoryView snapshots={scheduleSnapshots} loading={snapshotsLoading} checkedDosesMap={historicalCheckOffs} />
+              </TabsContent>
+            </Tabs>
           </TabsContent>
           <TabsContent value="inventory" className="animate-slide-up">
-            <InventoryView
-              compounds={compounds}
-              onUpdateCompound={handleUpdateCompound}
-              onDeleteCompound={deleteCompound}
-              onAddCompound={() => setShowAddDialog(true)}
-              protocols={protocols}
-              toleranceLevel={toleranceLevel}
-              onToleranceChange={handleToleranceChange}
-              customFields={customFields}
-              customFieldValues={customFieldValues}
-              onAddCustomField={addCustomField}
-              onRemoveCustomField={removeCustomField}
-              onReorderCustomField={reorderCustomField}
-              onSetCustomFieldValue={setCustomFieldValue}
-            />
+            <Tabs defaultValue="stock" className="w-full">
+              <TabsList className="w-full bg-secondary/30 border border-border/30 mb-3 h-9">
+                <TabsTrigger value="stock" className="flex-1 text-xs data-[state=active]:bg-primary/10 data-[state=active]:text-primary">Stock</TabsTrigger>
+                <TabsTrigger value="costs" className="flex-1 text-xs data-[state=active]:bg-primary/10 data-[state=active]:text-primary">Costs</TabsTrigger>
+              </TabsList>
+              <TabsContent value="stock">
+                <InventoryView
+                  compounds={compounds}
+                  onUpdateCompound={handleUpdateCompound}
+                  onDeleteCompound={deleteCompound}
+                  onAddCompound={() => setShowAddDialog(true)}
+                  protocols={protocols}
+                  toleranceLevel={toleranceLevel}
+                  onToleranceChange={handleToleranceChange}
+                  customFields={customFields}
+                  customFieldValues={customFieldValues}
+                  onAddCustomField={addCustomField}
+                  onRemoveCustomField={removeCustomField}
+                  onReorderCustomField={reorderCustomField}
+                  onSetCustomFieldValue={setCustomFieldValue}
+                />
+              </TabsContent>
+              <TabsContent value="costs">
+                <CostProjectionView compounds={compounds} protocols={protocols} customFields={customFields} customFieldValues={customFieldValues} userId={user?.id} />
+              </TabsContent>
+            </Tabs>
           </TabsContent>
           <TabsContent value="reorders" className="animate-slide-up">
             <ReorderView compounds={compounds} onUpdateCompound={handleUpdateCompound} userId={user?.id} protocols={protocols} />
-          </TabsContent>
-          <TabsContent value="costs" className="animate-slide-up">
-            <CostProjectionView compounds={compounds} protocols={protocols} customFields={customFields} customFieldValues={customFieldValues} userId={user?.id} />
           </TabsContent>
           <TabsContent value="ai-insights" className="animate-slide-up">
             <AIInsightsView
