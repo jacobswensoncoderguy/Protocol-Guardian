@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { BrowserMultiFormatReader } from '@zxing/browser';
-import { Plus, Utensils, Apple, Coffee, Moon, Sun, Trash2, ChevronDown, ChevronUp, Camera, Loader2, Settings, Sparkles, Barcode, X, Search, Clock, Star, ScanLine } from 'lucide-react';
+import { Plus, Utensils, Apple, Coffee, Moon, Sun, Trash2, ChevronDown, ChevronUp, Camera, Loader2, Settings, Sparkles, Barcode, X, Search, Clock, Star, ScanLine, Zap } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -102,6 +102,7 @@ const FoodTrackerView = () => {
   const [showLiveScanner, setShowLiveScanner] = useState(false);
   const [liveScannerLoading, setLiveScannerLoading] = useState(false);
   const [liveScannerError, setLiveScannerError] = useState<string | null>(null);
+  const [torchOn, setTorchOn] = useState(false);
   const scanCancelledRef = useRef(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const scannerControlsRef = useRef<MediaStream | null>(null);
@@ -111,6 +112,7 @@ const FoodTrackerView = () => {
   const [barcodeInput, setBarcodeInput] = useState('');
   const [barcodeLoading, setBarcodeLoading] = useState(false);
   const [showBarcodeInput, setShowBarcodeInput] = useState(false);
+  const [productImage, setProductImage] = useState<string | null>(null);
 
   // Name search state (Open Food Facts)
   const [searchQuery, setSearchQuery] = useState('');
@@ -274,6 +276,7 @@ const FoodTrackerView = () => {
     setFoodName(''); setServingSize('100'); setServingUnit('g'); setServings('1');
     setCalories(''); setProtein(''); setCarbs(''); setFat(''); setFiber('');
     setScanResult(null); setBarcodeInput(''); setShowBarcodeInput(false);
+    setProductImage(null);
     setSearchQuery(''); setSearchResults([]); setShowSearchResults(false);
   };
 
@@ -300,10 +303,11 @@ const FoodTrackerView = () => {
   const lookupAndFillBarcode = useCallback(async (barcode: string) => {
     stopLiveScanner();
     setBarcodeLoading(true);
+    setProductImage(null);
     try {
       // 1️⃣ Try Open Food Facts first
       const offRes = await fetch(
-        `https://world.openfoodfacts.org/api/v2/product/${barcode}?fields=product_name,brands,nutriments,serving_quantity,serving_quantity_unit`
+        `https://world.openfoodfacts.org/api/v2/product/${barcode}?fields=product_name,brands,nutriments,serving_quantity,serving_quantity_unit,image_front_small_url`
       );
       const offJson = await offRes.json();
 
@@ -321,6 +325,7 @@ const FoodTrackerView = () => {
         setFat(String(Math.round((n.fat_100g ?? 0) * factor)));
         setFiber(String(Math.round((n.fiber_100g ?? 0) * factor)));
         const brand = p.brands ? ` (${p.brands.split(',')[0].trim()})` : '';
+        if (p.image_front_small_url) setProductImage(p.image_front_small_url);
         setScanResult({ confidence: 'high', notes: `Open Food Facts${p.brands ? ' · ' + p.brands.split(',')[0].trim() : ''}` });
         toast.success(`Found: ${p.product_name}${brand}`, { description: '✓ Nutrition pre-filled from barcode.' });
         setBarcodeLoading(false);
@@ -344,6 +349,9 @@ const FoodTrackerView = () => {
           setCarbs(String(ni.total_carbohydrate ?? ''));
           setFat(String(ni.total_fat ?? ''));
         }
+        // UPC Item DB may return product images
+        const img = item.images?.[0];
+        if (img) setProductImage(img);
         setScanResult({ confidence: 'medium', notes: `UPC ItemDB · ${item.brand || ''}` });
         toast.success(`Found: ${name}`, { description: 'Product identified — fill in nutrition if needed.' });
         setBarcodeLoading(false);
@@ -357,6 +365,19 @@ const FoodTrackerView = () => {
     }
     setBarcodeLoading(false);
   }, [stopLiveScanner]);
+
+  // Toggle torch/flashlight on the active camera track
+  const toggleTorch = useCallback(async () => {
+    if (!scannerControlsRef.current) return;
+    const track = scannerControlsRef.current.getVideoTracks()[0];
+    if (!track) return;
+    try {
+      await track.applyConstraints({ advanced: [{ torch: !torchOn } as any] });
+      setTorchOn(t => !t);
+    } catch {
+      toast.error('Torch not supported on this device');
+    }
+  }, [torchOn]);
 
   // Start live barcode scanner — flips flag; useEffect handles init once video mounts
   const startLiveScanner = useCallback(() => {
@@ -994,9 +1015,18 @@ const FoodTrackerView = () => {
                 )}
                 <div className="absolute bottom-0 left-0 right-0 z-20 flex items-center justify-between px-3 py-2 bg-black/50">
                   <span className="text-[10px] text-white/70">Point at a barcode</span>
-                  <button onClick={stopLiveScanner} className="text-white/80 hover:text-white">
-                    <X className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={toggleTorch}
+                      className={`p-1 rounded-full transition-colors ${torchOn ? 'text-yellow-300 bg-yellow-300/20' : 'text-white/60 hover:text-white'}`}
+                      title="Toggle flashlight"
+                    >
+                      <Zap className="w-4 h-4" fill={torchOn ? 'currentColor' : 'none'} />
+                    </button>
+                    <button onClick={stopLiveScanner} className="text-white/80 hover:text-white">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
