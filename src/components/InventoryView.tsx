@@ -338,7 +338,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
     let storedUnit: string;
     if (dl.includes('iu')) storedUnit = 'iu';
     else if (dl.includes('mcg') || dl.includes('µg')) storedUnit = 'mcg';
-    else if (dl.includes('scoop')) storedUnit = 'scoop';
+    else if (dl.includes('scoop') || (compound.category === 'powder' && dl.includes('serving'))) storedUnit = 'scoop';
     else if (dl.includes('pill') || dl.includes('cap') || dl.includes('softgel') || dl.includes('tab') || dl.includes('serving')) storedUnit = 'pills';
     else if (dl.includes('ml')) storedUnit = 'ml';
     else storedUnit = compound.category === 'powder' ? 'scoop' : 'mg';
