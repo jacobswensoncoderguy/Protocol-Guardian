@@ -764,23 +764,29 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
             <div className="flex gap-1 flex-1 flex-wrap">
               {(['morning', 'afternoon', 'evening'] as const).map(t => {
                 const current = (editState.timing || '').toLowerCase();
+                const timingKeywords = /\b(morning|am|evening|pm|nightly|night|afternoon|pre[- ]?workout|post[- ]?workout)\b/gi;
                 const isActive = current.includes(t) || 
-                  (t === 'morning' && (current.includes('am') || current.includes('daily morning'))) ||
-                  (t === 'evening' && (current.includes('pm') || current.includes('nightly') || current.includes('night'))) ||
-                  (t === 'afternoon' && (current.includes('workout')));
+                  (t === 'morning' && (/\bam\b/.test(current))) ||
+                  (t === 'evening' && (/\b(pm|nightly|night)\b/.test(current))) ||
+                  (t === 'afternoon' && (/\b(pre[- ]?workout|post[- ]?workout)\b/.test(current)));
                 return (
                   <button
                     key={t}
                     onClick={() => {
-                      // Toggle the timing keyword in the timingNote
                       const note = editState.timing || '';
-                      if (isActive) {
-                        // Remove timing keyword
-                        const cleaned = note.replace(new RegExp(`\\b${t}\\b`, 'gi'), '').replace(/\s+/g, ' ').trim();
-                        setEditState(s => ({ ...s, timing: cleaned }));
-                      } else {
-                        setEditState(s => ({ ...s, timing: note ? `${note}, ${t}` : t }));
-                      }
+                      // Strip ALL timing keywords first
+                      const stripped = note.replace(timingKeywords, '').replace(/[,\s]+/g, ' ').trim();
+                      // Determine active set
+                      const active = new Set<string>();
+                      if (current.includes('morning') || /\bam\b/.test(current)) active.add('morning');
+                      if (current.includes('afternoon') || /\b(pre|post)[- ]?workout\b/.test(current)) active.add('afternoon');
+                      if (current.includes('evening') || /\b(pm|nightly|night)\b/.test(current)) active.add('evening');
+                      // Toggle
+                      if (active.has(t)) active.delete(t); else active.add(t);
+                      // Rebuild
+                      const timingStr = Array.from(active).join(', ');
+                      const newNote = stripped ? (timingStr ? `${timingStr}, ${stripped}` : stripped) : timingStr;
+                      setEditState(s => ({ ...s, timing: newNote }));
                     }}
                     className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-all ${
                       isActive
