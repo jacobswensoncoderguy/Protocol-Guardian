@@ -16,6 +16,10 @@ interface QuickActionsFABProps {
   onNavigateTab: (tab: string) => void;
 }
 
+const haptic = (ms = 10) => {
+  try { navigator?.vibrate?.(ms); } catch {}
+};
+
 const QuickActionsFAB = ({ activeTab, onAddCompound, onManageProtocols, onGoalExpansion, onNavigateTab }: QuickActionsFABProps) => {
   const [open, setOpen] = useState(false);
 
@@ -55,19 +59,42 @@ const QuickActionsFAB = ({ activeTab, onAddCompound, onManageProtocols, onGoalEx
 
   const actions = getActions();
 
+  const toggleOpen = () => {
+    haptic(open ? 5 : 12);
+    setOpen(!open);
+  };
+
+  const handleAction = (action: QuickAction) => {
+    haptic(8);
+    action.onClick();
+    setOpen(false);
+  };
+
   return (
     <div className="fixed bottom-20 left-4 z-40 sm:bottom-6 sm:left-6">
+      {/* Scrim overlay */}
+      <div
+        className={cn(
+          "fixed inset-0 bg-black/20 backdrop-blur-[2px] transition-opacity duration-200 -z-10",
+          open ? "opacity-100" : "opacity-0 pointer-events-none"
+        )}
+        onClick={() => { haptic(5); setOpen(false); }}
+      />
+
       {/* Action items */}
       <div className={cn(
-        "flex flex-col-reverse gap-2 mb-2 transition-all duration-200",
-        open ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
+        "flex flex-col-reverse gap-2 mb-2 transition-all duration-300",
+        open ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6 pointer-events-none"
       )}>
         {actions.map((action, i) => (
           <button
             key={action.label}
-            onClick={() => { action.onClick(); setOpen(false); }}
-            className="flex items-center gap-2 px-3 py-2 rounded-full bg-card border border-border/50 shadow-lg hover:bg-secondary/80 transition-all text-sm font-medium text-foreground animate-in fade-in-0 slide-in-from-bottom-2"
-            style={{ animationDelay: `${i * 50}ms` }}
+            onClick={() => handleAction(action)}
+            className="flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-card/95 border border-border/50 shadow-lg hover:bg-secondary/80 active:scale-95 transition-all duration-150 text-sm font-medium text-foreground"
+            style={{
+              animationDelay: `${i * 60}ms`,
+              animation: open ? `fab-item-in 0.3s ease-out ${i * 60}ms both` : undefined,
+            }}
           >
             <action.icon className="w-4 h-4 text-primary" />
             {action.label}
@@ -77,16 +104,29 @@ const QuickActionsFAB = ({ activeTab, onAddCompound, onManageProtocols, onGoalEx
 
       {/* FAB trigger */}
       <button
-        onClick={() => setOpen(!open)}
+        onClick={toggleOpen}
         className={cn(
-          "w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-all duration-200 active:scale-95",
+          "w-12 h-12 rounded-full shadow-xl flex items-center justify-center transition-all duration-300 active:scale-90",
           open
-            ? "bg-muted text-muted-foreground rotate-45"
-            : "bg-primary text-primary-foreground"
+            ? "bg-muted text-muted-foreground rotate-[135deg] shadow-lg"
+            : "bg-primary text-primary-foreground hover:shadow-primary/30 hover:shadow-2xl hover:scale-105"
         )}
       >
-        {open ? <X className="w-5 h-5 rotate-[-45deg]" /> : <Plus className="w-5 h-5" />}
+        <Plus className={cn("w-5 h-5 transition-transform duration-300", open && "rotate-[-135deg]")} />
       </button>
+
+      <style>{`
+        @keyframes fab-item-in {
+          from {
+            opacity: 0;
+            transform: translateY(12px) scale(0.9);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+      `}</style>
     </div>
   );
 };

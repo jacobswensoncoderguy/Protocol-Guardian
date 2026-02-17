@@ -1152,12 +1152,17 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
 
 // --- Inline Quantity Editor ---
 
+const hapticTap = (ms = 10) => {
+  try { navigator?.vibrate?.(ms); } catch {}
+};
+
 const InlineQuantityEditor = ({ compound, status, isOil, isPeptide, onUpdate }: {
   compound: Compound; status: string; isOil: boolean; isPeptide: boolean;
   onUpdate: (id: string, updates: Partial<Compound>) => void;
 }) => {
   const [inlineEditing, setInlineEditing] = useState(false);
   const [inlineValue, setInlineValue] = useState(compound.currentQuantity.toString());
+  const [justSaved, setJustSaved] = useState(false);
 
   const label = isPeptide ? 'Vials' : 'On Hand';
   const displayValue = isPeptide
@@ -1175,20 +1180,26 @@ const InlineQuantityEditor = ({ compound, status, isOil, isPeptide, onUpdate }: 
     const val = parseFloat(inlineValue);
     if (!isNaN(val) && val >= 0) {
       onUpdate(compound.id, { currentQuantity: val });
+      hapticTap(15);
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 600);
     }
     setInlineEditing(false);
   };
 
+  const stepValue = (delta: number) => {
+    hapticTap(6);
+    const v = Math.max(0, parseFloat(inlineValue) + delta);
+    setInlineValue(v.toString());
+  };
+
   if (inlineEditing) {
     return (
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 animate-scale-in">
         <span className="text-muted-foreground text-[10px]">{label}:</span>
         <button
-          onClick={() => {
-            const v = Math.max(0, parseFloat(inlineValue) - 1);
-            setInlineValue(v.toString());
-          }}
-          className="w-5 h-5 rounded bg-secondary text-foreground text-xs flex items-center justify-center active:bg-secondary/60"
+          onClick={() => stepValue(-1)}
+          className="w-5 h-5 rounded bg-secondary text-foreground text-xs flex items-center justify-center active:scale-90 active:bg-secondary/60 transition-transform duration-100"
         >−</button>
         <input
           type="number"
@@ -1197,16 +1208,13 @@ const InlineQuantityEditor = ({ compound, status, isOil, isPeptide, onUpdate }: 
           onBlur={saveInline}
           onKeyDown={e => e.key === 'Enter' && saveInline()}
           autoFocus
-          className="w-12 bg-secondary border border-primary/30 rounded px-1 py-0.5 text-foreground font-mono text-[11px] text-center focus:outline-none focus:ring-1 focus:ring-primary/50"
+          className="w-12 bg-secondary border border-primary/30 rounded px-1 py-0.5 text-foreground font-mono text-[11px] text-center focus:outline-none focus:ring-1 focus:ring-primary/50 transition-colors duration-150"
         />
         <button
-          onClick={() => {
-            const v = parseFloat(inlineValue) + 1;
-            setInlineValue(v.toString());
-          }}
-          className="w-5 h-5 rounded bg-secondary text-foreground text-xs flex items-center justify-center active:bg-secondary/60"
+          onClick={() => stepValue(1)}
+          className="w-5 h-5 rounded bg-secondary text-foreground text-xs flex items-center justify-center active:scale-90 active:bg-secondary/60 transition-transform duration-100"
         >+</button>
-        <button onClick={saveInline} className="p-0.5 text-primary">
+        <button onClick={saveInline} className="p-0.5 text-primary active:scale-90 transition-transform duration-100">
           <Check className="w-3 h-3" />
         </button>
       </div>
@@ -1217,8 +1225,8 @@ const InlineQuantityEditor = ({ compound, status, isOil, isPeptide, onUpdate }: 
     <div>
       <span className="text-muted-foreground text-[10px]">{label}:</span>{' '}
       <button
-        onClick={() => { setInlineValue(compound.currentQuantity.toString()); setInlineEditing(true); }}
-        className={`font-mono text-[10px] text-foreground underline decoration-dotted underline-offset-2 cursor-pointer hover:text-primary transition-colors ${status === 'critical' ? 'animate-pulse text-status-critical' : status === 'warning' ? 'text-status-warning' : ''}`}
+        onClick={() => { hapticTap(8); setInlineValue(compound.currentQuantity.toString()); setInlineEditing(true); }}
+        className={`font-mono text-[10px] text-foreground underline decoration-dotted underline-offset-2 cursor-pointer hover:text-primary transition-all duration-150 ${justSaved ? 'text-primary scale-110' : ''} ${status === 'critical' ? 'animate-pulse text-status-critical' : status === 'warning' ? 'text-status-warning' : ''}`}
         title="Tap to edit quantity"
       >
         {displayValue}
