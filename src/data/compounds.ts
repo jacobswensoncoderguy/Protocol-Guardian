@@ -27,6 +27,9 @@ export interface Compound {
   cycleOnDays?: number;
   cycleOffDays?: number;
   cycleStartDate?: string; // ISO date when current cycle started
+  // Pause
+  pausedAt?: string; // ISO timestamp when compound was paused
+  pauseRestartDate?: string; // ISO date when compound should auto-resume (optional)
   // Inventory
   currentQuantity: number;
   purchaseDate: string; // ISO date (used for orals/powders only)

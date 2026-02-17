@@ -1,10 +1,10 @@
 import { useState, useMemo, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { Compound, getStatus, getReorderDateString, CompoundCategory, getDaysRemaining } from '@/data/compounds';
-import { getCycleStatus, getDaysRemainingWithCycling } from '@/lib/cycling';
+import { getCycleStatus, getDaysRemainingWithCycling, isPaused } from '@/lib/cycling';
 import { UserProtocol } from '@/hooks/useProtocols';
 import { CustomField, CustomFieldValue, PREDEFINED_FIELDS } from '@/hooks/useCustomFields';
-import { Pencil, Check, X, Trash2, Plus, ChevronDown, ChevronUp, GripVertical, Syringe, Clock, SortAsc, Moon as MoonIcon, Sun, Dumbbell, RefreshCcw, Package, PlusCircle, AlertTriangle } from 'lucide-react';
+import { Pencil, Check, X, Trash2, Plus, ChevronDown, ChevronUp, GripVertical, Syringe, Clock, SortAsc, Moon as MoonIcon, Sun, Dumbbell, RefreshCcw, Package, PlusCircle, AlertTriangle, Pause, Play, Calendar } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import ToleranceSelector from '@/components/ToleranceSelector';
@@ -273,6 +273,8 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
 }) => {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmDormant, setConfirmDormant] = useState(false);
+  const [showPauseDialog, setShowPauseDialog] = useState(false);
+  const [pauseDate, setPauseDate] = useState('');
   const [doseUnit, setDoseUnit] = useState<'mg' | 'ml' | 'iu'>('iu');
   const [editing, setEditing] = useState(false);
   const [editState, setEditState] = useState<Record<string, string>>({});
@@ -281,8 +283,9 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
   const [newFieldType, setNewFieldType] = useState<'text' | 'number' | 'date'>('text');
   const [newFieldUnit, setNewFieldUnit] = useState('');
 
+  const compoundIsPaused = isPaused(compound);
   const days = getDaysRemainingWithCycling(compound);
-  const status = getStatus(days);
+  const status = compoundIsPaused ? 'good' as const : getStatus(days);
   const cycleStatus = getCycleStatus(compound);
   const maxDays = 90;
   const progress = Math.min(100, (days / maxDays) * 100);
@@ -545,7 +548,8 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
     : `${compound.reorderQuantity} ${compound.reorderType === 'kit' ? 'kit' : 'unit'}${compound.reorderQuantity !== 1 ? 's' : ''}`;
 
   return (
-    <div className={`bg-card rounded-lg border p-2.5 sm:p-3 card-glow ${
+    <div className={`bg-card rounded-lg border p-2.5 sm:p-3 card-glow transition-opacity ${
+      compoundIsPaused ? 'opacity-60 border-accent/30' :
       status === 'critical' ? 'border-destructive/40' :
       status === 'warning' ? 'border-accent/30' :
       'border-border/50'
@@ -553,10 +557,19 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
       <div className="flex items-start justify-between mb-2">
         <div className="min-w-0 flex-1">
           <h4 className="text-sm font-semibold text-foreground truncate">{compound.name}</h4>
-          <p className="text-[10px] text-muted-foreground truncate">{compound.timingNote}</p>
+          <p className="text-[10px] text-muted-foreground truncate">
+            {compoundIsPaused
+              ? `Paused${compound.pauseRestartDate ? ` → resumes ${new Date(compound.pauseRestartDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ' (manual resume)'}`
+              : compound.timingNote}
+          </p>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0 ml-2">
-          {cycleStatus.hasCycle && compound.cycleOnDays && compound.cycleOnDays > 0 && compound.cycleOffDays && compound.cycleOffDays > 0 && (
+          {compoundIsPaused && (
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-accent/20 text-status-warning">
+              PAUSED
+            </span>
+          )}
+          {!compoundIsPaused && cycleStatus.hasCycle && compound.cycleOnDays && compound.cycleOnDays > 0 && compound.cycleOffDays && compound.cycleOffDays > 0 && (
             <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
               cycleStatus.isOn
                 ? 'bg-status-good/15 text-status-good'
@@ -565,24 +578,41 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
               {cycleStatus.isOn ? `ON ${cycleStatus.daysLeftInPhase}d` : `OFF ${cycleStatus.daysLeftInPhase}d`}
             </span>
           )}
-          <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
-            status === 'critical' ? 'bg-destructive/20 text-status-critical' :
-            status === 'warning' ? 'bg-accent/20 text-status-warning' :
-            'bg-status-good/10 text-status-good'
-          }`} title={`${days} days of supply remaining`}>
-            {days}d left
-          </span>
+          {!compoundIsPaused && (
+            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
+              status === 'critical' ? 'bg-destructive/20 text-status-critical' :
+              status === 'warning' ? 'bg-accent/20 text-status-warning' :
+              'bg-status-good/10 text-status-good'
+            }`} title={`${days} days of supply remaining`}>
+              {days}d left
+            </span>
+          )}
           {!editing && (
             <div className="flex items-center gap-1">
               <button onClick={startEdit} className="p-1.5 rounded active:bg-secondary/80 transition-colors text-muted-foreground touch-manipulation">
                 <Pencil className="w-3.5 h-3.5" />
+              </button>
+              {/* Pause/Resume toggle */}
+              <button
+                onClick={() => {
+                  if (compoundIsPaused) {
+                    // Resume immediately
+                    onUpdate(compound.id, { pausedAt: undefined, pauseRestartDate: undefined });
+                    toast.success(`${compound.name} resumed`);
+                  } else {
+                    setShowPauseDialog(true);
+                  }
+                }}
+                className={`p-1.5 rounded active:bg-secondary/80 transition-colors touch-manipulation ${compoundIsPaused ? 'text-status-warning' : 'text-muted-foreground'}`}
+                title={compoundIsPaused ? 'Resume compound' : 'Pause compound'}
+              >
+                {compoundIsPaused ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
               </button>
               {/* Dormant toggle */}
               <button
                 onClick={() => {
                   const isDormant = compound.notes?.includes('[DORMANT]');
                   if (isDormant) {
-                    // Reactivate directly
                     const newNotes = (compound.notes || '').replace('[DORMANT]', '').trim();
                     onUpdate(compound.id, { notes: newNotes });
                   } else {
@@ -634,7 +664,52 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
         }}
       />
 
-      {/* Progress bar */}
+      {/* Pause dialog */}
+      {showPauseDialog && (
+        <div className="bg-accent/10 border border-accent/30 rounded-lg px-3 py-2.5 mb-2 space-y-2">
+          <div className="flex items-center gap-2">
+            <Pause className="w-3.5 h-3.5 text-status-warning flex-shrink-0" />
+            <span className="text-xs font-semibold text-foreground">Pause {compound.name}</span>
+          </div>
+          <p className="text-[10px] text-muted-foreground">
+            Inventory depletion and cost projections will freeze. {cycleStatus.hasCycle ? 'Your current cycle will resume from where it left off when you unpause.' : ''}
+          </p>
+          <div className="flex items-center gap-2">
+            <Calendar className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+            <span className="text-[10px] text-muted-foreground">Restart date (optional):</span>
+            <input
+              type="date"
+              value={pauseDate}
+              min={new Date().toISOString().split('T')[0]}
+              onChange={e => setPauseDate(e.target.value)}
+              className="flex-1 bg-secondary border border-border/50 rounded px-2 py-1 text-[11px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+            />
+          </div>
+          <div className="flex items-center gap-2 pt-1">
+            <button
+              onClick={() => {
+                onUpdate(compound.id, {
+                  pausedAt: new Date().toISOString(),
+                  pauseRestartDate: pauseDate || undefined,
+                });
+                toast.success(`${compound.name} paused${pauseDate ? ` until ${new Date(pauseDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}`);
+                setShowPauseDialog(false);
+                setPauseDate('');
+              }}
+              className="flex-1 py-1.5 rounded-lg bg-accent/20 text-status-warning text-[11px] font-semibold hover:bg-accent/30 transition-colors"
+            >
+              Pause Now
+            </button>
+            <button
+              onClick={() => { setShowPauseDialog(false); setPauseDate(''); }}
+              className="px-3 py-1.5 rounded-lg bg-secondary text-muted-foreground text-[11px] font-medium hover:bg-secondary/80 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="h-1 bg-secondary rounded-full overflow-hidden mb-2">
         <div
           className={`h-full rounded-full transition-all duration-500 ${

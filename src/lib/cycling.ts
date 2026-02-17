@@ -14,8 +14,35 @@ export interface CycleStatus {
 }
 
 /**
+ * Check if a compound is currently paused.
+ * Returns true if paused and either no restart date or restart date is in the future.
+ */
+export function isPaused(compound: Compound, referenceDate: Date = new Date()): boolean {
+  if (!compound.pausedAt) return false;
+  if (!compound.pauseRestartDate) return true; // paused indefinitely
+  const restart = new Date(compound.pauseRestartDate);
+  restart.setHours(0, 0, 0, 0);
+  const ref = new Date(referenceDate);
+  ref.setHours(0, 0, 0, 0);
+  return ref < restart;
+}
+
+/**
+ * Get the number of days a compound has been paused (used for cycle offset).
+ */
+export function getPausedDays(compound: Compound, referenceDate: Date = new Date()): number {
+  if (!compound.pausedAt) return 0;
+  const pauseStart = new Date(compound.pausedAt);
+  const end = compound.pauseRestartDate && new Date(compound.pauseRestartDate) < referenceDate
+    ? new Date(compound.pauseRestartDate)
+    : referenceDate;
+  return Math.max(0, Math.floor((end.getTime() - pauseStart.getTime()) / (24 * 60 * 60 * 1000)));
+}
+
+/**
  * Determine the current cycling status of a compound.
  * If the compound has no cycle data, it's always ON with onFraction = 1.
+ * If paused, adjusts cycle position by excluding pause duration.
  */
 export function getCycleStatus(compound: Compound, referenceDate: Date = new Date()): CycleStatus {
   if (!compound.cycleOnDays || !compound.cycleOffDays || !compound.cycleStartDate) {
@@ -25,7 +52,10 @@ export function getCycleStatus(compound: Compound, referenceDate: Date = new Dat
   const cycleLength = compound.cycleOnDays + compound.cycleOffDays;
   const start = new Date(compound.cycleStartDate);
   const diffMs = referenceDate.getTime() - start.getTime();
-  const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+  let diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+
+  // Subtract paused days so cycle resumes from where it left off
+  diffDays -= getPausedDays(compound, referenceDate);
 
   // Handle dates before cycle start — treat as ON from day 0
   const dayInCycle = ((diffDays % cycleLength) + cycleLength) % cycleLength;
@@ -47,22 +77,23 @@ export function getCycleStatus(compound: Compound, referenceDate: Date = new Dat
 }
 
 /**
- * Get the effective daily consumption adjusted for cycling.
- * During OFF phases the compound isn't consumed, so the average daily burn
- * over a full cycle is reduced by the onFraction.
+ * Get the effective daily consumption adjusted for cycling and pause state.
+ * Paused compounds consume nothing. During cycling OFF phases, average is reduced.
  */
 export function getEffectiveDailyConsumption(compound: Compound): number {
+  if (isPaused(compound)) return 0;
   const rawDaily = getNormalizedDailyConsumption(compound);
   const { onFraction } = getCycleStatus(compound);
   return rawDaily * onFraction;
 }
 
 /**
- * Calculate days remaining accounting for cycling ON/OFF periods.
- * During OFF periods, no supply is consumed. This walks forward day-by-day
- * through the cycle to get an accurate depletion forecast.
+ * Calculate days remaining accounting for cycling ON/OFF periods and pause.
+ * Paused compounds don't deplete, so days remaining is effectively infinite while paused.
  */
 export function getDaysRemainingWithCycling(compound: Compound): number {
+  if (isPaused(compound)) return 999;
+
   const rawDaily = getNormalizedDailyConsumption(compound);
   if (rawDaily === 0) return 999;
 
@@ -81,8 +112,10 @@ export function getDaysRemainingWithCycling(compound: Compound): number {
   const cycleLength = compound.cycleOnDays + compound.cycleOffDays;
   const start = new Date(compound.cycleStartDate);
   const now = new Date();
-  const diffMs = now.getTime() - start.getTime();
-  const startDayInCycle = ((Math.floor(diffMs / (24 * 60 * 60 * 1000)) % cycleLength) + cycleLength) % cycleLength;
+  let diffMs = now.getTime() - start.getTime();
+  let startDiffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+  startDiffDays -= getPausedDays(compound, now);
+  const startDayInCycle = ((startDiffDays % cycleLength) + cycleLength) % cycleLength;
 
   let remaining = totalSupply;
   let day = 0;

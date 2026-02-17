@@ -30,6 +30,8 @@ interface DbUserCompound {
   cycle_start_date: string | null;
   vial_size_ml: number | null;
   weight_per_unit: number | null;
+  paused_at: string | null;
+  pause_restart_date: string | null;
 }
 
 function dbToCompound(row: DbUserCompound): Compound {
@@ -59,6 +61,8 @@ function dbToCompound(row: DbUserCompound): Compound {
     cycleStartDate: row.cycle_start_date ?? undefined,
     vialSizeMl: row.vial_size_ml ?? undefined,
     weightPerUnit: row.weight_per_unit ?? undefined,
+    pausedAt: row.paused_at ?? undefined,
+    pauseRestartDate: row.pause_restart_date ?? undefined,
   };
 }
 
@@ -126,6 +130,8 @@ export function useCompounds(userId: string | undefined) {
     if (updates.reorderQuantity !== undefined) dbUpdates.reorder_quantity = updates.reorderQuantity;
     if (updates.reorderType !== undefined) dbUpdates.reorder_type = updates.reorderType;
     if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+    if ('pausedAt' in updates) dbUpdates.paused_at = updates.pausedAt ?? null;
+    if ('pauseRestartDate' in updates) dbUpdates.pause_restart_date = updates.pauseRestartDate ?? null;
 
     const { error } = await supabase
       .from('user_compounds')
