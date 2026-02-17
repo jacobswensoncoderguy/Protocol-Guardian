@@ -29,7 +29,7 @@ serve(async (req) => {
       supabase.from("daily_checkins").select("*").eq("user_id", userId).gte("checkin_date", since).order("checkin_date"),
       supabase.from("protocol_changes").select("*").eq("user_id", userId).gte("change_date", since).order("change_date"),
       supabase.from("symptom_definitions").select("id, name, category"),
-      supabase.from("user_compounds").select("name, category, dose_per_use, unit_label, doses_per_day").eq("user_id", userId),
+      supabase.from("user_compounds").select("name, category, dose_per_use, unit_label, doses_per_day, timing_note, cycling_note, cycle_on_days, cycle_off_days, cycle_start_date, paused_at").eq("user_id", userId),
     ]);
 
     const logs = logsRes.data || [];
@@ -40,50 +40,82 @@ serve(async (req) => {
 
     const defMap = Object.fromEntries(defs.map((d: any) => [d.id, d]));
 
-    const systemPrompt = `You are an expert health analyst specializing in correlating symptoms with medications, compounds, and behavioral changes. You have access to a patient's tracking data over the past ${days} days. 
+    // Build a day-by-day timeline for richer context
+    const dayMap: Record<string, { symptoms: any[]; checkin: any | null }> = {};
+    logs.forEach((l: any) => {
+      if (!dayMap[l.log_date]) dayMap[l.log_date] = { symptoms: [], checkin: null };
+      dayMap[l.log_date].symptoms.push({
+        name: l.custom_symptom || defMap[l.symptom_definition_id]?.name || "Unknown",
+        category: defMap[l.symptom_definition_id]?.category || "custom",
+        severity: l.severity,
+        timing: l.timing,
+        notes: l.notes,
+      });
+    });
+    checkins.forEach((c: any) => {
+      if (!dayMap[c.checkin_date]) dayMap[c.checkin_date] = { symptoms: [], checkin: null };
+      dayMap[c.checkin_date].checkin = {
+        energy: c.energy_score, mood: c.mood_score, pain: c.pain_score, sleep: c.sleep_score, notes: c.notes,
+      };
+    });
+
+    // Build timeline entries with protocol change markers
+    const timeline = Object.entries(dayMap).sort(([a], [b]) => a.localeCompare(b)).map(([date, data]) => {
+      const dateChanges = changes.filter((ch: any) => ch.change_date === date);
+      return { date, ...data, protocolChanges: dateChanges.map((ch: any) => ch.description) };
+    });
+
+    const systemPrompt = `You are an expert health analyst specializing in correlating symptoms with medications, compounds (peptides, hormones, supplements), and behavioral changes. You have access to a patient's detailed tracking data.
 
 Your role:
-1. Identify patterns and correlations between protocol changes and symptom changes
-2. Highlight any concerning symptom trends (worsening severity, new symptoms appearing after changes)
-3. Note positive responses (symptoms improving after protocol changes)
-4. Provide actionable, evidence-based suggestions for protocol or behavior adjustments
-5. Always recommend consulting a healthcare provider for significant changes
+1. Identify temporal patterns: symptoms that appeared or worsened within 3-7 days of a protocol change
+2. Identify positive responses: symptoms improving after protocol changes  
+3. Flag compound-specific patterns (e.g., timing of symptom relative to dosing time)
+4. Identify concerning escalation trends (severity increasing over time)
+5. Provide actionable, evidence-based suggestions framed as questions for their healthcare provider
+6. Compute wellness trend using the checkin scores trajectory
 
-CRITICAL: Be medically responsible. Never recommend stopping prescribed medications. Frame suggestions as questions to discuss with their doctor. Be specific about timing correlations.
+CRITICAL: Be medically responsible. Never recommend stopping prescribed medications. Frame suggestions as questions to discuss with their doctor.
 
-Return a JSON object with:
+Return ONLY valid JSON with this exact structure:
 {
-  "summary": "2-3 sentence overall summary",
-  "correlations": [{"finding": "string", "confidence": "high|medium|low", "type": "positive|negative|neutral"}],
+  "summary": "2-3 sentence overall summary focusing on the most important findings",
+  "correlations": [
+    {"finding": "string describing the correlation", "confidence": "high|medium|low", "type": "positive|negative|neutral", "compound": "compound name or null", "symptom": "symptom name or null", "dayOffset": number_of_days_after_change_or_null}
+  ],
   "concerning_trends": ["string"],
   "positive_trends": ["string"],
-  "suggestions": [{"action": "string", "rationale": "string", "priority": "high|medium|low"}],
+  "suggestions": [
+    {"action": "string - specific actionable recommendation", "rationale": "string - why this matters based on the data", "priority": "high|medium|low", "category": "timing|dose|lifestyle|monitoring|consult"}
+  ],
   "wellness_trend": "improving|stable|declining|mixed",
-  "key_insight": "The single most important finding"
+  "key_insight": "The single most important finding in one clear sentence",
+  "timeline_events": [
+    {"date": "YYYY-MM-DD", "type": "change|symptom_spike|wellness_dip|positive", "description": "string", "severity": "high|medium|low"}
+  ],
+  "symptom_frequency": [{"name": "symptom name", "count": number, "avgSeverity": number, "category": "string"}]
 }`;
-
-    const logsFormatted = logs.map((l: any) => ({
-      date: l.log_date,
-      symptom: l.custom_symptom || defMap[l.symptom_definition_id]?.name || "Unknown",
-      category: defMap[l.symptom_definition_id]?.category || "custom",
-      severity: l.severity,
-      timing: l.timing,
-      notes: l.notes,
-    }));
 
     const userPrompt = `Analyze this patient's tracking data for the past ${days} days:
 
-CURRENT COMPOUNDS: ${JSON.stringify(compounds)}
-
-PROTOCOL CHANGES: ${JSON.stringify(changes)}
-
-SYMPTOM LOGS (${logs.length} entries): ${JSON.stringify(logsFormatted)}
-
-DAILY CHECK-INS (energy/mood/pain/sleep 1-5): ${JSON.stringify(checkins.map((c: any) => ({
-  date: c.checkin_date, energy: c.energy_score, mood: c.mood_score, pain: c.pain_score, sleep: c.sleep_score, notes: c.notes
+ACTIVE COMPOUNDS: ${JSON.stringify(compounds.map((c: any) => ({
+  name: c.name,
+  category: c.category,
+  dose: `${c.dose_per_use}${c.unit_label} × ${c.doses_per_day}x/day`,
+  timing: c.timing_note,
+  cycling: c.cycle_on_days ? `${c.cycle_on_days} on / ${c.cycle_off_days} off` : null,
+  paused: !!c.paused_at,
 })))}
 
-Please identify correlations, trends, and provide actionable insights. Focus especially on any symptoms that changed timing or severity after protocol changes.`;
+PROTOCOL CHANGES (${changes.length} events): ${JSON.stringify(changes.map((ch: any) => ({
+  date: ch.change_date, type: ch.change_type, description: ch.description, from: ch.previous_value, to: ch.new_value,
+})))}
+
+DAY-BY-DAY TIMELINE (${timeline.length} days with data): ${JSON.stringify(timeline)}
+
+Total: ${logs.length} symptom logs, ${checkins.length} daily check-ins, ${changes.length} protocol changes.
+
+Focus on: timing correlations between protocol changes and symptom changes, compound-specific patterns, and actionable insights.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -119,10 +151,28 @@ Please identify correlations, trends, and provide actionable insights. Focus esp
     try {
       analysis = JSON.parse(jsonStr.trim());
     } catch {
-      analysis = { summary: content, correlations: [], suggestions: [], concerning_trends: [], positive_trends: [], wellness_trend: "mixed", key_insight: "" };
+      analysis = { summary: content, correlations: [], suggestions: [], concerning_trends: [], positive_trends: [], wellness_trend: "mixed", key_insight: "", timeline_events: [], symptom_frequency: [] };
     }
 
-    return new Response(JSON.stringify({ analysis, dataPoints: { logs: logs.length, checkins: checkins.length, changes: changes.length } }), {
+    // Also return the raw data for chart rendering on the client
+    const chartData = {
+      dailyCheckins: checkins.map((c: any) => ({
+        date: c.checkin_date,
+        energy: c.energy_score,
+        mood: c.mood_score,
+        pain: c.pain_score,
+        sleep: c.sleep_score,
+        avg: Number(((c.energy_score + c.mood_score + (6 - c.pain_score) + c.sleep_score) / 4).toFixed(1)),
+      })),
+      symptomsByDay: Object.entries(dayMap).sort(([a], [b]) => a.localeCompare(b)).map(([date, data]) => ({
+        date,
+        count: data.symptoms.length,
+        avgSeverity: data.symptoms.length > 0 ? Number((data.symptoms.reduce((s: number, sym: any) => s + sym.severity, 0) / data.symptoms.length).toFixed(1)) : 0,
+      })),
+      protocolChangeDates: changes.map((ch: any) => ({ date: ch.change_date, description: ch.description })),
+    };
+
+    return new Response(JSON.stringify({ analysis, dataPoints: { logs: logs.length, checkins: checkins.length, changes: changes.length }, chartData }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
