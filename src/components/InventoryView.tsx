@@ -1021,6 +1021,16 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
               </div>
               {!isOil && (
                 <div>
+                  <span className="text-muted-foreground">Contents:</span>{' '}
+                  <span className="font-mono text-foreground">{compound.unitSize} {compound.unitLabel || 'caps'}/{(() => {
+                    const ul = (compound.unitLabel || '').toLowerCase();
+                    if (ul.includes('scoop') || ul.includes('serving') || ul.includes('g') || ul === 'oz') return 'bag';
+                    return 'bottle';
+                  })()}</span>
+                </div>
+              )}
+              {!isOil && compound.purchaseDate && (
+                <div>
                   <span className="text-muted-foreground">Purchased:</span>{' '}
                   <span className="font-mono text-foreground">{compound.purchaseDate}</span>
                 </div>
