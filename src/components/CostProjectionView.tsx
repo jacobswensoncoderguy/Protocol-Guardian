@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Compound, getReorderCost, getNormalizedDailyConsumption } from '@/data/compounds';
+import { supabase } from '@/integrations/supabase/client';
 import { getDaysRemainingWithCycling, getEffectiveDailyConsumption, getCycleStatus } from '@/lib/cycling';
 import { UserProtocol } from '@/hooks/useProtocols';
 import { CustomField } from '@/hooks/useCustomFields';
@@ -12,11 +13,20 @@ export interface CostModifiers {
   dosesPerDayOverride: number | null; // override base dosesPerDay
 }
 
+interface ReceivedOrder {
+  id: string;
+  compound_id: string;
+  quantity: number;
+  cost: number;
+  received_at: string;
+}
+
 interface CostProjectionViewProps {
   compounds: Compound[];
   protocols?: UserProtocol[];
   customFields?: CustomField[];
   customFieldValues?: Map<string, Map<string, string>>; // compoundId -> fieldId -> value
+  userId?: string;
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -44,7 +54,7 @@ function getReorderSupplyDays(compound: Compound): number {
   return (reorderUnits * unitsPerUnit) / effectiveDaily;
 }
 
-function buildProjection(compounds: Compound[], getModifiers: (compoundId: string) => CostModifiers): MonthData[] {
+function buildProjection(compounds: Compound[], getModifiers: (compoundId: string) => CostModifiers, receivedOrders: ReceivedOrder[] = []): MonthData[] {
   // Apply dosesPerDay overrides to compounds for accurate projection
   const effectiveCompounds = compounds.map(c => {
     const mods = getModifiers(c.id);
@@ -117,6 +127,45 @@ function buildProjection(compounds: Compound[], getModifiers: (compoundId: strin
     }
   });
 
+  // Overlay actual received orders into the correct month based on received_at date
+  const compoundMap = new Map(compounds.map(c => [c.id, c]));
+  receivedOrders.forEach(order => {
+    const receivedDate = new Date(order.received_at);
+    const rm = receivedDate.getMonth();
+    const ry = receivedDate.getFullYear();
+    const slotIndex = months.findIndex(s => s.month === rm && s.year === ry);
+    if (slotIndex === -1) return;
+
+    const compound = compoundMap.get(order.compound_id);
+    const name = compound?.name || 'Unknown';
+
+    // Check if a forecasted entry already exists for this compound in this month
+    const existingIdx = months[slotIndex].compounds.findIndex(c => c.compoundId === order.compound_id);
+    if (existingIdx !== -1) {
+      // Replace forecast with actual received cost
+      const old = months[slotIndex].compounds[existingIdx];
+      months[slotIndex].total -= old.cost;
+      months[slotIndex].compounds[existingIdx] = {
+        name: `${name} ✓`,
+        qty: `${order.quantity}`,
+        unitPrice: Math.round((order.cost / Math.max(order.quantity, 1)) * 100) / 100,
+        cost: order.cost,
+        compoundId: order.compound_id,
+      };
+      months[slotIndex].total += order.cost;
+    } else {
+      // Add received order as new entry
+      months[slotIndex].compounds.push({
+        name: `${name} ✓`,
+        qty: `${order.quantity}`,
+        unitPrice: Math.round((order.cost / Math.max(order.quantity, 1)) * 100) / 100,
+        cost: order.cost,
+        compoundId: order.compound_id,
+      });
+      months[slotIndex].total += order.cost;
+    }
+  });
+
   return months;
 }
 
@@ -143,9 +192,26 @@ function groupItemsByProtocol(
   return groups.length > 0 ? groups : [{ label: '', items }];
 }
 
-const CostProjectionView = ({ compounds, protocols = [], customFields = [], customFieldValues = new Map() }: CostProjectionViewProps) => {
+const CostProjectionView = ({ compounds, protocols = [], customFields = [], customFieldValues = new Map(), userId }: CostProjectionViewProps) => {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [showSavings, setShowSavings] = useState(false);
+  const [receivedOrders, setReceivedOrders] = useState<ReceivedOrder[]>([]);
+
+  const fetchReceivedOrders = useCallback(async () => {
+    if (!userId) return;
+    const { data, error } = await supabase
+      .from('orders')
+      .select('id, compound_id, quantity, cost, received_at')
+      .eq('status', 'received')
+      .eq('user_id', userId);
+    if (!error && data) {
+      setReceivedOrders(data.filter(o => o.received_at) as ReceivedOrder[]);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    fetchReceivedOrders();
+  }, [fetchReceivedOrders]);
 
   // Build a per-compound cost modifier getter from custom field values
   const getModifiers = (compoundId: string): CostModifiers => {
@@ -174,7 +240,7 @@ const CostProjectionView = ({ compounds, protocols = [], customFields = [], cust
     return { shippingCost, discountPct, dosesPerDayOverride };
   };
 
-  const projection = buildProjection(compounds, getModifiers);
+  const projection = buildProjection(compounds, getModifiers, receivedOrders);
   const totalAnnual = projection.reduce((sum, m) => sum + m.total, 0);
   const monthlyAvg = compounds.reduce((sum, c) => {
     const mods = getModifiers(c.id);
