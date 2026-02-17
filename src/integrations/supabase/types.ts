@@ -481,6 +481,8 @@ export type Database = {
           kit_price: number | null
           name: string
           notes: string | null
+          pause_restart_date: string | null
+          paused_at: string | null
           purchase_date: string | null
           recon_volume: number | null
           reorder_quantity: number
@@ -512,6 +514,8 @@ export type Database = {
           kit_price?: number | null
           name: string
           notes?: string | null
+          pause_restart_date?: string | null
+          paused_at?: string | null
           purchase_date?: string | null
           recon_volume?: number | null
           reorder_quantity?: number
@@ -543,6 +547,8 @@ export type Database = {
           kit_price?: number | null
           name?: string
           notes?: string | null
+          pause_restart_date?: string | null
+          paused_at?: string | null
           purchase_date?: string | null
           recon_volume?: number | null
           reorder_quantity?: number

@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { DayDose } from '@/data/schedule';
 import { Compound } from '@/data/compounds';
-import { getCycleStatus } from '@/lib/cycling';
+import { getCycleStatus, isPaused } from '@/lib/cycling';
 import { generateScheduleFromCompounds } from '@/lib/scheduleGenerator';
 import { CustomField } from '@/hooks/useCustomFields';
 import { UserProtocol } from '@/hooks/useProtocols';
@@ -74,6 +74,10 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
       .map(c => c.id)
   );
 
+  const pausedIds = new Set(
+    compounds.filter(c => isPaused(c)).map(c => c.id)
+  );
+
   const morningDoses = schedule.doses.filter(d => d.timing === 'morning');
   const afternoonDoses = schedule.doses.filter(d => d.timing === 'afternoon');
   const eveningDoses = schedule.doses.filter(d => d.timing === 'evening');
@@ -141,6 +145,7 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
           doses={morningDoses}
           compoundMap={compoundMap}
           offCycleIds={offCycleIds}
+          pausedIds={pausedIds}
           onCompoundClick={handleCompoundClick}
           protocols={protocols}
           doseUnit={doseUnit}
@@ -156,6 +161,7 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
             doses={afternoonDoses}
             compoundMap={compoundMap}
             offCycleIds={offCycleIds}
+            pausedIds={pausedIds}
             onCompoundClick={handleCompoundClick}
             protocols={protocols}
             doseUnit={doseUnit}
@@ -171,6 +177,7 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
           doses={eveningDoses}
           compoundMap={compoundMap}
           offCycleIds={offCycleIds}
+          pausedIds={pausedIds}
           onCompoundClick={handleCompoundClick}
           protocols={protocols}
           doseUnit={doseUnit}
@@ -198,6 +205,7 @@ const DoseSection = ({
   doses,
   compoundMap,
   offCycleIds,
+  pausedIds = new Set(),
   onCompoundClick,
   protocols,
   doseUnit,
@@ -209,6 +217,7 @@ const DoseSection = ({
   doses: DayDose[];
   compoundMap: Map<string, Compound>;
   offCycleIds: Set<string>;
+  pausedIds?: Set<string>;
   onCompoundClick: (id: string) => void;
   protocols: UserProtocol[];
   doseUnit: 'mg' | 'ml';
@@ -233,7 +242,7 @@ const DoseSection = ({
   const ungroupedPowders = allPowders.filter(d => !protocolCompoundIds.has(d.compoundId));
   const ungroupedTopicals = allTopicals.filter(d => !protocolCompoundIds.has(d.compoundId));
 
-  const totalActive = doses.filter(d => !offCycleIds.has(d.compoundId)).length;
+  const totalActive = doses.filter(d => !offCycleIds.has(d.compoundId) && !pausedIds.has(d.compoundId)).length;
 
   return (
     <div className={`rounded-lg border p-3 ${bgAccent}`}>
@@ -245,19 +254,19 @@ const DoseSection = ({
 
       <div className="space-y-3">
         {allPeptides.length > 0 && (
-          <DoseGroup label="Injectables" doses={allPeptides} compoundMap={compoundMap} offCycleIds={offCycleIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} />
+          <DoseGroup label="Injectables" doses={allPeptides} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} />
         )}
         {protocolGroups.map(pg => (
-          <DoseGroup key={pg.label} label={pg.label} doses={pg.doses} compoundMap={compoundMap} offCycleIds={offCycleIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} />
+          <DoseGroup key={pg.label} label={pg.label} doses={pg.doses} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} />
         ))}
         {ungroupedOrals.length > 0 && (
-          <DoseGroup label="Oral Supplements" doses={ungroupedOrals} compoundMap={compoundMap} offCycleIds={offCycleIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} />
+          <DoseGroup label="Oral Supplements" doses={ungroupedOrals} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} />
         )}
         {ungroupedPowders.length > 0 && (
-          <DoseGroup label="Powders" doses={ungroupedPowders} compoundMap={compoundMap} offCycleIds={offCycleIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} />
+          <DoseGroup label="Powders" doses={ungroupedPowders} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} />
         )}
         {ungroupedTopicals.length > 0 && (
-          <DoseGroup label="Topicals" doses={ungroupedTopicals} compoundMap={compoundMap} offCycleIds={offCycleIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} />
+          <DoseGroup label="Topicals" doses={ungroupedTopicals} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} />
         )}
       </div>
     </div>
@@ -269,6 +278,7 @@ const DoseGroup = ({
   doses,
   compoundMap,
   offCycleIds,
+  pausedIds = new Set(),
   onCompoundClick,
   doseUnit,
 }: {
@@ -276,6 +286,7 @@ const DoseGroup = ({
   doses: DayDose[];
   compoundMap: Map<string, Compound>;
   offCycleIds: Set<string>;
+  pausedIds?: Set<string>;
   onCompoundClick: (id: string) => void;
   doseUnit: 'mg' | 'ml';
 }) => {
