@@ -409,12 +409,16 @@ const ProtocolChat = ({
               </div>
             ))}
             {isStreaming && messages[messages.length - 1]?.role !== 'assistant' && (
-              <div className="flex justify-start">
-                <div className="bg-secondary/50 rounded-lg px-3 py-2">
-                  <div className="flex gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary/50 animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary/50 animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary/50 animate-bounce" style={{ animationDelay: '300ms' }} />
+              <div className="flex items-end gap-2 justify-start">
+                <div className="w-6 h-6 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0 mb-1 animate-pulse">
+                  <Brain className="w-3.5 h-3.5 text-primary" />
+                </div>
+                <div className="bg-secondary/60 rounded-2xl rounded-bl-sm px-4 py-3 border border-border/30">
+                  <div className="flex gap-1.5 items-center">
+                    <span className="w-2 h-2 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-2 h-2 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-2 h-2 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '300ms' }} />
+                    <span className="text-[10px] text-muted-foreground ml-1.5 font-medium">Thinking…</span>
                   </div>
                 </div>
               </div>

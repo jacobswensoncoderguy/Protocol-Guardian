@@ -207,8 +207,15 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [] }: Re
       if (compound.reorderType === 'single') return `Reorder Qty: ${qty} vial${qty !== 1 ? 's' : ''}`;
       return `Reorder Qty: ${qty} kit${qty !== 1 ? 's' : ''} (${qty * 10} vials)`;
     }
-    const type = compound.reorderType === 'kit' ? 'kit' : 'single unit';
-    return `Reorder Qty: ${qty} ${type}${qty !== 1 ? 's' : ''}`;
+    if (compound.category === 'injectable-oil') {
+      return `Reorder Qty: ${qty} vial${qty !== 1 ? 's' : ''}`;
+    }
+    // Use the compound's unitLabel to determine the container type
+    const ul = (compound.unitLabel || '').toLowerCase();
+    let containerLabel = 'bottle';
+    if (ul.includes('scoop') || ul.includes('serving') || ul.includes('g') || ul === 'oz') containerLabel = 'bag';
+    if (compound.reorderType === 'kit') return `Reorder Qty: ${qty} kit${qty !== 1 ? 's' : ''}`;
+    return `Reorder Qty: ${qty} ${containerLabel}${qty !== 1 ? 's' : ''}`;
   };
 
   const tabs: { key: Tab; label: string; icon: React.ReactNode; count: number }[] = [

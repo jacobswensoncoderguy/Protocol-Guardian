@@ -964,13 +964,22 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
               <span className="text-muted-foreground">On Hand:</span>{' '}
                 <span className="font-mono text-foreground">
                   {isOil
-                    ? `${compound.currentQuantity} × ${compound.vialSizeMl || 10}mL`
-                    : `${compound.currentQuantity} ${compound.unitLabel}`}
+                    ? `${compound.currentQuantity} vial${compound.currentQuantity !== 1 ? 's' : ''} (${compound.vialSizeMl || 10}mL)`
+                    : (() => {
+                        const ul = (compound.unitLabel || '').toLowerCase();
+                        let container = 'bottle';
+                        if (ul.includes('scoop') || ul.includes('serving') || ul.includes('g') || ul === 'oz') container = 'bag';
+                        return `${compound.currentQuantity} ${container}${compound.currentQuantity !== 1 ? 's' : ''}`;
+                      })()}
                 </span>
               </div>
               <div>
                 <span className="text-muted-foreground">Price:</span>{' '}
-                <span className="font-mono text-foreground">${compound.unitPrice}/{isOil ? 'vial' : 'bottle'}</span>
+                <span className="font-mono text-foreground">${compound.unitPrice}/{isOil ? 'vial' : (() => {
+                  const ul = (compound.unitLabel || '').toLowerCase();
+                  if (ul.includes('scoop') || ul.includes('serving') || ul.includes('g') || ul === 'oz') return 'bag';
+                  return 'bottle';
+                })()}</span>
               </div>
               {isOil && (
                 <div>
@@ -1004,7 +1013,11 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
               </div>
               <div>
                 <span className="text-muted-foreground">Reorder Qty:</span>{' '}
-                <span className="font-mono text-foreground">{compound.reorderQuantity} {compound.reorderType === 'kit' ? 'kit' : 'unit'}{compound.reorderQuantity !== 1 ? 's' : ''}</span>
+                <span className="font-mono text-foreground">{compound.reorderQuantity} {compound.reorderType === 'kit' ? 'kit' : (() => {
+                  const ul = (compound.unitLabel || '').toLowerCase();
+                  if (ul.includes('scoop') || ul.includes('serving') || ul.includes('g') || ul === 'oz') return 'bag';
+                  return 'bottle';
+                })()}{compound.reorderQuantity !== 1 ? 's' : ''}</span>
               </div>
               {!isOil && (
                 <div>

@@ -57,7 +57,15 @@ function buildProjection(compounds: Compound[]): MonthData[] {
       ? isSingleUnit
         ? `${compound.reorderQuantity} vial${compound.reorderQuantity !== 1 ? 's' : ''}`
         : `${compound.reorderQuantity} kit${compound.reorderQuantity !== 1 ? 's' : ''}`
-      : `${compound.reorderQuantity}`;
+      : compound.category === 'injectable-oil'
+        ? `${compound.reorderQuantity} vial${compound.reorderQuantity !== 1 ? 's' : ''}`
+        : (() => {
+            const ul = (compound.unitLabel || '').toLowerCase();
+            let container = 'bottle';
+            if (ul.includes('scoop') || ul.includes('serving') || ul.includes('g') || ul === 'oz') container = 'bag';
+            if (compound.reorderType === 'kit') container = 'kit';
+            return `${compound.reorderQuantity} ${container}${compound.reorderQuantity !== 1 ? 's' : ''}`;
+          })();
     const displayPrice = compound.category === 'peptide'
       ? isSingleUnit ? compound.unitPrice : (compound.kitPrice || 0)
       : compound.unitPrice;
