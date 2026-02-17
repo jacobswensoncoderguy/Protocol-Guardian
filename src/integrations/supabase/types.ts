@@ -79,6 +79,93 @@ export type Database = {
         }
         Relationships: []
       }
+      compound_custom_field_values: {
+        Row: {
+          created_at: string
+          custom_field_id: string
+          id: string
+          updated_at: string
+          user_compound_id: string
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          custom_field_id: string
+          id?: string
+          updated_at?: string
+          user_compound_id: string
+          value: string
+        }
+        Update: {
+          created_at?: string
+          custom_field_id?: string
+          id?: string
+          updated_at?: string
+          user_compound_id?: string
+          value?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compound_custom_field_values_custom_field_id_fkey"
+            columns: ["custom_field_id"]
+            isOneToOne: false
+            referencedRelation: "compound_custom_fields"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compound_custom_field_values_user_compound_id_fkey"
+            columns: ["user_compound_id"]
+            isOneToOne: false
+            referencedRelation: "user_compounds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      compound_custom_fields: {
+        Row: {
+          affects_calculation: boolean
+          calculation_role: string | null
+          created_at: string
+          default_value: string | null
+          field_name: string
+          field_type: string
+          field_unit: string | null
+          id: string
+          is_predefined: boolean
+          options: Json | null
+          sort_order: number
+          user_id: string
+        }
+        Insert: {
+          affects_calculation?: boolean
+          calculation_role?: string | null
+          created_at?: string
+          default_value?: string | null
+          field_name: string
+          field_type?: string
+          field_unit?: string | null
+          id?: string
+          is_predefined?: boolean
+          options?: Json | null
+          sort_order?: number
+          user_id: string
+        }
+        Update: {
+          affects_calculation?: boolean
+          calculation_role?: string | null
+          created_at?: string
+          default_value?: string | null
+          field_name?: string
+          field_type?: string
+          field_unit?: string | null
+          id?: string
+          is_predefined?: boolean
+          options?: Json | null
+          sort_order?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       compounds: {
         Row: {
           bacstat_per_vial: number | null

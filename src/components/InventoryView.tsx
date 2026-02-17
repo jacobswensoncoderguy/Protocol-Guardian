@@ -3,7 +3,8 @@ import { toast } from 'sonner';
 import { Compound, getStatus, getReorderDateString, CompoundCategory } from '@/data/compounds';
 import { getCycleStatus, getDaysRemainingWithCycling } from '@/lib/cycling';
 import { UserProtocol } from '@/hooks/useProtocols';
-import { Pencil, Check, X, Trash2, Plus, ChevronDown, Syringe, Clock, SortAsc, Moon as MoonIcon, Sun, Dumbbell, RefreshCcw, Package } from 'lucide-react';
+import { CustomField, CustomFieldValue, PREDEFINED_FIELDS } from '@/hooks/useCustomFields';
+import { Pencil, Check, X, Trash2, Plus, ChevronDown, Syringe, Clock, SortAsc, Moon as MoonIcon, Sun, Dumbbell, RefreshCcw, Package, PlusCircle } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import ToleranceSelector from '@/components/ToleranceSelector';
@@ -17,6 +18,11 @@ interface InventoryViewProps {
   protocols?: UserProtocol[];
   toleranceLevel?: string;
   onToleranceChange?: (level: ToleranceLevel) => void;
+  customFields?: CustomField[];
+  customFieldValues?: Map<string, Map<string, string>>;
+  onAddCustomField?: (field: Partial<CustomField>) => Promise<CustomField | null>;
+  onRemoveCustomField?: (fieldId: string) => Promise<void>;
+  onSetCustomFieldValue?: (compoundId: string, fieldId: string, value: string) => Promise<void>;
 }
 
 const categoryLabels: Record<string, string> = {
@@ -37,7 +43,7 @@ const categoryLabels: Record<string, string> = {
 
 const categoryOrder: string[] = ['peptide', 'injectable-oil', 'prescription', 'oral', 'powder', 'vitamin', 'holistic', 'adaptogen', 'nootropic', 'essential-oil', 'alternative-medicine', 'probiotic', 'topical'];
 
-const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCompound, protocols = [], toleranceLevel, onToleranceChange }: InventoryViewProps) => {
+const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCompound, protocols = [], toleranceLevel, onToleranceChange, customFields = [], customFieldValues = new Map(), onAddCustomField, onRemoveCustomField, onSetCustomFieldValue }: InventoryViewProps) => {
   const [filter, setFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'name' | 'days'>('name');
   const [showToleranceConfirm, setShowToleranceConfirm] = useState(false);
@@ -152,7 +158,7 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
               {group.items.map((compound, compoundIdx) => (
                 <div key={compound.id} {...(compoundIdx === 0 && groups.indexOf(group) === 0 ? { 'data-tour': 'compound-card' } : {})}>
-                  <CompoundCard compound={compound} onUpdate={onUpdateCompound} onDelete={onDeleteCompound} />
+                  <CompoundCard compound={compound} onUpdate={onUpdateCompound} onDelete={onDeleteCompound} customFields={customFields} customFieldValues={customFieldValues.get(compound.id) || new Map()} onAddCustomField={onAddCustomField} onRemoveCustomField={onRemoveCustomField} onSetCustomFieldValue={onSetCustomFieldValue} />
                 </div>
               ))}
             </div>
@@ -172,7 +178,7 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
           <CollapsibleContent className="animate-accordion-down data-[state=closed]:animate-accordion-up">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 opacity-60">
               {dormantCompounds.map(compound => (
-                <CompoundCard key={compound.id} compound={compound} onUpdate={onUpdateCompound} onDelete={onDeleteCompound} />
+                <CompoundCard key={compound.id} compound={compound} onUpdate={onUpdateCompound} onDelete={onDeleteCompound} customFields={customFields} customFieldValues={customFieldValues.get(compound.id) || new Map()} onAddCustomField={onAddCustomField} onRemoveCustomField={onRemoveCustomField} onSetCustomFieldValue={onSetCustomFieldValue} />
               ))}
             </div>
           </CollapsibleContent>
@@ -198,12 +204,22 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
 
 // --- Compound Card ---
 
-const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; onUpdate: (id: string, updates: Partial<Compound>) => void; onDelete?: (id: string) => void }) => {
+const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customFieldValues = new Map(), onAddCustomField, onRemoveCustomField, onSetCustomFieldValue }: {
+  compound: Compound; onUpdate: (id: string, updates: Partial<Compound>) => void; onDelete?: (id: string) => void;
+  customFields?: CustomField[]; customFieldValues?: Map<string, string>;
+  onAddCustomField?: (field: Partial<CustomField>) => Promise<CustomField | null>;
+  onRemoveCustomField?: (fieldId: string) => Promise<void>;
+  onSetCustomFieldValue?: (compoundId: string, fieldId: string, value: string) => Promise<void>;
+}) => {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmDormant, setConfirmDormant] = useState(false);
   const [doseUnit, setDoseUnit] = useState<'mg' | 'ml' | 'iu'>('iu');
   const [editing, setEditing] = useState(false);
   const [editState, setEditState] = useState<Record<string, string>>({});
+  const [showAddField, setShowAddField] = useState(false);
+  const [newFieldName, setNewFieldName] = useState('');
+  const [newFieldType, setNewFieldType] = useState<'text' | 'number' | 'date'>('text');
+  const [newFieldUnit, setNewFieldUnit] = useState('');
 
   const days = getDaysRemainingWithCycling(compound);
   const status = getStatus(days);
@@ -308,9 +324,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
     } else {
       state.unitPrice = compound.unitPrice.toString();
     }
-    if (!isPeptide && !isOil) {
-      state.purchaseDate = compound.purchaseDate;
-    }
+    state.purchaseDate = compound.purchaseDate;
     setEditState(state);
     setEditing(true);
   };
@@ -424,9 +438,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
       updates.unitPrice = price;
     }
 
-    if (!editIsPeptide && !editIsOil) {
-      updates.purchaseDate = editState.purchaseDate || '';
-    }
+    updates.purchaseDate = editState.purchaseDate || '';
 
     if (editState.cyclingEnabled === 'true') {
       const on = parseInt(editState.cycleOnDays);
@@ -873,28 +885,26 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
             <EditRow label="Price" value={editState.unitPrice} prefix="$" suffix={`/${isOil ? 'vial' : 'bottle'}`}
               onChange={v => setEditState(s => ({ ...s, unitPrice: v }))} type="number" />
           )}
-          {!isPeptide && !isOil && (
-            <div className="flex items-center gap-2 text-[11px]">
-              <span className="text-muted-foreground w-16 flex-shrink-0">Purchased</span>
-              <div className="flex items-center gap-1 flex-1">
-                <input
-                  type="date"
-                  value={editState.purchaseDate || ''}
-                  onChange={e => setEditState(s => ({ ...s, purchaseDate: e.target.value }))}
-                  className="w-full bg-secondary border border-border/50 rounded px-2 py-1 text-foreground font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50"
-                />
-                {editState.purchaseDate && (
-                  <button
-                    onClick={() => setEditState(s => ({ ...s, purchaseDate: '' }))}
-                    className="p-1 rounded bg-secondary hover:bg-secondary/80 text-muted-foreground flex-shrink-0"
-                    title="Clear date"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                )}
-              </div>
+          <div className="flex items-center gap-2 text-[11px]">
+            <span className="text-muted-foreground w-16 flex-shrink-0">Purchased</span>
+            <div className="flex items-center gap-1 flex-1">
+              <input
+                type="date"
+                value={editState.purchaseDate || ''}
+                onChange={e => setEditState(s => ({ ...s, purchaseDate: e.target.value }))}
+                className="w-full bg-secondary border border-border/50 rounded px-2 py-1 text-foreground font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50"
+              />
+              {editState.purchaseDate && (
+                <button
+                  onClick={() => setEditState(s => ({ ...s, purchaseDate: '' }))}
+                  className="p-1 rounded bg-secondary hover:bg-secondary/80 text-muted-foreground flex-shrink-0"
+                  title="Clear date"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
             </div>
-          )}
+          </div>
           <EditRow
             label="Reorder Qty"
             value={editState.reorderQuantity}
@@ -958,6 +968,106 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
               <EditRow label="Cycle Start" value={editState.cycleStartDate || ''}
                 onChange={v => setEditState(s => ({ ...s, cycleStartDate: v }))} type="date" />
             </>
+          )}
+          {/* Custom Fields */}
+          {customFields.length > 0 && (
+            <div className="border-t border-border/30 pt-1.5 mt-1.5 space-y-1">
+              <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Custom Fields</span>
+              {customFields.map(f => (
+                <div key={f.id} className="flex items-center gap-2 text-[11px]">
+                  <span className="text-muted-foreground w-16 flex-shrink-0 truncate" title={f.field_name}>{f.field_name}</span>
+                  <div className="flex items-center gap-1 flex-1">
+                    <input
+                      type={f.field_type === 'number' ? 'number' : f.field_type === 'date' ? 'date' : 'text'}
+                      value={customFieldValues.get(f.id) || f.default_value || ''}
+                      onChange={e => onSetCustomFieldValue?.(compound.id, f.id, e.target.value)}
+                      placeholder={f.default_value || ''}
+                      className="w-full bg-secondary border border-border/50 rounded px-2 py-1 text-foreground font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50"
+                    />
+                    {f.field_unit && <span className="text-muted-foreground text-[10px] whitespace-nowrap">{f.field_unit}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {/* Add Field */}
+          {onAddCustomField && (
+            <div className="pt-1">
+              {showAddField ? (
+                <div className="space-y-1.5 border border-dashed border-primary/20 rounded-lg p-2 bg-primary/5">
+                  <div className="flex gap-1 flex-wrap mb-1">
+                    <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold w-full">Quick Add</span>
+                    {PREDEFINED_FIELDS.filter(pf => !customFields.some(cf => cf.field_name === pf.field_name)).slice(0, 4).map(pf => (
+                      <button
+                        key={pf.field_name}
+                        onClick={async () => {
+                          await onAddCustomField(pf);
+                          toast.success(`Added "${pf.field_name}" field`);
+                        }}
+                        className="px-1.5 py-0.5 rounded text-[10px] bg-secondary text-muted-foreground border border-border/50 hover:text-primary hover:border-primary/30 transition-all"
+                      >
+                        + {pf.field_name}
+                      </button>
+                    ))}
+                  </div>
+                  <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Custom</span>
+                  <div className="flex gap-1">
+                    <input
+                      type="text"
+                      value={newFieldName}
+                      onChange={e => setNewFieldName(e.target.value)}
+                      placeholder="Field name"
+                      className="flex-1 bg-secondary border border-border/50 rounded px-2 py-1 text-foreground text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50"
+                    />
+                    <select
+                      value={newFieldType}
+                      onChange={e => setNewFieldType(e.target.value as any)}
+                      className="bg-secondary border border-border/50 rounded px-1 py-1 text-[10px] text-foreground focus:outline-none"
+                    >
+                      <option value="text">Text</option>
+                      <option value="number">Number</option>
+                      <option value="date">Date</option>
+                    </select>
+                  </div>
+                  {newFieldType === 'number' && (
+                    <input
+                      type="text"
+                      value={newFieldUnit}
+                      onChange={e => setNewFieldUnit(e.target.value)}
+                      placeholder="Unit (e.g. mg, hours, $)"
+                      className="w-full bg-secondary border border-border/50 rounded px-2 py-1 text-foreground text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50"
+                    />
+                  )}
+                  <div className="flex gap-1 justify-end">
+                    <button onClick={() => { setShowAddField(false); setNewFieldName(''); setNewFieldUnit(''); }} className="px-2 py-0.5 rounded text-[10px] text-muted-foreground bg-secondary">Cancel</button>
+                    <button
+                      onClick={async () => {
+                        if (!newFieldName.trim()) return;
+                        await onAddCustomField({
+                          field_name: newFieldName.trim(),
+                          field_type: newFieldType,
+                          field_unit: newFieldUnit.trim() || null,
+                          affects_calculation: newFieldType === 'number',
+                          is_predefined: false,
+                        });
+                        toast.success(`Added "${newFieldName}" to all compounds`);
+                        setNewFieldName('');
+                        setNewFieldUnit('');
+                        setShowAddField(false);
+                      }}
+                      className="px-2 py-0.5 rounded text-[10px] text-primary bg-primary/10 border border-primary/20 font-medium"
+                    >Add</button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowAddField(true)}
+                  className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-colors"
+                >
+                  <PlusCircle className="w-3 h-3" /> Add Field
+                </button>
+              )}
+            </div>
           )}
           <div className="flex justify-end gap-1 pt-1">
             <button onClick={cancelEdit} className="p-1 rounded bg-secondary hover:bg-secondary/80 text-muted-foreground">
@@ -1032,6 +1142,12 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
                   <span className="text-muted-foreground">Reorder:</span>{' '}
                   <span className="font-mono text-foreground">{reorderLabel}</span>
                 </div>
+                {compound.purchaseDate && (
+                  <div>
+                    <span className="text-muted-foreground">Purchased:</span>{' '}
+                    <span className="font-mono text-foreground">{compound.purchaseDate}</span>
+                  </div>
+                )}
                 <div>
                   <span className="text-muted-foreground">Reorder:</span>{' '}
                   <span className="font-mono text-accent">{reorderDate}</span>
@@ -1126,7 +1242,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
                   return 'bottle';
                 })()}{compound.reorderQuantity !== 1 ? 's' : ''}</span>
               </div>
-              {!isOil && compound.purchaseDate && (
+              {compound.purchaseDate && (
                 <div>
                   <span className="text-muted-foreground">Purchased:</span>{' '}
                   <span className="font-mono text-foreground">{compound.purchaseDate}</span>
@@ -1136,6 +1252,22 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
                 <span className="text-muted-foreground">Reorder by:</span>{' '}
                 <span className="font-mono text-accent">{reorderDate}</span>
               </div>
+            </div>
+          )}
+
+          {/* Custom field values display */}
+          {customFields.length > 0 && Array.from(customFieldValues.entries()).filter(([,v]) => v).length > 0 && (
+            <div className="grid grid-cols-2 gap-x-3 text-[10px] mt-1">
+              {customFields.map(f => {
+                const val = customFieldValues.get(f.id);
+                if (!val) return null;
+                return (
+                  <div key={f.id}>
+                    <span className="text-muted-foreground">{f.field_name}:</span>{' '}
+                    <span className="font-mono text-foreground">{val}{f.field_unit ? ` ${f.field_unit}` : ''}</span>
+                  </div>
+                );
+              })}
             </div>
           )}
 
