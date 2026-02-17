@@ -357,6 +357,13 @@ const FoodTrackerView = () => {
       }
 
       try {
+        // mediaDevices is unavailable in sandboxed iframes (e.g. editor preview)
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          setLiveScannerError('Camera not available in this environment. Please open the app in a browser tab directly.');
+          setLiveScannerLoading(false);
+          return;
+        }
+
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
         });
@@ -372,16 +379,17 @@ const FoodTrackerView = () => {
         const ctx = canvas.getContext('2d');
 
         const tick = () => {
-          if (cancelled || !ctx) return;
-          if (video!.readyState === video!.HAVE_ENOUGH_DATA && video!.videoWidth > 0) {
-            canvas.width = video!.videoWidth;
-            canvas.height = video!.videoHeight;
-            ctx.drawImage(video!, 0, 0, canvas.width, canvas.height);
+          if (cancelled || !ctx || !videoRef.current) return;
+          const v = videoRef.current;
+          if (v.readyState === v.HAVE_ENOUGH_DATA && v.videoWidth > 0) {
+            canvas.width = v.videoWidth;
+            canvas.height = v.videoHeight;
+            ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
             try {
               const result = codeReader.decodeFromCanvas(canvas);
               if (result && !cancelled) {
                 lookupAndFillBarcode(result.getText());
-                return; // stop loop — lookupAndFillBarcode will call stopLiveScanner
+                return; // stop loop
               }
             } catch {
               // NotFoundException on every empty frame — expected, continue
@@ -392,7 +400,7 @@ const FoodTrackerView = () => {
         scanAnimRef.current = requestAnimationFrame(tick);
       } catch (e: any) {
         if (cancelled) return;
-        const msg = e?.name === 'NotAllowedError' || e?.message?.includes('Permission')
+        const msg = e?.name === 'NotAllowedError' || e?.message?.includes('Permission') || e?.name === 'NotFoundError'
           ? 'Camera permission denied. Please allow camera access and try again.'
           : `Could not access camera: ${e?.message || 'unknown error'}`;
         setLiveScannerError(msg);
