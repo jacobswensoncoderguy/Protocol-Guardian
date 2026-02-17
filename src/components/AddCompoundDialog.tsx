@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Compound, CompoundCategory } from '@/data/compounds';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, Search, ArrowLeft, Loader2, ChevronRight, PenLine } from 'lucide-react';
+import { Plus, Search, ArrowLeft, Loader2, ChevronRight, PenLine, ArrowUp } from 'lucide-react';
 
 interface LibraryCompound {
   id: string;
@@ -307,7 +307,7 @@ const AddCompoundDialog = ({ open, onOpenChange, existingCompoundIds, onAdd }: A
 
         {view === 'list' && (
           // Pick list view
-          <div className="flex-1 overflow-y-auto px-4 pb-4">
+          <div className="flex-1 overflow-y-auto px-4 pb-4" id="compound-library-scroll">
             {/* Create custom button */}
             <button
               onClick={startCustom}
@@ -363,6 +363,15 @@ const AddCompoundDialog = ({ open, onOpenChange, existingCompoundIds, onAdd }: A
                         </button>
                       ))}
                     </div>
+                    {group.items.length > 3 && (
+                      <button
+                        onClick={() => document.getElementById('compound-library-scroll')?.scrollTo({ top: 0, behavior: 'smooth' })}
+                        className="w-full flex items-center justify-center gap-1.5 py-1.5 mt-1 text-[10px] text-muted-foreground hover:text-primary transition-colors"
+                      >
+                        <ArrowUp className="w-3 h-3" />
+                        Back to top
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
