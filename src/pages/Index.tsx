@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Package, LayoutDashboard, RefreshCw, Brain, Activity } from 'lucide-react';
+import { Calendar, Package, LayoutDashboard, RefreshCw, Brain, Activity, ClipboardList } from 'lucide-react';
 import { getDaysRemainingWithCycling } from '@/lib/cycling';
 import { getStatus } from '@/data/compounds';
 import { Compound } from '@/data/compounds';
@@ -41,6 +41,8 @@ import CostProjectionView from '@/components/CostProjectionView';
 import ReorderView from '@/components/ReorderView';
 import AIInsightsView from '@/components/AIInsightsView';
 import OutcomesView from '@/components/OutcomesView';
+import FoodTrackerView from '@/components/FoodTrackerView';
+import SymptomsTrackerView from '@/components/SymptomsTrackerView';
 import { useScheduleSnapshots } from '@/hooks/useScheduleSnapshots';
 import { useHistoricalCheckOffs } from '@/hooks/useHistoricalCheckOffs';
 import { useSwipeTabs } from '@/hooks/useSwipeTabs';
@@ -131,9 +133,11 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [scheduleSubTab, setScheduleSubTab] = useState('this-week');
   const [inventorySubTab, setInventorySubTab] = useState('stock');
+  const [trackingSubTab, setTrackingSubTab] = useState('food');
 
   const scheduleSwipe = useSwipeTabs({ tabs: ['this-week', 'history'], currentTab: scheduleSubTab, onTabChange: setScheduleSubTab });
   const inventorySwipe = useSwipeTabs({ tabs: ['stock', 'costs', 'reorder'], currentTab: inventorySubTab, onTabChange: setInventorySubTab });
+  const trackingSwipe = useSwipeTabs({ tabs: ['food', 'symptoms'], currentTab: trackingSubTab, onTabChange: setTrackingSubTab });
 
   // Badge counts for low-stock alerts
   const lowStockCounts = useMemo(() => {
@@ -277,6 +281,10 @@ const Index = () => {
                 </span>
               )}
             </TabsTrigger>
+            <TabsTrigger value="tracking" className="flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
+              <ClipboardList className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+              <span>Tracking</span>
+            </TabsTrigger>
             <TabsTrigger value="ai-insights" className="flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
               <Brain className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
               <span>AI</span>
@@ -364,6 +372,22 @@ const Index = () => {
                 </TabsContent>
                 <TabsContent value="reorder" forceMount={inventorySubTab === 'reorder' ? true : undefined}>
                   {inventorySubTab === 'reorder' && <ReorderView compounds={compounds} onUpdateCompound={handleUpdateCompound} userId={user?.id} protocols={protocols} />}
+                </TabsContent>
+              </div>
+            </Tabs>
+          </TabsContent>
+          <TabsContent value="tracking" className="animate-slide-up">
+            <Tabs value={trackingSubTab} onValueChange={setTrackingSubTab} className="w-full">
+              <TabsList className="w-full bg-card/80 border border-border/60 mb-3 h-10 p-1 gap-1">
+                <TabsTrigger value="food" className="flex-1 text-xs font-semibold rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">Food</TabsTrigger>
+                <TabsTrigger value="symptoms" className="flex-1 text-xs font-semibold rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">Symptoms</TabsTrigger>
+              </TabsList>
+              <div key={trackingSubTab} className={trackingSwipe.slideClass} onAnimationEnd={trackingSwipe.onAnimationEnd} onTouchStart={trackingSwipe.onTouchStart} onTouchEnd={trackingSwipe.onTouchEnd}>
+                <TabsContent value="food" forceMount={trackingSubTab === 'food' ? true : undefined}>
+                  {trackingSubTab === 'food' && <FoodTrackerView />}
+                </TabsContent>
+                <TabsContent value="symptoms" forceMount={trackingSubTab === 'symptoms' ? true : undefined}>
+                  {trackingSubTab === 'symptoms' && <SymptomsTrackerView />}
                 </TabsContent>
               </div>
             </Tabs>

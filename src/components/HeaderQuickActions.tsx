@@ -1,4 +1,4 @@
-import { Plus, Package, Target, Brain, Calendar, ShoppingCart, Sparkles } from 'lucide-react';
+import { Plus, Package, Target, Brain, Calendar, ShoppingCart, Sparkles, Utensils, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 
@@ -44,6 +44,11 @@ const HeaderQuickActions = ({ activeTab, onAddCompound, onManageProtocols, onGoa
       case 'reorders':
         return [
           { icon: Package, label: 'Add Compound', onClick: onAddCompound },
+        ];
+      case 'tracking':
+        return [
+          { icon: Utensils, label: 'Log Food', onClick: () => {} },
+          { icon: AlertCircle, label: 'Log Symptom', onClick: () => {} },
         ];
       default:
         return [
