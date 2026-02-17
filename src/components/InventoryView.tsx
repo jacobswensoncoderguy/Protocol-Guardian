@@ -397,9 +397,14 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
     const editIsPeptide = editState.category === 'peptide';
     const editIsOil = editState.category === 'injectable-oil';
 
-    // Persist unit label for non-peptide/non-oil compounds
-    if (!editIsPeptide && !editIsOil && editState.unitLabel) {
+    // Persist unit label for all categories
+    if (editState.unitLabel) {
       updates.unitLabel = editState.unitLabel;
+    }
+    // Persist dose label from the dose unit dropdown
+    if (editState.editDoseUnit) {
+      const unitMap: Record<string, string> = { mg: 'mg', mcg: 'mcg', iu: 'IU', ml: 'mL', pills: compound.doseLabel };
+      updates.doseLabel = unitMap[editState.editDoseUnit] || compound.doseLabel;
     }
     // Strength (weight per unit) — available for all categories
     const rawVal = parseFloat(editState.weightPerUnit || '');
@@ -416,7 +421,6 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
     if (editIsOil) {
       const vialMl = parseFloat(editState.vialSizeMl || '10');
       updates.vialSizeMl = isNaN(vialMl) || vialMl <= 0 ? 10 : vialMl;
-      updates.unitLabel = 'mg/mL';
     }
 
     if (editIsPeptide) {
@@ -721,37 +725,63 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
               </span>
             </div>
           </div>
-          {/* Per Unit with unit label dropdown — available for all categories */}
-          <div className="flex items-center gap-2 text-[11px]">
-            <span className="text-muted-foreground w-16 flex-shrink-0">{isOil ? 'Conc.' : 'Per Unit'}</span>
-            <div className="flex items-center gap-1 flex-1">
-              <input
-                type="number"
-                value={editState.unitSize}
-                onChange={e => setEditState(s => ({ ...s, unitSize: e.target.value }))}
-                className="w-full bg-secondary border border-border/50 rounded px-2 py-1 text-foreground font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50"
-              />
-              <select
-                value={editState.unitLabel || compound.unitLabel}
-                onChange={e => setEditState(s => ({ ...s, unitLabel: e.target.value }))}
-                className="bg-secondary border border-border/50 rounded px-1.5 py-1 text-foreground font-mono text-[10px] focus:outline-none focus:ring-1 focus:ring-primary/50 min-w-[52px]"
-              >
-                <option value="caps">caps</option>
-                <option value="tabs">tabs</option>
-                <option value="softgels">softgels</option>
-                <option value="servings">servings</option>
-                <option value="scoops">scoops</option>
-                <option value="pills">pills</option>
-                <option value="mg">mg</option>
-                <option value="mcg">mcg</option>
-                <option value="mL">mL</option>
-                <option value="mg/mL">mg/mL</option>
-                <option value="g">g</option>
-                <option value="oz">oz</option>
-                <option value="IU">IU</option>
-              </select>
+          {/* Volume (peptides/oils) or Per Unit (others) */}
+          {(editState.category === 'peptide' || editState.category === 'injectable-oil') ? (
+            <div className="flex items-center gap-2 text-[11px]">
+              <span className="text-muted-foreground w-16 flex-shrink-0">Volume</span>
+              <div className="flex items-center gap-1 flex-1">
+                <input
+                  type="number"
+                  value={editState.unitSize}
+                  onChange={e => setEditState(s => ({ ...s, unitSize: e.target.value }))}
+                  className="w-full bg-secondary border border-border/50 rounded px-2 py-1 text-foreground font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50"
+                />
+                <select
+                  value={editState.unitLabel || compound.unitLabel}
+                  onChange={e => setEditState(s => ({ ...s, unitLabel: e.target.value }))}
+                  className="bg-secondary border border-border/50 rounded px-1.5 py-1 text-foreground font-mono text-[10px] focus:outline-none focus:ring-1 focus:ring-primary/50 min-w-[52px]"
+                >
+                  <option value="mg vial">mg vial</option>
+                  <option value="mL vial">mL vial</option>
+                  <option value="mg/mL">mg/mL</option>
+                  <option value="IU">IU</option>
+                  <option value="mL">mL</option>
+                </select>
+                <span className="text-muted-foreground text-[10px] whitespace-nowrap">/vial</span>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex items-center gap-2 text-[11px]">
+              <span className="text-muted-foreground w-16 flex-shrink-0">Per Unit</span>
+              <div className="flex items-center gap-1 flex-1">
+                <input
+                  type="number"
+                  value={editState.unitSize}
+                  onChange={e => setEditState(s => ({ ...s, unitSize: e.target.value }))}
+                  className="w-full bg-secondary border border-border/50 rounded px-2 py-1 text-foreground font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50"
+                />
+                <select
+                  value={editState.unitLabel || compound.unitLabel}
+                  onChange={e => setEditState(s => ({ ...s, unitLabel: e.target.value }))}
+                  className="bg-secondary border border-border/50 rounded px-1.5 py-1 text-foreground font-mono text-[10px] focus:outline-none focus:ring-1 focus:ring-primary/50 min-w-[52px]"
+                >
+                  <option value="caps">caps</option>
+                  <option value="tabs">tabs</option>
+                  <option value="softgels">softgels</option>
+                  <option value="servings">servings</option>
+                  <option value="scoops">scoops</option>
+                  <option value="pills">pills</option>
+                  <option value="mg">mg</option>
+                  <option value="mcg">mcg</option>
+                  <option value="mL">mL</option>
+                  <option value="mg/mL">mg/mL</option>
+                  <option value="g">g</option>
+                  <option value="oz">oz</option>
+                  <option value="IU">IU</option>
+                </select>
+              </div>
+            </div>
+          )}
           {/* Strength (weight per unit) — available for all compound types */}
           <div className="flex items-center gap-2 text-[11px]">
             <span className="text-muted-foreground w-16 flex-shrink-0">Strength</span>
