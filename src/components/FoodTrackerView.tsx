@@ -410,17 +410,23 @@ const FoodTrackerView = () => {
     try {
       // Step 1: Try to decode a barcode from the image using ZXing
       let barcodeDetected: string | null = null;
+      let imgUrl: string | null = null;
       try {
-        const imgUrl = URL.createObjectURL(file);
-        const imgEl = document.createElement('img');
-        imgEl.src = imgUrl;
-        await new Promise<void>((resolve) => { imgEl.onload = () => resolve(); imgEl.onerror = () => resolve(); });
-        const reader = new BrowserMultiFormatReader();
-        const result = await reader.decodeFromImageElement(imgEl);
+        imgUrl = URL.createObjectURL(file);
+        const imgEl = new Image();
+        imgEl.crossOrigin = 'anonymous';
+        await new Promise<void>((res, rej) => {
+          imgEl.onload = () => res();
+          imgEl.onerror = () => rej(new Error('img load failed'));
+          imgEl.src = imgUrl!;
+        });
+        const codeReader = new BrowserMultiFormatReader();
+        const result = await codeReader.decodeFromImageElement(imgEl);
         barcodeDetected = result.getText();
-        URL.revokeObjectURL(imgUrl);
       } catch {
         // No barcode found — proceed to AI image analysis
+      } finally {
+        if (imgUrl) URL.revokeObjectURL(imgUrl);
       }
 
       if (barcodeDetected) {
