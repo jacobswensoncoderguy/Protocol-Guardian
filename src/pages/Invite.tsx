@@ -2,14 +2,16 @@ import { lovable } from '@/integrations/lovable/index';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate, useSearchParams } from 'react-router-dom';
-import { Zap, Loader2, Mail, Lock } from 'lucide-react';
+import { Zap, Loader2, Mail, Lock, ArrowLeft } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+
+type InviteMode = 'login' | 'signup' | 'forgot';
 
 const Invite = () => {
   const { user, loading } = useAuth();
   const [searchParams] = useSearchParams();
-  const [mode, setMode] = useState<'login' | 'signup'>('signup');
+  const [mode, setMode] = useState<InviteMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -24,12 +26,17 @@ const Invite = () => {
   }, [searchParams]);
 
   const handleGoogleSignIn = async () => {
-    const { error } = await lovable.auth.signInWithOAuth('google', {
-      redirect_uri: window.location.origin,
-    });
-    if (error) {
-      console.error('Sign in error:', error);
-      toast.error('Google sign-in failed. Please try again.');
+    try {
+      const { error } = await lovable.auth.signInWithOAuth('google', {
+        redirect_uri: window.location.origin,
+      });
+      if (error) {
+        console.error('Sign in error:', error);
+        toast.error('Google sign-in failed. Please try again.');
+      }
+    } catch (err) {
+      console.error('OAuth crash:', err);
+      toast.error('Something went wrong. Please try again.');
     }
   };
 
@@ -44,27 +51,64 @@ const Invite = () => {
       return;
     }
     setSubmitting(true);
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { emailRedirectTo: window.location.origin },
-    });
-    setSubmitting(false);
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success('Check your email for a verification link!');
-      setMode('login');
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: window.location.origin },
+      });
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success('Check your email for a verification link!');
+        setMode('login');
+      }
+    } catch (err) {
+      console.error('Signup crash:', err);
+      toast.error('Something went wrong. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setSubmitting(false);
-    if (error) {
-      toast.error(error.message);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        toast.error(error.message);
+      }
+    } catch (err) {
+      console.error('Login crash:', err);
+      toast.error('Something went wrong. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) {
+      toast.error('Enter your email address');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success('Password reset email sent!');
+        setMode('login');
+      }
+    } catch (err) {
+      console.error('Reset crash:', err);
+      toast.error('Something went wrong. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -92,8 +136,11 @@ const Invite = () => {
             <span className="text-muted-foreground font-medium ml-2">Tracker</span>
           </h1>
           <p className="text-muted-foreground mt-3 text-sm leading-relaxed">
-            You've been invited to join.<br />
-            Track your protocol. Optimize your performance.
+            {mode === 'signup' ? (
+              <>You've been invited to join.<br />Track your protocol. Optimize your performance.</>
+            ) : (
+              <>Welcome back.<br />Sign in to continue your protocol.</>
+            )}
           </p>
         </div>
 
@@ -108,7 +155,7 @@ const Invite = () => {
             <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
             <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
           </svg>
-          Get Started with Google
+          {mode === 'signup' ? 'Get Started with Google' : 'Continue with Google'}
         </button>
 
         <div className="relative">
@@ -121,37 +168,61 @@ const Invite = () => {
         </div>
 
         {/* Email/Password Form */}
-        <form onSubmit={mode === 'login' ? handleEmailSignIn : handleEmailSignUp} className="space-y-3">
-          <div className="relative">
-            <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email address" required
-              className="w-full pl-10 pr-3 py-2.5 rounded-lg border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50" />
-          </div>
-          <div className="relative">
-            <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" required minLength={6}
-              className="w-full pl-10 pr-3 py-2.5 rounded-lg border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50" />
-          </div>
-          {mode === 'signup' && (
+        {mode === 'forgot' ? (
+          <form onSubmit={handleForgotPassword} className="space-y-3 text-left">
+            <button type="button" onClick={() => setMode('login')} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+              <ArrowLeft className="w-3 h-3" /> Back to login
+            </button>
+            <p className="text-sm text-muted-foreground">Enter your email to receive a password reset link.</p>
             <div className="relative">
-              <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Confirm password" required minLength={6}
+              <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email address" required
                 className="w-full pl-10 pr-3 py-2.5 rounded-lg border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50" />
             </div>
-          )}
-          <button type="submit" disabled={submitting}
-            className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold text-sm disabled:opacity-50 flex items-center justify-center gap-2">
-            {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-            {mode === 'login' ? 'Sign In' : 'Create Account'}
-          </button>
-        </form>
+            <button type="submit" disabled={submitting}
+              className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+              {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+              Send Reset Link
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={mode === 'login' ? handleEmailSignIn : handleEmailSignUp} className="space-y-3">
+            <div className="relative">
+              <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email address" required
+                className="w-full pl-10 pr-3 py-2.5 rounded-lg border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50" />
+            </div>
+            <div className="relative">
+              <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" required minLength={6}
+                className="w-full pl-10 pr-3 py-2.5 rounded-lg border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50" />
+            </div>
+            {mode === 'signup' && (
+              <div className="relative">
+                <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Confirm password" required minLength={6}
+                  className="w-full pl-10 pr-3 py-2.5 rounded-lg border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50" />
+              </div>
+            )}
+            <button type="submit" disabled={submitting}
+              className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+              {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+              {mode === 'login' ? 'Sign In' : 'Create Account'}
+            </button>
+            {mode === 'login' && (
+              <button type="button" onClick={() => setMode('forgot')} className="text-xs text-muted-foreground hover:text-primary transition-colors">
+                Forgot password?
+              </button>
+            )}
+          </form>
+        )}
 
         <p className="text-xs text-muted-foreground">
-          {mode === 'signup' ? (
-            <>Already have an account? <button onClick={() => setMode('login')} className="text-primary hover:underline">Sign in</button></>
-          ) : (
+          {mode === 'login' ? (
             <>Don't have an account? <button onClick={() => setMode('signup')} className="text-primary hover:underline">Sign up</button></>
-          )}
+          ) : mode === 'signup' ? (
+            <>Already have an account? <button onClick={() => setMode('login')} className="text-primary hover:underline">Sign in</button></>
+          ) : null}
         </p>
 
         <p className="text-[11px] text-muted-foreground">
