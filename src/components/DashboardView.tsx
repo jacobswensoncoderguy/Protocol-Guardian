@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Compound } from '@/data/compounds';
-import { Target, Plus, Shield, Scale, Rocket, Ruler, Weight, Percent, Calendar as CalendarIcon, Check, ToggleLeft, ChevronRight } from 'lucide-react';
+import { Target, Plus, Shield, Scale, Rocket, Ruler, Weight, Percent, Calendar as CalendarIcon, Check, ToggleLeft, ChevronRight, Sparkles, Package } from 'lucide-react';
+import InfoTooltip from '@/components/InfoTooltip';
 import { AppFeatures } from '@/lib/appFeatures';
 import FeatureTeaserCard from '@/components/FeatureTeaserCard';
 import { getGoalIcon } from '@/lib/goalIcons';
@@ -53,6 +54,7 @@ interface DashboardViewProps {
   };
   appFeatures?: AppFeatures;
   onEnableFeature?: (key: keyof AppFeatures) => void;
+  onAddCompound?: () => void;
 }
 
 const toleranceMeta: Record<string, { Icon: typeof Shield; label: string; color: string }> = {
@@ -255,7 +257,10 @@ const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpda
         )}
         {toleranceLevel && (
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Dosing Tolerance</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5 flex items-center gap-1">
+              Dosing Tolerance
+              <InfoTooltip text="Conservative = lower doses & caution. Moderate = balanced approach. Performance = higher doses for advanced users." />
+            </p>
             {(() => {
               const meta = toleranceMeta[toleranceLevel];
               if (!meta) return null;
@@ -371,7 +376,7 @@ const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpda
   );
 };
 
-const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, toleranceLevel, onAnalyzeStack, onViewAIInsights, onViewOutcomes, goals = [], userId, profile, toleranceHistory = [], onUpdateProfile, onToleranceChange, measurementSystem = 'metric', doseUnitPreference = 'mg', onNavigateToInventory, conversationManager, appFeatures, onEnableFeature }: DashboardViewProps) => {
+const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, toleranceLevel, onAnalyzeStack, onViewAIInsights, onViewOutcomes, goals = [], userId, profile, toleranceHistory = [], onUpdateProfile, onToleranceChange, measurementSystem = 'metric', doseUnitPreference = 'mg', onNavigateToInventory, conversationManager, appFeatures, onEnableFeature, onAddCompound }: DashboardViewProps) => {
   const { readings, fetchReadings, addReading } = useGoalReadings(userId);
   const [selectedZone, setSelectedZone] = useState<BodyZone | null>(null);
   const [zoneDrawerOpen, setZoneDrawerOpen] = useState(false);
@@ -475,7 +480,10 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
       {f.supplementation ? (
         <div className="rounded-xl border border-border/30 bg-card/40 backdrop-blur-sm p-4">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="text-xs uppercase tracking-[0.15em] text-muted-foreground font-semibold">Protocol Coverage</h2>
+            <h2 className="text-xs uppercase tracking-[0.15em] text-muted-foreground font-semibold flex items-center gap-1.5">
+              Protocol Coverage
+              <InfoTooltip text="Shows how well your compounds cover 7 body zones (brain, heart, arms, core, hormonal, legs, immune). Higher % means broader protection." />
+            </h2>
             <span className="text-lg font-mono font-bold text-primary">{bodyCoverage}%</span>
           </div>
           <div className="h-2 bg-secondary/50 rounded-full overflow-hidden mb-2">
@@ -484,6 +492,27 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
           <p className="text-[9px] text-muted-foreground/60 mb-3 leading-snug">
             {activeCompounds.length} active compounds · {coverageRationale}
           </p>
+
+          {/* Empty state CTA when no active compounds */}
+          {activeCompounds.length === 0 ? (
+            <div className="py-10 flex items-center justify-center">
+              <div className="text-center">
+                <Package className="w-12 h-12 text-muted-foreground/20 mx-auto mb-3" />
+                <h3 className="text-sm font-semibold text-foreground mb-1">No Compounds Yet</h3>
+                <p className="text-xs text-muted-foreground mb-4">Add your first compound to see body zone coverage and protocol analysis.</p>
+                {onAddCompound && (
+                  <button
+                    onClick={onAddCompound}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all active:scale-95"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Compound
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <>
 
           {/* Body avatar with floating zone badges */}
           <div className="relative flex justify-center my-4">
@@ -530,9 +559,11 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
               })()}
             </div>
           </div>
-          <p className="text-[10px] text-muted-foreground/50 text-center mb-3">Tap a zone to view compounds &amp; impact</p>
+           <p className="text-[10px] text-muted-foreground/50 text-center mb-3">Tap a zone to view compounds &amp; impact</p>
 
-          <ZoneLegend zoneIntensities={zoneIntensities} onZoneTap={handleZoneTap} />
+           <ZoneLegend zoneIntensities={zoneIntensities} onZoneTap={handleZoneTap} />
+            </>
+          )}
         </div>
       ) : (
         <FeatureTeaserCard featureKey="supplementation" onEnable={() => onEnableFeature?.('supplementation')} />
@@ -545,6 +576,7 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
             <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <Target className="w-4 h-4 text-primary" />
               Goal Progress
+              <InfoTooltip text="Track your health goals over time. Add readings to see progress percentage and sparkline trends." />
             </h2>
             <div className="flex items-center gap-2">
               <button onClick={onViewOutcomes} className="text-xs text-primary hover:underline">View All</button>
@@ -587,11 +619,18 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
               })}
             </div>
           ) : (
-            <div className="py-8 flex items-center justify-center cursor-pointer" onClick={onViewOutcomes}>
+            <div className="py-8 flex items-center justify-center">
               <div className="text-center">
-                <Target className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+                <Target className="w-10 h-10 text-muted-foreground/20 mx-auto mb-3" />
                 <h3 className="text-sm font-semibold text-foreground mb-1">No Active Goals</h3>
-                <p className="text-xs text-muted-foreground">Tap to set goals and track progress</p>
+                <p className="text-xs text-muted-foreground mb-4">Set health goals to track biomarkers, body composition, and more.</p>
+                <button
+                  onClick={onViewOutcomes}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all active:scale-95"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Create Your First Goal
+                </button>
               </div>
             </div>
           )}

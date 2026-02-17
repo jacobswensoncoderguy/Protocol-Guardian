@@ -1,4 +1,5 @@
 import { Brain, RefreshCw, ChevronRight, TrendingUp, AlertCircle, CircleAlert, Info } from 'lucide-react';
+import InfoTooltip from '@/components/InfoTooltip';
 import { Shield, Scale, Zap, Rocket } from 'lucide-react';
 import { StackAnalysis } from '@/hooks/useProtocolAnalysis';
 import type { LucideIcon } from 'lucide-react';
@@ -54,6 +55,7 @@ const ProtocolIntelligenceCard = ({ analysis, loading, needsRefresh, toleranceLe
         <div className="flex items-center gap-2">
           <Brain className="w-4 h-4 text-primary" />
           <span className="text-sm font-semibold text-foreground">Protocol Intelligence</span>
+          <InfoTooltip text="AI-powered analysis of your compound stack. Checks for contraindications, synergies, and optimization opportunities." />
         </div>
         <div className="flex items-center gap-2">
           {needsRefresh && !loading && (
