@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
-import { Compound, getStatus, getReorderDateString, CompoundCategory } from '@/data/compounds';
+import { Compound, getStatus, getReorderDateString, CompoundCategory, getDaysRemaining } from '@/data/compounds';
 import { getCycleStatus, getDaysRemainingWithCycling } from '@/lib/cycling';
 import { UserProtocol } from '@/hooks/useProtocols';
 import { CustomField, CustomFieldValue, PREDEFINED_FIELDS } from '@/hooks/useCustomFields';
-import { Pencil, Check, X, Trash2, Plus, ChevronDown, ChevronUp, GripVertical, Syringe, Clock, SortAsc, Moon as MoonIcon, Sun, Dumbbell, RefreshCcw, Package, PlusCircle } from 'lucide-react';
+import { Pencil, Check, X, Trash2, Plus, ChevronDown, ChevronUp, GripVertical, Syringe, Clock, SortAsc, Moon as MoonIcon, Sun, Dumbbell, RefreshCcw, Package, PlusCircle, AlertTriangle } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import ToleranceSelector from '@/components/ToleranceSelector';
@@ -57,6 +57,14 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
     return a.name.localeCompare(b.name);
   });
 
+  // Compounds with stock alerts
+  const alertCompounds = useMemo(() => {
+    return activeCompounds
+      .map(c => ({ compound: c, days: getDaysRemainingWithCycling(c), status: getStatus(getDaysRemainingWithCycling(c)) }))
+      .filter(a => a.status === 'critical' || a.status === 'warning')
+      .sort((a, b) => a.days - b.days);
+  }, [activeCompounds]);
+
   // Build protocol groups + ungrouped by category
   const buildGroups = () => {
     if (sortBy === 'days') return [{ label: 'all', items: sorted }];
@@ -88,6 +96,33 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
 
   return (
     <div className="space-y-3">
+      {/* Stock Alert Banner */}
+      {alertCompounds.length > 0 && (
+        <div className="rounded-lg border border-status-warning/30 bg-status-warning/5 p-2.5 space-y-1.5">
+          <div className="flex items-center gap-1.5">
+            <AlertTriangle className="w-3.5 h-3.5 text-status-warning flex-shrink-0" />
+            <span className="text-[11px] font-semibold text-status-warning">
+              {alertCompounds.length} compound{alertCompounds.length !== 1 ? 's' : ''} need attention
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {alertCompounds.map(a => (
+              <span
+                key={a.compound.id}
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono ${
+                  a.status === 'critical'
+                    ? 'bg-destructive/15 text-status-critical border border-destructive/20'
+                    : 'bg-accent/15 text-status-warning border border-accent/20'
+                }`}
+              >
+                <Package className="w-2.5 h-2.5" />
+                {a.compound.name} — {a.days}d
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Header with tolerance selector */}
       <div className="flex items-center justify-between mb-1">
         <h2 className="text-sm font-semibold text-foreground">Compounds</h2>
