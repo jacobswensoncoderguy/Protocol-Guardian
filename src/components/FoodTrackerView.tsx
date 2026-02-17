@@ -276,11 +276,18 @@ const FoodTrackerView = () => {
     setSearchQuery(''); setSearchResults([]); setShowSearchResults(false);
   };
 
-  // Stop live scanner
+  // Stop live scanner — cancels RAF loop and releases camera stream
   const stopLiveScanner = useCallback(() => {
+    if (scanAnimRef.current !== null) {
+      cancelAnimationFrame(scanAnimRef.current);
+      scanAnimRef.current = null;
+    }
     if (scannerControlsRef.current) {
-      try { scannerControlsRef.current.stop(); } catch { /* ignore */ }
+      try { scannerControlsRef.current.getTracks().forEach(t => t.stop()); } catch { /* ignore */ }
       scannerControlsRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
     }
     setShowLiveScanner(false);
     setLiveScannerLoading(false);
@@ -322,20 +329,20 @@ const FoodTrackerView = () => {
     setBarcodeLoading(false);
   }, [stopLiveScanner]);
 
-  // Start live barcode scanner — just flips the flag; useEffect handles init once video mounts
+  // Start live barcode scanner — flips flag; useEffect handles init once video mounts
   const startLiveScanner = useCallback(() => {
     setShowLiveScanner(true);
     setLiveScannerLoading(true);
     setLiveScannerError(null);
   }, []);
 
-  // Initialize ZXing once the video element is in the DOM
+  // Initialize scanner: getUserMedia → canvas frame loop → ZXing decode
   useEffect(() => {
     if (!showLiveScanner) return;
     let cancelled = false;
 
     const initScanner = async () => {
-      // Poll until videoRef is available (renders after state update)
+      // Poll until videoRef is mounted (conditional render)
       let video = videoRef.current;
       let attempts = 0;
       while (!video && attempts < 20) {
@@ -343,39 +350,51 @@ const FoodTrackerView = () => {
         video = videoRef.current;
         attempts++;
       }
-      if (cancelled) return;
-      if (!video) {
+      if (cancelled || !video) {
         setLiveScannerError('Camera element not found.');
         setLiveScannerLoading(false);
         return;
       }
+
       try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        });
+        if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
+        scannerControlsRef.current = stream;
+        video.srcObject = stream;
+        await video.play();
+        if (cancelled) return;
+        setLiveScannerLoading(false);
+
         const codeReader = new BrowserMultiFormatReader();
-        const controls = await codeReader.decodeFromVideoDevice(
-          undefined, // uses default (rear) camera
-          video,
-          (result, err) => {
-            if (cancelled) return;
-            if (result) {
-              lookupAndFillBarcode(result.getText());
-            }
-            // NotFoundException fires every frame with no barcode — safe to ignore
-            if (err && err.name !== 'NotFoundException') {
-              console.warn('Scanner error:', err);
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        const tick = () => {
+          if (cancelled || !ctx) return;
+          if (video!.readyState === video!.HAVE_ENOUGH_DATA && video!.videoWidth > 0) {
+            canvas.width = video!.videoWidth;
+            canvas.height = video!.videoHeight;
+            ctx.drawImage(video!, 0, 0, canvas.width, canvas.height);
+            try {
+              const result = codeReader.decodeFromCanvas(canvas);
+              if (result && !cancelled) {
+                lookupAndFillBarcode(result.getText());
+                return; // stop loop — lookupAndFillBarcode will call stopLiveScanner
+              }
+            } catch {
+              // NotFoundException on every empty frame — expected, continue
             }
           }
-        );
-        if (cancelled) {
-          try { controls.stop(); } catch { /* ignore */ }
-          return;
-        }
-        scannerControlsRef.current = controls;
-        setLiveScannerLoading(false);
+          scanAnimRef.current = requestAnimationFrame(tick);
+        };
+        scanAnimRef.current = requestAnimationFrame(tick);
       } catch (e: any) {
         if (cancelled) return;
         const msg = e?.name === 'NotAllowedError' || e?.message?.includes('Permission')
           ? 'Camera permission denied. Please allow camera access and try again.'
-          : 'Could not access camera. Please try the manual barcode entry instead.';
+          : `Could not access camera: ${e?.message || 'unknown error'}`;
         setLiveScannerError(msg);
         setLiveScannerLoading(false);
       }
@@ -383,9 +402,7 @@ const FoodTrackerView = () => {
 
     initScanner();
 
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [showLiveScanner, lookupAndFillBarcode]);
 
   // Fetch saved/recent foods from the database
