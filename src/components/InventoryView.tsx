@@ -4,7 +4,7 @@ import { Compound, getStatus, getReorderDateString, CompoundCategory } from '@/d
 import { getCycleStatus, getDaysRemainingWithCycling } from '@/lib/cycling';
 import { UserProtocol } from '@/hooks/useProtocols';
 import { CustomField, CustomFieldValue, PREDEFINED_FIELDS } from '@/hooks/useCustomFields';
-import { Pencil, Check, X, Trash2, Plus, ChevronDown, ChevronUp, Syringe, Clock, SortAsc, Moon as MoonIcon, Sun, Dumbbell, RefreshCcw, Package, PlusCircle } from 'lucide-react';
+import { Pencil, Check, X, Trash2, Plus, ChevronDown, ChevronUp, GripVertical, Syringe, Clock, SortAsc, Moon as MoonIcon, Sun, Dumbbell, RefreshCcw, Package, PlusCircle } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import ToleranceSelector from '@/components/ToleranceSelector';
@@ -995,26 +995,29 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
             <div className="border-t border-border/30 pt-1.5 mt-1.5 space-y-1">
               <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Custom Fields</span>
               {customFields.map((f, fIdx) => (
-                <div key={f.id} className="flex items-center gap-1 text-[11px]">
-                  {/* Reorder buttons */}
+                <div key={f.id} className="flex items-center gap-1 text-[11px] group/field">
+                  {/* Drag handle with reorder controls */}
                   {onReorderCustomField && (
-                    <div className="flex flex-col gap-0 flex-shrink-0">
-                      <button
-                        onClick={() => onReorderCustomField(f.id, 'up')}
-                        disabled={fIdx === 0}
-                        className="p-0 text-muted-foreground hover:text-primary disabled:opacity-20 transition-colors"
-                        title="Move up"
-                      >
-                        <ChevronUp className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={() => onReorderCustomField(f.id, 'down')}
-                        disabled={fIdx === customFields.length - 1}
-                        className="p-0 text-muted-foreground hover:text-primary disabled:opacity-20 transition-colors"
-                        title="Move down"
-                      >
-                        <ChevronDown className="w-3 h-3" />
-                      </button>
+                    <div className="flex items-center gap-0 flex-shrink-0">
+                      <GripVertical className="w-3 h-3 text-muted-foreground/40 cursor-grab" />
+                      <div className="flex flex-col gap-0">
+                        <button
+                          onClick={() => onReorderCustomField(f.id, 'up')}
+                          disabled={fIdx === 0}
+                          className="p-0 text-muted-foreground/50 hover:text-primary disabled:opacity-20 transition-colors"
+                          title="Move up"
+                        >
+                          <ChevronUp className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => onReorderCustomField(f.id, 'down')}
+                          disabled={fIdx === customFields.length - 1}
+                          className="p-0 text-muted-foreground/50 hover:text-primary disabled:opacity-20 transition-colors"
+                          title="Move down"
+                        >
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
                   )}
                   <span className="text-muted-foreground w-14 flex-shrink-0 truncate" title={f.field_name}>{f.field_name}</span>
