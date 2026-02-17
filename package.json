@@ -47,6 +47,7 @@
     "@supabase/supabase-js": "^2.95.3",
     "@tanstack/react-query": "^5.83.0",
     "@types/three": "^0.160.0",
+    "@zxing/browser": "^0.1.5",
     "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { BrowserMultiFormatReader } from '@zxing/browser';
 import { Plus, Utensils, Apple, Coffee, Moon, Sun, Trash2, ChevronDown, ChevronUp, Camera, Loader2, Settings, Sparkles, Barcode, X, Search, Clock, Star } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -400,47 +401,99 @@ const FoodTrackerView = () => {
     });
   };
 
-  // AI image scanning
+  // Camera: first try barcode decode, then fall back to AI image analysis
   const handleImageCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setScanning(true);
     try {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = async () => {
-        const base64 = reader.result as string;
-        const { data, error } = await supabase.functions.invoke('parse-food-image', {
-          body: { imageBase64: base64 },
-        });
+      // Step 1: Try to decode a barcode from the image using ZXing
+      let barcodeDetected: string | null = null;
+      try {
+        const imgUrl = URL.createObjectURL(file);
+        const imgEl = document.createElement('img');
+        imgEl.src = imgUrl;
+        await new Promise<void>((resolve) => { imgEl.onload = () => resolve(); imgEl.onerror = () => resolve(); });
+        const reader = new BrowserMultiFormatReader();
+        const result = await reader.decodeFromImageElement(imgEl);
+        barcodeDetected = result.getText();
+        URL.revokeObjectURL(imgUrl);
+      } catch {
+        // No barcode found — proceed to AI image analysis
+      }
 
-        if (error || data?.error) {
-          toast.error(data?.error || 'Failed to analyze image');
+      if (barcodeDetected) {
+        // Step 2a: Barcode found — look it up on Open Food Facts
+        toast.info(`Barcode detected: ${barcodeDetected}`, { description: 'Looking up product…' });
+        const res = await fetch(
+          `https://world.openfoodfacts.org/api/v2/product/${barcodeDetected}?fields=product_name,brands,nutriments,serving_quantity,serving_quantity_unit`
+        );
+        const json = await res.json();
+        if (json.status !== 1 || !json.product) {
+          toast.error('Product not found in database', { description: 'Try entering nutrition manually.' });
           setScanning(false);
+          if (fileInputRef.current) fileInputRef.current.value = '';
           return;
         }
+        const p = json.product;
+        const n = p.nutriments || {};
+        const servQty = p.serving_quantity ? parseFloat(p.serving_quantity) : 100;
+        const factor = servQty / 100;
+        setFoodName(p.product_name || '');
+        setServingSize(String(servQty));
+        setServingUnit(p.serving_quantity_unit || 'g');
+        setCalories(String(Math.round((n['energy-kcal_100g'] ?? 0) * factor)));
+        setProtein(String(Math.round((n.proteins_100g ?? 0) * factor)));
+        setCarbs(String(Math.round((n.carbohydrates_100g ?? 0) * factor)));
+        setFat(String(Math.round((n.fat_100g ?? 0) * factor)));
+        setFiber(String(Math.round((n.fiber_100g ?? 0) * factor)));
+        const brand = p.brands ? ` (${p.brands.split(',')[0].trim()})` : '';
+        setScanResult({ confidence: 'high', notes: `Open Food Facts${p.brands ? ' · ' + p.brands.split(',')[0].trim() : ''}` });
+        toast.success(`Found: ${p.product_name}${brand}`, { description: '✓ Nutrition pre-filled from barcode.' });
+      } else {
+        // Step 2b: No barcode — send to AI for food/label analysis
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        await new Promise<void>((resolve) => {
+          reader.onload = async () => {
+            const base64 = reader.result as string;
+            const { data, error } = await supabase.functions.invoke('parse-food-image', {
+              body: { imageBase64: base64 },
+            });
 
-        const result = data.result;
-        setScanResult(result);
-        setFoodName(result.food_name || '');
-        setServingSize(String(result.serving_size || 100));
-        setServingUnit(result.serving_unit || 'g');
-        setCalories(String(Math.round(result.calories || 0)));
-        setProtein(String(Math.round(result.protein_g || 0)));
-        setCarbs(String(Math.round(result.carbs_g || 0)));
-        setFat(String(Math.round(result.fat_g || 0)));
-        setFiber(String(Math.round(result.fiber_g || 0)));
+            if (error || data?.error) {
+              toast.error(data?.error || 'Failed to analyze image');
+              resolve();
+              return;
+            }
 
-        const confidenceMsg = result.confidence === 'high' ? '✓ High confidence' : result.confidence === 'medium' ? '⚠ Medium confidence — please verify' : '⚠ Low confidence — please verify values';
-        toast.success(`Scanned: ${result.food_name}`, { description: confidenceMsg });
-        setScanning(false);
-      };
+            const result = data.result;
+            setScanResult(result);
+            setFoodName(result.food_name || '');
+            setServingSize(String(result.serving_size || 100));
+            setServingUnit(result.serving_unit || 'g');
+            setCalories(String(Math.round(result.calories || 0)));
+            setProtein(String(Math.round(result.protein_g || 0)));
+            setCarbs(String(Math.round(result.carbs_g || 0)));
+            setFat(String(Math.round(result.fat_g || 0)));
+            setFiber(String(Math.round(result.fiber_g || 0)));
+
+            const confidenceMsg = result.confidence === 'high'
+              ? '✓ High confidence'
+              : result.confidence === 'medium'
+              ? '⚠ Medium confidence — please verify'
+              : '⚠ Low confidence — please verify values';
+            toast.success(`Scanned: ${result.food_name}`, { description: confidenceMsg });
+            resolve();
+          };
+        });
+      }
     } catch {
       toast.error('Failed to scan image');
-      setScanning(false);
     }
-    // Reset file input
+
+    setScanning(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -692,7 +745,7 @@ const FoodTrackerView = () => {
                 disabled={scanning || barcodeLoading}
               >
                 {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
-                {scanning ? 'Analyzing…' : 'AI Camera'}
+                {scanning ? 'Scanning…' : 'Scan Barcode / Photo'}
               </Button>
               <Button
                 variant="outline"
