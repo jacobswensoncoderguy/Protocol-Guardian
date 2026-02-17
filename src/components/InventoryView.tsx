@@ -338,6 +338,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
     let storedUnit: string;
     if (dl.includes('iu')) storedUnit = 'iu';
     else if (dl.includes('mcg') || dl.includes('µg')) storedUnit = 'mcg';
+    else if (dl.includes('scoop')) storedUnit = 'scoop';
     else if (dl.includes('pill') || dl.includes('cap') || dl.includes('softgel') || dl.includes('tab') || dl.includes('serving')) storedUnit = 'pills';
     else if (dl.includes('ml')) storedUnit = 'ml';
     else storedUnit = 'mg';
@@ -461,7 +462,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
     }
     // Persist dose label from the dose unit dropdown
     if (editState.editDoseUnit) {
-      const unitMap: Record<string, string> = { mg: 'mg', mcg: 'mcg', iu: 'IU', ml: 'mL', pills: compound.doseLabel };
+      const unitMap: Record<string, string> = { mg: 'mg', mcg: 'mcg', iu: 'IU', ml: 'mL', pills: compound.doseLabel, scoop: 'scoop' };
       updates.doseLabel = unitMap[editState.editDoseUnit] || compound.doseLabel;
     }
     // Strength (weight per unit) — available for all categories
@@ -777,10 +778,21 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                 value={editState.currentQuantity}
                 onChange={e => setEditState(s => ({ ...s, currentQuantity: e.target.value }))}
                 className="w-full bg-secondary border border-border/50 rounded px-2 py-1 text-foreground font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50"
-              />
-              <span className="text-muted-foreground text-[10px] whitespace-nowrap">
-                {isPeptide ? 'vials' : isOil ? 'vials' : (editState.category === 'powder' ? 'bags' : 'bottles')}
-              </span>
+               />
+              {editState.category === 'powder' ? (
+                <select
+                  value={editState.containerType || 'bags'}
+                  onChange={e => setEditState(s => ({ ...s, containerType: e.target.value }))}
+                  className="bg-secondary border border-border/50 rounded px-1.5 py-1 text-foreground font-mono text-[10px] focus:outline-none focus:ring-1 focus:ring-primary/50 min-w-[52px]"
+                >
+                  <option value="bags">bags</option>
+                  <option value="bottles">bottles</option>
+                </select>
+              ) : (
+                <span className="text-muted-foreground text-[10px] whitespace-nowrap">
+                  {isPeptide ? 'vials' : isOil ? 'vials' : 'bottles'}
+                </span>
+              )}
             </div>
           </div>
           {/* Volume (peptides/oils) or Per Unit (others) */}
@@ -921,9 +933,9 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                     else if (catIsOil) mgValue = currentDose * unitSize;
                   } else if (oldUnit === 'mcg') {
                     mgValue = currentDose / 1000;
-                  } else if (oldUnit === 'pills') {
-                    mgValue = currentDose; // pills = raw dose
-                  }
+                   } else if (oldUnit === 'pills' || oldUnit === 'scoop') {
+                     mgValue = currentDose; // pills/scoop = raw dose
+                   }
 
                   // Then convert mg to new unit
                   let newDose = mgValue;
@@ -935,9 +947,9 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                     else if (catIsOil && unitSize > 0) newDose = mgValue / unitSize;
                   } else if (newUnit === 'mcg') {
                     newDose = mgValue * 1000;
-                  } else if (newUnit === 'pills') {
-                    newDose = mgValue;
-                  }
+                   } else if (newUnit === 'pills' || newUnit === 'scoop') {
+                     newDose = mgValue;
+                   }
 
                   newDose = Math.round(newDose * 1000) / 1000;
                   setEditState(s => ({ ...s, editDoseUnit: newUnit, dosePerUse: newDose.toString() }));
@@ -949,6 +961,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                 <option value="iu">IU</option>
                 <option value="ml">mL</option>
                 <option value="pills">pills</option>
+                <option value="scoop">scoop</option>
               </select>
             </div>
           </div>
