@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Plus, AlertCircle, Activity, Smile, Zap, Moon, Trash2, ArrowRightLeft, X, Brain, Loader2, TrendingUp, TrendingDown, Minus, ChevronRight, Sparkles } from 'lucide-react';
+import { Plus, AlertCircle, Activity, Smile, Zap, Moon, Trash2, ArrowRightLeft, X, Brain, Loader2, TrendingUp, TrendingDown, Minus, ChevronRight, Sparkles, RefreshCw, Clock, CheckCircle2, Info } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, BarChart, Bar } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -397,22 +398,23 @@ const SymptomsTrackerView = () => {
 
         {/* AI Correlation tab */}
         <TabsContent value="ai" className="space-y-3 mt-3">
+          {/* Header control card */}
           <Card className="border-border/50 bg-gradient-to-br from-primary/5 to-transparent">
             <CardContent className="p-4">
               <div className="flex items-start gap-3 mb-3">
                 <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
                   <Brain className="w-4 h-4 text-primary" />
                 </div>
-                <div>
-                  <h3 className="text-sm font-bold text-foreground">AI Symptom Analysis</h3>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">Correlates your symptoms with protocol changes and compound timelines to surface meaningful patterns.</p>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm font-bold text-foreground">AI Correlation Engine</h3>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Analyzes symptoms against compound timelines and protocol changes to detect patterns.</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center gap-2 mb-3 flex-wrap">
                 <span className="text-xs text-muted-foreground">Analyze last</span>
                 {[7, 14, 30, 60].map(d => (
                   <button key={d} onClick={() => setAiDays(d)}
-                    className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition-all ${aiDays === d ? 'bg-primary text-primary-foreground' : 'bg-secondary/50 text-muted-foreground hover:bg-secondary'}`}>
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${aiDays === d ? 'bg-primary text-primary-foreground' : 'bg-secondary/50 text-muted-foreground hover:bg-secondary'}`}>
                     {d}d
                   </button>
                 ))}
@@ -432,24 +434,34 @@ const SymptomsTrackerView = () => {
                 className="w-full gap-2"
               >
                 {aiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                {aiLoading ? 'Analyzing your data…' : 'Run Analysis'}
+                {aiLoading ? 'Analyzing patterns…' : aiAnalysis ? 'Re-run Analysis' : 'Run Analysis'}
               </Button>
+              {aiLoading && (
+                <p className="text-[10px] text-muted-foreground text-center mt-2">Correlating symptoms, compounds & protocol changes…</p>
+              )}
             </CardContent>
           </Card>
 
           {aiAnalysis && !aiLoading && (() => {
-            const { analysis, dataPoints } = aiAnalysis;
+            const { analysis, dataPoints, chartData } = aiAnalysis;
+            const trendIcon = analysis.wellness_trend === 'improving' ? TrendingUp :
+                              analysis.wellness_trend === 'declining' ? TrendingDown : Minus;
+            const TrendIcon = trendIcon;
+            const trendColor = analysis.wellness_trend === 'improving' ? 'text-status-good' :
+                               analysis.wellness_trend === 'declining' ? 'text-destructive' : 'text-status-warning';
+
             return (
               <div className="space-y-3">
-                {/* Data summary */}
-                <div className="flex gap-2">
+                {/* Stats row */}
+                <div className="grid grid-cols-3 gap-2">
                   {[
-                    { label: 'Symptom logs', value: dataPoints.logs },
-                    { label: 'Check-ins', value: dataPoints.checkins },
-                    { label: 'Protocol changes', value: dataPoints.changes },
+                    { label: 'Symptoms', value: dataPoints.logs, icon: AlertCircle },
+                    { label: 'Check-ins', value: dataPoints.checkins, icon: Smile },
+                    { label: 'Changes', value: dataPoints.changes, icon: ArrowRightLeft },
                   ].map(item => (
-                    <div key={item.label} className="flex-1 p-2 rounded-lg bg-secondary/30 text-center">
-                      <div className="text-lg font-bold text-foreground">{item.value}</div>
+                    <div key={item.label} className="p-2 rounded-lg bg-secondary/30 text-center">
+                      <item.icon className="w-3 h-3 text-muted-foreground mx-auto mb-0.5" />
+                      <div className="text-base font-bold text-foreground">{item.value}</div>
                       <div className="text-[9px] text-muted-foreground">{item.label}</div>
                     </div>
                   ))}
@@ -459,41 +471,159 @@ const SymptomsTrackerView = () => {
                 {analysis.key_insight && (
                   <Card className="border-primary/30 bg-primary/5">
                     <CardContent className="p-3">
-                      <div className="flex items-center gap-1.5 mb-1">
+                      <div className="flex items-center gap-1.5 mb-1.5">
                         <Brain className="w-3.5 h-3.5 text-primary" />
                         <span className="text-[10px] font-semibold text-primary uppercase tracking-wide">Key Insight</span>
                       </div>
-                      <p className="text-xs text-foreground">{analysis.key_insight}</p>
+                      <p className="text-xs text-foreground leading-relaxed">{analysis.key_insight}</p>
                     </CardContent>
                   </Card>
                 )}
 
-                {/* Overall summary */}
+                {/* Wellness trend + summary */}
                 <Card className="border-border/50">
                   <CardContent className="p-3">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      {analysis.wellness_trend === 'improving' ? <TrendingUp className="w-3.5 h-3.5 text-status-good" /> :
-                       analysis.wellness_trend === 'declining' ? <TrendingDown className="w-3.5 h-3.5 text-destructive" /> :
-                       <Minus className="w-3.5 h-3.5 text-status-warning" />}
-                      <span className="text-xs font-semibold text-foreground capitalize">{analysis.wellness_trend} trend</span>
+                    <div className="flex items-center gap-2 mb-2">
+                      <TrendIcon className={`w-4 h-4 ${trendColor}`} />
+                      <span className={`text-xs font-bold capitalize ${trendColor}`}>{analysis.wellness_trend} trend</span>
                     </div>
-                    <p className="text-xs text-muted-foreground">{analysis.summary}</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{analysis.summary}</p>
                   </CardContent>
                 </Card>
+
+                {/* Wellness chart */}
+                {chartData?.dailyCheckins?.length > 1 && (
+                  <Card className="border-border/50">
+                    <CardHeader className="p-3 pb-1">
+                      <CardTitle className="text-xs text-muted-foreground font-semibold uppercase tracking-wide flex items-center gap-1.5">
+                        <Activity className="w-3 h-3" />Wellness Over Time
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-3 pt-0">
+                      <div className="h-28">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={chartData.dailyCheckins} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="wellnessGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                                <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <XAxis dataKey="date" tick={{ fontSize: 8 }} tickFormatter={(v) => v.slice(5)} />
+                            <YAxis domain={[0, 5]} tick={{ fontSize: 8 }} />
+                            <Tooltip
+                              contentStyle={{ fontSize: '10px', background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '6px' }}
+                              labelStyle={{ color: 'hsl(var(--foreground))' }}
+                              itemStyle={{ color: 'hsl(var(--primary))' }}
+                            />
+                            {chartData.protocolChangeDates?.map((pc: any) => (
+                              <ReferenceLine key={pc.date} x={pc.date} stroke="hsl(var(--status-warning))" strokeDasharray="3 3" strokeWidth={1.5} />
+                            ))}
+                            <Area type="monotone" dataKey="avg" stroke="hsl(var(--primary))" fill="url(#wellnessGrad)" strokeWidth={2} dot={false} name="Wellness" />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                      {chartData.protocolChangeDates?.length > 0 && (
+                        <p className="text-[9px] text-muted-foreground mt-1 flex items-center gap-1">
+                          <span className="inline-block w-3 border-t border-dashed border-status-warning" />
+                          Protocol change marker
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Symptom severity chart */}
+                {chartData?.symptomsByDay?.filter((d: any) => d.count > 0).length > 1 && (
+                  <Card className="border-border/50">
+                    <CardHeader className="p-3 pb-1">
+                      <CardTitle className="text-xs text-muted-foreground font-semibold uppercase tracking-wide flex items-center gap-1.5">
+                        <AlertCircle className="w-3 h-3" />Symptom Load
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-3 pt-0">
+                      <div className="h-24">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={chartData.symptomsByDay.filter((d: any) => d.count > 0)} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
+                            <XAxis dataKey="date" tick={{ fontSize: 8 }} tickFormatter={(v) => v.slice(5)} />
+                            <YAxis tick={{ fontSize: 8 }} />
+                            <Tooltip
+                              contentStyle={{ fontSize: '10px', background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '6px' }}
+                              labelStyle={{ color: 'hsl(var(--foreground))' }}
+                            />
+                            {chartData.protocolChangeDates?.map((pc: any) => (
+                              <ReferenceLine key={pc.date} x={pc.date} stroke="hsl(var(--status-warning))" strokeDasharray="3 3" strokeWidth={1.5} />
+                            ))}
+                            <Bar dataKey="count" fill="hsl(var(--destructive))" fillOpacity={0.6} radius={[2, 2, 0, 0]} name="Symptoms" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Symptom frequency breakdown */}
+                {analysis.symptom_frequency?.length > 0 && (
+                  <Card className="border-border/50">
+                    <CardHeader className="p-3 pb-1">
+                      <CardTitle className="text-xs text-muted-foreground font-semibold uppercase tracking-wide">Most Frequent Symptoms</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-3 pt-0 space-y-1.5">
+                      {analysis.symptom_frequency.slice(0, 5).map((s: any, i: number) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-0.5">
+                              <span className="text-[11px] font-medium text-foreground truncate">{s.name}</span>
+                              <span className="text-[10px] text-muted-foreground ml-2">{s.count}×</span>
+                            </div>
+                            <div className="h-1.5 rounded-full bg-secondary/50 overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-primary/60 transition-all"
+                                style={{ width: `${(s.avgSeverity / 5) * 100}%` }}
+                              />
+                            </div>
+                          </div>
+                          <span className="text-[9px] text-muted-foreground w-12 text-right">
+                            {SEVERITY_LABELS[Math.round(s.avgSeverity)] || `${s.avgSeverity.toFixed(1)}`}
+                          </span>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                )}
 
                 {/* Correlations */}
                 {analysis.correlations?.length > 0 && (
                   <Card className="border-border/50">
                     <CardHeader className="p-3 pb-1">
-                      <CardTitle className="text-xs text-muted-foreground font-semibold uppercase tracking-wide">Correlations Found</CardTitle>
+                      <CardTitle className="text-xs text-muted-foreground font-semibold uppercase tracking-wide flex items-center gap-1.5">
+                        <Activity className="w-3 h-3" />Correlations Detected
+                      </CardTitle>
                     </CardHeader>
                     <CardContent className="p-3 pt-0 space-y-2">
                       {analysis.correlations.map((c: any, i: number) => (
-                        <div key={i} className="flex items-start gap-2 py-1.5 border-b border-border/30 last:border-0">
-                          <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${c.type === 'positive' ? 'bg-status-good' : c.type === 'negative' ? 'bg-destructive' : 'bg-muted-foreground'}`} />
-                          <div className="flex-1">
-                            <p className="text-xs text-foreground">{c.finding}</p>
-                            <span className={`text-[9px] ${c.confidence === 'high' ? 'text-status-good' : c.confidence === 'medium' ? 'text-status-warning' : 'text-muted-foreground'}`}>{c.confidence} confidence</span>
+                        <div key={i} className={`flex items-start gap-2.5 p-2 rounded-lg ${
+                          c.type === 'positive' ? 'bg-status-good/8' :
+                          c.type === 'negative' ? 'bg-destructive/8' : 'bg-secondary/20'
+                        }`}>
+                          <div className={`w-2 h-2 rounded-full mt-1 flex-shrink-0 ${
+                            c.type === 'positive' ? 'bg-status-good' : c.type === 'negative' ? 'bg-destructive' : 'bg-muted-foreground'
+                          }`} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-foreground leading-relaxed">{c.finding}</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className={`text-[9px] font-semibold ${c.confidence === 'high' ? 'text-status-good' : c.confidence === 'medium' ? 'text-status-warning' : 'text-muted-foreground'}`}>
+                                {c.confidence} confidence
+                              </span>
+                              {c.dayOffset != null && (
+                                <span className="text-[9px] text-muted-foreground flex items-center gap-0.5">
+                                  <Clock className="w-2.5 h-2.5" />{c.dayOffset}d after change
+                                </span>
+                              )}
+                              {c.compound && (
+                                <span className="text-[9px] text-primary">· {c.compound}</span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -501,34 +631,69 @@ const SymptomsTrackerView = () => {
                   </Card>
                 )}
 
-                {/* Concerning trends */}
-                {analysis.concerning_trends?.length > 0 && (
-                  <Card className="border-destructive/30 bg-destructive/5">
-                    <CardHeader className="p-3 pb-1">
-                      <CardTitle className="text-xs text-destructive font-semibold uppercase tracking-wide flex items-center gap-1.5">
-                        <AlertCircle className="w-3.5 h-3.5" />Watch closely
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-3 pt-0 space-y-1">
-                      {analysis.concerning_trends.map((t: string, i: number) => (
-                        <p key={i} className="text-xs text-foreground flex items-start gap-1.5"><ChevronRight className="w-3 h-3 text-destructive flex-shrink-0 mt-0.5" />{t}</p>
-                      ))}
-                    </CardContent>
-                  </Card>
+                {/* Concerning + Positive trends side by side if both present, else full width */}
+                {(analysis.concerning_trends?.length > 0 || analysis.positive_trends?.length > 0) && (
+                  <div className="space-y-2">
+                    {analysis.concerning_trends?.length > 0 && (
+                      <Card className="border-destructive/30 bg-destructive/5">
+                        <CardHeader className="p-3 pb-1">
+                          <CardTitle className="text-xs text-destructive font-semibold uppercase tracking-wide flex items-center gap-1.5">
+                            <AlertCircle className="w-3.5 h-3.5" />Watch closely
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-3 pt-0 space-y-1.5">
+                          {analysis.concerning_trends.map((t: string, i: number) => (
+                            <p key={i} className="text-xs text-foreground flex items-start gap-1.5">
+                              <ChevronRight className="w-3 h-3 text-destructive flex-shrink-0 mt-0.5" />{t}
+                            </p>
+                          ))}
+                        </CardContent>
+                      </Card>
+                    )}
+                    {analysis.positive_trends?.length > 0 && (
+                      <Card className="border-status-good/30 bg-status-good/5">
+                        <CardHeader className="p-3 pb-1">
+                          <CardTitle className="text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5" style={{ color: 'hsl(var(--status-good))' }}>
+                            <TrendingUp className="w-3.5 h-3.5" />Positive signals
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-3 pt-0 space-y-1.5">
+                          {analysis.positive_trends.map((t: string, i: number) => (
+                            <p key={i} className="text-xs text-foreground flex items-start gap-1.5">
+                              <CheckCircle2 className="w-3 h-3 flex-shrink-0 mt-0.5" style={{ color: 'hsl(var(--status-good))' }} />{t}
+                            </p>
+                          ))}
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
                 )}
 
-                {/* Positive trends */}
-                {analysis.positive_trends?.length > 0 && (
-                  <Card className="border-status-good/30 bg-status-good/5">
+                {/* Protocol change timeline events */}
+                {analysis.timeline_events?.length > 0 && (
+                  <Card className="border-border/50">
                     <CardHeader className="p-3 pb-1">
-                      <CardTitle className="text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5" style={{ color: 'hsl(var(--status-good))' }}>
-                        <TrendingUp className="w-3.5 h-3.5" />Positive signals
+                      <CardTitle className="text-xs text-muted-foreground font-semibold uppercase tracking-wide flex items-center gap-1.5">
+                        <Clock className="w-3 h-3" />Key Timeline Events
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="p-3 pt-0 space-y-1">
-                      {analysis.positive_trends.map((t: string, i: number) => (
-                        <p key={i} className="text-xs text-foreground flex items-start gap-1.5"><ChevronRight className="w-3 h-3 flex-shrink-0 mt-0.5" style={{ color: 'hsl(var(--status-good))' }} />{t}</p>
-                      ))}
+                    <CardContent className="p-3 pt-0">
+                      <div className="relative pl-4 space-y-3">
+                        <div className="absolute left-1.5 top-1 bottom-1 w-px bg-border/50" />
+                        {analysis.timeline_events.slice(0, 6).map((ev: any, i: number) => (
+                          <div key={i} className="relative flex items-start gap-2">
+                            <div className={`absolute -left-3 w-2 h-2 rounded-full mt-0.5 flex-shrink-0 border-2 border-background ${
+                              ev.type === 'change' ? 'bg-status-warning' :
+                              ev.type === 'positive' ? 'bg-status-good' :
+                              ev.type === 'symptom_spike' ? 'bg-destructive' : 'bg-muted-foreground'
+                            }`} />
+                            <div className="min-w-0">
+                              <p className="text-[9px] text-muted-foreground">{ev.date}</p>
+                              <p className="text-xs text-foreground leading-tight">{ev.description}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </CardContent>
                   </Card>
                 )}
@@ -537,23 +702,33 @@ const SymptomsTrackerView = () => {
                 {analysis.suggestions?.length > 0 && (
                   <Card className="border-border/50">
                     <CardHeader className="p-3 pb-1">
-                      <CardTitle className="text-xs text-muted-foreground font-semibold uppercase tracking-wide">Suggestions</CardTitle>
+                      <CardTitle className="text-xs text-muted-foreground font-semibold uppercase tracking-wide flex items-center gap-1.5">
+                        <Sparkles className="w-3 h-3" />Suggestions
+                      </CardTitle>
                     </CardHeader>
                     <CardContent className="p-3 pt-0 space-y-2">
                       {analysis.suggestions.map((s: any, i: number) => (
-                        <div key={i} className="p-2.5 rounded-lg bg-secondary/30 space-y-1">
-                          <div className="flex items-center gap-1.5">
+                        <div key={i} className={`p-2.5 rounded-lg space-y-1 border ${
+                          s.priority === 'high' ? 'border-destructive/30 bg-destructive/5' :
+                          s.priority === 'medium' ? 'border-status-warning/30 bg-status-warning/5' :
+                          'border-border/50 bg-secondary/20'
+                        }`}>
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <Badge variant={s.priority === 'high' ? 'destructive' : 'secondary'} className="text-[9px] h-4">{s.priority}</Badge>
-                            <span className="text-xs font-medium text-foreground">{s.action}</span>
+                            {s.category && <Badge variant="outline" className="text-[9px] h-4 capitalize">{s.category}</Badge>}
                           </div>
-                          <p className="text-[10px] text-muted-foreground">{s.rationale}</p>
+                          <p className="text-xs font-medium text-foreground">{s.action}</p>
+                          <p className="text-[10px] text-muted-foreground leading-relaxed">{s.rationale}</p>
                         </div>
                       ))}
                     </CardContent>
                   </Card>
                 )}
 
-                <p className="text-[10px] text-muted-foreground text-center px-2">⚕️ Always discuss protocol changes with your healthcare provider before making adjustments.</p>
+                <div className="flex items-start gap-1.5 p-2 rounded-lg bg-secondary/20">
+                  <Info className="w-3 h-3 text-muted-foreground flex-shrink-0 mt-0.5" />
+                  <p className="text-[10px] text-muted-foreground">Always discuss protocol changes with your healthcare provider before making adjustments.</p>
+                </div>
               </div>
             );
           })()}
