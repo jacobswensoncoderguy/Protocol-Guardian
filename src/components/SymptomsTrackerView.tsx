@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Plus, AlertCircle, Activity, Smile, Zap, Moon, Trash2, ArrowRightLeft, X, Brain, Loader2, TrendingUp, TrendingDown, Minus, ChevronRight, Sparkles, RefreshCw, Clock, CheckCircle2, Info } from 'lucide-react';
+import { Plus, AlertCircle, Activity, Smile, Zap, Moon, Trash2, ArrowRightLeft, X, Brain, Loader2, TrendingUp, TrendingDown, Minus, ChevronRight, Sparkles, Clock, CheckCircle2, Info, LayoutGrid } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, BarChart, Bar } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
+import SymptomHeatmapView from '@/components/SymptomHeatmapView';
 
 interface SymptomDefinition {
   id: string;
@@ -276,6 +277,9 @@ const SymptomsTrackerView = () => {
           <TabsTrigger value="checkin" className="flex-1 text-[10px] font-semibold rounded data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <Smile className="w-3 h-3 mr-1" />Check-in
           </TabsTrigger>
+          <TabsTrigger value="heatmap" className="flex-1 text-[10px] font-semibold rounded data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <LayoutGrid className="w-3 h-3 mr-1" />Map
+          </TabsTrigger>
           <TabsTrigger value="changes" className="flex-1 text-[10px] font-semibold rounded data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <ArrowRightLeft className="w-3 h-3 mr-1" />Changes
           </TabsTrigger>
@@ -350,6 +354,11 @@ const SymptomsTrackerView = () => {
               </Button>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Heatmap tab */}
+        <TabsContent value="heatmap" className="mt-3">
+          <SymptomHeatmapView />
         </TabsContent>
 
         {/* Protocol changes tab */}
