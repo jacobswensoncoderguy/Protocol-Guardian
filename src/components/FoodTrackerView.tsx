@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Plus, Utensils, Apple, Coffee, Moon, Sun, Trash2, ChevronDown, ChevronUp, Camera, Loader2, Settings, Sparkles } from 'lucide-react';
+import { Plus, Utensils, Apple, Coffee, Moon, Sun, Trash2, ChevronDown, ChevronUp, Camera, Loader2, Settings, Sparkles, Barcode, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -96,6 +96,11 @@ const FoodTrackerView = () => {
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Barcode lookup state
+  const [barcodeInput, setBarcodeInput] = useState('');
+  const [barcodeLoading, setBarcodeLoading] = useState(false);
+  const [showBarcodeInput, setShowBarcodeInput] = useState(false);
 
   // Add food form state
   const [foodName, setFoodName] = useState('');
@@ -218,7 +223,7 @@ const FoodTrackerView = () => {
       carbs_g: parseFloat(carbs) || 0,
       fat_g: parseFloat(fat) || 0,
       fiber_g: parseFloat(fiber) || 0,
-      source: scanResult ? 'ai_scan' : 'manual',
+      source: scanResult ? (scanResult.notes?.includes('Open Food Facts') ? 'barcode' : 'ai_scan') : 'manual',
     }).select().single();
 
     if (error) { toast.error('Failed to add food'); return; }
@@ -236,7 +241,44 @@ const FoodTrackerView = () => {
   const resetForm = () => {
     setFoodName(''); setServingSize('100'); setServingUnit('g'); setServings('1');
     setCalories(''); setProtein(''); setCarbs(''); setFat(''); setFiber('');
-    setScanResult(null);
+    setScanResult(null); setBarcodeInput(''); setShowBarcodeInput(false);
+  };
+
+  // Open Food Facts barcode lookup
+  const handleBarcodeLookup = async () => {
+    const code = barcodeInput.trim();
+    if (!code) return;
+    setBarcodeLoading(true);
+    try {
+      const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}?fields=product_name,brands,nutriments,serving_quantity,serving_quantity_unit`);
+      const json = await res.json();
+      if (json.status !== 1 || !json.product) {
+        toast.error('Product not found', { description: 'Try a different barcode or enter nutrition manually.' });
+        setBarcodeLoading(false);
+        return;
+      }
+      const p = json.product;
+      const n = p.nutriments || {};
+      const servQty = p.serving_quantity ? parseFloat(p.serving_quantity) : 100;
+      const factor = servQty / 100;
+
+      setFoodName(p.product_name || '');
+      setServingSize(String(servQty));
+      setServingUnit(p.serving_quantity_unit || 'g');
+      setCalories(String(Math.round((n['energy-kcal_100g'] ?? 0) * factor)));
+      setProtein(String(Math.round((n.proteins_100g ?? 0) * factor)));
+      setCarbs(String(Math.round((n.carbohydrates_100g ?? 0) * factor)));
+      setFat(String(Math.round((n.fat_100g ?? 0) * factor)));
+      setFiber(String(Math.round((n.fiber_100g ?? 0) * factor)));
+
+      const brand = p.brands ? ` (${p.brands.split(',')[0].trim()})` : '';
+      toast.success(`Found: ${p.product_name}${brand}`, { description: 'Nutrition populated — verify before saving.' });
+      setScanResult({ confidence: 'high', notes: `Open Food Facts${p.brands ? ' · ' + p.brands.split(',')[0].trim() : ''}` });
+      setShowBarcodeInput(false);
+    } catch {
+      toast.error('Barcode lookup failed', { description: 'Check your connection and try again.' });
+    }
+    setBarcodeLoading(false);
   };
 
   const toggleMeal = (type: string) => {
@@ -453,6 +495,7 @@ const FoodTrackerView = () => {
                               <div className="flex items-center gap-1.5">
                                 <span className="text-xs font-medium text-foreground truncate">{entry.food_name}</span>
                                 {entry.source === 'ai_scan' && <Sparkles className="w-2.5 h-2.5 text-primary flex-shrink-0" />}
+                                {entry.source === 'barcode' && <Barcode className="w-2.5 h-2.5 text-accent flex-shrink-0" />}
                               </div>
                               <div className="text-[10px] text-muted-foreground">
                                 {entry.servings > 1 ? `${entry.servings} × ` : ''}{entry.serving_size}{entry.serving_unit}
@@ -501,22 +544,58 @@ const FoodTrackerView = () => {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            {/* AI scan button */}
-            <Button
-              variant="outline"
-              className="w-full gap-2 border-primary/40 text-primary hover:bg-primary/5"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={scanning}
-            >
-              {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
-              {scanning ? 'Analyzing image…' : 'Scan with AI Camera'}
-            </Button>
+            {/* Input method buttons */}
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="outline"
+                className="gap-2 border-primary/40 text-primary hover:bg-primary/5"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={scanning || barcodeLoading}
+              >
+                {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+                {scanning ? 'Analyzing…' : 'AI Camera'}
+              </Button>
+              <Button
+                variant="outline"
+                className="gap-2 border-accent/40 text-accent hover:bg-accent/5"
+                onClick={() => setShowBarcodeInput(v => !v)}
+                disabled={scanning || barcodeLoading}
+              >
+                <Barcode className="w-4 h-4" />
+                Barcode Lookup
+              </Button>
+            </div>
+
+            {/* Barcode input panel */}
+            {showBarcodeInput && (
+              <div className="flex gap-2 p-3 rounded-lg bg-accent/5 border border-accent/20">
+                <Input
+                  placeholder="Enter barcode number…"
+                  value={barcodeInput}
+                  onChange={e => setBarcodeInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleBarcodeLookup()}
+                  className="h-8 text-sm flex-1"
+                  autoFocus
+                  inputMode="numeric"
+                />
+                <Button size="sm" className="h-8 px-3 bg-accent text-accent-foreground hover:bg-accent/90" onClick={handleBarcodeLookup} disabled={barcodeLoading || !barcodeInput.trim()}>
+                  {barcodeLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Look up'}
+                </Button>
+                <button onClick={() => { setShowBarcodeInput(false); setBarcodeInput(''); }} className="text-muted-foreground hover:text-foreground">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
 
             {scanResult && (
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/20">
-                <Sparkles className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                {scanResult.notes?.includes('Open Food Facts')
+                  ? <Barcode className="w-3.5 h-3.5 text-accent flex-shrink-0" />
+                  : <Sparkles className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
                 <div className="min-w-0">
-                  <p className="text-xs font-medium text-primary">AI scanned</p>
+                  <p className="text-xs font-medium text-primary">
+                    {scanResult.notes?.includes('Open Food Facts') ? 'Open Food Facts' : 'AI scanned'}
+                  </p>
                   <p className="text-[10px] text-muted-foreground truncate">{scanResult.notes || `Confidence: ${scanResult.confidence}`}</p>
                 </div>
               </div>
