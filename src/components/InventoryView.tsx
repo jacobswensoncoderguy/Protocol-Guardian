@@ -341,7 +341,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
     else if (dl.includes('scoop')) storedUnit = 'scoop';
     else if (dl.includes('pill') || dl.includes('cap') || dl.includes('softgel') || dl.includes('tab') || dl.includes('serving')) storedUnit = 'pills';
     else if (dl.includes('ml')) storedUnit = 'ml';
-    else storedUnit = 'mg';
+    else storedUnit = compound.category === 'powder' ? 'scoop' : 'mg';
 
     // Use the stored unit as the edit unit so overview and edit match
     const editDoseUnit = storedUnit;
