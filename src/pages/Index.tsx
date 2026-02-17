@@ -332,7 +332,7 @@ const Index = () => {
             <ReorderView compounds={compounds} onUpdateCompound={handleUpdateCompound} userId={user?.id} protocols={protocols} />
           </TabsContent>
           <TabsContent value="costs" className="animate-slide-up">
-            <CostProjectionView compounds={compounds} protocols={protocols} />
+            <CostProjectionView compounds={compounds} protocols={protocols} customFields={customFields} customFieldValues={customFieldValues} />
           </TabsContent>
           <TabsContent value="ai-insights" className="animate-slide-up">
             <AIInsightsView

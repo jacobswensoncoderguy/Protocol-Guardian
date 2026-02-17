@@ -2,12 +2,20 @@ import { useState } from 'react';
 import { Compound, getReorderCost, getNormalizedDailyConsumption } from '@/data/compounds';
 import { getDaysRemainingWithCycling, getEffectiveDailyConsumption, getCycleStatus } from '@/lib/cycling';
 import { UserProtocol } from '@/hooks/useProtocols';
+import { CustomField } from '@/hooks/useCustomFields';
 import { TrendingDown, ChevronDown } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+
+export interface CostModifiers {
+  shippingCost: number; // flat $ per reorder
+  discountPct: number;  // percentage discount (0-100)
+}
 
 interface CostProjectionViewProps {
   compounds: Compound[];
   protocols?: UserProtocol[];
+  customFields?: CustomField[];
+  customFieldValues?: Map<string, Map<string, string>>; // compoundId -> fieldId -> value
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -35,7 +43,7 @@ function getReorderSupplyDays(compound: Compound): number {
   return (reorderUnits * unitsPerUnit) / effectiveDaily;
 }
 
-function buildProjection(compounds: Compound[]): MonthData[] {
+function buildProjection(compounds: Compound[], getModifiers: (compoundId: string) => CostModifiers): MonthData[] {
   const now = new Date();
   const startMonth = now.getMonth();
   const startYear = now.getFullYear();
@@ -51,7 +59,10 @@ function buildProjection(compounds: Compound[]): MonthData[] {
 
   compounds.forEach(compound => {
     const daysLeft = getDaysRemainingWithCycling(compound);
-    const cost = getReorderCost(compound);
+    const baseCost = getReorderCost(compound);
+    const mods = getModifiers(compound.id);
+    // Apply discount then add shipping
+    const adjustedCost = Math.round((baseCost * (1 - mods.discountPct / 100) + mods.shippingCost) * 100) / 100;
     const isSingleUnit = compound.reorderType === 'single';
     const displayQty = compound.category === 'peptide'
       ? isSingleUnit
@@ -86,10 +97,10 @@ function buildProjection(compounds: Compound[]): MonthData[] {
           name: compound.name,
           qty: displayQty,
           unitPrice: displayPrice,
-          cost,
+          cost: adjustedCost,
           compoundId: compound.id,
         });
-        months[slotIndex].total += cost;
+        months[slotIndex].total += adjustedCost;
       }
 
       nextReorderDay += supplyDays;
@@ -123,26 +134,54 @@ function groupItemsByProtocol(
   return groups.length > 0 ? groups : [{ label: '', items }];
 }
 
-const CostProjectionView = ({ compounds, protocols = [] }: CostProjectionViewProps) => {
+const CostProjectionView = ({ compounds, protocols = [], customFields = [], customFieldValues = new Map() }: CostProjectionViewProps) => {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [showSavings, setShowSavings] = useState(false);
-  const projection = buildProjection(compounds);
+
+  // Build a per-compound cost modifier getter from custom field values
+  const getModifiers = (compoundId: string): CostModifiers => {
+    const vals = customFieldValues.get(compoundId);
+    if (!vals) return { shippingCost: 0, discountPct: 0 };
+    
+    let shippingCost = 0;
+    let discountPct = 0;
+    
+    customFields.forEach(f => {
+      const v = vals.get(f.id);
+      if (!v) return;
+      const num = parseFloat(v);
+      if (isNaN(num)) return;
+      
+      if (f.field_name === 'Shipping Cost' && f.affects_calculation) {
+        shippingCost = num;
+      } else if (f.field_name === 'Discount %' && f.affects_calculation) {
+        discountPct = Math.min(100, Math.max(0, num));
+      }
+    });
+    
+    return { shippingCost, discountPct };
+  };
+
+  const projection = buildProjection(compounds, getModifiers);
   const totalAnnual = projection.reduce((sum, m) => sum + m.total, 0);
   const monthlyAvg = compounds.reduce((sum, c) => {
     const effectiveDaily = getEffectiveDailyConsumption(c);
     if (effectiveDaily === 0) return sum;
     const monthlyConsumption = effectiveDaily * 30;
+    const mods = getModifiers(c.id);
 
     if (c.category === 'peptide' && c.bacstatPerVial) {
       const vialsPerMonth = monthlyConsumption / c.bacstatPerVial;
       const kitsPerMonth = vialsPerMonth / 10;
-      return sum + kitsPerMonth * (c.kitPrice || 0);
+      const baseCost = kitsPerMonth * (c.kitPrice || 0);
+      return sum + baseCost * (1 - mods.discountPct / 100) + mods.shippingCost;
     }
 
     const totalMgPerUnit = c.category === 'injectable-oil' && c.vialSizeMl
       ? c.unitSize * c.vialSizeMl : c.unitSize;
     const unitsPerMonth = monthlyConsumption / totalMgPerUnit;
-    return sum + unitsPerMonth * c.unitPrice;
+    const baseCost = unitsPerMonth * c.unitPrice;
+    return sum + baseCost * (1 - mods.discountPct / 100) + mods.shippingCost;
   }, 0);
 
   return (
