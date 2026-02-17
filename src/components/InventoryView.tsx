@@ -367,6 +367,14 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
       editDoseUnit: editDoseUnit,
       vialSizeMl: (compound.vialSizeMl || 10).toString(),
       unitLabel: compound.unitLabel,
+      // Initialize container type from notes tag or infer from unitLabel
+      containerType: (() => {
+        const notesMatch = (compound.notes || '').match(/\[CONTAINER:(bag|bottle)\]/i);
+        if (notesMatch) return notesMatch[1].toLowerCase() === 'bottle' ? 'bottles' : 'bags';
+        const ul = (compound.unitLabel || '').toLowerCase();
+        if (ul.includes('scoop') || ul.includes('serving') || ul.includes('g') || ul === 'oz') return 'bags';
+        return 'bottles';
+      })(),
       weightPerUnit: (() => {
         const wpu = compound.weightPerUnit || 0;
         if (wpu === 0) return '';
@@ -531,6 +539,14 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
       if (!isNaN(dpw) && dpw >= 0 && dpw <= 7) {
         updates.daysPerWeek = dpw;
       }
+    }
+
+    // Persist container type for powders in notes
+    if (editState.category === 'powder' && editState.containerType) {
+      let currentNotes = compound.notes || '';
+      currentNotes = currentNotes.replace(/\[CONTAINER:(bag|bottle)\]/gi, '').trim();
+      const tag = editState.containerType === 'bottles' ? '[CONTAINER:bottle]' : '[CONTAINER:bag]';
+      updates.notes = currentNotes ? `${tag} ${currentNotes}` : tag;
     }
 
     onUpdate(compound.id, updates);
@@ -1402,6 +1418,8 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
               <div>
                 <span className="text-muted-foreground">Price:</span>{' '}
                 <span className="font-mono text-foreground">${compound.unitPrice}/{isOil ? 'vial' : (() => {
+                  const notesMatch = (compound.notes || '').match(/\[CONTAINER:(bag|bottle)\]/i);
+                  if (notesMatch) return notesMatch[1].toLowerCase();
                   const ul = (compound.unitLabel || '').toLowerCase();
                   if (ul.includes('scoop') || ul.includes('serving') || ul.includes('g') || ul === 'oz') return 'bag';
                   return 'bottle';
@@ -1423,6 +1441,8 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                 <div>
                   <span className="text-muted-foreground">Contents:</span>{' '}
                   <span className="font-mono text-foreground">{compound.unitSize} {compound.unitLabel || 'caps'}/{(() => {
+                    const notesMatch = (compound.notes || '').match(/\[CONTAINER:(bag|bottle)\]/i);
+                    if (notesMatch) return notesMatch[1].toLowerCase();
                     const ul = (compound.unitLabel || '').toLowerCase();
                     if (ul.includes('scoop') || ul.includes('serving') || ul.includes('g') || ul === 'oz') return 'bag';
                     return 'bottle';
@@ -1479,6 +1499,8 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
               <div>
                 <span className="text-muted-foreground">Reorder Qty:</span>{' '}
                 <span className="font-mono text-foreground">{compound.reorderQuantity} {compound.reorderType === 'kit' ? 'kit' : (() => {
+                  const notesMatch = (compound.notes || '').match(/\[CONTAINER:(bag|bottle)\]/i);
+                  if (notesMatch) return notesMatch[1].toLowerCase();
                   const ul = (compound.unitLabel || '').toLowerCase();
                   if (ul.includes('scoop') || ul.includes('serving') || ul.includes('g') || ul === 'oz') return 'bag';
                   return 'bottle';
@@ -1543,12 +1565,17 @@ const InlineQuantityEditor = ({ compound, status, isOil, isPeptide, onUpdate }: 
     ? `${compound.currentQuantity}`
     : isOil
       ? `${compound.currentQuantity} vial${compound.currentQuantity !== 1 ? 's' : ''} (${compound.vialSizeMl || 10}mL)`
-      : (() => {
-          const ul = (compound.unitLabel || '').toLowerCase();
-          let container = 'bottle';
-          if (ul.includes('scoop') || ul.includes('serving') || ul.includes('g') || ul === 'oz') container = 'bag';
-          return `${compound.currentQuantity} ${container}${compound.currentQuantity !== 1 ? 's' : ''}`;
-        })();
+        : (() => {
+           const notesMatch = (compound.notes || '').match(/\[CONTAINER:(bag|bottle)\]/i);
+           if (notesMatch) {
+             const ct = notesMatch[1].toLowerCase();
+             return `${compound.currentQuantity} ${ct}${compound.currentQuantity !== 1 ? 's' : ''}`;
+           }
+           const ul = (compound.unitLabel || '').toLowerCase();
+           let container = 'bottle';
+           if (ul.includes('scoop') || ul.includes('serving') || ul.includes('g') || ul === 'oz') container = 'bag';
+           return `${compound.currentQuantity} ${container}${compound.currentQuantity !== 1 ? 's' : ''}`;
+         })();
 
   const saveInline = () => {
     const val = parseFloat(inlineValue);

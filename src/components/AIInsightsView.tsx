@@ -23,6 +23,7 @@ interface AIInsightsViewProps {
   onApplyChange: (proposalId: string, changeIndex: number) => void;
   onRejectChange: (proposalId: string, changeIndex: number) => void;
   onApplyAll: (proposalId: string) => void;
+  onUndoChange?: (proposalId: string, changeIndex: number) => void;
   toleranceComparison: ToleranceComparison | null;
   compareLoading: boolean;
   onCompareAllLevels: () => void;
@@ -328,7 +329,7 @@ const ToleranceComparisonCard = ({
   );
 };
 
-const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, onRefresh, chatMessages, isChatStreaming, onChatSend, onChatCancel, onChatClear, onApplyChange, onRejectChange, onApplyAll, toleranceComparison, compareLoading, onCompareAllLevels, conversationManager }: AIInsightsViewProps) => {
+const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, onRefresh, chatMessages, isChatStreaming, onChatSend, onChatCancel, onChatClear, onApplyChange, onRejectChange, onApplyAll, onUndoChange, toleranceComparison, compareLoading, onCompareAllLevels, conversationManager }: AIInsightsViewProps) => {
   const sectionScores = analysis ? computeSectionScores(analysis) : [];
   const [dismissedFindings, setDismissedFindings] = useState<Set<string>>(new Set());
 
@@ -551,6 +552,7 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
         onApplyChange={onApplyChange}
         onRejectChange={onRejectChange}
         onApplyAll={onApplyAll}
+        onUndoChange={onUndoChange}
         conversationManager={conversationManager}
       />
 
