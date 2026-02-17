@@ -42,8 +42,28 @@ const GoalCardChat = ({ open, onOpenChange, goal, onUpdateGoal }: GoalCardChatPr
     }
   }, [open]);
 
+  const lastMsgCountRef = useRef(messages.length);
+
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+    if (!scrollRef.current) return;
+    const el = scrollRef.current;
+
+    if (messages.length > lastMsgCountRef.current) {
+      lastMsgCountRef.current = messages.length;
+      requestAnimationFrame(() => {
+        const msgElements = el.querySelectorAll('[data-msg]');
+        const lastEl = msgElements[msgElements.length - 1];
+        if (lastEl) {
+          lastEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    } else if (messages.length > 0 && messages[messages.length - 1]?.role === 'assistant') {
+      // Streaming: follow bottom if near bottom
+      const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 150;
+      if (isNearBottom) {
+        el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+      }
+    }
   }, [messages]);
 
   const sendToAI = useCallback(async (msgHistory: ChatMessage[]) => {
@@ -155,7 +175,7 @@ const GoalCardChat = ({ open, onOpenChange, goal, onUpdateGoal }: GoalCardChatPr
 
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 space-y-3 min-h-0 scrollbar-thin">
           {messages.map((msg, i) => (
-            <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div key={i} data-msg={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
                 msg.role === 'user'
                   ? 'bg-primary text-primary-foreground'

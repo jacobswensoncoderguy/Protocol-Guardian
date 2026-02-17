@@ -194,8 +194,34 @@ const ProtocolChat = ({
     setIsListening(true);
   }, [isListening]);
 
+  const lastMsgCountRef = useRef(messages.length);
+  const streamingScrollRef = useRef(false);
+
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+    if (!scrollRef.current) return;
+    const el = scrollRef.current;
+
+    // New message added — scroll to the start of the new message
+    if (messages.length > lastMsgCountRef.current) {
+      lastMsgCountRef.current = messages.length;
+      streamingScrollRef.current = false;
+      // Find the last message element and scroll to its top
+      requestAnimationFrame(() => {
+        const msgElements = el.querySelectorAll('[data-msg]');
+        const lastEl = msgElements[msgElements.length - 1];
+        if (lastEl) {
+          lastEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    } else if (isStreaming) {
+      // During streaming, gently follow the bottom so user can read as it streams
+      // Only auto-scroll if user is already near the bottom
+      const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 150;
+      if (isNearBottom || !streamingScrollRef.current) {
+        streamingScrollRef.current = true;
+        el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+      }
+    }
   }, [messages, isStreaming]);
 
   const handleSubmit = async () => {
@@ -375,7 +401,7 @@ const ProtocolChat = ({
         ) : (
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 space-y-3 scrollbar-thin">
             {messages.map(msg => (
-              <div key={msg.id} className={`flex items-end gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div key={msg.id} data-msg={msg.id} className={`flex items-end gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 {msg.role === 'assistant' && (
                   <div className="w-6 h-6 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0 mb-1">
                     <Brain className="w-3.5 h-3.5 text-primary" />

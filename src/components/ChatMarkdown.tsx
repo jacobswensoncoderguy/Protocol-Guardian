@@ -84,12 +84,30 @@ function extractText(children: React.ReactNode): string {
 }
 
 const components: Components = {
+  // H2 as prominent section headers with bottom border
+  h2: ({ children, ...props }) => {
+    const text = extractText(children);
+    return (
+      <h2 {...props}>
+        {renderTaggedHeading(text)}
+      </h2>
+    );
+  },
   h3: ({ children, ...props }) => {
     const text = extractText(children);
     return (
       <h3 {...props}>
         {renderTaggedHeading(text)}
       </h3>
+    );
+  },
+  // Style summary text with tag icons
+  summary: ({ children, ...props }) => {
+    const text = extractText(children);
+    return (
+      <summary {...props}>
+        {renderTaggedInline(text)}
+      </summary>
     );
   },
   li: ({ children, ...props }) => {
@@ -111,14 +129,6 @@ const components: Components = {
       );
     }
     return <li {...props}>{children}</li>;
-  },
-  summary: ({ children, ...props }) => {
-    const text = extractText(children);
-    return (
-      <summary {...props}>
-        {renderTaggedInline(text)}
-      </summary>
-    );
   },
   // Style bold text that contains [ACTION] tags
   strong: ({ children, ...props }) => {
