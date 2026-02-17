@@ -1056,25 +1056,58 @@ const FoodTrackerView = () => {
             </div>
 
             {scanResult && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/20">
-                {productImage ? (
-                  <img
-                    src={productImage}
-                    alt="Product"
-                    className="w-10 h-10 rounded object-cover flex-shrink-0 border border-border/40 bg-muted"
-                    onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                  />
-                ) : (
-                  scanResult.notes?.includes('Open Food Facts')
-                    ? <Barcode className="w-3.5 h-3.5 text-accent flex-shrink-0" />
-                    : <Sparkles className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-                )}
-                <div className="min-w-0">
-                  <p className="text-xs font-medium text-primary">
-                    {scanResult.notes?.includes('Open Food Facts') ? 'Open Food Facts' : scanResult.notes?.includes('UPC') ? 'UPC ItemDB' : 'AI scanned'}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground truncate">{scanResult.notes || `Confidence: ${scanResult.confidence}`}</p>
+              <div className="rounded-lg bg-primary/5 border border-primary/20 overflow-hidden">
+                {/* Header row: image + source + scan again */}
+                <div className="flex items-center gap-2 px-3 pt-2 pb-1">
+                  {productImage ? (
+                    <img
+                      src={productImage}
+                      alt="Product"
+                      className="w-10 h-10 rounded object-cover flex-shrink-0 border border-border/40 bg-muted"
+                      onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded flex-shrink-0 border border-border/40 bg-muted flex items-center justify-center">
+                      {scanResult.notes?.includes('Open Food Facts') || scanResult.notes?.includes('UPC')
+                        ? <Barcode className="w-4 h-4 text-muted-foreground" />
+                        : <Sparkles className="w-4 h-4 text-muted-foreground" />}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium text-primary leading-tight">
+                      {scanResult.notes?.includes('Open Food Facts') ? 'Open Food Facts' : scanResult.notes?.includes('UPC') ? 'UPC ItemDB' : 'AI scanned'}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground truncate">{scanResult.notes || `Confidence: ${scanResult.confidence}`}</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setScanResult(null);
+                      setProductImage(null);
+                      setFoodName(''); setCalories(''); setProtein(''); setCarbs(''); setFat(''); setFiber('');
+                      startLiveScanner();
+                    }}
+                    className="flex items-center gap-1 text-[10px] text-primary/70 hover:text-primary border border-primary/30 hover:border-primary/60 rounded px-1.5 py-0.5 flex-shrink-0 transition-colors"
+                  >
+                    <ScanLine className="w-3 h-3" />
+                    Scan again
+                  </button>
                 </div>
+                {/* Macro mini-table */}
+                {(calories || protein || carbs || fat) && (
+                  <div className="grid grid-cols-4 divide-x divide-border/30 border-t border-border/20 mx-3 mb-2 rounded-sm overflow-hidden">
+                    {[
+                      { label: 'Cal', value: calories, unit: 'kcal' },
+                      { label: 'Protein', value: protein, unit: 'g' },
+                      { label: 'Carbs', value: carbs, unit: 'g' },
+                      { label: 'Fat', value: fat, unit: 'g' },
+                    ].map(({ label, value, unit }) => (
+                      <div key={label} className="flex flex-col items-center py-1.5 bg-background/40">
+                        <span className="text-[11px] font-semibold text-foreground leading-none">{value || '—'}{value ? <span className="text-[9px] font-normal text-muted-foreground">{unit}</span> : ''}</span>
+                        <span className="text-[9px] text-muted-foreground mt-0.5">{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
