@@ -405,6 +405,7 @@ export type Database = {
           updated_at: string
           user_id: string
           vial_size_ml: number | null
+          weight_per_unit: number | null
         }
         Insert: {
           bacstat_per_vial?: number | null
@@ -435,6 +436,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           vial_size_ml?: number | null
+          weight_per_unit?: number | null
         }
         Update: {
           bacstat_per_vial?: number | null
@@ -465,6 +467,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           vial_size_ml?: number | null
+          weight_per_unit?: number | null
         }
         Relationships: []
       }

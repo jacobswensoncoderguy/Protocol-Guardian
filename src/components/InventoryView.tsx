@@ -287,6 +287,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
       editDoseUnit: editDoseUnit,
       vialSizeMl: (compound.vialSizeMl || 10).toString(),
       unitLabel: compound.unitLabel,
+      weightPerUnit: (compound.weightPerUnit || '').toString(),
     };
     if (isPeptide) {
       state.kitPrice = (compound.kitPrice || 0).toString();
@@ -370,6 +371,11 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
     // Persist unit label for non-peptide/non-oil compounds
     if (!editIsPeptide && !editIsOil && editState.unitLabel) {
       updates.unitLabel = editState.unitLabel;
+    }
+    // Weight per unit for non-injectable compounds
+    if (!editIsPeptide && !editIsOil) {
+      const wpu = parseFloat(editState.weightPerUnit || '');
+      updates.weightPerUnit = isNaN(wpu) || wpu <= 0 ? undefined : wpu;
     }
 
     if (editIsOil) {
@@ -717,6 +723,11 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
               )}
             </div>
           </div>
+          {/* Weight per unit for non-injectable compounds */}
+          {!isPeptide && !isOil && (
+            <EditRow label="Wt/Unit" value={editState.weightPerUnit || ''} suffix="mg each"
+              onChange={v => setEditState(s => ({ ...s, weightPerUnit: v }))} type="number" />
+          )}
           {isOil && (
             <EditRow label="Vial Size" value={editState.vialSizeMl || '10'} suffix="mL"
               onChange={v => setEditState(s => ({ ...s, vialSizeMl: v }))} type="number" />
@@ -934,7 +945,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
               <div className="grid grid-cols-2 gap-x-3 text-[10px]">
                 <div>
                   <span className="text-muted-foreground">Vials:</span>{' '}
-                  <span className="font-mono text-foreground">{compound.currentQuantity}</span>
+                  <span className={`font-mono text-foreground ${status === 'critical' ? 'animate-pulse text-status-critical' : status === 'warning' ? 'text-status-warning' : ''}`}>{compound.currentQuantity}</span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Per Vial:</span>{' '}
@@ -962,7 +973,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
             <div className="grid grid-cols-2 gap-x-3 text-[10px]">
               <div>
               <span className="text-muted-foreground">On Hand:</span>{' '}
-                <span className="font-mono text-foreground">
+                <span className={`font-mono text-foreground ${status === 'critical' ? 'animate-pulse text-status-critical' : status === 'warning' ? 'text-status-warning' : ''}`}>
                   {isOil
                     ? `${compound.currentQuantity} vial${compound.currentQuantity !== 1 ? 's' : ''} (${compound.vialSizeMl || 10}mL)`
                     : (() => {
@@ -987,13 +998,47 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
                   <span className="font-mono text-foreground">{compound.unitSize} mg/mL</span>
                 </div>
               )}
+              {!isOil && (
+                <div>
+                  <span className="text-muted-foreground">Contents:</span>{' '}
+                  <span className="font-mono text-foreground">{compound.unitSize} {compound.unitLabel || 'caps'}/{(() => {
+                    const ul = (compound.unitLabel || '').toLowerCase();
+                    if (ul.includes('scoop') || ul.includes('serving') || ul.includes('g') || ul === 'oz') return 'bag';
+                    return 'bottle';
+                  })()}</span>
+                </div>
+              )}
+              {!isOil && compound.weightPerUnit && compound.weightPerUnit > 0 && (
+                <div>
+                  <span className="text-muted-foreground">Per {(compound.unitLabel || 'cap').replace(/s$/, '')}:</span>{' '}
+                  <span className="font-mono text-foreground">{compound.weightPerUnit >= 1000 ? `${compound.weightPerUnit / 1000}g` : `${compound.weightPerUnit}mg`}</span>
+                </div>
+              )}
               <div>
                 <span className="text-muted-foreground">Dose:</span>{' '}
                 <span className="font-mono text-foreground">
                   {(() => {
+                    // For non-oil compounds with weight per unit, show both weight and unit count
+                    if (!isOil && compound.weightPerUnit && compound.weightPerUnit > 0) {
+                      const doseLabel = compound.doseLabel.toLowerCase();
+                      // If dose is in pills/caps/tabs, convert to weight
+                      if (doseLabel.includes('pill') || doseLabel.includes('cap') || doseLabel.includes('tab') || doseLabel.includes('softgel') || doseLabel.includes('serving')) {
+                        const totalMg = compound.dosePerUse * compound.weightPerUnit;
+                        const weightStr = totalMg >= 1000 ? `${totalMg / 1000}g` : `${totalMg}mg`;
+                        return `${weightStr} (${compound.dosePerUse} ${compound.doseLabel})`;
+                      }
+                      // If dose is in mg, show how many pills that is
+                      if (doseLabel.includes('mg') || doseLabel.includes('mcg') || doseLabel === 'g') {
+                        let doseMg = compound.dosePerUse;
+                        if (doseLabel.includes('mcg')) doseMg = compound.dosePerUse / 1000;
+                        else if (doseLabel === 'g') doseMg = compound.dosePerUse * 1000;
+                        const pillCount = Math.round((doseMg / compound.weightPerUnit) * 10) / 10;
+                        const unitSingular = (compound.unitLabel || 'cap').replace(/s$/, '');
+                        return `${compound.dosePerUse} ${compound.doseLabel} (${pillCount} ${pillCount !== 1 ? compound.unitLabel || 'caps' : unitSingular})`;
+                      }
+                    }
                     if (!isOil || doseUnit === 'mg') return `${compound.dosePerUse} ${compound.doseLabel}`;
                     if (doseUnit === 'ml') {
-                      // Oil: unitSize is now mg/mL directly
                       const concMgPerMl = compound.unitSize;
                       if (concMgPerMl > 0) {
                         const ml = Math.round((compound.dosePerUse / concMgPerMl) * 1000) / 1000;
@@ -1003,7 +1048,6 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
                     }
                     const storedIsIu = compound.doseLabel.toLowerCase().includes('iu');
                     if (storedIsIu) return `${compound.dosePerUse} ${compound.doseLabel}`;
-                    // mg → IU for oils
                     const iu = compound.unitSize > 0
                       ? Math.round((compound.dosePerUse / compound.unitSize) * 200 * 100) / 100
                       : compound.dosePerUse;
@@ -1019,16 +1063,6 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
                   return 'bottle';
                 })()}{compound.reorderQuantity !== 1 ? 's' : ''}</span>
               </div>
-              {!isOil && (
-                <div>
-                  <span className="text-muted-foreground">Contents:</span>{' '}
-                  <span className="font-mono text-foreground">{compound.unitSize} {compound.unitLabel || 'caps'}/{(() => {
-                    const ul = (compound.unitLabel || '').toLowerCase();
-                    if (ul.includes('scoop') || ul.includes('serving') || ul.includes('g') || ul === 'oz') return 'bag';
-                    return 'bottle';
-                  })()}</span>
-                </div>
-              )}
               {!isOil && compound.purchaseDate && (
                 <div>
                   <span className="text-muted-foreground">Purchased:</span>{' '}
