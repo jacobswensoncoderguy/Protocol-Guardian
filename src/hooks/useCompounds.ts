@@ -29,6 +29,7 @@ interface DbUserCompound {
   cycle_off_days: number | null;
   cycle_start_date: string | null;
   vial_size_ml: number | null;
+  weight_per_unit: number | null;
 }
 
 function dbToCompound(row: DbUserCompound): Compound {
@@ -57,6 +58,7 @@ function dbToCompound(row: DbUserCompound): Compound {
     cycleOffDays: row.cycle_off_days ?? undefined,
     cycleStartDate: row.cycle_start_date ?? undefined,
     vialSizeMl: row.vial_size_ml ?? undefined,
+    weightPerUnit: row.weight_per_unit ?? undefined,
   };
 }
 
@@ -118,6 +120,7 @@ export function useCompounds(userId: string | undefined) {
     if ('cycleOffDays' in updates) dbUpdates.cycle_off_days = updates.cycleOffDays ?? null;
     if ('cycleStartDate' in updates) dbUpdates.cycle_start_date = updates.cycleStartDate ?? null;
     if ('vialSizeMl' in updates) dbUpdates.vial_size_ml = updates.vialSizeMl ?? null;
+    if ('weightPerUnit' in updates) dbUpdates.weight_per_unit = updates.weightPerUnit ?? null;
     if (updates.currentQuantity !== undefined) dbUpdates.current_quantity = updates.currentQuantity;
     if (updates.purchaseDate !== undefined) dbUpdates.purchase_date = updates.purchaseDate;
     if (updates.reorderQuantity !== undefined) dbUpdates.reorder_quantity = updates.reorderQuantity;
@@ -162,6 +165,7 @@ export function useCompounds(userId: string | undefined) {
         cycle_off_days: compound.cycleOffDays ?? null,
         cycle_start_date: compound.cycleStartDate ?? null,
         vial_size_ml: compound.vialSizeMl ?? null,
+        weight_per_unit: compound.weightPerUnit ?? null,
         current_quantity: compound.currentQuantity,
         purchase_date: compound.purchaseDate || null,
         reorder_quantity: compound.reorderQuantity,

@@ -33,6 +33,7 @@ export interface Compound {
   reorderQuantity: number; // for peptides: number of kits; for others: number of units
   reorderType?: 'single' | 'kit'; // whether reorder quantity is single units or kits
   notes?: string;
+  weightPerUnit?: number; // mg per individual unit (pill, cap, tab, scoop) for non-injectable compounds
 }
 
 export function getDaysRemaining(compound: Compound): number {
