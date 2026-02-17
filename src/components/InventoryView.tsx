@@ -255,38 +255,20 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
   };
 
   const startEdit = () => {
-    const hasCycling = !!(compound.cycleOnDays && compound.cycleOffDays);
-    // Convert stored dose to current doseUnit for editing
-    let editDose = compound.dosePerUse;
-    if (doseUnit === 'ml') {
-      if (isPeptide) {
-        const reconVolIU = (compound.reconVolume || 2) * 100;
-        const vialMg = compound.unitSize;
-        const isIu = compound.doseLabel.toLowerCase().includes('iu');
-        if (isIu) {
-          editDose = Math.round((compound.dosePerUse / 100) * 1000) / 1000;
-        } else if (vialMg > 0) {
-          const iu = (compound.dosePerUse / vialMg) * reconVolIU;
-          editDose = Math.round((iu / 100) * 1000) / 1000;
-        }
-      } else if (isOil) {
-        const concMgPerMl = compound.unitSize; // unitSize is now mg/mL directly
-        if (concMgPerMl > 0) editDose = Math.round((compound.dosePerUse / concMgPerMl) * 1000) / 1000;
-      }
-    } else if (doseUnit === 'iu' && (isPeptide || isOil)) {
-      if (isPeptide) {
-        const reconVolIU = (compound.reconVolume || 2) * 100;
-        const vialMg = compound.unitSize;
-        const storedIsMg = compound.doseLabel.toLowerCase().includes('mg');
-        const storedIsIu = compound.doseLabel.toLowerCase().includes('iu');
-        if (storedIsMg && vialMg > 0) {
-          editDose = Math.round((compound.dosePerUse / vialMg) * reconVolIU * 100) / 100;
-        }
-        // if already IU, keep as-is
-      } else if (isOil && compound.unitSize > 0) {
-        editDose = Math.round((compound.dosePerUse / compound.unitSize) * 200 * 100) / 100;
-      }
-    }
+    const hasCycling = !!(compound.cycleOnDays && compound.cycleOnDays > 0 && compound.cycleOffDays && compound.cycleOffDays > 0);
+    
+    // Determine the stored dose unit from doseLabel
+    const dl = compound.doseLabel.toLowerCase();
+    let storedUnit: string;
+    if (dl.includes('iu')) storedUnit = 'iu';
+    else if (dl.includes('mcg') || dl.includes('µg')) storedUnit = 'mcg';
+    else if (dl.includes('pill') || dl.includes('cap') || dl.includes('softgel') || dl.includes('tab') || dl.includes('serving')) storedUnit = 'pills';
+    else if (dl.includes('ml')) storedUnit = 'ml';
+    else storedUnit = 'mg';
+
+    // Use the stored unit as the edit unit so overview and edit match
+    const editDoseUnit = storedUnit;
+    let editDose = compound.dosePerUse; // already in stored unit
 
     const state: Record<string, string> = {
       name: compound.name,
@@ -302,7 +284,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
       cycleOnDays: (compound.cycleOnDays || 0).toString(),
       cycleOffDays: (compound.cycleOffDays || 0).toString(),
       cycleStartDate: compound.cycleStartDate || '',
-      editDoseUnit: doseUnit, // track which unit was used for editing
+      editDoseUnit: editDoseUnit,
       vialSizeMl: (compound.vialSizeMl || 10).toString(),
     };
     if (isPeptide) {
@@ -325,35 +307,50 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
     const reorder = parseInt(editState.reorderQuantity);
     if (isNaN(qty) || isNaN(size) || isNaN(dose) || isNaN(reorder) || qty < 0 || size <= 0 || dose < 0 || reorder < 0) return;
 
-    // Convert dose back from edit unit to stored unit
+    // Convert dose back from edit unit to stored doseLabel unit
     const eu = editState.editDoseUnit || 'mg';
-    const convIsPeptide = editState.category === 'peptide';
-    const convIsOil = editState.category === 'injectable-oil';
-    if (eu === 'ml') {
-      if (convIsPeptide) {
-        const storedIsIu = compound.doseLabel.toLowerCase().includes('iu');
-        if (storedIsIu) {
-          dose = Math.round(dose * 100 * 100) / 100;
-        } else {
-          const reconVolIU = (compound.reconVolume || 2) * 100;
-          const vialMg = size;
-          const iu = dose * 100;
-          dose = vialMg > 0 ? Math.round((iu / reconVolIU) * vialMg * 1000) / 1000 : dose;
-        }
-      } else if (convIsOil) {
-        const concMgPerMl = size; // unitSize is now mg/mL directly
-        dose = Math.round(dose * concMgPerMl * 1000) / 1000;
+    const dl = compound.doseLabel.toLowerCase();
+    let storedUnit: string;
+    if (dl.includes('iu')) storedUnit = 'iu';
+    else if (dl.includes('mcg') || dl.includes('µg')) storedUnit = 'mcg';
+    else if (dl.includes('pill') || dl.includes('cap') || dl.includes('softgel') || dl.includes('tab') || dl.includes('serving')) storedUnit = 'pills';
+    else if (dl.includes('ml')) storedUnit = 'ml';
+    else storedUnit = 'mg';
+
+    // If edit unit matches stored unit, no conversion needed
+    if (eu !== storedUnit) {
+      const catIsPeptide = editState.category === 'peptide';
+      const catIsOil = editState.category === 'injectable-oil';
+      const reconVolIU = (compound.reconVolume || 2) * 100;
+
+      // Convert edit value to mg first
+      let mgValue = dose;
+      if (eu === 'iu') {
+        if (catIsPeptide && size > 0) mgValue = (dose / reconVolIU) * size;
+        else if (catIsOil && size > 0) mgValue = (dose / 200) * size;
+      } else if (eu === 'ml') {
+        if (catIsPeptide) mgValue = (dose * 100 / reconVolIU) * size;
+        else if (catIsOil) mgValue = dose * size;
+      } else if (eu === 'mcg') {
+        mgValue = dose / 1000;
+      } else if (eu === 'pills') {
+        mgValue = dose;
       }
-    } else if (eu === 'iu') {
-      if (convIsPeptide) {
-        const storedIsMg = compound.doseLabel.toLowerCase().includes('mg');
-        if (storedIsMg && size > 0) {
-          const reconVolIU = (compound.reconVolume || 2) * 100;
-          dose = Math.round((dose / reconVolIU) * size * 1000) / 1000;
-        }
-      } else if (convIsOil && size > 0) {
-        dose = Math.round((dose / 200) * size * 1000) / 1000;
+
+      // Convert mg to stored unit
+      dose = mgValue;
+      if (storedUnit === 'iu') {
+        if (catIsPeptide && size > 0) dose = (mgValue / size) * reconVolIU;
+        else if (catIsOil && size > 0) dose = (mgValue / size) * 200;
+      } else if (storedUnit === 'ml') {
+        if (catIsPeptide) dose = ((mgValue / size) * reconVolIU) / 100;
+        else if (catIsOil && size > 0) dose = mgValue / size;
+      } else if (storedUnit === 'mcg') {
+        dose = mgValue * 1000;
+      } else if (storedUnit === 'pills') {
+        dose = mgValue;
       }
+      dose = Math.round(dose * 1000) / 1000;
     }
 
     const updates: Partial<Compound> = {
@@ -393,8 +390,8 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
       updates.unitPrice = price;
     }
 
-    if (!editIsPeptide && !editIsOil && editState.purchaseDate) {
-      updates.purchaseDate = editState.purchaseDate;
+    if (!editIsPeptide && !editIsOil) {
+      updates.purchaseDate = editState.purchaseDate || '';
     }
 
     if (editState.cyclingEnabled === 'true') {
@@ -448,7 +445,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
           <p className="text-[10px] text-muted-foreground truncate">{compound.timingNote}</p>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0 ml-2">
-          {cycleStatus.hasCycle && (
+          {cycleStatus.hasCycle && compound.cycleOnDays && compound.cycleOnDays > 0 && compound.cycleOffDays && compound.cycleOffDays > 0 && (
             <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
               cycleStatus.isOn
                 ? 'bg-status-good/15 text-status-good'
@@ -664,7 +661,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
           </div>
           <EditRow label="Note" value={editState.timing || ''}
             onChange={v => setEditState(s => ({ ...s, timing: v }))} type="text" />
-          <EditRow label={isPeptide ? 'Vials' : 'Qty'} value={editState.currentQuantity}
+          <EditRow label={isPeptide ? 'Vials' : 'On Hand'} value={editState.currentQuantity}
             onChange={v => setEditState(s => ({ ...s, currentQuantity: v }))} type="number" />
           <EditRow label={isOil ? 'Conc.' : 'Per Unit'} value={editState.unitSize} suffix={isOil ? 'mg/mL' : isPeptide ? 'mg' : compound.unitLabel.split(' ')[0]}
             onChange={v => setEditState(s => ({ ...s, unitSize: v }))} type="number" />
@@ -672,10 +669,69 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
             <EditRow label="Vial Size" value={editState.vialSizeMl || '10'} suffix="mL"
               onChange={v => setEditState(s => ({ ...s, vialSizeMl: v }))} type="number" />
           )}
-          <EditRow label="Dose" value={editState.dosePerUse} suffix={
-            editState.editDoseUnit === 'ml' ? 'mL' : editState.editDoseUnit === 'iu' ? 'IU' : compound.doseLabel
-          }
-            onChange={v => setEditState(s => ({ ...s, dosePerUse: v }))} type="number" />
+          <div className="flex items-center gap-2 text-[11px]">
+            <span className="text-muted-foreground w-16 flex-shrink-0">Dose</span>
+            <div className="flex items-center gap-1 flex-1">
+              <input
+                type="number"
+                value={editState.dosePerUse}
+                onChange={e => setEditState(s => ({ ...s, dosePerUse: e.target.value }))}
+                className="w-full bg-secondary border border-border/50 rounded px-2 py-1 text-foreground font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50"
+              />
+              <select
+                value={editState.editDoseUnit || 'mg'}
+                onChange={e => {
+                  const newUnit = e.target.value;
+                  const oldUnit = editState.editDoseUnit || 'mg';
+                  if (newUnit === oldUnit) return;
+                  // Convert current dose value between units
+                  let currentDose = parseFloat(editState.dosePerUse) || 0;
+                  const unitSize = parseFloat(editState.unitSize) || compound.unitSize;
+                  const reconVolIU = (compound.reconVolume || 2) * 100;
+                  const catIsPeptide = (editState.category || compound.category) === 'peptide';
+                  const catIsOil = (editState.category || compound.category) === 'injectable-oil';
+
+                  // First convert current value back to mg (base unit)
+                  let mgValue = currentDose;
+                  if (oldUnit === 'iu') {
+                    if (catIsPeptide && unitSize > 0) mgValue = (currentDose / reconVolIU) * unitSize;
+                    else if (catIsOil && unitSize > 0) mgValue = (currentDose / 200) * unitSize;
+                  } else if (oldUnit === 'ml') {
+                    if (catIsPeptide) mgValue = (currentDose * 100 / reconVolIU) * unitSize;
+                    else if (catIsOil) mgValue = currentDose * unitSize;
+                  } else if (oldUnit === 'mcg') {
+                    mgValue = currentDose / 1000;
+                  } else if (oldUnit === 'pills') {
+                    mgValue = currentDose; // pills = raw dose
+                  }
+
+                  // Then convert mg to new unit
+                  let newDose = mgValue;
+                  if (newUnit === 'iu') {
+                    if (catIsPeptide && unitSize > 0) newDose = (mgValue / unitSize) * reconVolIU;
+                    else if (catIsOil && unitSize > 0) newDose = (mgValue / unitSize) * 200;
+                  } else if (newUnit === 'ml') {
+                    if (catIsPeptide) newDose = ((mgValue / unitSize) * reconVolIU) / 100;
+                    else if (catIsOil && unitSize > 0) newDose = mgValue / unitSize;
+                  } else if (newUnit === 'mcg') {
+                    newDose = mgValue * 1000;
+                  } else if (newUnit === 'pills') {
+                    newDose = mgValue;
+                  }
+
+                  newDose = Math.round(newDose * 1000) / 1000;
+                  setEditState(s => ({ ...s, editDoseUnit: newUnit, dosePerUse: newDose.toString() }));
+                }}
+                className="bg-secondary border border-border/50 rounded px-1.5 py-1 text-foreground font-mono text-[10px] focus:outline-none focus:ring-1 focus:ring-primary/50 min-w-[52px]"
+              >
+                <option value="mg">mg</option>
+                <option value="mcg">mcg</option>
+                <option value="iu">IU</option>
+                {(isPeptide || isOil) && <option value="ml">mL</option>}
+                <option value="pills">pills</option>
+              </select>
+            </div>
+          </div>
           {isPeptide ? (
             editState.reorderType === 'single' ? (
               <EditRow label="Unit Price" value={editState.unitPrice || (parseFloat(editState.kitPrice || '0') / 10).toString()} prefix="$" suffix="/vial"
@@ -689,8 +745,26 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
               onChange={v => setEditState(s => ({ ...s, unitPrice: v }))} type="number" />
           )}
           {!isPeptide && !isOil && (
-            <EditRow label="Purchased" value={editState.purchaseDate}
-              onChange={v => setEditState(s => ({ ...s, purchaseDate: v }))} type="date" />
+            <div className="flex items-center gap-2 text-[11px]">
+              <span className="text-muted-foreground w-16 flex-shrink-0">Purchased</span>
+              <div className="flex items-center gap-1 flex-1">
+                <input
+                  type="date"
+                  value={editState.purchaseDate || ''}
+                  onChange={e => setEditState(s => ({ ...s, purchaseDate: e.target.value }))}
+                  className="w-full bg-secondary border border-border/50 rounded px-2 py-1 text-foreground font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50"
+                />
+                {editState.purchaseDate && (
+                  <button
+                    onClick={() => setEditState(s => ({ ...s, purchaseDate: '' }))}
+                    className="p-1 rounded bg-secondary hover:bg-secondary/80 text-muted-foreground flex-shrink-0"
+                    title="Clear date"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            </div>
           )}
           <EditRow
             label="Reorder Qty"
@@ -835,7 +909,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
           })() : (
             <div className="grid grid-cols-2 gap-x-3 text-[10px]">
               <div>
-                <span className="text-muted-foreground">Qty:</span>{' '}
+              <span className="text-muted-foreground">On Hand:</span>{' '}
                 <span className="font-mono text-foreground">
                   {isOil
                     ? `${compound.currentQuantity} × ${compound.vialSizeMl || 10}mL`
@@ -893,7 +967,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
             </div>
           )}
 
-          {(compound.cycleOnDays && compound.cycleOffDays) ? (
+          {(compound.cycleOnDays && compound.cycleOnDays > 0 && compound.cycleOffDays && compound.cycleOffDays > 0) ? (
             <p className="text-[10px] text-accent mt-1.5 italic flex items-center gap-1">
               <RefreshCcw className="w-3 h-3" /> {compound.cycleOnDays} days on / {compound.cycleOffDays} days off{compound.cyclingNote && !compound.cyclingNote.match(/^\d+\s*days?\s*(on|off)/i) ? ` (${compound.cyclingNote})` : ''}
             </p>
