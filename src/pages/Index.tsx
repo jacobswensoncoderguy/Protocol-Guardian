@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Package, LayoutDashboard, RefreshCw, Brain, Activity, ClipboardList } from 'lucide-react';
+import { Calendar, Package, LayoutDashboard, RefreshCw, Brain, Activity, HeartPulse } from 'lucide-react';
 import { getDaysRemainingWithCycling } from '@/lib/cycling';
 import { getStatus } from '@/data/compounds';
 import { Compound } from '@/data/compounds';
@@ -268,6 +268,10 @@ const Index = () => {
               <Activity className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
               <span>Progress</span>
             </TabsTrigger>
+            <TabsTrigger value="tracking" className="flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
+              <HeartPulse className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+              <span>Tracking</span>
+            </TabsTrigger>
             <TabsTrigger value="schedule" className="flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
               <Calendar className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
               <span>Schedule</span>
@@ -280,10 +284,6 @@ const Index = () => {
                   {lowStockCounts.inventory}
                 </span>
               )}
-            </TabsTrigger>
-            <TabsTrigger value="tracking" className="flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
-              <ClipboardList className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-              <span>Tracking</span>
             </TabsTrigger>
             <TabsTrigger value="ai-insights" className="flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
               <Brain className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
