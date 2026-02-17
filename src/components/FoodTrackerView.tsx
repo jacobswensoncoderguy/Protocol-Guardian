@@ -1001,26 +1001,29 @@ const FoodTrackerView = () => {
               </div>
             )}
 
-            {/* Barcode input panel */}
-            {showBarcodeInput && (
-              <div className="flex gap-2 p-3 rounded-lg bg-accent/5 border border-accent/20">
+            {/* Manual barcode entry fallback — always visible */}
+            <div className="flex gap-2 items-center">
+              <div className="flex-1 relative">
+                <Barcode className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
                 <Input
-                  placeholder="Enter barcode number…"
+                  placeholder="Or type barcode (UPC)…"
                   value={barcodeInput}
                   onChange={e => setBarcodeInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleBarcodeLookup()}
-                  className="h-8 text-sm flex-1"
-                  autoFocus
+                  onKeyDown={e => e.key === 'Enter' && barcodeInput.trim() && lookupAndFillBarcode(barcodeInput.trim())}
+                  className="h-8 text-sm pl-8"
                   inputMode="numeric"
                 />
-                <Button size="sm" className="h-8 px-3 bg-accent text-accent-foreground hover:bg-accent/90" onClick={handleBarcodeLookup} disabled={barcodeLoading || !barcodeInput.trim()}>
-                  {barcodeLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Look up'}
-                </Button>
-                <button onClick={() => { setShowBarcodeInput(false); setBarcodeInput(''); }} className="text-muted-foreground hover:text-foreground">
-                  <X className="w-4 h-4" />
-                </button>
               </div>
-            )}
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 px-3 border-accent/40 text-accent hover:bg-accent/5 flex-shrink-0"
+                onClick={() => lookupAndFillBarcode(barcodeInput.trim())}
+                disabled={barcodeLoading || !barcodeInput.trim()}
+              >
+                {barcodeLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Look up'}
+              </Button>
+            </div>
 
             {scanResult && (
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/20">
