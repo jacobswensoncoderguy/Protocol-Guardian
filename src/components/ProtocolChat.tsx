@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Square, Trash2, Check, X, CheckCheck, Brain, ArrowRight, Mic, MicOff, Maximize2, Minimize2, PanelLeftOpen, PanelLeftClose, Copy, MessageCircle, Sparkles, TrendingUp, Shield, DollarSign, Clock } from 'lucide-react';
+import { Send, Square, Trash2, Check, X, CheckCheck, Brain, ArrowRight, Mic, MicOff, Maximize2, Minimize2, PanelLeftOpen, PanelLeftClose, Copy, MessageCircle, Sparkles, TrendingUp, Shield, DollarSign, Clock, Undo2 } from 'lucide-react';
 import { toast } from 'sonner';
 import ChatMarkdown from '@/components/ChatMarkdown';
 import { ChatMessage, ChangeProposal, ProposedChange } from '@/hooks/useProtocolChat';
@@ -17,6 +17,7 @@ interface ProtocolChatProps {
   onApplyChange: (proposalId: string, changeIndex: number) => void;
   onRejectChange: (proposalId: string, changeIndex: number) => void;
   onApplyAll: (proposalId: string) => void;
+  onUndoChange?: (proposalId: string, changeIndex: number) => void;
   conversationManager: ReturnType<typeof useConversations>;
 }
 
@@ -43,11 +44,13 @@ const ProposalCard = ({
   onApply,
   onReject,
   onApplyAll,
+  onUndo,
 }: {
   proposal: ChangeProposal;
   onApply: (index: number) => void;
   onReject: (index: number) => void;
   onApplyAll: () => void;
+  onUndo?: (index: number) => void;
 }) => {
   const hasPending = proposal.changes.some(c => c.status === 'pending');
 
@@ -75,6 +78,7 @@ const ProposalCard = ({
             change={change}
             onApply={() => onApply(i)}
             onReject={() => onReject(i)}
+            onUndo={onUndo ? () => onUndo(i) : undefined}
           />
         ))}
       </div>
@@ -86,14 +90,17 @@ const ChangeRow = ({
   change,
   onApply,
   onReject,
+  onUndo,
 }: {
   change: ProposedChange;
   onApply: () => void;
   onReject: () => void;
+  onUndo?: () => void;
 }) => (
   <div className={`flex items-start gap-2 p-2 rounded-md border transition-all ${
     change.status === 'accepted' ? 'border-status-good/30 bg-status-good/5' :
     change.status === 'rejected' ? 'border-destructive/30 bg-destructive/5 opacity-60' :
+    change.status === 'undone' ? 'border-accent/30 bg-accent/5 opacity-70' :
     'border-border/50 bg-card'
   }`}>
     <div className="flex-1 min-w-0">
@@ -122,9 +129,20 @@ const ChangeRow = ({
           <X className="w-3.5 h-3.5" />
         </button>
       </div>
+    ) : change.status === 'accepted' && onUndo ? (
+      <div className="flex items-center gap-1 flex-shrink-0">
+        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-status-good/15 text-status-good">
+          accepted
+        </span>
+        <button onClick={onUndo} className="p-1.5 rounded-md bg-accent/15 text-status-warning hover:bg-accent/25 transition-colors" title="Undo this change">
+          <Undo2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
     ) : (
       <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-full flex-shrink-0 ${
-        change.status === 'accepted' ? 'bg-status-good/15 text-status-good' : 'bg-destructive/15 text-status-critical'
+        change.status === 'accepted' ? 'bg-status-good/15 text-status-good' :
+        change.status === 'undone' ? 'bg-accent/15 text-status-warning' :
+        'bg-destructive/15 text-status-critical'
       }`}>
         {change.status}
       </span>
@@ -134,7 +152,7 @@ const ChangeRow = ({
 
 const ProtocolChat = ({
   messages, isStreaming, onSend, onCancel, onClear,
-  onApplyChange, onRejectChange, onApplyAll, conversationManager,
+  onApplyChange, onRejectChange, onApplyAll, onUndoChange, conversationManager,
 }: ProtocolChatProps) => {
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
@@ -197,6 +215,9 @@ const ProtocolChat = ({
   const lastMsgCountRef = useRef(messages.length);
   const streamingScrollRef = useRef(false);
 
+  // Track previous streaming state to detect when streaming ends
+  const wasStreamingRef = useRef(false);
+
   useEffect(() => {
     if (!scrollRef.current) return;
     const el = scrollRef.current;
@@ -222,6 +243,18 @@ const ProtocolChat = ({
         el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
       }
     }
+
+    // When streaming ends, scroll to the start of the last assistant message
+    if (wasStreamingRef.current && !isStreaming && messages.length > 0) {
+      requestAnimationFrame(() => {
+        const msgElements = el.querySelectorAll('[data-msg]');
+        const lastEl = msgElements[msgElements.length - 1];
+        if (lastEl) {
+          lastEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    }
+    wasStreamingRef.current = isStreaming;
   }, [messages, isStreaming]);
 
   const handleSubmit = async () => {
@@ -419,6 +452,7 @@ const ProtocolChat = ({
                       onApply={(i) => onApplyChange(msg.proposal!.id, i)}
                       onReject={(i) => onRejectChange(msg.proposal!.id, i)}
                       onApplyAll={() => onApplyAll(msg.proposal!.id)}
+                      onUndo={onUndoChange ? (i) => onUndoChange(msg.proposal!.id, i) : undefined}
                     />
                   )}
                   <button

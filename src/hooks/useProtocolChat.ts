@@ -12,7 +12,7 @@ export interface ProposedChange {
   oldValue?: string;
   newValue?: string;
   reasoning: string;
-  status: 'pending' | 'accepted' | 'rejected';
+  status: 'pending' | 'accepted' | 'rejected' | 'undone';
 }
 
 export interface ChangeProposal {
@@ -295,7 +295,7 @@ export function useProtocolChat(
     }
   }, [messages, compounds, protocols, toleranceLevel, analysis, persistMessage, updatePersistedMessage, conversationId, onConversationUpdate]);
 
-  const applyChange = useCallback((proposalId: string, changeIndex: number) => {
+  const applyChange = useCallback(async (proposalId: string, changeIndex: number) => {
     const proposal = proposals.find(p => p.id === proposalId);
     if (!proposal) return;
     const change = proposal.changes[changeIndex];
@@ -303,7 +303,7 @@ export function useProtocolChat(
     const compound = compounds.find(c => c.name === change.compoundName);
 
     if (change.type === 'remove_compound' && compound) {
-      deleteCompound(compound.id);
+      await deleteCompound(compound.id);
       toast.success(`Removed ${change.compoundName}`);
     } else if (compound && change.field && change.newValue !== undefined) {
       const numericFields = ['dosePerUse', 'dosesPerDay', 'daysPerWeek', 'cycleOnDays', 'cycleOffDays'];
@@ -322,7 +322,39 @@ export function useProtocolChat(
 
     const msg = messages.find(m => m.proposal?.id === proposalId);
     if (msg) updatePersistedMessage(msg.id, { proposal: updateProposalStatus(msg.proposal!) });
-  }, [proposals, compounds, updateCompound, deleteCompound, messages, updatePersistedMessage]);
+
+    // Cascade: refetch compounds so all views (schedule, dashboard, costs) update
+    await refetch();
+  }, [proposals, compounds, updateCompound, deleteCompound, messages, updatePersistedMessage, refetch]);
+
+  const undoChange = useCallback(async (proposalId: string, changeIndex: number) => {
+    const proposal = proposals.find(p => p.id === proposalId);
+    if (!proposal) return;
+    const change = proposal.changes[changeIndex];
+    if (!change || change.status !== 'accepted') return;
+    const compound = compounds.find(c => c.name === change.compoundName);
+
+    // Revert: set field back to old value
+    if (compound && change.field && change.oldValue !== undefined) {
+      const numericFields = ['dosePerUse', 'dosesPerDay', 'daysPerWeek', 'cycleOnDays', 'cycleOffDays'];
+      const value = numericFields.includes(change.field) ? parseFloat(change.oldValue) : change.oldValue;
+      updateCompound(compound.id, { [change.field]: value } as Partial<Compound>);
+      toast.success(`Reverted ${change.compoundName}: ${change.field} → ${change.oldValue}`);
+    }
+
+    const updateProposalStatus = (p: ChangeProposal) => ({
+      ...p,
+      changes: p.changes.map((c, i) => i === changeIndex ? { ...c, status: 'undone' as const } : c),
+    });
+
+    setProposals(prev => prev.map(p => p.id === proposalId ? updateProposalStatus(p) : p));
+    setMessages(prev => prev.map(m => m.proposal?.id === proposalId ? { ...m, proposal: updateProposalStatus(m.proposal!) } : m));
+
+    const msg = messages.find(m => m.proposal?.id === proposalId);
+    if (msg) updatePersistedMessage(msg.id, { proposal: updateProposalStatus(msg.proposal!) });
+
+    await refetch();
+  }, [proposals, compounds, updateCompound, messages, updatePersistedMessage, refetch]);
 
   const rejectChange = useCallback((proposalId: string, changeIndex: number) => {
     const updateProposalStatus = (p: ChangeProposal) => ({
@@ -355,6 +387,6 @@ export function useProtocolChat(
 
   return {
     messages, isStreaming, proposals,
-    sendMessage, applyChange, rejectChange, applyAllPending, cancelStream, clearChat,
+    sendMessage, applyChange, rejectChange, applyAllPending, cancelStream, clearChat, undoChange,
   };
 }

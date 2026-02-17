@@ -16,7 +16,7 @@ interface ChangelogEntry {
 }
 
 const APP_VERSION = '1.4.0';
-const STORAGE_KEY = 'superhuman_last_seen_version';
+const STORAGE_KEY = 'superhuman_whats_new_dismissed';
 
 const CHANGELOG: ChangelogEntry[] = [
   {
@@ -106,16 +106,31 @@ const WhatsNewOverlay = () => {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const lastSeen = localStorage.getItem(STORAGE_KEY);
-    if (lastSeen !== APP_VERSION) {
-      // Small delay so it doesn't compete with page load
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      const dismissed: string[] = raw ? JSON.parse(raw) : [];
+      // Only show if this version hasn't been dismissed
+      if (!dismissed.includes(APP_VERSION)) {
+        const timer = setTimeout(() => setVisible(true), 800);
+        return () => clearTimeout(timer);
+      }
+    } catch {
+      // Corrupt data — show overlay once
       const timer = setTimeout(() => setVisible(true), 800);
       return () => clearTimeout(timer);
     }
   }, []);
 
   const dismiss = () => {
-    localStorage.setItem(STORAGE_KEY, APP_VERSION);
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      const dismissed: string[] = raw ? JSON.parse(raw) : [];
+      if (!dismissed.includes(APP_VERSION)) dismissed.push(APP_VERSION);
+      // Keep only last 10 versions to avoid unbounded growth
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(dismissed.slice(-10)));
+    } catch {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([APP_VERSION]));
+    }
     setVisible(false);
   };
 
