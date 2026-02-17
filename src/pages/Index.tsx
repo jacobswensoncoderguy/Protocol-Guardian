@@ -43,6 +43,7 @@ import AIInsightsView from '@/components/AIInsightsView';
 import OutcomesView from '@/components/OutcomesView';
 import { useScheduleSnapshots } from '@/hooks/useScheduleSnapshots';
 import { useHistoricalCheckOffs } from '@/hooks/useHistoricalCheckOffs';
+import { useSwipeTabs } from '@/hooks/useSwipeTabs';
 
 const LoadingSkeleton = () => (
   <div className="min-h-screen bg-background">
@@ -128,6 +129,11 @@ const Index = () => {
   );
 
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [scheduleSubTab, setScheduleSubTab] = useState('this-week');
+  const [inventorySubTab, setInventorySubTab] = useState('stock');
+
+  const scheduleSwipe = useSwipeTabs({ tabs: ['this-week', 'history'], currentTab: scheduleSubTab, onTabChange: setScheduleSubTab });
+  const inventorySwipe = useSwipeTabs({ tabs: ['stock', 'costs', 'reorder'], currentTab: inventorySubTab, onTabChange: setInventorySubTab });
 
   // Badge counts for low-stock alerts
   const lowStockCounts = useMemo(() => {
@@ -306,21 +312,23 @@ const Index = () => {
             <OutcomesView userId={user?.id} goals={fullGoals} onRefreshGoals={fetchFullGoals} onUploadClick={() => setShowBiomarkerUpload(true)} profile={profile} measurementSystem={measurementSystem} onCreateGoal={createGoals} onUpdateGoal={updateGoal} onDeleteGoal={deleteGoal} />
           </TabsContent>
           <TabsContent value="schedule" className="animate-slide-up">
-            <Tabs defaultValue="this-week" className="w-full">
+            <Tabs value={scheduleSubTab} onValueChange={setScheduleSubTab} className="w-full">
               <TabsList className="w-full bg-card/80 border border-border/60 mb-3 h-10 p-1 gap-1">
                 <TabsTrigger value="this-week" className="flex-1 text-xs font-semibold rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">This Week</TabsTrigger>
                 <TabsTrigger value="history" className="flex-1 text-xs font-semibold rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">History</TabsTrigger>
               </TabsList>
-              <TabsContent value="this-week">
-                <WeeklyScheduleView compounds={compounds} protocols={protocols} compoundAnalyses={compoundAnalyses} compoundLoading={compoundLoading} onAnalyzeCompound={analyzeCompound} customFields={customFields} customFieldValues={customFieldValues} checkedDoses={checkedDoses} onToggleChecked={toggleDoseCheck} />
-              </TabsContent>
-              <TabsContent value="history">
-                <ScheduleHistoryView snapshots={scheduleSnapshots} loading={snapshotsLoading} checkedDosesMap={historicalCheckOffs} />
-              </TabsContent>
+              <div onTouchStart={scheduleSwipe.onTouchStart} onTouchEnd={scheduleSwipe.onTouchEnd}>
+                <TabsContent value="this-week">
+                  <WeeklyScheduleView compounds={compounds} protocols={protocols} compoundAnalyses={compoundAnalyses} compoundLoading={compoundLoading} onAnalyzeCompound={analyzeCompound} customFields={customFields} customFieldValues={customFieldValues} checkedDoses={checkedDoses} onToggleChecked={toggleDoseCheck} />
+                </TabsContent>
+                <TabsContent value="history">
+                  <ScheduleHistoryView snapshots={scheduleSnapshots} loading={snapshotsLoading} checkedDosesMap={historicalCheckOffs} />
+                </TabsContent>
+              </div>
             </Tabs>
           </TabsContent>
           <TabsContent value="inventory" className="animate-slide-up">
-            <Tabs defaultValue="stock" className="w-full">
+            <Tabs value={inventorySubTab} onValueChange={setInventorySubTab} className="w-full">
               <TabsList className="w-full bg-card/80 border border-border/60 mb-3 h-10 p-1 gap-1">
                 <TabsTrigger value="stock" className="flex-1 text-xs font-semibold rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">Stock</TabsTrigger>
                 <TabsTrigger value="costs" className="flex-1 text-xs font-semibold rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">Costs</TabsTrigger>
@@ -333,29 +341,31 @@ const Index = () => {
                   )}
                 </TabsTrigger>
               </TabsList>
-              <TabsContent value="stock">
-                <InventoryView
-                  compounds={compounds}
-                  onUpdateCompound={handleUpdateCompound}
-                  onDeleteCompound={deleteCompound}
-                  onAddCompound={() => setShowAddDialog(true)}
-                  protocols={protocols}
-                  toleranceLevel={toleranceLevel}
-                  onToleranceChange={handleToleranceChange}
-                  customFields={customFields}
-                  customFieldValues={customFieldValues}
-                  onAddCustomField={addCustomField}
-                  onRemoveCustomField={removeCustomField}
-                  onReorderCustomField={reorderCustomField}
-                  onSetCustomFieldValue={setCustomFieldValue}
-                />
-              </TabsContent>
-              <TabsContent value="costs">
-                <CostProjectionView compounds={compounds} protocols={protocols} customFields={customFields} customFieldValues={customFieldValues} userId={user?.id} />
-              </TabsContent>
-              <TabsContent value="reorder">
-                <ReorderView compounds={compounds} onUpdateCompound={handleUpdateCompound} userId={user?.id} protocols={protocols} />
-              </TabsContent>
+              <div onTouchStart={inventorySwipe.onTouchStart} onTouchEnd={inventorySwipe.onTouchEnd}>
+                <TabsContent value="stock">
+                  <InventoryView
+                    compounds={compounds}
+                    onUpdateCompound={handleUpdateCompound}
+                    onDeleteCompound={deleteCompound}
+                    onAddCompound={() => setShowAddDialog(true)}
+                    protocols={protocols}
+                    toleranceLevel={toleranceLevel}
+                    onToleranceChange={handleToleranceChange}
+                    customFields={customFields}
+                    customFieldValues={customFieldValues}
+                    onAddCustomField={addCustomField}
+                    onRemoveCustomField={removeCustomField}
+                    onReorderCustomField={reorderCustomField}
+                    onSetCustomFieldValue={setCustomFieldValue}
+                  />
+                </TabsContent>
+                <TabsContent value="costs">
+                  <CostProjectionView compounds={compounds} protocols={protocols} customFields={customFields} customFieldValues={customFieldValues} userId={user?.id} />
+                </TabsContent>
+                <TabsContent value="reorder">
+                  <ReorderView compounds={compounds} onUpdateCompound={handleUpdateCompound} userId={user?.id} protocols={protocols} />
+                </TabsContent>
+              </div>
             </Tabs>
           </TabsContent>
           <TabsContent value="ai-insights" className="animate-slide-up">
