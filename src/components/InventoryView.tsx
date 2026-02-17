@@ -1209,7 +1209,13 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
               />
                 <div>
                   <span className="text-muted-foreground">Per Vial:</span>{' '}
-                  <span className="font-mono text-foreground">{compound.unitSize} mg</span>
+                  <span className="font-mono text-foreground">{compound.unitSize} {(() => {
+                    const ul = (compound.unitLabel || 'mg vial').toLowerCase();
+                    if (ul.includes('ml')) return 'mL';
+                    if (ul.includes('iu')) return 'IU';
+                    if (ul.includes('mg/ml')) return 'mg/mL';
+                    return 'mg';
+                  })()}</span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Dose:</span>{' '}
@@ -1254,8 +1260,14 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
               </div>
               {isOil && (
                 <div>
-                  <span className="text-muted-foreground">Conc.:</span>{' '}
-                  <span className="font-mono text-foreground">{compound.unitSize} mg/mL</span>
+                  <span className="text-muted-foreground">Per Vial:</span>{' '}
+                  <span className="font-mono text-foreground">{compound.unitSize} {(() => {
+                    const ul = (compound.unitLabel || 'mg/mL').toLowerCase();
+                    if (ul.includes('ml vial')) return 'mL';
+                    if (ul.includes('iu')) return 'IU';
+                    if (ul.includes('mg/ml')) return 'mg/mL';
+                    return 'mg';
+                  })()}</span>
                 </div>
               )}
               {!isOil && (
