@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { Upload, FileText, Loader2, AlertCircle, CheckCircle2, ChevronDown, ChevronUp, X, Beaker, TrendingUp, Plus } from 'lucide-react';
+import { Upload, FileText, Loader2, AlertCircle, CheckCircle2, ChevronDown, ChevronUp, X, Beaker, TrendingUp, Plus, Droplets, Bone, Zap, Syringe, Heart, Bug, ClipboardList } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { UserGoal } from '@/hooks/useGoals';
@@ -61,13 +61,23 @@ const PRIORITY_COLORS: Record<string, string> = {
 };
 
 const DOC_TYPE_LABELS: Record<string, string> = {
-  bloodwork: '🩸 Bloodwork Panel',
-  dexa_scan: '🦴 DEXA Scan',
-  metabolic_panel: '⚡ Metabolic Panel',
-  hormone_panel: '💉 Hormone Panel',
-  lipid_panel: '🫀 Lipid Panel',
-  thyroid_panel: '🦋 Thyroid Panel',
-  other: '📋 Lab Results',
+  bloodwork: 'Bloodwork Panel',
+  dexa_scan: 'DEXA Scan',
+  metabolic_panel: 'Metabolic Panel',
+  hormone_panel: 'Hormone Panel',
+  lipid_panel: 'Lipid Panel',
+  thyroid_panel: 'Thyroid Panel',
+  other: 'Lab Results',
+};
+
+const DOC_TYPE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  bloodwork: Droplets,
+  dexa_scan: Bone,
+  metabolic_panel: Zap,
+  hormone_panel: Syringe,
+  lipid_panel: Heart,
+  thyroid_panel: Bug,
+  other: ClipboardList,
 };
 
 export default function BiomarkerUploadDialog({
