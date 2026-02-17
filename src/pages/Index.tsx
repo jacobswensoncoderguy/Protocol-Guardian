@@ -13,6 +13,7 @@ import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { useProtocolAnalysis } from '@/hooks/useProtocolAnalysis';
 import { useProtocolChat } from '@/hooks/useProtocolChat';
 import { useConversations } from '@/hooks/useConversations';
+import { useCustomFields } from '@/hooks/useCustomFields';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCallback, useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
@@ -82,6 +83,8 @@ const Index = () => {
     addCompoundToProtocol, removeCompoundFromProtocol, refetch: refetchProtocols,
     goals, protocolGoalLinks, linkGoalToProtocol, unlinkGoalFromProtocol, refetchGoals,
   } = useProtocols(user?.id);
+
+  const { fields: customFields, values: customFieldValues, addField: addCustomField, removeField: removeCustomField, setValue: setCustomFieldValue } = useCustomFields(user?.id);
 
   const {
     stackAnalysis, compoundAnalyses, loading: aiLoading, compoundLoading,
@@ -318,6 +321,11 @@ const Index = () => {
               protocols={protocols}
               toleranceLevel={toleranceLevel}
               onToleranceChange={handleToleranceChange}
+              customFields={customFields}
+              customFieldValues={customFieldValues}
+              onAddCustomField={addCustomField}
+              onRemoveCustomField={removeCustomField}
+              onSetCustomFieldValue={setCustomFieldValue}
             />
           </TabsContent>
           <TabsContent value="reorders" className="animate-slide-up">
