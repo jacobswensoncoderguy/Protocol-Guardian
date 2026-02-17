@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Plus, Search, Utensils, Apple, Coffee, Moon, Sun, Trash2, Star, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Plus, Utensils, Apple, Coffee, Moon, Sun, Trash2, ChevronDown, ChevronUp, Camera, Loader2, Settings, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,10 +7,12 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
+import WeeklyNutritionView from './WeeklyNutritionView';
 
 interface Meal {
   id: string;
@@ -65,6 +67,18 @@ const DEFAULT_TARGETS: NutritionTargets = {
   diet_type: 'custom',
 };
 
+// Diet framework presets
+const DIET_PRESETS: Record<string, { label: string; description: string; targets: Partial<NutritionTargets> }> = {
+  custom: { label: 'Custom', description: 'Your own targets', targets: {} },
+  performance: { label: 'Performance', description: 'High protein, balanced macros for athletes', targets: { calories_target: 2800, protein_target_g: 220, carbs_target_g: 300, fat_target_g: 80, fiber_target_g: 35 } },
+  keto: { label: 'Keto', description: 'High fat, very low carb (<50g/day)', targets: { calories_target: 2000, protein_target_g: 140, carbs_target_g: 30, fat_target_g: 155, fiber_target_g: 25 } },
+  carnivore: { label: 'Carnivore', description: 'Animal-based, zero carb protocol', targets: { calories_target: 2200, protein_target_g: 200, carbs_target_g: 5, fat_target_g: 160, fiber_target_g: 0 } },
+  mediterranean: { label: 'Mediterranean', description: 'Balanced, heart-healthy with olive oil & fish', targets: { calories_target: 2000, protein_target_g: 120, carbs_target_g: 250, fat_target_g: 70, fiber_target_g: 40 } },
+  vegan: { label: 'Vegan', description: 'Plant-based, high fiber protocol', targets: { calories_target: 1900, protein_target_g: 100, carbs_target_g: 280, fat_target_g: 55, fiber_target_g: 45 } },
+  paleo: { label: 'Paleo', description: 'Whole foods, no grains or dairy', targets: { calories_target: 2100, protein_target_g: 160, carbs_target_g: 150, fat_target_g: 100, fiber_target_g: 35 } },
+  highprotein: { label: 'High Protein', description: 'Optimized for muscle retention & recomp', targets: { calories_target: 2400, protein_target_g: 240, carbs_target_g: 200, fat_target_g: 70, fiber_target_g: 30 } },
+};
+
 const FoodTrackerView = () => {
   const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -73,8 +87,15 @@ const FoodTrackerView = () => {
   const [targets, setTargets] = useState<NutritionTargets>(DEFAULT_TARGETS);
   const [loading, setLoading] = useState(true);
   const [showAddFood, setShowAddFood] = useState(false);
+  const [showTargets, setShowTargets] = useState(false);
   const [activeMealType, setActiveMealType] = useState('breakfast');
   const [expandedMeals, setExpandedMeals] = useState<Set<string>>(new Set(MEAL_ORDER));
+  const [foodTab, setFoodTab] = useState('today');
+
+  // AI scanning state
+  const [scanning, setScanning] = useState(false);
+  const [scanResult, setScanResult] = useState<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Add food form state
   const [foodName, setFoodName] = useState('');
@@ -86,6 +107,14 @@ const FoodTrackerView = () => {
   const [carbs, setCarbs] = useState('');
   const [fat, setFat] = useState('');
   const [fiber, setFiber] = useState('');
+
+  // Targets form state
+  const [targetCalories, setTargetCalories] = useState('');
+  const [targetProtein, setTargetProtein] = useState('');
+  const [targetCarbs, setTargetCarbs] = useState('');
+  const [targetFat, setTargetFat] = useState('');
+  const [targetFiber, setTargetFiber] = useState('');
+  const [selectedDiet, setSelectedDiet] = useState('custom');
 
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -99,14 +128,20 @@ const FoodTrackerView = () => {
     const mealsList = (mealsRes.data || []) as unknown as Meal[];
     setMeals(mealsList);
 
-    if (targetsRes.data) setTargets(targetsRes.data as unknown as NutritionTargets);
+    if (targetsRes.data) {
+      const t = targetsRes.data as unknown as NutritionTargets;
+      setTargets(t);
+      setTargetCalories(String(t.calories_target));
+      setTargetProtein(String(t.protein_target_g));
+      setTargetCarbs(String(t.carbs_target_g));
+      setTargetFat(String(t.fat_target_g));
+      setTargetFiber(String(t.fiber_target_g));
+      setSelectedDiet(t.diet_type || 'custom');
+    }
 
     if (mealsList.length > 0) {
       const mealIds = mealsList.map(m => m.id);
-      const { data: foodData } = await supabase
-        .from('food_entries')
-        .select('*')
-        .in('meal_id', mealIds);
+      const { data: foodData } = await supabase.from('food_entries').select('*').in('meal_id', mealIds);
       setEntries((foodData || []) as unknown as FoodEntry[]);
     } else {
       setEntries([]);
@@ -183,7 +218,7 @@ const FoodTrackerView = () => {
       carbs_g: parseFloat(carbs) || 0,
       fat_g: parseFloat(fat) || 0,
       fiber_g: parseFloat(fiber) || 0,
-      source: 'manual',
+      source: scanResult ? 'ai_scan' : 'manual',
     }).select().single();
 
     if (error) { toast.error('Failed to add food'); return; }
@@ -201,6 +236,7 @@ const FoodTrackerView = () => {
   const resetForm = () => {
     setFoodName(''); setServingSize('100'); setServingUnit('g'); setServings('1');
     setCalories(''); setProtein(''); setCarbs(''); setFat(''); setFiber('');
+    setScanResult(null);
   };
 
   const toggleMeal = (type: string) => {
@@ -209,6 +245,86 @@ const FoodTrackerView = () => {
       next.has(type) ? next.delete(type) : next.add(type);
       return next;
     });
+  };
+
+  // AI image scanning
+  const handleImageCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setScanning(true);
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = async () => {
+        const base64 = reader.result as string;
+        const { data, error } = await supabase.functions.invoke('parse-food-image', {
+          body: { imageBase64: base64 },
+        });
+
+        if (error || data?.error) {
+          toast.error(data?.error || 'Failed to analyze image');
+          setScanning(false);
+          return;
+        }
+
+        const result = data.result;
+        setScanResult(result);
+        setFoodName(result.food_name || '');
+        setServingSize(String(result.serving_size || 100));
+        setServingUnit(result.serving_unit || 'g');
+        setCalories(String(Math.round(result.calories || 0)));
+        setProtein(String(Math.round(result.protein_g || 0)));
+        setCarbs(String(Math.round(result.carbs_g || 0)));
+        setFat(String(Math.round(result.fat_g || 0)));
+        setFiber(String(Math.round(result.fiber_g || 0)));
+
+        const confidenceMsg = result.confidence === 'high' ? '✓ High confidence' : result.confidence === 'medium' ? '⚠ Medium confidence — please verify' : '⚠ Low confidence — please verify values';
+        toast.success(`Scanned: ${result.food_name}`, { description: confidenceMsg });
+        setScanning(false);
+      };
+    } catch {
+      toast.error('Failed to scan image');
+      setScanning(false);
+    }
+    // Reset file input
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  // Diet preset application
+  const applyDietPreset = (dietKey: string) => {
+    setSelectedDiet(dietKey);
+    const preset = DIET_PRESETS[dietKey];
+    if (!preset?.targets || dietKey === 'custom') return;
+    const t = preset.targets;
+    if (t.calories_target) setTargetCalories(String(t.calories_target));
+    if (t.protein_target_g) setTargetProtein(String(t.protein_target_g));
+    if (t.carbs_target_g) setTargetCarbs(String(t.carbs_target_g));
+    if (t.fat_target_g) setTargetFat(String(t.fat_target_g));
+    if (t.fiber_target_g !== undefined) setTargetFiber(String(t.fiber_target_g));
+  };
+
+  const handleSaveTargets = async () => {
+    if (!user) return;
+    const newTargets = {
+      calories_target: parseInt(targetCalories) || 2000,
+      protein_target_g: parseInt(targetProtein) || 150,
+      carbs_target_g: parseInt(targetCarbs) || 200,
+      fat_target_g: parseInt(targetFat) || 65,
+      fiber_target_g: parseInt(targetFiber) || 30,
+      diet_type: selectedDiet,
+    };
+
+    const { data: existing } = await supabase.from('nutrition_targets').select('id').eq('user_id', user.id).single();
+    if (existing) {
+      await supabase.from('nutrition_targets').update(newTargets).eq('user_id', user.id);
+    } else {
+      await supabase.from('nutrition_targets').insert({ ...newTargets, user_id: user.id });
+    }
+
+    setTargets({ ...newTargets, diet_type: selectedDiet });
+    toast.success('Nutrition targets saved');
+    setShowTargets(false);
   };
 
   const MacroRing = ({ label, current, target, color }: { label: string; current: number; target: number; color: string }) => {
@@ -236,108 +352,147 @@ const FoodTrackerView = () => {
 
   return (
     <div className="space-y-4">
-      {/* Date selector */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold text-foreground">{dateLabel}</h2>
-        <Input
-          type="date"
-          value={selectedDate}
-          onChange={(e) => setSelectedDate(e.target.value)}
-          className="w-auto h-8 text-xs"
-        />
-      </div>
+      {/* Sub-tabs */}
+      <Tabs value={foodTab} onValueChange={setFoodTab} className="w-full">
+        <TabsList className="w-full bg-card/80 border border-border/60 h-9 p-0.5 gap-0.5">
+          <TabsTrigger value="today" className="flex-1 text-[10px] font-semibold rounded data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            Today
+          </TabsTrigger>
+          <TabsTrigger value="weekly" className="flex-1 text-[10px] font-semibold rounded data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            7-Day Summary
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Daily summary card */}
-      <Card className="border-border/50">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <div className="text-2xl font-bold text-foreground">{Math.round(dailyTotals.calories)}</div>
-              <div className="text-xs text-muted-foreground">of {targets.calories_target} cal</div>
-            </div>
-            <div className="flex gap-3">
-              <MacroRing label="Protein" current={dailyTotals.protein} target={targets.protein_target_g} color="hsl(var(--primary))" />
-              <MacroRing label="Carbs" current={dailyTotals.carbs} target={targets.carbs_target_g} color="hsl(var(--accent))" />
-              <MacroRing label="Fat" current={dailyTotals.fat} target={targets.fat_target_g} color="hsl(var(--status-warning))" />
+        <TabsContent value="today" className="space-y-4 mt-3">
+          {/* Date selector */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-foreground">{dateLabel}</h2>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setShowTargets(true)} className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+                <Settings className="w-4 h-4" />
+              </button>
+              <Input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-auto h-8 text-xs"
+              />
             </div>
           </div>
-          <Progress value={(dailyTotals.calories / targets.calories_target) * 100} className="h-2" />
-          <div className="flex justify-between mt-1">
-            <span className="text-[10px] text-muted-foreground">{Math.round(targets.calories_target - dailyTotals.calories)} cal remaining</span>
-            <span className="text-[10px] text-muted-foreground">Fiber: {Math.round(dailyTotals.fiber)}g / {targets.fiber_target_g}g</span>
-          </div>
-        </CardContent>
-      </Card>
 
-      {/* Meal sections */}
-      {MEAL_ORDER.map(mealType => {
-        const Icon = MEAL_ICONS[mealType];
-        const totals = mealTotals[mealType];
-        const mealEntries = entries.filter(e => {
-          const meal = meals.find(m => m.id === e.meal_id);
-          return meal?.meal_type === mealType;
-        });
-        const isExpanded = expandedMeals.has(mealType);
-
-        return (
-          <Card key={mealType} className="border-border/50">
-            <CardHeader className="p-3 pb-0">
-              <div className="flex items-center justify-between">
-                <button onClick={() => toggleMeal(mealType)} className="flex items-center gap-2 flex-1">
-                  <Icon className="w-4 h-4 text-primary" />
-                  <CardTitle className="text-sm capitalize">{mealType}</CardTitle>
-                  {totals && <Badge variant="secondary" className="text-[10px] h-5">{Math.round(totals.calories)} cal</Badge>}
-                  {isExpanded ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground ml-auto" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground ml-auto" />}
-                </button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 w-7 p-0 text-primary"
-                  onClick={() => { setActiveMealType(mealType); setShowAddFood(true); }}
-                >
-                  <Plus className="w-4 h-4" />
-                </Button>
+          {/* Daily summary card */}
+          <Card className="border-border/50">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <div className="text-2xl font-bold text-foreground">{Math.round(dailyTotals.calories)}</div>
+                  <div className="text-xs text-muted-foreground">of {targets.calories_target} cal</div>
+                  {targets.diet_type && targets.diet_type !== 'custom' && (
+                    <Badge variant="secondary" className="text-[9px] h-4 mt-0.5">{DIET_PRESETS[targets.diet_type]?.label || targets.diet_type}</Badge>
+                  )}
+                </div>
+                <div className="flex gap-3">
+                  <MacroRing label="Protein" current={dailyTotals.protein} target={targets.protein_target_g} color="hsl(var(--primary))" />
+                  <MacroRing label="Carbs" current={dailyTotals.carbs} target={targets.carbs_target_g} color="hsl(var(--accent))" />
+                  <MacroRing label="Fat" current={dailyTotals.fat} target={targets.fat_target_g} color="hsl(var(--status-warning))" />
+                </div>
               </div>
-            </CardHeader>
-            {isExpanded && (
-              <CardContent className="p-3 pt-2">
-                {mealEntries.length === 0 ? (
-                  <button
-                    onClick={() => { setActiveMealType(mealType); setShowAddFood(true); }}
-                    className="w-full py-4 border border-dashed border-border/60 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors flex items-center justify-center gap-1.5"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    Add food
-                  </button>
-                ) : (
-                  <div className="space-y-1.5">
-                    {mealEntries.map(entry => (
-                      <div key={entry.id} className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-secondary/50 group">
-                        <div className="min-w-0 flex-1">
-                          <div className="text-xs font-medium text-foreground truncate">{entry.food_name}</div>
-                          <div className="text-[10px] text-muted-foreground">
-                            {entry.servings > 1 ? `${entry.servings} × ` : ''}{entry.serving_size}{entry.serving_unit}
-                            {' · '}P {Math.round(entry.protein_g * entry.servings)}g · C {Math.round(entry.carbs_g * entry.servings)}g · F {Math.round(entry.fat_g * entry.servings)}g
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-foreground">{Math.round(entry.calories * entry.servings)}</span>
-                          <button onClick={() => handleDeleteEntry(entry.id)} className="opacity-0 group-hover:opacity-100 sm:opacity-100 text-muted-foreground hover:text-destructive transition-opacity">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            )}
+              <Progress value={(dailyTotals.calories / targets.calories_target) * 100} className="h-2" />
+              <div className="flex justify-between mt-1">
+                <span className="text-[10px] text-muted-foreground">{Math.round(targets.calories_target - dailyTotals.calories)} cal remaining</span>
+                <span className="text-[10px] text-muted-foreground">Fiber: {Math.round(dailyTotals.fiber)}g / {targets.fiber_target_g}g</span>
+              </div>
+            </CardContent>
           </Card>
-        );
-      })}
+
+          {/* Meal sections */}
+          {MEAL_ORDER.map(mealType => {
+            const Icon = MEAL_ICONS[mealType];
+            const totals = mealTotals[mealType];
+            const mealEntries = entries.filter(e => {
+              const meal = meals.find(m => m.id === e.meal_id);
+              return meal?.meal_type === mealType;
+            });
+            const isExpanded = expandedMeals.has(mealType);
+
+            return (
+              <Card key={mealType} className="border-border/50">
+                <CardHeader className="p-3 pb-0">
+                  <div className="flex items-center justify-between">
+                    <button onClick={() => toggleMeal(mealType)} className="flex items-center gap-2 flex-1">
+                      <Icon className="w-4 h-4 text-primary" />
+                      <CardTitle className="text-sm capitalize">{mealType}</CardTitle>
+                      {totals && <Badge variant="secondary" className="text-[10px] h-5">{Math.round(totals.calories)} cal</Badge>}
+                      {isExpanded ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground ml-auto" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground ml-auto" />}
+                    </button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 w-7 p-0 text-primary"
+                      onClick={() => { setActiveMealType(mealType); setShowAddFood(true); }}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </CardHeader>
+                {isExpanded && (
+                  <CardContent className="p-3 pt-2">
+                    {mealEntries.length === 0 ? (
+                      <button
+                        onClick={() => { setActiveMealType(mealType); setShowAddFood(true); }}
+                        className="w-full py-4 border border-dashed border-border/60 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Add food
+                      </button>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {mealEntries.map(entry => (
+                          <div key={entry.id} className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-secondary/50 group">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs font-medium text-foreground truncate">{entry.food_name}</span>
+                                {entry.source === 'ai_scan' && <Sparkles className="w-2.5 h-2.5 text-primary flex-shrink-0" />}
+                              </div>
+                              <div className="text-[10px] text-muted-foreground">
+                                {entry.servings > 1 ? `${entry.servings} × ` : ''}{entry.serving_size}{entry.serving_unit}
+                                {' · '}P {Math.round(entry.protein_g * entry.servings)}g · C {Math.round(entry.carbs_g * entry.servings)}g · F {Math.round(entry.fat_g * entry.servings)}g
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-semibold text-foreground">{Math.round(entry.calories * entry.servings)}</span>
+                              <button onClick={() => handleDeleteEntry(entry.id)} className="opacity-0 group-hover:opacity-100 sm:opacity-100 text-muted-foreground hover:text-destructive transition-opacity">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                )}
+              </Card>
+            );
+          })}
+        </TabsContent>
+
+        <TabsContent value="weekly" className="mt-3">
+          <WeeklyNutritionView />
+        </TabsContent>
+      </Tabs>
+
+      {/* Hidden file input for camera/gallery */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleImageCapture}
+        className="hidden"
+      />
 
       {/* Add food dialog */}
-      <Dialog open={showAddFood} onOpenChange={setShowAddFood}>
+      <Dialog open={showAddFood} onOpenChange={(open) => { setShowAddFood(open); if (!open) resetForm(); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base">
@@ -346,11 +501,38 @@ const FoodTrackerView = () => {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
+            {/* AI scan button */}
+            <Button
+              variant="outline"
+              className="w-full gap-2 border-primary/40 text-primary hover:bg-primary/5"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={scanning}
+            >
+              {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+              {scanning ? 'Analyzing image…' : 'Scan with AI Camera'}
+            </Button>
+
+            {scanResult && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/20">
+                <Sparkles className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-primary">AI scanned</p>
+                  <p className="text-[10px] text-muted-foreground truncate">{scanResult.notes || `Confidence: ${scanResult.confidence}`}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="relative flex items-center gap-2">
+              <div className="flex-1 h-px bg-border/50" />
+              <span className="text-[10px] text-muted-foreground">or enter manually</span>
+              <div className="flex-1 h-px bg-border/50" />
+            </div>
+
             <Input
               placeholder="Food name (e.g., Chicken breast)"
               value={foodName}
               onChange={e => setFoodName(e.target.value)}
-              autoFocus
+              autoFocus={!scanning}
             />
             <div className="grid grid-cols-3 gap-2">
               <Input placeholder="Serving" value={servingSize} onChange={e => setServingSize(e.target.value)} type="number" className="text-sm" />
@@ -397,6 +579,73 @@ const FoodTrackerView = () => {
             <Button onClick={handleAddFood} disabled={!foodName.trim()} className="w-full">
               Add Food
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Nutrition targets dialog */}
+      <Dialog open={showTargets} onOpenChange={setShowTargets}>
+        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Settings className="w-4 h-4 text-primary" />
+              Nutrition Targets
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Diet presets */}
+            <div>
+              <p className="text-xs font-semibold text-foreground mb-2">Diet Framework</p>
+              <div className="grid grid-cols-2 gap-2">
+                {Object.entries(DIET_PRESETS).map(([key, preset]) => (
+                  <button
+                    key={key}
+                    onClick={() => applyDietPreset(key)}
+                    className={`p-2.5 rounded-lg border text-left transition-all ${
+                      selectedDiet === key
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border/50 hover:border-border hover:bg-secondary/50 text-muted-foreground'
+                    }`}
+                  >
+                    <div className="text-xs font-semibold">{preset.label}</div>
+                    <div className="text-[9px] mt-0.5 opacity-80">{preset.description}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="border-t border-border/50 pt-3">
+              <p className="text-xs font-semibold text-foreground mb-2">Custom Targets</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="relative">
+                  <label className="text-[10px] text-muted-foreground mb-1 block">Calories</label>
+                  <Input value={targetCalories} onChange={e => { setTargetCalories(e.target.value); setSelectedDiet('custom'); }} type="number" className="text-sm pr-8" />
+                  <span className="absolute right-2 bottom-2 text-[10px] text-muted-foreground">cal</span>
+                </div>
+                <div className="relative">
+                  <label className="text-[10px] text-muted-foreground mb-1 block">Protein</label>
+                  <Input value={targetProtein} onChange={e => { setTargetProtein(e.target.value); setSelectedDiet('custom'); }} type="number" className="text-sm pr-6" />
+                  <span className="absolute right-2 bottom-2 text-[10px] text-muted-foreground">g</span>
+                </div>
+                <div className="relative">
+                  <label className="text-[10px] text-muted-foreground mb-1 block">Carbs</label>
+                  <Input value={targetCarbs} onChange={e => { setTargetCarbs(e.target.value); setSelectedDiet('custom'); }} type="number" className="text-sm pr-6" />
+                  <span className="absolute right-2 bottom-2 text-[10px] text-muted-foreground">g</span>
+                </div>
+                <div className="relative">
+                  <label className="text-[10px] text-muted-foreground mb-1 block">Fat</label>
+                  <Input value={targetFat} onChange={e => { setTargetFat(e.target.value); setSelectedDiet('custom'); }} type="number" className="text-sm pr-6" />
+                  <span className="absolute right-2 bottom-2 text-[10px] text-muted-foreground">g</span>
+                </div>
+                <div className="relative">
+                  <label className="text-[10px] text-muted-foreground mb-1 block">Fiber</label>
+                  <Input value={targetFiber} onChange={e => { setTargetFiber(e.target.value); setSelectedDiet('custom'); }} type="number" className="text-sm pr-6" />
+                  <span className="absolute right-2 bottom-2 text-[10px] text-muted-foreground">g</span>
+                </div>
+              </div>
+            </div>
+
+            <Button onClick={handleSaveTargets} className="w-full">Save Targets</Button>
           </div>
         </DialogContent>
       </Dialog>
