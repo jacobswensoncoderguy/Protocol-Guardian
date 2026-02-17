@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { BrowserMultiFormatReader, IScannerControls } from '@zxing/browser';
+import { BrowserMultiFormatReader } from '@zxing/browser';
 import { Plus, Utensils, Apple, Coffee, Moon, Sun, Trash2, ChevronDown, ChevronUp, Camera, Loader2, Settings, Sparkles, Barcode, X, Search, Clock, Star, ScanLine } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -103,7 +103,8 @@ const FoodTrackerView = () => {
   const [liveScannerLoading, setLiveScannerLoading] = useState(false);
   const [liveScannerError, setLiveScannerError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const scannerControlsRef = useRef<IScannerControls | null>(null);
+  const scannerControlsRef = useRef<MediaStream | null>(null);
+  const scanAnimRef = useRef<number | null>(null);
 
   // Barcode lookup state
   const [barcodeInput, setBarcodeInput] = useState('');
