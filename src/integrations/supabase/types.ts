@@ -850,6 +850,30 @@ export type Database = {
         }
         Relationships: []
       }
+      weekly_schedule_snapshots: {
+        Row: {
+          compound_snapshots: Json
+          created_at: string
+          id: string
+          user_id: string
+          week_start_date: string
+        }
+        Insert: {
+          compound_snapshots?: Json
+          created_at?: string
+          id?: string
+          user_id: string
+          week_start_date: string
+        }
+        Update: {
+          compound_snapshots?: Json
+          created_at?: string
+          id?: string
+          user_id?: string
+          week_start_date?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
