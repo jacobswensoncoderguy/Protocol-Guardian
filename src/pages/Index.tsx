@@ -16,8 +16,7 @@ import { useConversations } from '@/hooks/useConversations';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCallback, useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
-import FloatingShareButton from '@/components/FloatingShareButton';
-import QuickActionsFAB from '@/components/QuickActionsFAB';
+import HeaderQuickActions from '@/components/HeaderQuickActions';
 import ProfileDropdown from '@/components/ProfileDropdown';
 import Onboarding from './Onboarding';
 import AddCompoundDialog from '@/components/AddCompoundDialog';
@@ -209,7 +208,15 @@ const Index = () => {
               <span className="text-muted-foreground font-medium ml-1.5 sm:ml-2 text-sm sm:text-xl">Tracker</span>
             </h1>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+            <HeaderQuickActions
+              activeTab={activeTab}
+              onAddCompound={() => setShowAddDialog(true)}
+              onManageProtocols={() => setShowProtocolManager(true)}
+              onGoalExpansion={() => setShowGoalExpansion(true)}
+              onNavigateTab={setActiveTab}
+            />
+            <div className="w-px h-5 bg-border/50 hidden sm:block" />
             <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground font-mono">
               <span className="inline-block w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-status-good animate-pulse-glow" />
               {compounds.length}
@@ -427,14 +434,6 @@ const Index = () => {
           onRequestFeature={handleFeatureRequest}
         />
       </main>
-      <FloatingShareButton />
-      <QuickActionsFAB
-        activeTab={activeTab}
-        onAddCompound={() => setShowAddDialog(true)}
-        onManageProtocols={() => setShowProtocolManager(true)}
-        onGoalExpansion={() => setShowGoalExpansion(true)}
-        onNavigateTab={setActiveTab}
-      />
       <WhatsNewOverlay />
       {showTourPrompt && (
         <div className="fixed inset-0 z-[99] bg-background/80 flex items-center justify-center p-4">

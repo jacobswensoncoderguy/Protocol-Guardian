@@ -1,12 +1,17 @@
-import { Settings, Target, FileText, LogOut, Sun, Moon, Plus } from 'lucide-react';
+import { Settings, Target, FileText, LogOut, Sun, Moon, Plus, Share2, MessageSquare, Mail, Link } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
 
 interface ProfileDropdownProps {
   isDark: boolean;
@@ -29,9 +34,13 @@ const ProfileDropdown = ({
   onSignOut,
   displayName,
 }: ProfileDropdownProps) => {
+  const { user } = useAuth();
   const initials = displayName
     ? displayName.slice(0, 2).toUpperCase()
     : 'SH';
+
+  const baseUrl = 'https://superhumanprotocol.lovable.app';
+  const inviteUrl = user ? `${baseUrl}/invite?ref=${user.id}` : `${baseUrl}/invite`;
 
   return (
     <DropdownMenu>
@@ -66,6 +75,37 @@ const ProfileDropdown = ({
           <FileText className="w-4 h-4" />
           Upload Lab Results
         </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger className="gap-2 cursor-pointer">
+            <Share2 className="w-4 h-4" />
+            Invite a Friend
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="w-48">
+            <DropdownMenuItem onClick={() => {
+              const body = `Check out SUPERHUMAN Tracker — track your protocol and optimize your performance. Create your account here: ${inviteUrl}`;
+              window.open(`sms:?&body=${encodeURIComponent(body)}`);
+            }} className="gap-2 cursor-pointer">
+              <MessageSquare className="w-4 h-4" />
+              Share via Text
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => {
+              const subject = 'Try SUPERHUMAN Tracker';
+              const body = `Check out SUPERHUMAN Tracker — track your protocol and optimize your performance.\n\nCreate your account here: ${inviteUrl}`;
+              window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+            }} className="gap-2 cursor-pointer">
+              <Mail className="w-4 h-4" />
+              Share via Email
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => {
+              navigator.clipboard.writeText(inviteUrl);
+              toast.success('Link copied to clipboard!');
+            }} className="gap-2 cursor-pointer">
+              <Link className="w-4 h-4" />
+              Copy Link
+            </DropdownMenuItem>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={onSignOut} className="gap-2 cursor-pointer text-destructive focus:text-destructive">
           <LogOut className="w-4 h-4" />
