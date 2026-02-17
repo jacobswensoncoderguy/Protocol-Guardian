@@ -317,12 +317,12 @@ const Index = () => {
                 <TabsTrigger value="this-week" className="flex-1 text-xs font-semibold rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">This Week</TabsTrigger>
                 <TabsTrigger value="history" className="flex-1 text-xs font-semibold rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">History</TabsTrigger>
               </TabsList>
-              <div onTouchStart={scheduleSwipe.onTouchStart} onTouchEnd={scheduleSwipe.onTouchEnd}>
-                <TabsContent value="this-week">
-                  <WeeklyScheduleView compounds={compounds} protocols={protocols} compoundAnalyses={compoundAnalyses} compoundLoading={compoundLoading} onAnalyzeCompound={analyzeCompound} customFields={customFields} customFieldValues={customFieldValues} checkedDoses={checkedDoses} onToggleChecked={toggleDoseCheck} />
+              <div key={scheduleSubTab} className={scheduleSwipe.slideClass} onAnimationEnd={scheduleSwipe.onAnimationEnd} onTouchStart={scheduleSwipe.onTouchStart} onTouchEnd={scheduleSwipe.onTouchEnd}>
+                <TabsContent value="this-week" forceMount={scheduleSubTab === 'this-week' ? true : undefined}>
+                  {scheduleSubTab === 'this-week' && <WeeklyScheduleView compounds={compounds} protocols={protocols} compoundAnalyses={compoundAnalyses} compoundLoading={compoundLoading} onAnalyzeCompound={analyzeCompound} customFields={customFields} customFieldValues={customFieldValues} checkedDoses={checkedDoses} onToggleChecked={toggleDoseCheck} />}
                 </TabsContent>
-                <TabsContent value="history">
-                  <ScheduleHistoryView snapshots={scheduleSnapshots} loading={snapshotsLoading} checkedDosesMap={historicalCheckOffs} />
+                <TabsContent value="history" forceMount={scheduleSubTab === 'history' ? true : undefined}>
+                  {scheduleSubTab === 'history' && <ScheduleHistoryView snapshots={scheduleSnapshots} loading={snapshotsLoading} checkedDosesMap={historicalCheckOffs} />}
                 </TabsContent>
               </div>
             </Tabs>
@@ -341,9 +341,9 @@ const Index = () => {
                   )}
                 </TabsTrigger>
               </TabsList>
-              <div onTouchStart={inventorySwipe.onTouchStart} onTouchEnd={inventorySwipe.onTouchEnd}>
-                <TabsContent value="stock">
-                  <InventoryView
+              <div key={inventorySubTab} className={inventorySwipe.slideClass} onAnimationEnd={inventorySwipe.onAnimationEnd} onTouchStart={inventorySwipe.onTouchStart} onTouchEnd={inventorySwipe.onTouchEnd}>
+                <TabsContent value="stock" forceMount={inventorySubTab === 'stock' ? true : undefined}>
+                  {inventorySubTab === 'stock' && <InventoryView
                     compounds={compounds}
                     onUpdateCompound={handleUpdateCompound}
                     onDeleteCompound={deleteCompound}
@@ -357,13 +357,13 @@ const Index = () => {
                     onRemoveCustomField={removeCustomField}
                     onReorderCustomField={reorderCustomField}
                     onSetCustomFieldValue={setCustomFieldValue}
-                  />
+                  />}
                 </TabsContent>
-                <TabsContent value="costs">
-                  <CostProjectionView compounds={compounds} protocols={protocols} customFields={customFields} customFieldValues={customFieldValues} userId={user?.id} />
+                <TabsContent value="costs" forceMount={inventorySubTab === 'costs' ? true : undefined}>
+                  {inventorySubTab === 'costs' && <CostProjectionView compounds={compounds} protocols={protocols} customFields={customFields} customFieldValues={customFieldValues} userId={user?.id} />}
                 </TabsContent>
-                <TabsContent value="reorder">
-                  <ReorderView compounds={compounds} onUpdateCompound={handleUpdateCompound} userId={user?.id} protocols={protocols} />
+                <TabsContent value="reorder" forceMount={inventorySubTab === 'reorder' ? true : undefined}>
+                  {inventorySubTab === 'reorder' && <ReorderView compounds={compounds} onUpdateCompound={handleUpdateCompound} userId={user?.id} protocols={protocols} />}
                 </TabsContent>
               </div>
             </Tabs>
