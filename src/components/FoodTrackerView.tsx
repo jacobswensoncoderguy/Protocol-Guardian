@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Plus, Utensils, Apple, Coffee, Moon, Sun, Trash2, ChevronDown, ChevronUp, Camera, Loader2, Settings, Sparkles, Barcode, X } from 'lucide-react';
+import { Plus, Utensils, Apple, Coffee, Moon, Sun, Trash2, ChevronDown, ChevronUp, Camera, Loader2, Settings, Sparkles, Barcode, X, Search, Clock, Star } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -101,6 +101,17 @@ const FoodTrackerView = () => {
   const [barcodeInput, setBarcodeInput] = useState('');
   const [barcodeLoading, setBarcodeLoading] = useState(false);
   const [showBarcodeInput, setShowBarcodeInput] = useState(false);
+
+  // Name search state (Open Food Facts)
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Saved / recent foods
+  const [savedFoods, setSavedFoods] = useState<any[]>([]);
+  const [savedFoodsLoading, setSavedFoodsLoading] = useState(false);
 
   // Add food form state
   const [foodName, setFoodName] = useState('');
@@ -229,6 +240,17 @@ const FoodTrackerView = () => {
     if (error) { toast.error('Failed to add food'); return; }
     setEntries(prev => [...prev, data as unknown as FoodEntry]);
     toast.success(`Added ${foodName}`);
+    // Upsert into saved_foods for the recent foods panel
+    await upsertSavedFood({
+      food_name: foodName.trim(),
+      serving_size: parseFloat(servingSize) || 100,
+      serving_unit: servingUnit,
+      calories: parseFloat(calories) || 0,
+      protein_g: parseFloat(protein) || 0,
+      carbs_g: parseFloat(carbs) || 0,
+      fat_g: parseFloat(fat) || 0,
+      fiber_g: parseFloat(fiber) || 0,
+    });
     resetForm();
     setShowAddFood(false);
   };
@@ -242,7 +264,96 @@ const FoodTrackerView = () => {
     setFoodName(''); setServingSize('100'); setServingUnit('g'); setServings('1');
     setCalories(''); setProtein(''); setCarbs(''); setFat(''); setFiber('');
     setScanResult(null); setBarcodeInput(''); setShowBarcodeInput(false);
+    setSearchQuery(''); setSearchResults([]); setShowSearchResults(false);
   };
+
+  // Fetch saved/recent foods from the database
+  const fetchSavedFoods = useCallback(async () => {
+    if (!user) return;
+    setSavedFoodsLoading(true);
+    const { data } = await supabase
+      .from('saved_foods')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('use_count', { ascending: false })
+      .limit(10);
+    setSavedFoods(data || []);
+    setSavedFoodsLoading(false);
+  }, [user]);
+
+  // Open Food Facts name search
+  const handleNameSearch = useCallback(async (query: string) => {
+    setSearchQuery(query);
+    setFoodName(query);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    if (!query.trim() || query.length < 2) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      return;
+    }
+    searchDebounceRef.current = setTimeout(async () => {
+      setSearchLoading(true);
+      try {
+        const res = await fetch(
+          `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=8&fields=product_name,brands,nutriments,serving_quantity,serving_quantity_unit,image_small_url`
+        );
+        const json = await res.json();
+        const products = (json.products || []).filter((p: any) => p.product_name && p.nutriments);
+        setSearchResults(products);
+        setShowSearchResults(products.length > 0);
+      } catch {
+        setSearchResults([]);
+        setShowSearchResults(false);
+      }
+      setSearchLoading(false);
+    }, 400);
+  }, []);
+
+  const applyOFFProduct = (p: any) => {
+    const n = p.nutriments || {};
+    const servQty = p.serving_quantity ? parseFloat(p.serving_quantity) : 100;
+    const factor = servQty / 100;
+    setFoodName(p.product_name || '');
+    setServingSize(String(servQty));
+    setServingUnit(p.serving_quantity_unit || 'g');
+    setCalories(String(Math.round((n['energy-kcal_100g'] ?? 0) * factor)));
+    setProtein(String(Math.round((n.proteins_100g ?? 0) * factor)));
+    setCarbs(String(Math.round((n.carbohydrates_100g ?? 0) * factor)));
+    setFat(String(Math.round((n.fat_100g ?? 0) * factor)));
+    setFiber(String(Math.round((n.fiber_100g ?? 0) * factor)));
+    const brand = p.brands ? ` (${p.brands.split(',')[0].trim()})` : '';
+    setScanResult({ confidence: 'high', notes: `Open Food Facts${p.brands ? ' · ' + p.brands.split(',')[0].trim() : ''}` });
+    toast.success(`Selected: ${p.product_name}${brand}`, { description: 'Nutrition pre-filled — verify before saving.' });
+    setShowSearchResults(false);
+    setSearchQuery(p.product_name || '');
+  };
+
+  const applySavedFood = (f: any) => {
+    setFoodName(f.food_name || '');
+    setServingSize(String(f.serving_size || 100));
+    setServingUnit(f.serving_unit || 'g');
+    setCalories(String(f.calories || ''));
+    setProtein(String(f.protein_g || ''));
+    setCarbs(String(f.carbs_g || ''));
+    setFat(String(f.fat_g || ''));
+    setFiber(String(f.fiber_g || ''));
+    setScanResult(null);
+    toast.success(`Loaded: ${f.food_name}`, { description: 'Adjust servings if needed.' });
+  };
+
+  // Increment use_count when adding a food (upsert to saved_foods)
+  const upsertSavedFood = useCallback(async (entry: {
+    food_name: string; serving_size: number; serving_unit: string;
+    calories: number; protein_g: number; carbs_g: number; fat_g: number; fiber_g: number;
+  }) => {
+    if (!user) return;
+    const existing = savedFoods.find(f => f.food_name.toLowerCase() === entry.food_name.toLowerCase());
+    if (existing) {
+      await supabase.from('saved_foods').update({ use_count: (existing.use_count || 0) + 1 }).eq('id', existing.id);
+    } else {
+      await supabase.from('saved_foods').insert({ ...entry, user_id: user.id, use_count: 1 });
+    }
+  }, [user, savedFoods]);
 
   // Open Food Facts barcode lookup
   const handleBarcodeLookup = async () => {
@@ -535,8 +646,12 @@ const FoodTrackerView = () => {
       />
 
       {/* Add food dialog */}
-      <Dialog open={showAddFood} onOpenChange={(open) => { setShowAddFood(open); if (!open) resetForm(); }}>
-        <DialogContent className="max-w-md">
+      <Dialog open={showAddFood} onOpenChange={(open) => {
+        setShowAddFood(open);
+        if (open) fetchSavedFoods();
+        if (!open) resetForm();
+      }}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base">
               <Utensils className="w-4 h-4 text-primary" />
@@ -544,6 +659,30 @@ const FoodTrackerView = () => {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
+
+            {/* Saved / Recent foods panel */}
+            {savedFoods.length > 0 && !searchQuery && (
+              <div>
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <Clock className="w-3 h-3 text-muted-foreground" />
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Recent & Saved</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {savedFoods.map(f => (
+                    <button
+                      key={f.id}
+                      onClick={() => applySavedFood(f)}
+                      className="flex items-center gap-1 px-2 py-1 rounded-full border border-border/60 bg-secondary/30 hover:bg-secondary/60 hover:border-primary/40 transition-colors text-[11px] text-foreground max-w-[160px]"
+                    >
+                      {(f.use_count || 0) >= 3 && <Star className="w-2.5 h-2.5 text-primary flex-shrink-0" />}
+                      <span className="truncate">{f.food_name}</span>
+                      <span className="text-muted-foreground flex-shrink-0">{Math.round(f.calories)}c</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Input method buttons */}
             <div className="grid grid-cols-2 gap-2">
               <Button
@@ -603,16 +742,59 @@ const FoodTrackerView = () => {
 
             <div className="relative flex items-center gap-2">
               <div className="flex-1 h-px bg-border/50" />
-              <span className="text-[10px] text-muted-foreground">or enter manually</span>
+              <span className="text-[10px] text-muted-foreground">or search by name</span>
               <div className="flex-1 h-px bg-border/50" />
             </div>
 
-            <Input
-              placeholder="Food name (e.g., Chicken breast)"
-              value={foodName}
-              onChange={e => setFoodName(e.target.value)}
-              autoFocus={!scanning}
-            />
+            {/* Food name search input with live suggestions */}
+            <div className="relative">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+                {searchLoading && (
+                  <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground animate-spin" />
+                )}
+                <Input
+                  placeholder="Search food (e.g., greek yogurt)…"
+                  value={searchQuery || foodName}
+                  onChange={e => handleNameSearch(e.target.value)}
+                  onFocus={() => searchResults.length > 0 && setShowSearchResults(true)}
+                  onBlur={() => setTimeout(() => setShowSearchResults(false), 150)}
+                  className="pl-8 pr-8"
+                  autoFocus={!scanning}
+                />
+              </div>
+
+              {/* Search results dropdown */}
+              {showSearchResults && searchResults.length > 0 && (
+                <div className="absolute z-50 top-full mt-1 w-full rounded-lg border border-border bg-card shadow-lg overflow-hidden max-h-56 overflow-y-auto">
+                  {searchResults.map((p, i) => {
+                    const n = p.nutriments || {};
+                    const servQty = p.serving_quantity ? parseFloat(p.serving_quantity) : 100;
+                    const factor = servQty / 100;
+                    const kcal = Math.round((n['energy-kcal_100g'] ?? 0) * factor);
+                    const prot = Math.round((n.proteins_100g ?? 0) * factor);
+                    const brand = p.brands ? p.brands.split(',')[0].trim() : '';
+                    return (
+                      <button
+                        key={i}
+                        onMouseDown={() => applyOFFProduct(p)}
+                        className="w-full flex items-start gap-2 px-3 py-2.5 hover:bg-secondary/60 transition-colors text-left border-b border-border/30 last:border-0"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-medium text-foreground truncate">{p.product_name}</div>
+                          {brand && <div className="text-[10px] text-muted-foreground">{brand}</div>}
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <div className="text-xs font-semibold text-foreground">{kcal} cal</div>
+                          <div className="text-[9px] text-muted-foreground">P {prot}g · {servQty}{p.serving_quantity_unit || 'g'}</div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             <div className="grid grid-cols-3 gap-2">
               <Input placeholder="Serving" value={servingSize} onChange={e => setServingSize(e.target.value)} type="number" className="text-sm" />
               <Select value={servingUnit} onValueChange={setServingUnit}>
