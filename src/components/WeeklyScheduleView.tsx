@@ -5,7 +5,7 @@ import { getCycleStatus, isPaused } from '@/lib/cycling';
 import { generateScheduleFromCompounds } from '@/lib/scheduleGenerator';
 import { CustomField } from '@/hooks/useCustomFields';
 import { UserProtocol } from '@/hooks/useProtocols';
-import { Sun, Moon, Dumbbell, Info, Syringe, Pause } from 'lucide-react';
+import { Sun, Moon, Dumbbell, Info, Syringe, Pause, Check } from 'lucide-react';
 
 function getFrequencyLabel(compound: Compound): string {
   const dpw = compound.daysPerWeek;
@@ -60,6 +60,16 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
   const [selectedCompound, setSelectedCompound] = useState<Compound | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [doseUnit, setDoseUnit] = useState<'mg' | 'ml'>('mg');
+  const [checkedDoses, setCheckedDoses] = useState<Set<string>>(new Set());
+
+  const toggleChecked = (key: string) => {
+    setCheckedDoses(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   const weeklySchedule = useMemo(() => generateScheduleFromCompounds(compounds, customFields, customFieldValues), [compounds, customFields, customFieldValues]);
   const schedule = weeklySchedule[selectedDay];
@@ -149,6 +159,8 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
           onCompoundClick={handleCompoundClick}
           protocols={protocols}
           doseUnit={doseUnit}
+          checkedDoses={checkedDoses}
+          onToggleChecked={toggleChecked}
         />
 
         {/* Afternoon */}
@@ -165,6 +177,8 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
             onCompoundClick={handleCompoundClick}
             protocols={protocols}
             doseUnit={doseUnit}
+            checkedDoses={checkedDoses}
+            onToggleChecked={toggleChecked}
           />
         )}
 
@@ -181,6 +195,8 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
           onCompoundClick={handleCompoundClick}
           protocols={protocols}
           doseUnit={doseUnit}
+          checkedDoses={checkedDoses}
+          onToggleChecked={toggleChecked}
         />
 
         <CompoundInfoDrawer
@@ -209,6 +225,8 @@ const DoseSection = ({
   onCompoundClick,
   protocols,
   doseUnit,
+  checkedDoses,
+  onToggleChecked,
 }: {
   icon: React.ReactNode;
   title: string;
@@ -221,6 +239,8 @@ const DoseSection = ({
   onCompoundClick: (id: string) => void;
   protocols: UserProtocol[];
   doseUnit: 'mg' | 'ml';
+  checkedDoses: Set<string>;
+  onToggleChecked: (key: string) => void;
 }) => {
   const allPeptides = doses.filter(d => d.category === 'peptide' || d.category === 'injectable-oil');
   const allOrals = doses.filter(d => d.category === 'oral' || d.category === 'prescription' || d.category === 'vitamin' || d.category === 'adaptogen' || d.category === 'nootropic' || d.category === 'holistic' || d.category === 'probiotic' || d.category === 'alternative-medicine');
@@ -254,19 +274,19 @@ const DoseSection = ({
 
       <div className="space-y-3">
         {allPeptides.length > 0 && (
-          <DoseGroup label="Injectables" doses={allPeptides} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} />
+          <DoseGroup label="Injectables" doses={allPeptides} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} />
         )}
         {protocolGroups.map(pg => (
-          <DoseGroup key={pg.label} label={pg.label} doses={pg.doses} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} />
+          <DoseGroup key={pg.label} label={pg.label} doses={pg.doses} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} />
         ))}
         {ungroupedOrals.length > 0 && (
-          <DoseGroup label="Oral Supplements" doses={ungroupedOrals} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} />
+          <DoseGroup label="Oral Supplements" doses={ungroupedOrals} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} />
         )}
         {ungroupedPowders.length > 0 && (
-          <DoseGroup label="Powders" doses={ungroupedPowders} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} />
+          <DoseGroup label="Powders" doses={ungroupedPowders} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} />
         )}
         {ungroupedTopicals.length > 0 && (
-          <DoseGroup label="Topicals" doses={ungroupedTopicals} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} />
+          <DoseGroup label="Topicals" doses={ungroupedTopicals} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} />
         )}
       </div>
     </div>
@@ -281,6 +301,8 @@ const DoseGroup = ({
   pausedIds = new Set(),
   onCompoundClick,
   doseUnit,
+  checkedDoses,
+  onToggleChecked,
 }: {
   label: string;
   doses: DayDose[];
@@ -289,6 +311,8 @@ const DoseGroup = ({
   pausedIds?: Set<string>;
   onCompoundClick: (id: string) => void;
   doseUnit: 'mg' | 'ml';
+  checkedDoses: Set<string>;
+  onToggleChecked: (key: string) => void;
 }) => {
   const seenOff = new Set<string>();
   const filteredDoses = doses.filter(d => {
@@ -348,36 +372,55 @@ const DoseGroup = ({
           const pauseRestart = compound?.pauseRestartDate
             ? new Date(compound.pauseRestartDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
             : null;
+          const checkKey = `${dose.compoundId}-${dose.timing}-${i}`;
+          const isChecked = checkedDoses.has(checkKey);
+          const isInactive = isOff || isPausedItem;
           return (
-            <button
+            <div
               key={`${dose.compoundId}-${i}`}
-              onClick={() => onCompoundClick(dose.compoundId)}
-              className={`flex items-center justify-between rounded px-2.5 py-1.5 text-left transition-colors hover:bg-card/80 active:bg-card ${isOff || isPausedItem ? 'bg-card/20 opacity-50' : 'bg-card/50'}`}
+              className={`flex items-center gap-2 rounded px-2.5 py-1.5 transition-colors hover:bg-card/80 active:bg-card ${isInactive ? 'bg-card/20 opacity-50' : 'bg-card/50'}`}
             >
-              <span className={`text-xs truncate mr-2 ${isOff || isPausedItem ? 'text-muted-foreground' : 'text-foreground/90'}`}>
-                {compound?.name || dose.compoundId}
-                {compound && !isPausedItem && (
-                  <span className="ml-1.5 text-[10px] text-muted-foreground font-normal">
-                    ({getFrequencyLabel(compound)})
-                  </span>
-                )}
-              </span>
-              <div className="flex items-center gap-1.5 flex-shrink-0">
-                {isPausedItem && (
-                  <span className="flex items-center gap-1 text-[10px] font-mono text-muted-foreground">
-                    <Pause className="w-3 h-3" />
-                    {pauseRestart ? `→ ${pauseRestart}` : 'Paused'}
-                  </span>
-                )}
-                {!isPausedItem && isOff && status?.hasCycle && (
-                  <span className="text-[10px] font-mono text-status-warning">OFF → {getResumeDate(status.daysLeftInPhase)}</span>
-                )}
-                {showCycleDays && (
-                  <span className="text-[10px] font-mono text-muted-foreground">{status.daysLeftInPhase}d</span>
-                )}
-                {!isOff && !isPausedItem && <span className="text-xs font-mono text-primary">{displayDose}</span>}
-              </div>
-            </button>
+              {!isInactive && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onToggleChecked(checkKey); }}
+                  className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                    isChecked
+                      ? 'bg-primary border-primary text-primary-foreground'
+                      : 'border-muted-foreground/40 hover:border-primary/60'
+                  }`}
+                >
+                  {isChecked && <Check className="w-3 h-3" />}
+                </button>
+              )}
+              <button
+                onClick={() => onCompoundClick(dose.compoundId)}
+                className={`flex items-center justify-between flex-1 min-w-0 text-left ${isChecked ? 'opacity-60' : ''}`}
+              >
+                <span className={`text-xs truncate mr-2 ${isInactive ? 'text-muted-foreground' : isChecked ? 'text-muted-foreground line-through' : 'text-foreground/90'}`}>
+                  {compound?.name || dose.compoundId}
+                  {compound && !isPausedItem && (
+                    <span className="ml-1.5 text-[10px] text-muted-foreground font-normal">
+                      ({getFrequencyLabel(compound)})
+                    </span>
+                  )}
+                </span>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {isPausedItem && (
+                    <span className="flex items-center gap-1 text-[10px] font-mono text-muted-foreground">
+                      <Pause className="w-3 h-3" />
+                      {pauseRestart ? `→ ${pauseRestart}` : 'Paused'}
+                    </span>
+                  )}
+                  {!isPausedItem && isOff && status?.hasCycle && (
+                    <span className="text-[10px] font-mono text-status-warning">OFF → {getResumeDate(status.daysLeftInPhase)}</span>
+                  )}
+                  {showCycleDays && (
+                    <span className="text-[10px] font-mono text-muted-foreground">{status.daysLeftInPhase}d</span>
+                  )}
+                  {!isOff && !isPausedItem && <span className={`text-xs font-mono text-primary ${isChecked ? 'line-through opacity-60' : ''}`}>{displayDose}</span>}
+                </div>
+              </button>
+            </div>
           );
         })}
       </div>
