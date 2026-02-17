@@ -4,7 +4,7 @@ import { Compound, getStatus, getReorderDateString, CompoundCategory } from '@/d
 import { getCycleStatus, getDaysRemainingWithCycling } from '@/lib/cycling';
 import { UserProtocol } from '@/hooks/useProtocols';
 import { CustomField, CustomFieldValue, PREDEFINED_FIELDS } from '@/hooks/useCustomFields';
-import { Pencil, Check, X, Trash2, Plus, ChevronDown, Syringe, Clock, SortAsc, Moon as MoonIcon, Sun, Dumbbell, RefreshCcw, Package, PlusCircle } from 'lucide-react';
+import { Pencil, Check, X, Trash2, Plus, ChevronDown, ChevronUp, Syringe, Clock, SortAsc, Moon as MoonIcon, Sun, Dumbbell, RefreshCcw, Package, PlusCircle } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import ToleranceSelector from '@/components/ToleranceSelector';
@@ -22,6 +22,7 @@ interface InventoryViewProps {
   customFieldValues?: Map<string, Map<string, string>>;
   onAddCustomField?: (field: Partial<CustomField>) => Promise<CustomField | null>;
   onRemoveCustomField?: (fieldId: string) => Promise<void>;
+  onReorderCustomField?: (fieldId: string, direction: 'up' | 'down') => Promise<void>;
   onSetCustomFieldValue?: (compoundId: string, fieldId: string, value: string) => Promise<void>;
 }
 
@@ -43,7 +44,7 @@ const categoryLabels: Record<string, string> = {
 
 const categoryOrder: string[] = ['peptide', 'injectable-oil', 'prescription', 'oral', 'powder', 'vitamin', 'holistic', 'adaptogen', 'nootropic', 'essential-oil', 'alternative-medicine', 'probiotic', 'topical'];
 
-const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCompound, protocols = [], toleranceLevel, onToleranceChange, customFields = [], customFieldValues = new Map(), onAddCustomField, onRemoveCustomField, onSetCustomFieldValue }: InventoryViewProps) => {
+const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCompound, protocols = [], toleranceLevel, onToleranceChange, customFields = [], customFieldValues = new Map(), onAddCustomField, onRemoveCustomField, onReorderCustomField, onSetCustomFieldValue }: InventoryViewProps) => {
   const [filter, setFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'name' | 'days'>('name');
   const [showToleranceConfirm, setShowToleranceConfirm] = useState(false);
@@ -158,7 +159,7 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
               {group.items.map((compound, compoundIdx) => (
                 <div key={compound.id} {...(compoundIdx === 0 && groups.indexOf(group) === 0 ? { 'data-tour': 'compound-card' } : {})}>
-                  <CompoundCard compound={compound} onUpdate={onUpdateCompound} onDelete={onDeleteCompound} customFields={customFields} customFieldValues={customFieldValues.get(compound.id) || new Map()} onAddCustomField={onAddCustomField} onRemoveCustomField={onRemoveCustomField} onSetCustomFieldValue={onSetCustomFieldValue} />
+                  <CompoundCard compound={compound} onUpdate={onUpdateCompound} onDelete={onDeleteCompound} customFields={customFields} customFieldValues={customFieldValues.get(compound.id) || new Map()} onAddCustomField={onAddCustomField} onRemoveCustomField={onRemoveCustomField} onReorderCustomField={onReorderCustomField} onSetCustomFieldValue={onSetCustomFieldValue} />
                 </div>
               ))}
             </div>
@@ -178,7 +179,7 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
           <CollapsibleContent className="animate-accordion-down data-[state=closed]:animate-accordion-up">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 opacity-60">
               {dormantCompounds.map(compound => (
-                <CompoundCard key={compound.id} compound={compound} onUpdate={onUpdateCompound} onDelete={onDeleteCompound} customFields={customFields} customFieldValues={customFieldValues.get(compound.id) || new Map()} onAddCustomField={onAddCustomField} onRemoveCustomField={onRemoveCustomField} onSetCustomFieldValue={onSetCustomFieldValue} />
+                <CompoundCard key={compound.id} compound={compound} onUpdate={onUpdateCompound} onDelete={onDeleteCompound} customFields={customFields} customFieldValues={customFieldValues.get(compound.id) || new Map()} onAddCustomField={onAddCustomField} onRemoveCustomField={onRemoveCustomField} onReorderCustomField={onReorderCustomField} onSetCustomFieldValue={onSetCustomFieldValue} />
               ))}
             </div>
           </CollapsibleContent>
@@ -204,11 +205,12 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
 
 // --- Compound Card ---
 
-const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customFieldValues = new Map(), onAddCustomField, onRemoveCustomField, onSetCustomFieldValue }: {
+const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customFieldValues = new Map(), onAddCustomField, onRemoveCustomField, onReorderCustomField, onSetCustomFieldValue }: {
   compound: Compound; onUpdate: (id: string, updates: Partial<Compound>) => void; onDelete?: (id: string) => void;
   customFields?: CustomField[]; customFieldValues?: Map<string, string>;
   onAddCustomField?: (field: Partial<CustomField>) => Promise<CustomField | null>;
   onRemoveCustomField?: (fieldId: string) => Promise<void>;
+  onReorderCustomField?: (fieldId: string, direction: 'up' | 'down') => Promise<void>;
   onSetCustomFieldValue?: (compoundId: string, fieldId: string, value: string) => Promise<void>;
 }) => {
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -962,9 +964,30 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
           {customFields.length > 0 && (
             <div className="border-t border-border/30 pt-1.5 mt-1.5 space-y-1">
               <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Custom Fields</span>
-              {customFields.map(f => (
-                <div key={f.id} className="flex items-center gap-2 text-[11px]">
-                  <span className="text-muted-foreground w-16 flex-shrink-0 truncate" title={f.field_name}>{f.field_name}</span>
+              {customFields.map((f, fIdx) => (
+                <div key={f.id} className="flex items-center gap-1 text-[11px]">
+                  {/* Reorder buttons */}
+                  {onReorderCustomField && (
+                    <div className="flex flex-col gap-0 flex-shrink-0">
+                      <button
+                        onClick={() => onReorderCustomField(f.id, 'up')}
+                        disabled={fIdx === 0}
+                        className="p-0 text-muted-foreground hover:text-primary disabled:opacity-20 transition-colors"
+                        title="Move up"
+                      >
+                        <ChevronUp className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={() => onReorderCustomField(f.id, 'down')}
+                        disabled={fIdx === customFields.length - 1}
+                        className="p-0 text-muted-foreground hover:text-primary disabled:opacity-20 transition-colors"
+                        title="Move down"
+                      >
+                        <ChevronDown className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
+                  <span className="text-muted-foreground w-14 flex-shrink-0 truncate" title={f.field_name}>{f.field_name}</span>
                   <div className="flex items-center gap-1 flex-1">
                     {f.field_type === 'select' && f.options ? (
                       <select

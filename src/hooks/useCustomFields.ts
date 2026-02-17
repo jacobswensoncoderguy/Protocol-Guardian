@@ -82,6 +82,24 @@ export function useCustomFields(userId: string | undefined) {
     await fetchAll();
   }, [fetchAll]);
 
+  const reorderField = useCallback(async (fieldId: string, direction: 'up' | 'down') => {
+    const idx = fields.findIndex(f => f.id === fieldId);
+    if (idx === -1) return;
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= fields.length) return;
+
+    const currentField = fields[idx];
+    const swapField = fields[swapIdx];
+
+    // Swap sort_order values
+    await Promise.all([
+      (supabase as any).from('compound_custom_fields').update({ sort_order: swapField.sort_order }).eq('id', currentField.id),
+      (supabase as any).from('compound_custom_fields').update({ sort_order: currentField.sort_order }).eq('id', swapField.id),
+    ]);
+
+    await fetchAll();
+  }, [fields, fetchAll]);
+
   const setValue = useCallback(async (compoundId: string, fieldId: string, value: string) => {
     const { error } = await (supabase as any)
       .from('compound_custom_field_values')
@@ -103,5 +121,5 @@ export function useCustomFields(userId: string | undefined) {
     return values.get(compoundId) || new Map();
   }, [values]);
 
-  return { fields, values, loading, addField, removeField, setValue, getCompoundValues, refetch: fetchAll };
+  return { fields, values, loading, addField, removeField, reorderField, setValue, getCompoundValues, refetch: fetchAll };
 }

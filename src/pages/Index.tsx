@@ -84,7 +84,7 @@ const Index = () => {
     goals, protocolGoalLinks, linkGoalToProtocol, unlinkGoalFromProtocol, refetchGoals,
   } = useProtocols(user?.id);
 
-  const { fields: customFields, values: customFieldValues, addField: addCustomField, removeField: removeCustomField, setValue: setCustomFieldValue } = useCustomFields(user?.id);
+  const { fields: customFields, values: customFieldValues, addField: addCustomField, removeField: removeCustomField, reorderField: reorderCustomField, setValue: setCustomFieldValue } = useCustomFields(user?.id);
 
   const {
     stackAnalysis, compoundAnalyses, loading: aiLoading, compoundLoading,
@@ -325,6 +325,7 @@ const Index = () => {
               customFieldValues={customFieldValues}
               onAddCustomField={addCustomField}
               onRemoveCustomField={removeCustomField}
+              onReorderCustomField={reorderCustomField}
               onSetCustomFieldValue={setCustomFieldValue}
             />
           </TabsContent>
