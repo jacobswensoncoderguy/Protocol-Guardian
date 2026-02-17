@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { Compound, getStatus, getReorderDateString, CompoundCategory, getDaysRemaining } from '@/data/compounds';
 import { getCycleStatus, getDaysRemainingWithCycling } from '@/lib/cycling';
@@ -49,8 +49,25 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
   const [sortBy, setSortBy] = useState<'name' | 'days'>('name');
   const [showToleranceConfirm, setShowToleranceConfirm] = useState(false);
   const [pendingTolerance, setPendingTolerance] = useState<ToleranceLevel | null>(null);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const activeCompounds = compounds.filter(c => !c.notes?.includes('[DORMANT]'));
   const dormantCompounds = compounds.filter(c => c.notes?.includes('[DORMANT]'));
+
+  const scrollToCompound = useCallback((id: string) => {
+    setHighlightId(id);
+    // Small delay to allow collapsed groups to open
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        const el = cardRefs.current.get(id);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        // Clear highlight after animation
+        setTimeout(() => setHighlightId(null), 2000);
+      }, 100);
+    });
+  }, []);
   const filtered = filter === 'all' ? activeCompounds : activeCompounds.filter(c => c.category === filter);
   const sorted = [...filtered].sort((a, b) => {
     if (sortBy === 'days') return getDaysRemainingWithCycling(a) - getDaysRemainingWithCycling(b);
@@ -107,17 +124,18 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
           </div>
           <div className="flex flex-wrap gap-1.5">
             {alertCompounds.map(a => (
-              <span
+              <button
                 key={a.compound.id}
-                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono ${
+                onClick={() => scrollToCompound(a.compound.id)}
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono cursor-pointer transition-all hover:scale-105 active:scale-95 ${
                   a.status === 'critical'
-                    ? 'bg-destructive/15 text-status-critical border border-destructive/20'
-                    : 'bg-accent/15 text-status-warning border border-accent/20'
+                    ? 'bg-destructive/15 text-status-critical border border-destructive/20 hover:bg-destructive/25'
+                    : 'bg-accent/15 text-status-warning border border-accent/20 hover:bg-accent/25'
                 }`}
               >
                 <Package className="w-2.5 h-2.5" />
                 {a.compound.name} — {a.days}d
-              </span>
+              </button>
             ))}
           </div>
         </div>
@@ -182,7 +200,7 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
 
       {/* Compound Cards */}
       {groups.map(group => (
-        <Collapsible key={group.label}>
+        <Collapsible key={group.label} defaultOpen>
           {group.label !== 'all' && (
             <CollapsibleTrigger className="flex items-center gap-1.5 w-full text-left mb-2 group">
               <ChevronDown className="w-3.5 h-3.5 text-muted-foreground transition-transform duration-200 group-data-[state=closed]:-rotate-90" />
@@ -193,7 +211,12 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
           <CollapsibleContent className="animate-accordion-down data-[state=closed]:animate-accordion-up">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
               {group.items.map((compound, compoundIdx) => (
-                <div key={compound.id} {...(compoundIdx === 0 && groups.indexOf(group) === 0 ? { 'data-tour': 'compound-card' } : {})}>
+                <div
+                  key={compound.id}
+                  ref={(el) => { if (el) cardRefs.current.set(compound.id, el); else cardRefs.current.delete(compound.id); }}
+                  className={`transition-all duration-500 rounded-lg ${highlightId === compound.id ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : ''}`}
+                  {...(compoundIdx === 0 && groups.indexOf(group) === 0 ? { 'data-tour': 'compound-card' } : {})}
+                >
                   <CompoundCard compound={compound} onUpdate={onUpdateCompound} onDelete={onDeleteCompound} customFields={customFields} customFieldValues={customFieldValues.get(compound.id) || new Map()} onAddCustomField={onAddCustomField} onRemoveCustomField={onRemoveCustomField} onReorderCustomField={onReorderCustomField} onSetCustomFieldValue={onSetCustomFieldValue} />
                 </div>
               ))}
