@@ -36,14 +36,34 @@ export interface Compound {
   weightPerUnit?: number; // mg per individual unit (pill, cap, tab, scoop) for non-injectable compounds
 }
 
+/**
+ * Normalize daily consumption to native container units (pills, caps, servings)
+ * for oral/powder compounds. When dosePerUse is stored in weight units (mg, mcg, g)
+ * but unitSize is a count (pills per bottle), convert via weightPerUnit.
+ */
+export function getNormalizedDailyConsumption(compound: Compound): number {
+  const rawDaily = (compound.dosePerUse * compound.dosesPerDay * compound.daysPerWeek) / 7;
+  if (compound.category === 'peptide' || compound.category === 'injectable-oil') return rawDaily;
+
+  const dl = compound.doseLabel.toLowerCase();
+  const isWeightDose = dl.includes('mg') || dl.includes('mcg') || dl.includes('µg') || dl === 'g';
+
+  if (isWeightDose && compound.weightPerUnit && compound.weightPerUnit > 0) {
+    // Convert weight-based dose to pill/cap count
+    let doseMg = compound.dosePerUse;
+    if (dl.includes('mcg') || dl.includes('µg')) doseMg = compound.dosePerUse / 1000;
+    else if (dl === 'g') doseMg = compound.dosePerUse * 1000;
+    const pillsPerDose = doseMg / compound.weightPerUnit;
+    return (pillsPerDose * compound.dosesPerDay * compound.daysPerWeek) / 7;
+  }
+
+  return rawDaily;
+}
+
 export function getDaysRemaining(compound: Compound): number {
-  const dailyConsumption = (compound.dosePerUse * compound.dosesPerDay * compound.daysPerWeek) / 7;
+  const dailyConsumption = getNormalizedDailyConsumption(compound);
   if (dailyConsumption === 0) return 999;
 
-  // For peptides: supply is measured in IU (bacstat units), not mg
-  // Each vial has bacstatPerVial IU when reconstituted, doses are in IU
-  // For oils: supply = currentQuantity * concentration(mg/mL) * vialSizeMl
-  // For non-peptides/oils: supply = currentQuantity * unitSize
   const totalSupply = compound.category === 'peptide' && compound.bacstatPerVial
     ? compound.currentQuantity * compound.bacstatPerVial
     : compound.category === 'injectable-oil' && compound.vialSizeMl
@@ -85,18 +105,16 @@ export function getReorderCost(compound: Compound): number {
 }
 
 export function getMonthlyConsumptionCost(compound: Compound): number {
-  const dailyConsumption = (compound.dosePerUse * compound.dosesPerDay * compound.daysPerWeek) / 7;
+  const dailyConsumption = getNormalizedDailyConsumption(compound);
   if (dailyConsumption === 0) return 0;
   const monthlyConsumption = dailyConsumption * 30;
 
   if (compound.category === 'peptide' && compound.bacstatPerVial) {
-    // Peptides: vials consumed per month, then convert to kits (10 vials/kit)
     const vialsPerMonth = monthlyConsumption / compound.bacstatPerVial;
     const kitsPerMonth = vialsPerMonth / 10;
     return kitsPerMonth * (compound.kitPrice || 0);
   }
 
-  // For oils: unitSize is mg/mL, total mg per vial = unitSize * vialSizeMl
   const totalMgPerUnit = compound.category === 'injectable-oil' && compound.vialSizeMl
     ? compound.unitSize * compound.vialSizeMl
     : compound.unitSize;

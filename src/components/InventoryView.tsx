@@ -287,7 +287,20 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
       editDoseUnit: editDoseUnit,
       vialSizeMl: (compound.vialSizeMl || 10).toString(),
       unitLabel: compound.unitLabel,
-      weightPerUnit: (compound.weightPerUnit || '').toString(),
+      weightPerUnit: (() => {
+        const wpu = compound.weightPerUnit || 0;
+        if (wpu === 0) return '';
+        if (wpu < 0.1) return (wpu * 1000).toString(); // display as mcg
+        if (wpu >= 1000 && wpu % 1000 === 0) return (wpu / 1000).toString(); // display as g
+        return wpu.toString(); // display as mg
+      })(),
+      strengthUnit: (() => {
+        const wpu = compound.weightPerUnit || 0;
+        if (wpu === 0) return 'mg';
+        if (wpu < 0.1) return 'mcg';
+        if (wpu >= 1000 && wpu % 1000 === 0) return 'g';
+        return 'mg';
+      })(),
     };
     if (isPeptide) {
       state.kitPrice = (compound.kitPrice || 0).toString();
@@ -372,10 +385,19 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
     if (!editIsPeptide && !editIsOil && editState.unitLabel) {
       updates.unitLabel = editState.unitLabel;
     }
-    // Weight per unit for non-injectable compounds
+    // Strength (weight per unit) — convert display unit back to mg for storage
     if (!editIsPeptide && !editIsOil) {
-      const wpu = parseFloat(editState.weightPerUnit || '');
-      updates.weightPerUnit = isNaN(wpu) || wpu <= 0 ? undefined : wpu;
+      const rawVal = parseFloat(editState.weightPerUnit || '');
+      if (isNaN(rawVal) || rawVal <= 0) {
+        updates.weightPerUnit = undefined;
+      } else {
+        const su = editState.strengthUnit || 'mg';
+        let mgVal = rawVal;
+        if (su === 'mcg') mgVal = rawVal / 1000;
+        else if (su === 'g') mgVal = rawVal * 1000;
+        // IU stored as-is in mg field
+        updates.weightPerUnit = mgVal;
+      }
     }
 
     if (editIsOil) {
@@ -723,10 +745,54 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
               )}
             </div>
           </div>
-          {/* Weight per unit for non-injectable compounds */}
+          {/* Strength (weight per unit) for non-injectable compounds */}
           {!isPeptide && !isOil && (
-            <EditRow label="Wt/Unit" value={editState.weightPerUnit || ''} suffix="mg each"
-              onChange={v => setEditState(s => ({ ...s, weightPerUnit: v }))} type="number" />
+            <div className="flex items-center gap-2 text-[11px]">
+              <span className="text-muted-foreground w-16 flex-shrink-0">Strength</span>
+              <div className="flex items-center gap-1 flex-1">
+                <input
+                  type="number"
+                  value={editState.weightPerUnit || ''}
+                  onChange={e => setEditState(s => ({ ...s, weightPerUnit: e.target.value }))}
+                  placeholder="e.g. 500"
+                  className="w-full bg-secondary border border-border/50 rounded px-2 py-1 text-foreground font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50"
+                />
+                <select
+                  value={editState.strengthUnit || 'mg'}
+                  onChange={e => {
+                    const newUnit = e.target.value;
+                    const oldUnit = editState.strengthUnit || 'mg';
+                    if (newUnit === oldUnit) return;
+                    // Convert displayed value between units (stored internally as mg)
+                    const currentVal = parseFloat(editState.weightPerUnit || '0');
+                    if (!currentVal) {
+                      setEditState(s => ({ ...s, strengthUnit: newUnit }));
+                      return;
+                    }
+                    // Convert old unit → mg → new unit
+                    let mgVal = currentVal;
+                    if (oldUnit === 'mcg') mgVal = currentVal / 1000;
+                    else if (oldUnit === 'g') mgVal = currentVal * 1000;
+                    else if (oldUnit === 'IU') mgVal = currentVal; // IU stored as-is
+
+                    let newVal = mgVal;
+                    if (newUnit === 'mcg') newVal = mgVal * 1000;
+                    else if (newUnit === 'g') newVal = mgVal / 1000;
+                    else if (newUnit === 'IU') newVal = mgVal;
+
+                    newVal = Math.round(newVal * 10000) / 10000;
+                    setEditState(s => ({ ...s, strengthUnit: newUnit, weightPerUnit: newVal.toString() }));
+                  }}
+                  className="bg-secondary border border-border/50 rounded px-1.5 py-1 text-foreground font-mono text-[10px] focus:outline-none focus:ring-1 focus:ring-primary/50 min-w-[52px]"
+                >
+                  <option value="mg">mg</option>
+                  <option value="mcg">mcg</option>
+                  <option value="g">g</option>
+                  <option value="IU">IU</option>
+                </select>
+                <span className="text-muted-foreground text-[10px] whitespace-nowrap">each</span>
+              </div>
+            </div>
           )}
           {isOil && (
             <EditRow label="Vial Size" value={editState.vialSizeMl || '10'} suffix="mL"
