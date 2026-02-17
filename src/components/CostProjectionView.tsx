@@ -9,6 +9,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 export interface CostModifiers {
   shippingCost: number; // flat $ per reorder
   discountPct: number;  // percentage discount (0-100)
+  dosesPerDayOverride: number | null; // override base dosesPerDay
 }
 
 interface CostProjectionViewProps {
@@ -44,6 +45,14 @@ function getReorderSupplyDays(compound: Compound): number {
 }
 
 function buildProjection(compounds: Compound[], getModifiers: (compoundId: string) => CostModifiers): MonthData[] {
+  // Apply dosesPerDay overrides to compounds for accurate projection
+  const effectiveCompounds = compounds.map(c => {
+    const mods = getModifiers(c.id);
+    if (mods.dosesPerDayOverride !== null) {
+      return { ...c, dosesPerDay: mods.dosesPerDayOverride };
+    }
+    return c;
+  });
   const now = new Date();
   const startMonth = now.getMonth();
   const startYear = now.getFullYear();
@@ -57,7 +66,7 @@ function buildProjection(compounds: Compound[], getModifiers: (compoundId: strin
   const endDate = new Date(now);
   endDate.setFullYear(endDate.getFullYear() + 1);
 
-  compounds.forEach(compound => {
+  effectiveCompounds.forEach(compound => {
     const daysLeft = getDaysRemainingWithCycling(compound);
     const baseCost = getReorderCost(compound);
     const mods = getModifiers(compound.id);
@@ -141,10 +150,11 @@ const CostProjectionView = ({ compounds, protocols = [], customFields = [], cust
   // Build a per-compound cost modifier getter from custom field values
   const getModifiers = (compoundId: string): CostModifiers => {
     const vals = customFieldValues.get(compoundId);
-    if (!vals) return { shippingCost: 0, discountPct: 0 };
+    if (!vals) return { shippingCost: 0, discountPct: 0, dosesPerDayOverride: null };
     
     let shippingCost = 0;
     let discountPct = 0;
+    let dosesPerDayOverride: number | null = null;
     
     customFields.forEach(f => {
       const v = vals.get(f.id);
@@ -156,19 +166,25 @@ const CostProjectionView = ({ compounds, protocols = [], customFields = [], cust
         shippingCost = num;
       } else if (f.field_name === 'Discount %' && f.affects_calculation) {
         discountPct = Math.min(100, Math.max(0, num));
+      } else if (f.field_name === 'Doses Per Day' && f.affects_calculation && num > 0) {
+        dosesPerDayOverride = num;
       }
     });
     
-    return { shippingCost, discountPct };
+    return { shippingCost, discountPct, dosesPerDayOverride };
   };
 
   const projection = buildProjection(compounds, getModifiers);
   const totalAnnual = projection.reduce((sum, m) => sum + m.total, 0);
   const monthlyAvg = compounds.reduce((sum, c) => {
-    const effectiveDaily = getEffectiveDailyConsumption(c);
+    const mods = getModifiers(c.id);
+    // Apply dosesPerDay override for monthly burn calculation
+    const effectiveCompound = mods.dosesPerDayOverride !== null
+      ? { ...c, dosesPerDay: mods.dosesPerDayOverride }
+      : c;
+    const effectiveDaily = getEffectiveDailyConsumption(effectiveCompound);
     if (effectiveDaily === 0) return sum;
     const monthlyConsumption = effectiveDaily * 30;
-    const mods = getModifiers(c.id);
 
     if (c.category === 'peptide' && c.bacstatPerVial) {
       const vialsPerMonth = monthlyConsumption / c.bacstatPerVial;

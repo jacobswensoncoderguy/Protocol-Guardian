@@ -3,6 +3,7 @@ import { DayDose } from '@/data/schedule';
 import { Compound } from '@/data/compounds';
 import { getCycleStatus } from '@/lib/cycling';
 import { generateScheduleFromCompounds } from '@/lib/scheduleGenerator';
+import { CustomField } from '@/hooks/useCustomFields';
 import { UserProtocol } from '@/hooks/useProtocols';
 import { Sun, Moon, Dumbbell, Info, Syringe } from 'lucide-react';
 
@@ -42,6 +43,8 @@ interface WeeklyScheduleViewProps {
   compoundAnalyses?: Record<string, any>;
   compoundLoading?: string | null;
   onAnalyzeCompound?: (compoundId: string) => void;
+  customFields?: CustomField[];
+  customFieldValues?: Map<string, Map<string, string>>;
 }
 
 function getResumeDate(daysLeft: number): string {
@@ -51,14 +54,14 @@ function getResumeDate(daysLeft: number): string {
   return `${months[d.getMonth()]} ${d.getDate()}`;
 }
 
-const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compoundLoading, onAnalyzeCompound }: WeeklyScheduleViewProps) => {
+const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compoundLoading, onAnalyzeCompound, customFields, customFieldValues }: WeeklyScheduleViewProps) => {
   const today = new Date().getDay();
   const [selectedDay, setSelectedDay] = useState(today);
   const [selectedCompound, setSelectedCompound] = useState<Compound | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [doseUnit, setDoseUnit] = useState<'mg' | 'ml'>('mg');
 
-  const weeklySchedule = useMemo(() => generateScheduleFromCompounds(compounds), [compounds]);
+  const weeklySchedule = useMemo(() => generateScheduleFromCompounds(compounds, customFields, customFieldValues), [compounds, customFields, customFieldValues]);
   const schedule = weeklySchedule[selectedDay];
   const compoundMap = new Map(compounds.map(c => [c.id, c]));
 

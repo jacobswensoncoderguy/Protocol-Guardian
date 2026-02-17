@@ -399,19 +399,16 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
     if (!editIsPeptide && !editIsOil && editState.unitLabel) {
       updates.unitLabel = editState.unitLabel;
     }
-    // Strength (weight per unit) — convert display unit back to mg for storage
-    if (!editIsPeptide && !editIsOil) {
-      const rawVal = parseFloat(editState.weightPerUnit || '');
-      if (isNaN(rawVal) || rawVal <= 0) {
-        updates.weightPerUnit = undefined;
-      } else {
-        const su = editState.strengthUnit || 'mg';
-        let mgVal = rawVal;
-        if (su === 'mcg') mgVal = rawVal / 1000;
-        else if (su === 'g') mgVal = rawVal * 1000;
-        // IU stored as-is in mg field
-        updates.weightPerUnit = mgVal;
-      }
+    // Strength (weight per unit) — available for all categories
+    const rawVal = parseFloat(editState.weightPerUnit || '');
+    if (isNaN(rawVal) || rawVal <= 0) {
+      updates.weightPerUnit = undefined;
+    } else {
+      const su = editState.strengthUnit || 'mg';
+      let mgVal = rawVal;
+      if (su === 'mcg') mgVal = rawVal / 1000;
+      else if (su === 'g') mgVal = rawVal * 1000;
+      updates.weightPerUnit = mgVal;
     }
 
     if (editIsOil) {
@@ -722,7 +719,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
               </span>
             </div>
           </div>
-          {/* Per Unit with unit label dropdown */}
+          {/* Per Unit with unit label dropdown — available for all categories */}
           <div className="flex items-center gap-2 text-[11px]">
             <span className="text-muted-foreground w-16 flex-shrink-0">{isOil ? 'Conc.' : 'Per Unit'}</span>
             <div className="flex items-center gap-1 flex-1">
@@ -732,80 +729,72 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                 onChange={e => setEditState(s => ({ ...s, unitSize: e.target.value }))}
                 className="w-full bg-secondary border border-border/50 rounded px-2 py-1 text-foreground font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50"
               />
-              {isOil ? (
-                <span className="text-muted-foreground text-[10px] whitespace-nowrap">mg/mL</span>
-              ) : isPeptide ? (
-                <span className="text-muted-foreground text-[10px] whitespace-nowrap">mg</span>
-              ) : (
-                <select
-                  value={editState.unitLabel || compound.unitLabel}
-                  onChange={e => setEditState(s => ({ ...s, unitLabel: e.target.value }))}
-                  className="bg-secondary border border-border/50 rounded px-1.5 py-1 text-foreground font-mono text-[10px] focus:outline-none focus:ring-1 focus:ring-primary/50 min-w-[52px]"
-                >
-                  <option value="caps">caps</option>
-                  <option value="tabs">tabs</option>
-                  <option value="softgels">softgels</option>
-                  <option value="servings">servings</option>
-                  <option value="scoops">scoops</option>
-                  <option value="pills">pills</option>
-                  <option value="mg">mg</option>
-                  <option value="mcg">mcg</option>
-                  <option value="mL">mL</option>
-                  <option value="g">g</option>
-                  <option value="oz">oz</option>
-                </select>
-              )}
+              <select
+                value={editState.unitLabel || compound.unitLabel}
+                onChange={e => setEditState(s => ({ ...s, unitLabel: e.target.value }))}
+                className="bg-secondary border border-border/50 rounded px-1.5 py-1 text-foreground font-mono text-[10px] focus:outline-none focus:ring-1 focus:ring-primary/50 min-w-[52px]"
+              >
+                <option value="caps">caps</option>
+                <option value="tabs">tabs</option>
+                <option value="softgels">softgels</option>
+                <option value="servings">servings</option>
+                <option value="scoops">scoops</option>
+                <option value="pills">pills</option>
+                <option value="mg">mg</option>
+                <option value="mcg">mcg</option>
+                <option value="mL">mL</option>
+                <option value="mg/mL">mg/mL</option>
+                <option value="g">g</option>
+                <option value="oz">oz</option>
+                <option value="IU">IU</option>
+              </select>
             </div>
           </div>
-          {/* Strength (weight per unit) for non-injectable compounds */}
-          {!isPeptide && !isOil && (
-            <div className="flex items-center gap-2 text-[11px]">
-              <span className="text-muted-foreground w-16 flex-shrink-0">Strength</span>
-              <div className="flex items-center gap-1 flex-1">
-                <input
-                  type="number"
-                  value={editState.weightPerUnit || ''}
-                  onChange={e => setEditState(s => ({ ...s, weightPerUnit: e.target.value }))}
-                  placeholder="e.g. 500"
-                  className="w-full bg-secondary border border-border/50 rounded px-2 py-1 text-foreground font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50"
-                />
-                <select
-                  value={editState.strengthUnit || 'mg'}
-                  onChange={e => {
-                    const newUnit = e.target.value;
-                    const oldUnit = editState.strengthUnit || 'mg';
-                    if (newUnit === oldUnit) return;
-                    // Convert displayed value between units (stored internally as mg)
-                    const currentVal = parseFloat(editState.weightPerUnit || '0');
-                    if (!currentVal) {
-                      setEditState(s => ({ ...s, strengthUnit: newUnit }));
-                      return;
-                    }
-                    // Convert old unit → mg → new unit
-                    let mgVal = currentVal;
-                    if (oldUnit === 'mcg') mgVal = currentVal / 1000;
-                    else if (oldUnit === 'g') mgVal = currentVal * 1000;
-                    else if (oldUnit === 'IU') mgVal = currentVal; // IU stored as-is
+          {/* Strength (weight per unit) — available for all compound types */}
+          <div className="flex items-center gap-2 text-[11px]">
+            <span className="text-muted-foreground w-16 flex-shrink-0">Strength</span>
+            <div className="flex items-center gap-1 flex-1">
+              <input
+                type="number"
+                value={editState.weightPerUnit || ''}
+                onChange={e => setEditState(s => ({ ...s, weightPerUnit: e.target.value }))}
+                placeholder="e.g. 500"
+                className="w-full bg-secondary border border-border/50 rounded px-2 py-1 text-foreground font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50"
+              />
+              <select
+                value={editState.strengthUnit || 'mg'}
+                onChange={e => {
+                  const newUnit = e.target.value;
+                  const oldUnit = editState.strengthUnit || 'mg';
+                  if (newUnit === oldUnit) return;
+                  const currentVal = parseFloat(editState.weightPerUnit || '0');
+                  if (!currentVal) {
+                    setEditState(s => ({ ...s, strengthUnit: newUnit }));
+                    return;
+                  }
+                  let mgVal = currentVal;
+                  if (oldUnit === 'mcg') mgVal = currentVal / 1000;
+                  else if (oldUnit === 'g') mgVal = currentVal * 1000;
+                  else if (oldUnit === 'IU') mgVal = currentVal;
 
-                    let newVal = mgVal;
-                    if (newUnit === 'mcg') newVal = mgVal * 1000;
-                    else if (newUnit === 'g') newVal = mgVal / 1000;
-                    else if (newUnit === 'IU') newVal = mgVal;
+                  let newVal = mgVal;
+                  if (newUnit === 'mcg') newVal = mgVal * 1000;
+                  else if (newUnit === 'g') newVal = mgVal / 1000;
+                  else if (newUnit === 'IU') newVal = mgVal;
 
-                    newVal = Math.round(newVal * 10000) / 10000;
-                    setEditState(s => ({ ...s, strengthUnit: newUnit, weightPerUnit: newVal.toString() }));
-                  }}
-                  className="bg-secondary border border-border/50 rounded px-1.5 py-1 text-foreground font-mono text-[10px] focus:outline-none focus:ring-1 focus:ring-primary/50 min-w-[52px]"
-                >
-                  <option value="mg">mg</option>
-                  <option value="mcg">mcg</option>
-                  <option value="g">g</option>
-                  <option value="IU">IU</option>
-                </select>
-                <span className="text-muted-foreground text-[10px] whitespace-nowrap">each</span>
-              </div>
+                  newVal = Math.round(newVal * 10000) / 10000;
+                  setEditState(s => ({ ...s, strengthUnit: newUnit, weightPerUnit: newVal.toString() }));
+                }}
+                className="bg-secondary border border-border/50 rounded px-1.5 py-1 text-foreground font-mono text-[10px] focus:outline-none focus:ring-1 focus:ring-primary/50 min-w-[52px]"
+              >
+                <option value="mg">mg</option>
+                <option value="mcg">mcg</option>
+                <option value="g">g</option>
+                <option value="IU">IU</option>
+              </select>
+              <span className="text-muted-foreground text-[10px] whitespace-nowrap">each</span>
             </div>
-          )}
+          </div>
           {isOil && (
             <EditRow label="Vial Size" value={editState.vialSizeMl || '10'} suffix="mL"
               onChange={v => setEditState(s => ({ ...s, vialSizeMl: v }))} type="number" />
@@ -977,14 +966,50 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                 <div key={f.id} className="flex items-center gap-2 text-[11px]">
                   <span className="text-muted-foreground w-16 flex-shrink-0 truncate" title={f.field_name}>{f.field_name}</span>
                   <div className="flex items-center gap-1 flex-1">
-                    <input
-                      type={f.field_type === 'number' ? 'number' : f.field_type === 'date' ? 'date' : 'text'}
-                      value={customFieldValues.get(f.id) || f.default_value || ''}
-                      onChange={e => onSetCustomFieldValue?.(compound.id, f.id, e.target.value)}
-                      placeholder={f.default_value || ''}
-                      className="w-full bg-secondary border border-border/50 rounded px-2 py-1 text-foreground font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50"
-                    />
+                    {f.field_type === 'select' && f.options ? (
+                      <select
+                        value={customFieldValues.get(f.id) || f.default_value || ''}
+                        onChange={e => onSetCustomFieldValue?.(compound.id, f.id, e.target.value)}
+                        className="w-full bg-secondary border border-border/50 rounded px-2 py-1 text-foreground font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50"
+                      >
+                        {(f.options as string[]).map(opt => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type={f.field_type === 'number' ? 'number' : f.field_type === 'date' ? 'date' : 'text'}
+                        value={customFieldValues.get(f.id) || f.default_value || ''}
+                        onChange={e => onSetCustomFieldValue?.(compound.id, f.id, e.target.value)}
+                        placeholder={f.default_value || ''}
+                        className="w-full bg-secondary border border-border/50 rounded px-2 py-1 text-foreground font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50"
+                      />
+                    )}
                     {f.field_unit && <span className="text-muted-foreground text-[10px] whitespace-nowrap">{f.field_unit}</span>}
+                    {onRemoveCustomField && !f.is_predefined && (
+                      <button
+                        onClick={async () => {
+                          await onRemoveCustomField(f.id);
+                          toast.success(`Removed "${f.field_name}" field`);
+                        }}
+                        className="p-0.5 rounded text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"
+                        title={`Remove ${f.field_name}`}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    )}
+                    {onRemoveCustomField && f.is_predefined && (
+                      <button
+                        onClick={async () => {
+                          await onRemoveCustomField(f.id);
+                          toast.success(`Removed "${f.field_name}" field`);
+                        }}
+                        className="p-0.5 rounded text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"
+                        title={`Remove ${f.field_name}`}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
