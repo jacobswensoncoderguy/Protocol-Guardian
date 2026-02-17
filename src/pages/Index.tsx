@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Package, DollarSign, LayoutDashboard, ShoppingCart, RefreshCw, Brain, Activity } from 'lucide-react';
+import { Calendar, Package, DollarSign, LayoutDashboard, ShoppingCart, RefreshCw, Brain, Activity, History } from 'lucide-react';
 import { getDaysRemainingWithCycling } from '@/lib/cycling';
 import { getStatus } from '@/data/compounds';
 import { Compound } from '@/data/compounds';
@@ -35,11 +35,14 @@ import { supabase } from '@/integrations/supabase/client';
 
 import DashboardView from '@/components/DashboardView';
 import WeeklyScheduleView from '@/components/WeeklyScheduleView';
+import ScheduleHistoryView from '@/components/ScheduleHistoryView';
 import InventoryView from '@/components/InventoryView';
 import CostProjectionView from '@/components/CostProjectionView';
 import ReorderView from '@/components/ReorderView';
 import AIInsightsView from '@/components/AIInsightsView';
 import OutcomesView from '@/components/OutcomesView';
+import { useScheduleSnapshots } from '@/hooks/useScheduleSnapshots';
+import { useHistoricalCheckOffs } from '@/hooks/useHistoricalCheckOffs';
 
 const LoadingSkeleton = () => (
   <div className="min-h-screen bg-background">
@@ -88,6 +91,8 @@ const Index = () => {
   const { fields: customFields, values: customFieldValues, addField: addCustomField, removeField: removeCustomField, reorderField: reorderCustomField, setValue: setCustomFieldValue } = useCustomFields(user?.id);
 
   const { checkedDoses, toggleChecked: toggleDoseCheck } = useDoseCheckOffs();
+  const { snapshots: scheduleSnapshots, loading: snapshotsLoading } = useScheduleSnapshots(compounds);
+  const { checkedDosesMap: historicalCheckOffs } = useHistoricalCheckOffs();
 
   const {
     stackAnalysis, compoundAnalyses, loading: aiLoading, compoundLoading,
@@ -257,6 +262,10 @@ const Index = () => {
               <Calendar className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
               <span>Schedule</span>
             </TabsTrigger>
+            <TabsTrigger value="history" className="flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
+              <History className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+              <span>History</span>
+            </TabsTrigger>
             <TabsTrigger value="inventory" className="relative flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
               <Package className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
               <span>Inventory</span>
@@ -315,6 +324,9 @@ const Index = () => {
           </TabsContent>
           <TabsContent value="schedule" className="animate-slide-up">
             <WeeklyScheduleView compounds={compounds} protocols={protocols} compoundAnalyses={compoundAnalyses} compoundLoading={compoundLoading} onAnalyzeCompound={analyzeCompound} customFields={customFields} customFieldValues={customFieldValues} checkedDoses={checkedDoses} onToggleChecked={toggleDoseCheck} />
+          </TabsContent>
+          <TabsContent value="history" className="animate-slide-up">
+            <ScheduleHistoryView snapshots={scheduleSnapshots} loading={snapshotsLoading} checkedDosesMap={historicalCheckOffs} />
           </TabsContent>
           <TabsContent value="inventory" className="animate-slide-up">
             <InventoryView
