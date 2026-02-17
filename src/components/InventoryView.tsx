@@ -1009,10 +1009,13 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
 
             return (
               <div className="grid grid-cols-2 gap-x-3 text-[10px]">
-                <div>
-                  <span className="text-muted-foreground">Vials:</span>{' '}
-                  <span className={`font-mono text-foreground ${status === 'critical' ? 'animate-pulse text-status-critical' : status === 'warning' ? 'text-status-warning' : ''}`}>{compound.currentQuantity}</span>
-                </div>
+              <InlineQuantityEditor
+                compound={compound}
+                status={status}
+                isOil={false}
+                isPeptide={true}
+                onUpdate={onUpdate}
+              />
                 <div>
                   <span className="text-muted-foreground">Per Vial:</span>{' '}
                   <span className="font-mono text-foreground">{compound.unitSize} mg</span>
@@ -1037,19 +1040,13 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
             );
           })() : (
             <div className="grid grid-cols-2 gap-x-3 text-[10px]">
-              <div>
-              <span className="text-muted-foreground">On Hand:</span>{' '}
-                <span className={`font-mono text-foreground ${status === 'critical' ? 'animate-pulse text-status-critical' : status === 'warning' ? 'text-status-warning' : ''}`}>
-                  {isOil
-                    ? `${compound.currentQuantity} vial${compound.currentQuantity !== 1 ? 's' : ''} (${compound.vialSizeMl || 10}mL)`
-                    : (() => {
-                        const ul = (compound.unitLabel || '').toLowerCase();
-                        let container = 'bottle';
-                        if (ul.includes('scoop') || ul.includes('serving') || ul.includes('g') || ul === 'oz') container = 'bag';
-                        return `${compound.currentQuantity} ${container}${compound.currentQuantity !== 1 ? 's' : ''}`;
-                      })()}
-                </span>
-              </div>
+              <InlineQuantityEditor
+                compound={compound}
+                status={status}
+                isOil={isOil}
+                isPeptide={false}
+                onUpdate={onUpdate}
+              />
               <div>
                 <span className="text-muted-foreground">Price:</span>{' '}
                 <span className="font-mono text-foreground">${compound.unitPrice}/{isOil ? 'vial' : (() => {
@@ -1149,6 +1146,83 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
           ) : null}
         </>
       )}
+    </div>
+  );
+};
+
+// --- Inline Quantity Editor ---
+
+const InlineQuantityEditor = ({ compound, status, isOil, isPeptide, onUpdate }: {
+  compound: Compound; status: string; isOil: boolean; isPeptide: boolean;
+  onUpdate: (id: string, updates: Partial<Compound>) => void;
+}) => {
+  const [inlineEditing, setInlineEditing] = useState(false);
+  const [inlineValue, setInlineValue] = useState(compound.currentQuantity.toString());
+
+  const label = isPeptide ? 'Vials' : 'On Hand';
+  const displayValue = isPeptide
+    ? `${compound.currentQuantity}`
+    : isOil
+      ? `${compound.currentQuantity} vial${compound.currentQuantity !== 1 ? 's' : ''} (${compound.vialSizeMl || 10}mL)`
+      : (() => {
+          const ul = (compound.unitLabel || '').toLowerCase();
+          let container = 'bottle';
+          if (ul.includes('scoop') || ul.includes('serving') || ul.includes('g') || ul === 'oz') container = 'bag';
+          return `${compound.currentQuantity} ${container}${compound.currentQuantity !== 1 ? 's' : ''}`;
+        })();
+
+  const saveInline = () => {
+    const val = parseFloat(inlineValue);
+    if (!isNaN(val) && val >= 0) {
+      onUpdate(compound.id, { currentQuantity: val });
+    }
+    setInlineEditing(false);
+  };
+
+  if (inlineEditing) {
+    return (
+      <div className="flex items-center gap-1">
+        <span className="text-muted-foreground text-[10px]">{label}:</span>
+        <button
+          onClick={() => {
+            const v = Math.max(0, parseFloat(inlineValue) - 1);
+            setInlineValue(v.toString());
+          }}
+          className="w-5 h-5 rounded bg-secondary text-foreground text-xs flex items-center justify-center active:bg-secondary/60"
+        >−</button>
+        <input
+          type="number"
+          value={inlineValue}
+          onChange={e => setInlineValue(e.target.value)}
+          onBlur={saveInline}
+          onKeyDown={e => e.key === 'Enter' && saveInline()}
+          autoFocus
+          className="w-12 bg-secondary border border-primary/30 rounded px-1 py-0.5 text-foreground font-mono text-[11px] text-center focus:outline-none focus:ring-1 focus:ring-primary/50"
+        />
+        <button
+          onClick={() => {
+            const v = parseFloat(inlineValue) + 1;
+            setInlineValue(v.toString());
+          }}
+          className="w-5 h-5 rounded bg-secondary text-foreground text-xs flex items-center justify-center active:bg-secondary/60"
+        >+</button>
+        <button onClick={saveInline} className="p-0.5 text-primary">
+          <Check className="w-3 h-3" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <span className="text-muted-foreground text-[10px]">{label}:</span>{' '}
+      <button
+        onClick={() => { setInlineValue(compound.currentQuantity.toString()); setInlineEditing(true); }}
+        className={`font-mono text-[10px] text-foreground underline decoration-dotted underline-offset-2 cursor-pointer hover:text-primary transition-colors ${status === 'critical' ? 'animate-pulse text-status-critical' : status === 'warning' ? 'text-status-warning' : ''}`}
+        title="Tap to edit quantity"
+      >
+        {displayValue}
+      </button>
     </div>
   );
 };
