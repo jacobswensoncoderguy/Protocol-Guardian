@@ -1,5 +1,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Package, DollarSign, LayoutDashboard, ShoppingCart, Sun, Moon, RefreshCw, LogOut, Plus, Brain, Target, Activity, FileText, Settings } from 'lucide-react';
+import { Calendar, Package, DollarSign, LayoutDashboard, ShoppingCart, RefreshCw, Brain, Activity } from 'lucide-react';
+import { getDaysRemainingWithCycling } from '@/lib/cycling';
+import { getStatus } from '@/data/compounds';
 import { Compound } from '@/data/compounds';
 import { useCompounds } from '@/hooks/useCompounds';
 import { useProtocols } from '@/hooks/useProtocols';
@@ -12,9 +14,10 @@ import { useProtocolAnalysis } from '@/hooks/useProtocolAnalysis';
 import { useProtocolChat } from '@/hooks/useProtocolChat';
 import { useConversations } from '@/hooks/useConversations';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import FloatingShareButton from '@/components/FloatingShareButton';
+import ProfileDropdown from '@/components/ProfileDropdown';
 import Onboarding from './Onboarding';
 import AddCompoundDialog from '@/components/AddCompoundDialog';
 import ProtocolManagerDialog from '@/components/ProtocolManagerDialog';
@@ -113,6 +116,19 @@ const Index = () => {
   );
 
   const [activeTab, setActiveTab] = useState('dashboard');
+
+  // Badge counts for low-stock alerts
+  const lowStockCounts = useMemo(() => {
+    let inventoryWarnings = 0;
+    let reorderNeeded = 0;
+    compounds.forEach(c => {
+      const days = getDaysRemainingWithCycling(c);
+      const status = getStatus(days);
+      if (status === 'warning') inventoryWarnings++;
+      if (status === 'critical') { inventoryWarnings++; reorderNeeded++; }
+    });
+    return { inventory: inventoryWarnings, reorder: reorderNeeded };
+  }, [compounds]);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [showAccountSettings, setShowAccountSettings] = useState(false);
   const [showGuidedTour, setShowGuidedTour] = useState(false);
@@ -193,62 +209,64 @@ const Index = () => {
             </h1>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <button onClick={toggle} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground">
-              {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
-            <button onClick={() => setShowAccountSettings(true)} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground" title="Account Settings">
-              <Settings className="w-4 h-4" />
-            </button>
-            <button onClick={() => setShowSignOutConfirm(true)} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground" title="Sign out">
-              <LogOut className="w-4 h-4" />
-            </button>
-            <button onClick={() => setShowFeatureManager(true)} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground" title="Manage Features">
-              <Plus className="w-4 h-4" />
-            </button>
-            <button onClick={() => setShowGoalExpansion(true)} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground" title="Goal Expansion">
-              <Target className="w-4 h-4" />
-            </button>
-            <button onClick={() => setShowBiomarkerUpload(true)} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground" title="Upload Lab Results">
-              <FileText className="w-4 h-4" />
-            </button>
             <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground font-mono">
               <span className="inline-block w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-status-good animate-pulse-glow" />
               {compounds.length}
             </div>
+            <ProfileDropdown
+              isDark={isDark}
+              onToggleTheme={toggle}
+              onAccountSettings={() => setShowAccountSettings(true)}
+              onFeatureManager={() => setShowFeatureManager(true)}
+              onGoalExpansion={() => setShowGoalExpansion(true)}
+              onBiomarkerUpload={() => setShowBiomarkerUpload(true)}
+              onSignOut={() => setShowSignOutConfirm(true)}
+              displayName={profile?.display_name}
+            />
           </div>
         </div>
       </header>
 
       <main className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full bg-secondary/50 border border-border/50 mb-3 sm:mb-4 h-12 sm:h-11">
-            <TabsTrigger value="dashboard" className="flex-1 gap-1 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[11px] sm:text-xs py-2.5">
+          <TabsList className="w-full bg-secondary/50 border border-border/50 mb-3 sm:mb-4 h-14 sm:h-11">
+            <TabsTrigger value="dashboard" className="flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
               <LayoutDashboard className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-              <span className="hidden sm:inline">Dashboard</span>
+              <span>Home</span>
             </TabsTrigger>
-            <TabsTrigger value="outcomes" className="flex-1 gap-1 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[11px] sm:text-xs py-2.5">
+            <TabsTrigger value="outcomes" className="flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
               <Activity className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-              <span className="hidden sm:inline">Progress</span>
+              <span>Progress</span>
             </TabsTrigger>
-            <TabsTrigger value="schedule" className="flex-1 gap-1 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[11px] sm:text-xs py-2.5">
+            <TabsTrigger value="schedule" className="flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
               <Calendar className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-              <span className="hidden sm:inline">Schedule</span>
+              <span>Schedule</span>
             </TabsTrigger>
-            <TabsTrigger value="inventory" className="flex-1 gap-1 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[11px] sm:text-xs py-2.5">
+            <TabsTrigger value="inventory" className="relative flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
               <Package className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-              <span className="hidden sm:inline">Inventory</span>
+              <span>Inventory</span>
+              {lowStockCounts.inventory > 0 && (
+                <span className="absolute -top-1 -right-1 sm:top-0 sm:right-0 min-w-[16px] h-4 px-1 rounded-full bg-status-warning text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+                  {lowStockCounts.inventory}
+                </span>
+              )}
             </TabsTrigger>
-            <TabsTrigger value="reorders" className="flex-1 gap-1 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[11px] sm:text-xs py-2.5">
+            <TabsTrigger value="reorders" className="relative flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
               <ShoppingCart className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-              <span className="hidden sm:inline">Reorders</span>
+              <span>Reorder</span>
+              {lowStockCounts.reorder > 0 && (
+                <span className="absolute -top-1 -right-1 sm:top-0 sm:right-0 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
+                  {lowStockCounts.reorder}
+                </span>
+              )}
             </TabsTrigger>
-            <TabsTrigger value="costs" className="flex-1 gap-1 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[11px] sm:text-xs py-2.5">
+            <TabsTrigger value="costs" className="flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
               <DollarSign className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-              <span className="hidden sm:inline">Costs</span>
+              <span>Costs</span>
             </TabsTrigger>
-            <TabsTrigger value="ai-insights" className="flex-1 gap-1 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[11px] sm:text-xs py-2.5">
+            <TabsTrigger value="ai-insights" className="flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
               <Brain className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-              <span className="hidden sm:inline">AI</span>
+              <span>AI</span>
             </TabsTrigger>
           </TabsList>
 
