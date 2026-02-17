@@ -71,6 +71,30 @@ const CATEGORY_ICONS: Record<string, React.ElementType> = {
 
 const CHECKIN_EMOJIS = ['', '😞', '😕', '😐', '🙂', '😄'];
 
+const ScoreSelector = ({ label, icon: Icon, value, onChange, emoji }: { label: string; icon: React.ElementType; value: number; onChange: (v: number) => void; emoji: boolean }) => (
+  <div className="space-y-1.5">
+    <div className="flex items-center gap-1.5">
+      <Icon className="w-3.5 h-3.5 text-primary" />
+      <span className="text-xs font-medium text-foreground">{label}</span>
+    </div>
+    <div className="flex gap-1">
+      {[1, 2, 3, 4, 5].map(score => (
+        <button
+          key={score}
+          onClick={() => onChange(score)}
+          className={`flex-1 py-1.5 rounded-md text-xs font-semibold transition-all ${
+            value === score
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-secondary/50 text-muted-foreground hover:bg-secondary'
+          }`}
+        >
+          {emoji ? CHECKIN_EMOJIS[score] : score}
+        </button>
+      ))}
+    </div>
+  </div>
+);
+
 const SymptomsTrackerView = () => {
   const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -220,30 +244,6 @@ const SymptomsTrackerView = () => {
     const def = definitions.find(d => d.id === log.symptom_definition_id);
     return def?.name || 'Unknown';
   };
-
-  const ScoreSelector = ({ label, icon: Icon, value, onChange, emoji }: { label: string; icon: React.ElementType; value: number; onChange: (v: number) => void; emoji: boolean }) => (
-    <div className="space-y-1.5">
-      <div className="flex items-center gap-1.5">
-        <Icon className="w-3.5 h-3.5 text-primary" />
-        <span className="text-xs font-medium text-foreground">{label}</span>
-      </div>
-      <div className="flex gap-1">
-        {[1, 2, 3, 4, 5].map(score => (
-          <button
-            key={score}
-            onClick={() => onChange(score)}
-            className={`flex-1 py-1.5 rounded-md text-xs font-semibold transition-all ${
-              value === score
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-secondary/50 text-muted-foreground hover:bg-secondary'
-            }`}
-          >
-            {emoji ? CHECKIN_EMOJIS[score] : score}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
 
   const dateLabel = selectedDate === format(new Date(), 'yyyy-MM-dd') ? 'Today' :
     format(parseISO(selectedDate), 'EEE, MMM d');
