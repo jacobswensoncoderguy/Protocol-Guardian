@@ -1,4 +1,4 @@
-import { Compound } from '@/data/compounds';
+import { Compound, getNormalizedDailyConsumption } from '@/data/compounds';
 
 export interface CycleStatus {
   /** Whether this compound has a cycling pattern at all */
@@ -52,7 +52,7 @@ export function getCycleStatus(compound: Compound, referenceDate: Date = new Dat
  * over a full cycle is reduced by the onFraction.
  */
 export function getEffectiveDailyConsumption(compound: Compound): number {
-  const rawDaily = (compound.dosePerUse * compound.dosesPerDay * compound.daysPerWeek) / 7;
+  const rawDaily = getNormalizedDailyConsumption(compound);
   const { onFraction } = getCycleStatus(compound);
   return rawDaily * onFraction;
 }
@@ -63,7 +63,7 @@ export function getEffectiveDailyConsumption(compound: Compound): number {
  * through the cycle to get an accurate depletion forecast.
  */
 export function getDaysRemainingWithCycling(compound: Compound): number {
-  const rawDaily = (compound.dosePerUse * compound.dosesPerDay * compound.daysPerWeek) / 7;
+  const rawDaily = getNormalizedDailyConsumption(compound);
   if (rawDaily === 0) return 999;
 
   const totalSupply = compound.category === 'peptide' && compound.bacstatPerVial

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Compound, getReorderCost } from '@/data/compounds';
+import { Compound, getReorderCost, getNormalizedDailyConsumption } from '@/data/compounds';
 import { getDaysRemainingWithCycling, getEffectiveDailyConsumption, getCycleStatus } from '@/lib/cycling';
 import { UserProtocol } from '@/hooks/useProtocols';
 import { TrendingDown, ChevronDown } from 'lucide-react';
@@ -240,7 +240,7 @@ const CostProjectionView = ({ compounds, protocols = [] }: CostProjectionViewPro
 
         const savings = cyclingCompounds.map(c => {
           const status = getCycleStatus(c);
-          const rawDaily = (c.dosePerUse * c.dosesPerDay * c.daysPerWeek) / 7;
+          const rawDaily = getNormalizedDailyConsumption(c);
           const monthlyRaw = rawDaily * 30;
           const monthlyCycled = monthlyRaw * status.onFraction;
 
