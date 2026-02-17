@@ -868,7 +868,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                 <option value="mg">mg</option>
                 <option value="mcg">mcg</option>
                 <option value="iu">IU</option>
-                {(isPeptide || isOil) && <option value="ml">mL</option>}
+                <option value="ml">mL</option>
                 <option value="pills">pills</option>
               </select>
             </div>
