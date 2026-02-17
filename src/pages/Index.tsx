@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Package, DollarSign, LayoutDashboard, ShoppingCart, RefreshCw, Brain, Activity } from 'lucide-react';
+import { Calendar, Package, LayoutDashboard, RefreshCw, Brain, Activity } from 'lucide-react';
 import { getDaysRemainingWithCycling } from '@/lib/cycling';
 import { getStatus } from '@/data/compounds';
 import { Compound } from '@/data/compounds';
@@ -271,15 +271,6 @@ const Index = () => {
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="reorders" className="relative flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
-              <ShoppingCart className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-              <span>Reorder</span>
-              {lowStockCounts.reorder > 0 && (
-                <span className="absolute -top-1 -right-1 sm:top-0 sm:right-0 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
-                  {lowStockCounts.reorder}
-                </span>
-              )}
-            </TabsTrigger>
             <TabsTrigger value="ai-insights" className="flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
               <Brain className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
               <span>AI</span>
@@ -316,9 +307,9 @@ const Index = () => {
           </TabsContent>
           <TabsContent value="schedule" className="animate-slide-up">
             <Tabs defaultValue="this-week" className="w-full">
-              <TabsList className="w-full bg-secondary/30 border border-border/30 mb-3 h-9">
-                <TabsTrigger value="this-week" className="flex-1 text-xs data-[state=active]:bg-primary/10 data-[state=active]:text-primary">This Week</TabsTrigger>
-                <TabsTrigger value="history" className="flex-1 text-xs data-[state=active]:bg-primary/10 data-[state=active]:text-primary">History</TabsTrigger>
+              <TabsList className="w-full bg-card/80 border border-border/60 mb-3 h-10 p-1 gap-1">
+                <TabsTrigger value="this-week" className="flex-1 text-xs font-semibold rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">This Week</TabsTrigger>
+                <TabsTrigger value="history" className="flex-1 text-xs font-semibold rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">History</TabsTrigger>
               </TabsList>
               <TabsContent value="this-week">
                 <WeeklyScheduleView compounds={compounds} protocols={protocols} compoundAnalyses={compoundAnalyses} compoundLoading={compoundLoading} onAnalyzeCompound={analyzeCompound} customFields={customFields} customFieldValues={customFieldValues} checkedDoses={checkedDoses} onToggleChecked={toggleDoseCheck} />
@@ -330,9 +321,17 @@ const Index = () => {
           </TabsContent>
           <TabsContent value="inventory" className="animate-slide-up">
             <Tabs defaultValue="stock" className="w-full">
-              <TabsList className="w-full bg-secondary/30 border border-border/30 mb-3 h-9">
-                <TabsTrigger value="stock" className="flex-1 text-xs data-[state=active]:bg-primary/10 data-[state=active]:text-primary">Stock</TabsTrigger>
-                <TabsTrigger value="costs" className="flex-1 text-xs data-[state=active]:bg-primary/10 data-[state=active]:text-primary">Costs</TabsTrigger>
+              <TabsList className="w-full bg-card/80 border border-border/60 mb-3 h-10 p-1 gap-1">
+                <TabsTrigger value="stock" className="flex-1 text-xs font-semibold rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">Stock</TabsTrigger>
+                <TabsTrigger value="costs" className="flex-1 text-xs font-semibold rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">Costs</TabsTrigger>
+                <TabsTrigger value="reorder" className="relative flex-1 text-xs font-semibold rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">
+                  Reorder
+                  {lowStockCounts.reorder > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[14px] h-3.5 px-0.5 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">
+                      {lowStockCounts.reorder}
+                    </span>
+                  )}
+                </TabsTrigger>
               </TabsList>
               <TabsContent value="stock">
                 <InventoryView
@@ -354,10 +353,10 @@ const Index = () => {
               <TabsContent value="costs">
                 <CostProjectionView compounds={compounds} protocols={protocols} customFields={customFields} customFieldValues={customFieldValues} userId={user?.id} />
               </TabsContent>
+              <TabsContent value="reorder">
+                <ReorderView compounds={compounds} onUpdateCompound={handleUpdateCompound} userId={user?.id} protocols={protocols} />
+              </TabsContent>
             </Tabs>
-          </TabsContent>
-          <TabsContent value="reorders" className="animate-slide-up">
-            <ReorderView compounds={compounds} onUpdateCompound={handleUpdateCompound} userId={user?.id} protocols={protocols} />
           </TabsContent>
           <TabsContent value="ai-insights" className="animate-slide-up">
             <AIInsightsView
