@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Square, Trash2, Check, X, CheckCheck, Brain, ArrowRight, Mic, MicOff, Maximize2, Minimize2, PanelLeftOpen, PanelLeftClose, Copy, MessageCircle, Sparkles } from 'lucide-react';
+import { Send, Square, Trash2, Check, X, CheckCheck, Brain, ArrowRight, Mic, MicOff, Maximize2, Minimize2, PanelLeftOpen, PanelLeftClose, Copy, MessageCircle, Sparkles, TrendingUp, Shield, DollarSign, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import ChatMarkdown from '@/components/ChatMarkdown';
 import { ChatMessage, ChangeProposal, ProposedChange } from '@/hooks/useProtocolChat';
@@ -381,17 +381,17 @@ const ProtocolChat = ({
               </p>
               <div className="flex flex-col gap-2 w-full max-w-xs mx-auto">
                 {[
-                  { icon: '📈', q: 'How can I improve my grade to B+?' },
-                  { icon: '🛡️', q: 'What should I remove to reduce liver stress?' },
-                  { icon: '💰', q: 'Suggest cheaper alternatives for poor-value compounds' },
-                  { icon: '⏰', q: 'Optimize my GH secretagogue timing' },
-                ].map(({ icon, q }) => (
+                  { Icon: TrendingUp, q: 'How can I improve my grade to B+?' },
+                  { Icon: Shield, q: 'What should I remove to reduce liver stress?' },
+                  { Icon: DollarSign, q: 'Suggest cheaper alternatives for poor-value compounds' },
+                  { Icon: Clock, q: 'Optimize my GH secretagogue timing' },
+                ].map(({ Icon, q }) => (
                   <button
                     key={q}
                     onClick={() => { setInput(q); inputRef.current?.focus(); }}
                     className="flex items-center gap-2.5 text-left text-xs px-3.5 py-2.5 rounded-xl bg-secondary/50 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors border border-border/30"
                   >
-                    <span className="text-sm flex-shrink-0">{icon}</span>
+                    <Icon className="w-4 h-4 text-primary flex-shrink-0" />
                     <span>{q}</span>
                   </button>
                 ))}
