@@ -286,6 +286,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
       cycleStartDate: compound.cycleStartDate || '',
       editDoseUnit: editDoseUnit,
       vialSizeMl: (compound.vialSizeMl || 10).toString(),
+      unitLabel: compound.unitLabel,
     };
     if (isPeptide) {
       state.kitPrice = (compound.kitPrice || 0).toString();
@@ -365,6 +366,11 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
 
     const editIsPeptide = editState.category === 'peptide';
     const editIsOil = editState.category === 'injectable-oil';
+
+    // Persist unit label for non-peptide/non-oil compounds
+    if (!editIsPeptide && !editIsOil && editState.unitLabel) {
+      updates.unitLabel = editState.unitLabel;
+    }
 
     if (editIsOil) {
       const vialMl = parseFloat(editState.vialSizeMl || '10');
@@ -661,10 +667,56 @@ const CompoundCard = ({ compound, onUpdate, onDelete }: { compound: Compound; on
           </div>
           <EditRow label="Note" value={editState.timing || ''}
             onChange={v => setEditState(s => ({ ...s, timing: v }))} type="text" />
-          <EditRow label={isPeptide ? 'Vials' : 'On Hand'} value={editState.currentQuantity}
-            onChange={v => setEditState(s => ({ ...s, currentQuantity: v }))} type="number" />
-          <EditRow label={isOil ? 'Conc.' : 'Per Unit'} value={editState.unitSize} suffix={isOil ? 'mg/mL' : isPeptide ? 'mg' : compound.unitLabel.split(' ')[0]}
-            onChange={v => setEditState(s => ({ ...s, unitSize: v }))} type="number" />
+          {/* On Hand with unit dropdown */}
+          <div className="flex items-center gap-2 text-[11px]">
+            <span className="text-muted-foreground w-16 flex-shrink-0">{isPeptide ? 'Vials' : 'On Hand'}</span>
+            <div className="flex items-center gap-1 flex-1">
+              <input
+                type="number"
+                value={editState.currentQuantity}
+                onChange={e => setEditState(s => ({ ...s, currentQuantity: e.target.value }))}
+                className="w-full bg-secondary border border-border/50 rounded px-2 py-1 text-foreground font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50"
+              />
+              <span className="text-muted-foreground text-[10px] whitespace-nowrap">
+                {isPeptide ? 'vials' : isOil ? 'vials' : (editState.category === 'powder' ? 'bags' : 'bottles')}
+              </span>
+            </div>
+          </div>
+          {/* Per Unit with unit label dropdown */}
+          <div className="flex items-center gap-2 text-[11px]">
+            <span className="text-muted-foreground w-16 flex-shrink-0">{isOil ? 'Conc.' : 'Per Unit'}</span>
+            <div className="flex items-center gap-1 flex-1">
+              <input
+                type="number"
+                value={editState.unitSize}
+                onChange={e => setEditState(s => ({ ...s, unitSize: e.target.value }))}
+                className="w-full bg-secondary border border-border/50 rounded px-2 py-1 text-foreground font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50"
+              />
+              {isOil ? (
+                <span className="text-muted-foreground text-[10px] whitespace-nowrap">mg/mL</span>
+              ) : isPeptide ? (
+                <span className="text-muted-foreground text-[10px] whitespace-nowrap">mg</span>
+              ) : (
+                <select
+                  value={editState.unitLabel || compound.unitLabel}
+                  onChange={e => setEditState(s => ({ ...s, unitLabel: e.target.value }))}
+                  className="bg-secondary border border-border/50 rounded px-1.5 py-1 text-foreground font-mono text-[10px] focus:outline-none focus:ring-1 focus:ring-primary/50 min-w-[52px]"
+                >
+                  <option value="caps">caps</option>
+                  <option value="tabs">tabs</option>
+                  <option value="softgels">softgels</option>
+                  <option value="servings">servings</option>
+                  <option value="scoops">scoops</option>
+                  <option value="pills">pills</option>
+                  <option value="mg">mg</option>
+                  <option value="mcg">mcg</option>
+                  <option value="mL">mL</option>
+                  <option value="g">g</option>
+                  <option value="oz">oz</option>
+                </select>
+              )}
+            </div>
+          </div>
           {isOil && (
             <EditRow label="Vial Size" value={editState.vialSizeMl || '10'} suffix="mL"
               onChange={v => setEditState(s => ({ ...s, vialSizeMl: v }))} type="number" />

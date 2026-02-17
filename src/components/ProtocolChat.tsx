@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Square, Trash2, Check, X, CheckCheck, Brain, ArrowRight, Mic, MicOff, Maximize2, Minimize2, PanelLeftOpen, PanelLeftClose, Copy } from 'lucide-react';
+import { Send, Square, Trash2, Check, X, CheckCheck, Brain, ArrowRight, Mic, MicOff, Maximize2, Minimize2, PanelLeftOpen, PanelLeftClose, Copy, MessageCircle, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import ChatMarkdown from '@/components/ChatMarkdown';
 import { ChatMessage, ChangeProposal, ProposedChange } from '@/hooks/useProtocolChat';
@@ -241,20 +241,24 @@ const ProtocolChat = ({
       : 'Ask about your protocol analysis…';
 
     return (
-      <div className="bg-card rounded-lg border border-border/50 px-3 py-2.5 cursor-pointer hover:border-primary/30 transition-colors" onClick={() => setIsExpanded(true)}>
+      <div className="bg-card rounded-lg border border-border/50 px-3 py-2.5 cursor-pointer hover:border-primary/30 transition-colors group" onClick={() => setIsExpanded(true)}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            <Brain className="w-4 h-4 text-primary flex-shrink-0" />
-            <span className="text-xs font-semibold text-foreground">Protocol Advisor</span>
-            {conversations.length > 0 && (
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
-                {conversations.length} chats
-              </span>
-            )}
+            <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
+              <MessageCircle className="w-4 h-4 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <span className="text-xs font-semibold text-foreground">Protocol Advisor</span>
+              {conversations.length > 0 && (
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-primary/10 text-primary ml-1.5">
+                  {conversations.length} chats
+                </span>
+              )}
+              <p className="text-[10px] text-muted-foreground truncate leading-relaxed">{preview}</p>
+            </div>
           </div>
-          <Maximize2 className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+          <Maximize2 className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 group-hover:text-primary transition-colors" />
         </div>
-        <p className="text-[11px] text-muted-foreground truncate mt-1 leading-relaxed">{preview}</p>
       </div>
     );
   }
@@ -323,38 +327,46 @@ const ProtocolChat = ({
         {!activeConversationId ? (
           <div className="flex-1 flex items-center justify-center px-4 sm:px-6">
             <div className="text-center max-w-sm">
-              <Brain className="w-8 h-8 text-primary mx-auto mb-3 opacity-50" />
-              <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-                Select a conversation from the sidebar or start a new one.
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <MessageCircle className="w-8 h-8 text-primary" />
+              </div>
+              <h3 className="text-base font-semibold text-foreground mb-1">Protocol Advisor</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed mb-5">
+                Your AI-powered protocol assistant. Get personalized advice on your stack.
               </p>
               <button
                 onClick={() => handleNewConversation()}
-                className="text-sm px-4 py-2.5 rounded-lg bg-primary/15 text-primary hover:bg-primary/25 transition-colors font-medium"
+                className="inline-flex items-center gap-2 text-sm px-5 py-2.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium shadow-md"
               >
-                Start New Chat
+                <Sparkles className="w-4 h-4" />
+                Start a Conversation
               </button>
             </div>
           </div>
         ) : messages.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center px-4 sm:px-6">
+          <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6">
             <div className="text-center max-w-sm">
-              <Brain className="w-8 h-8 text-primary mx-auto mb-3 opacity-50" />
-              <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-                Ask questions about your analysis, request alternatives, or ask how to improve your stack grade.
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                <Sparkles className="w-6 h-6 text-primary" />
+              </div>
+              <h3 className="text-sm font-semibold text-foreground mb-1">How can I help?</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed mb-4">
+                Ask about your analysis, request alternatives, or improve your stack grade.
               </p>
-              <div className="flex flex-wrap gap-2 justify-center">
+              <div className="flex flex-col gap-2 w-full max-w-xs mx-auto">
                 {[
-                  'How can I improve my grade to B+?',
-                  'What should I remove to reduce liver stress?',
-                  'Suggest cheaper alternatives for poor-value compounds',
-                  'Optimize my GH secretagogue timing',
-                ].map(q => (
+                  { icon: '📈', q: 'How can I improve my grade to B+?' },
+                  { icon: '🛡️', q: 'What should I remove to reduce liver stress?' },
+                  { icon: '💰', q: 'Suggest cheaper alternatives for poor-value compounds' },
+                  { icon: '⏰', q: 'Optimize my GH secretagogue timing' },
+                ].map(({ icon, q }) => (
                   <button
                     key={q}
                     onClick={() => { setInput(q); inputRef.current?.focus(); }}
-                    className="text-xs px-3 py-2 rounded-lg bg-secondary/70 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors border border-border/30"
+                    className="flex items-center gap-2.5 text-left text-xs px-3.5 py-2.5 rounded-xl bg-secondary/50 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors border border-border/30"
                   >
-                    {q}
+                    <span className="text-sm flex-shrink-0">{icon}</span>
+                    <span>{q}</span>
                   </button>
                 ))}
               </div>
@@ -363,9 +375,14 @@ const ProtocolChat = ({
         ) : (
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 space-y-3 scrollbar-thin">
             {messages.map(msg => (
-              <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[90%] sm:max-w-[85%] rounded-lg px-3 py-2.5 relative group ${
-                  msg.role === 'user' ? 'bg-primary/15 text-foreground' : 'bg-secondary/50 text-foreground'
+              <div key={msg.id} className={`flex items-end gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                {msg.role === 'assistant' && (
+                  <div className="w-6 h-6 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0 mb-1">
+                    <Brain className="w-3.5 h-3.5 text-primary" />
+                  </div>
+                )}
+                <div className={`max-w-[85%] sm:max-w-[80%] rounded-2xl px-3.5 py-2.5 relative group ${
+                  msg.role === 'user' ? 'bg-primary text-primary-foreground rounded-br-sm' : 'bg-secondary/60 text-foreground rounded-bl-sm border border-border/30'
                 }`}>
                   {msg.content && (
                     <ChatMarkdown content={msg.content} />

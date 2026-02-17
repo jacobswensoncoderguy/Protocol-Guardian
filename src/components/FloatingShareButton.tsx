@@ -9,7 +9,7 @@ const FloatingShareButton = () => {
   const inviteUrl = user ? `${baseUrl}/invite?ref=${user.id}` : `${baseUrl}/invite`;
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div className="fixed bottom-20 right-4 z-40 sm:bottom-6 sm:right-6">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button className="w-12 h-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-all active:scale-95 flex items-center justify-center">
