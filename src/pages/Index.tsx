@@ -17,6 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useCallback, useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import FloatingShareButton from '@/components/FloatingShareButton';
+import QuickActionsFAB from '@/components/QuickActionsFAB';
 import ProfileDropdown from '@/components/ProfileDropdown';
 import Onboarding from './Onboarding';
 import AddCompoundDialog from '@/components/AddCompoundDialog';
@@ -427,6 +428,13 @@ const Index = () => {
         />
       </main>
       <FloatingShareButton />
+      <QuickActionsFAB
+        activeTab={activeTab}
+        onAddCompound={() => setShowAddDialog(true)}
+        onManageProtocols={() => setShowProtocolManager(true)}
+        onGoalExpansion={() => setShowGoalExpansion(true)}
+        onNavigateTab={setActiveTab}
+      />
       <WhatsNewOverlay />
       {showTourPrompt && (
         <div className="fixed inset-0 z-[99] bg-background/80 flex items-center justify-center p-4">

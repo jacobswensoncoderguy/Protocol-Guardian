@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { UserProtocol, SUGGESTED_PROTOCOLS, UserGoalSummary } from '@/hooks/useProtocols';
 import { Compound } from '@/data/compounds';
-import { Plus, Trash2, ChevronRight, ArrowLeft, Check, X, Sparkles, Pencil, Copy, StickyNote, Target } from 'lucide-react';
+import { Plus, Trash2, ChevronRight, ArrowLeft, Check, X, Sparkles, Pencil, Copy, StickyNote, Target, ArrowUp, ArrowDown } from 'lucide-react';
 import ProtocolIcon from '@/components/ProtocolIcon';
 
 interface ProtocolManagerDialogProps {
@@ -90,6 +90,18 @@ const ProtocolManagerDialog = ({
   // Notes state
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesValue, setNotesValue] = useState('');
+
+  // Swap protocol order by swapping their names, icons, descriptions, and notes
+  const handleSwapProtocol = async (fromIdx: number, toIdx: number) => {
+    if (toIdx < 0 || toIdx >= protocols.length) return;
+    const a = protocols[fromIdx];
+    const b = protocols[toIdx];
+    // Swap content between the two protocol records
+    await Promise.all([
+      onUpdateProtocol(a.id, { name: b.name, icon: b.icon, description: b.description || undefined, notes: b.notes || undefined }),
+      onUpdateProtocol(b.id, { name: a.name, icon: a.icon, description: a.description || undefined, notes: a.notes || undefined }),
+    ]);
+  };
 
   const handleClose = (o: boolean) => {
     if (!o) {
@@ -266,7 +278,7 @@ const ProtocolManagerDialog = ({
               {/* Existing protocols */}
               {protocols.length > 0 && (
                 <div className="space-y-1.5">
-                  {protocols.map(p => (
+                  {protocols.map((p, idx) => (
                     <div key={p.id} className="relative">
                       {confirmDelete === p.id ? (
                         <div className="flex items-center justify-between bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2.5">
@@ -277,25 +289,44 @@ const ProtocolManagerDialog = ({
                           </div>
                         </div>
                       ) : (
-                        <button
-                          onClick={() => openDetail(p)}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-border/50 bg-card hover:bg-secondary/50 transition-all text-left"
-                        >
-                          <ProtocolIcon icon={p.icon} className="w-5 h-5 text-primary" />
-                          <div className="min-w-0 flex-1">
-                            <span className="text-sm font-medium text-foreground">{p.name}</span>
-                            <p className="text-[10px] text-muted-foreground">{p.compoundIds.length} compounds</p>
-                          </div>
-                          <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1">
+                          {/* Reorder controls */}
+                          <div className="flex flex-col gap-0.5">
                             <button
-                              onClick={e => { e.stopPropagation(); setConfirmDelete(p.id); }}
-                              className="p-1.5 rounded hover:bg-secondary transition-colors text-muted-foreground"
+                              onClick={() => handleSwapProtocol(idx, idx - 1)}
+                              disabled={idx === 0}
+                              className="p-0.5 rounded text-muted-foreground hover:text-primary disabled:opacity-20 transition-colors"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <ArrowUp className="w-3 h-3" />
                             </button>
-                            <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+                            <button
+                              onClick={() => handleSwapProtocol(idx, idx + 1)}
+                              disabled={idx === protocols.length - 1}
+                              className="p-0.5 rounded text-muted-foreground hover:text-primary disabled:opacity-20 transition-colors"
+                            >
+                              <ArrowDown className="w-3 h-3" />
+                            </button>
                           </div>
-                        </button>
+                          <button
+                            onClick={() => openDetail(p)}
+                            className="flex-1 flex items-center gap-3 px-3 py-2.5 rounded-lg border border-border/50 bg-card hover:bg-secondary/50 transition-all text-left"
+                          >
+                            <ProtocolIcon icon={p.icon} className="w-5 h-5 text-primary" />
+                            <div className="min-w-0 flex-1">
+                              <span className="text-sm font-medium text-foreground">{p.name}</span>
+                              <p className="text-[10px] text-muted-foreground">{p.compoundIds.length} compounds</p>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={e => { e.stopPropagation(); setConfirmDelete(p.id); }}
+                                className="p-1.5 rounded hover:bg-secondary transition-colors text-muted-foreground"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                              <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+                            </div>
+                          </button>
+                        </div>
                       )}
                     </div>
                   ))}
