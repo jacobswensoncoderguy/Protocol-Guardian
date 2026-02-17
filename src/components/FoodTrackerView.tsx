@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { BrowserMultiFormatReader } from '@zxing/browser';
-import { Plus, Utensils, Apple, Coffee, Moon, Sun, Trash2, ChevronDown, ChevronUp, Camera, Loader2, Settings, Sparkles, Barcode, X, Search, Clock, Star } from 'lucide-react';
+import { BrowserMultiFormatReader, IScannerControls } from '@zxing/browser';
+import { Plus, Utensils, Apple, Coffee, Moon, Sun, Trash2, ChevronDown, ChevronUp, Camera, Loader2, Settings, Sparkles, Barcode, X, Search, Clock, Star, ScanLine } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -97,6 +97,13 @@ const FoodTrackerView = () => {
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Live barcode scanner state
+  const [showLiveScanner, setShowLiveScanner] = useState(false);
+  const [liveScannerLoading, setLiveScannerLoading] = useState(false);
+  const [liveScannerError, setLiveScannerError] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const scannerControlsRef = useRef<IScannerControls | null>(null);
 
   // Barcode lookup state
   const [barcodeInput, setBarcodeInput] = useState('');
@@ -267,6 +274,92 @@ const FoodTrackerView = () => {
     setScanResult(null); setBarcodeInput(''); setShowBarcodeInput(false);
     setSearchQuery(''); setSearchResults([]); setShowSearchResults(false);
   };
+
+  // Stop live scanner
+  const stopLiveScanner = useCallback(() => {
+    if (scannerControlsRef.current) {
+      try { scannerControlsRef.current.stop(); } catch { /* ignore */ }
+      scannerControlsRef.current = null;
+    }
+    setShowLiveScanner(false);
+    setLiveScannerLoading(false);
+    setLiveScannerError(null);
+  }, []);
+
+  // Lookup barcode from Open Food Facts and fill form
+  const lookupAndFillBarcode = useCallback(async (barcode: string) => {
+    stopLiveScanner();
+    setBarcodeLoading(true);
+    try {
+      const res = await fetch(
+        `https://world.openfoodfacts.org/api/v2/product/${barcode}?fields=product_name,brands,nutriments,serving_quantity,serving_quantity_unit`
+      );
+      const json = await res.json();
+      if (json.status !== 1 || !json.product) {
+        toast.error('Product not found', { description: 'Try a different barcode or enter nutrition manually.' });
+        setBarcodeLoading(false);
+        return;
+      }
+      const p = json.product;
+      const n = p.nutriments || {};
+      const servQty = p.serving_quantity ? parseFloat(p.serving_quantity) : 100;
+      const factor = servQty / 100;
+      setFoodName(p.product_name || '');
+      setServingSize(String(servQty));
+      setServingUnit(p.serving_quantity_unit || 'g');
+      setCalories(String(Math.round((n['energy-kcal_100g'] ?? 0) * factor)));
+      setProtein(String(Math.round((n.proteins_100g ?? 0) * factor)));
+      setCarbs(String(Math.round((n.carbohydrates_100g ?? 0) * factor)));
+      setFat(String(Math.round((n.fat_100g ?? 0) * factor)));
+      setFiber(String(Math.round((n.fiber_100g ?? 0) * factor)));
+      const brand = p.brands ? ` (${p.brands.split(',')[0].trim()})` : '';
+      setScanResult({ confidence: 'high', notes: `Open Food Facts${p.brands ? ' · ' + p.brands.split(',')[0].trim() : ''}` });
+      toast.success(`Found: ${p.product_name}${brand}`, { description: '✓ Nutrition pre-filled from barcode.' });
+    } catch {
+      toast.error('Barcode lookup failed', { description: 'Check your connection and try again.' });
+    }
+    setBarcodeLoading(false);
+  }, [stopLiveScanner]);
+
+  // Start live barcode scanner
+  const startLiveScanner = useCallback(async () => {
+    setShowLiveScanner(true);
+    setLiveScannerLoading(true);
+    setLiveScannerError(null);
+    // Wait a tick for the video element to mount
+    await new Promise(r => setTimeout(r, 100));
+    const video = videoRef.current;
+    if (!video) {
+      setLiveScannerError('Camera element not found.');
+      setLiveScannerLoading(false);
+      return;
+    }
+    try {
+      const codeReader = new BrowserMultiFormatReader();
+      const controls = await codeReader.decodeFromVideoDevice(
+        undefined, // uses default camera (rear on mobile)
+        video,
+        (result, err) => {
+          if (result) {
+            const barcode = result.getText();
+            lookupAndFillBarcode(barcode);
+          }
+          // Ignore NotFoundException (no barcode in frame yet)
+          if (err && err.name !== 'NotFoundException') {
+            console.warn('Scanner error:', err);
+          }
+        }
+      );
+      scannerControlsRef.current = controls;
+      setLiveScannerLoading(false);
+    } catch (e: any) {
+      const msg = e?.message?.includes('Permission') || e?.name === 'NotAllowedError'
+        ? 'Camera permission denied. Please allow camera access and try again.'
+        : 'Could not access camera. Please try the manual barcode entry instead.';
+      setLiveScannerError(msg);
+      setLiveScannerLoading(false);
+    }
+  }, [lookupAndFillBarcode]);
 
   // Fetch saved/recent foods from the database
   const fetchSavedFoods = useCallback(async () => {
@@ -708,7 +801,7 @@ const FoodTrackerView = () => {
       <Dialog open={showAddFood} onOpenChange={(open) => {
         setShowAddFood(open);
         if (open) fetchSavedFoods();
-        if (!open) resetForm();
+        if (!open) { resetForm(); stopLiveScanner(); }
       }}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -747,22 +840,63 @@ const FoodTrackerView = () => {
               <Button
                 variant="outline"
                 className="gap-2 border-primary/40 text-primary hover:bg-primary/5"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={startLiveScanner}
                 disabled={scanning || barcodeLoading}
               >
-                {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
-                {scanning ? 'Scanning…' : 'Scan Barcode / Photo'}
+                <ScanLine className="w-4 h-4" />
+                Live Barcode Scan
               </Button>
               <Button
                 variant="outline"
                 className="gap-2 border-accent/40 text-accent hover:bg-accent/5"
-                onClick={() => setShowBarcodeInput(v => !v)}
+                onClick={() => fileInputRef.current?.click()}
                 disabled={scanning || barcodeLoading}
               >
-                <Barcode className="w-4 h-4" />
-                Barcode Lookup
+                {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+                {scanning ? 'Scanning…' : 'Photo / AI Scan'}
               </Button>
             </div>
+
+            {/* Live barcode scanner modal */}
+            {showLiveScanner && (
+              <div className="relative rounded-xl overflow-hidden border border-primary/40 bg-black">
+                <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center">
+                  {/* Scanner crosshair */}
+                  <div className="w-52 h-32 border-2 border-primary rounded-lg opacity-80">
+                    <div className="absolute top-0 left-0 w-5 h-5 border-t-4 border-l-4 border-primary rounded-tl" />
+                    <div className="absolute top-0 right-0 w-5 h-5 border-t-4 border-r-4 border-primary rounded-tr" />
+                    <div className="absolute bottom-0 left-0 w-5 h-5 border-b-4 border-l-4 border-primary rounded-bl" />
+                    <div className="absolute bottom-0 right-0 w-5 h-5 border-b-4 border-r-4 border-primary rounded-br" />
+                    {/* Scanning line animation */}
+                    <div className="absolute top-0 left-0 right-0 h-0.5 bg-primary/80 animate-bounce" style={{ animationDuration: '1.5s' }} />
+                  </div>
+                </div>
+                <video
+                  ref={videoRef}
+                  className="w-full h-48 object-cover"
+                  autoPlay
+                  muted
+                  playsInline
+                />
+                {liveScannerLoading && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 z-20 gap-2">
+                    <Loader2 className="w-6 h-6 text-primary animate-spin" />
+                    <span className="text-xs text-white">Starting camera…</span>
+                  </div>
+                )}
+                {liveScannerError && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 z-20 gap-2 p-4">
+                    <span className="text-xs text-destructive text-center">{liveScannerError}</span>
+                  </div>
+                )}
+                <div className="absolute bottom-0 left-0 right-0 z-20 flex items-center justify-between px-3 py-2 bg-black/50">
+                  <span className="text-[10px] text-white/70">Point at a barcode</span>
+                  <button onClick={stopLiveScanner} className="text-white/80 hover:text-white">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Barcode input panel */}
             {showBarcodeInput && (
