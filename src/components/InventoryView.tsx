@@ -400,12 +400,14 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
     // Convert dose back from edit unit to stored doseLabel unit
     const eu = editState.editDoseUnit || 'mg';
     const dl = compound.doseLabel.toLowerCase();
+    const editCat = editState.category || compound.category;
     let storedUnit: string;
     if (dl.includes('iu')) storedUnit = 'iu';
     else if (dl.includes('mcg') || dl.includes('µg')) storedUnit = 'mcg';
+    else if (dl.includes('scoop') || (editCat === 'powder' && dl.includes('serving'))) storedUnit = 'scoop';
     else if (dl.includes('pill') || dl.includes('cap') || dl.includes('softgel') || dl.includes('tab') || dl.includes('serving')) storedUnit = 'pills';
     else if (dl.includes('ml')) storedUnit = 'ml';
-    else storedUnit = 'mg';
+    else storedUnit = editCat === 'powder' ? 'scoop' : 'mg';
 
     // If edit unit matches stored unit, no conversion needed
     if (eu !== storedUnit) {
@@ -462,7 +464,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
     }
     // Persist dose label from the dose unit dropdown
     if (editState.editDoseUnit) {
-      const unitMap: Record<string, string> = { mg: 'mg', mcg: 'mcg', iu: 'IU', ml: 'mL', pills: compound.doseLabel, scoop: 'scoop' };
+      const unitMap: Record<string, string> = { mg: 'mg', mcg: 'mcg', iu: 'IU', ml: 'mL', pills: 'pills', scoop: 'scoop' };
       updates.doseLabel = unitMap[editState.editDoseUnit] || compound.doseLabel;
     }
     // Strength (weight per unit) — available for all categories
@@ -530,6 +532,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
 
     onUpdate(compound.id, updates);
     setEditing(false);
+    toast.success(`${updates.name || compound.name} updated`);
   };
 
   const cancelEdit = () => setEditing(false);

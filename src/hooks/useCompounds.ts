@@ -140,9 +140,8 @@ export function useCompounds(userId: string | undefined) {
 
   const addCompound = useCallback(async (compound: Compound) => {
     if (!userId) return;
-    setCompounds(prev => [...prev, compound]);
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('user_compounds')
       .insert({
         user_id: userId,
@@ -170,12 +169,15 @@ export function useCompounds(userId: string | undefined) {
         purchase_date: compound.purchaseDate || null,
         reorder_quantity: compound.reorderQuantity,
         notes: compound.notes ?? null,
-      });
+      })
+      .select()
+      .single();
 
     if (error) {
       console.error('Failed to add compound:', error);
-      fetchCompounds();
     }
+    // Always refetch to get the correct DB-generated ID
+    await fetchCompounds();
   }, [userId, fetchCompounds]);
 
   const deleteCompound = useCallback(async (id: string) => {
