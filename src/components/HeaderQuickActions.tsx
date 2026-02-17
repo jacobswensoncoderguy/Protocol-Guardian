@@ -25,7 +25,7 @@ const HeaderQuickActions = ({ activeTab, onAddCompound, onManageProtocols, onGoa
     switch (activeTab) {
       case 'dashboard':
         return [
-          { icon: Package, label: 'Add Compound', onClick: onAddCompound },
+          { icon: Sparkles, label: 'New Protocol', onClick: onManageProtocols },
           { icon: Target, label: 'New Goal', onClick: onGoalExpansion },
         ];
       case 'schedule':

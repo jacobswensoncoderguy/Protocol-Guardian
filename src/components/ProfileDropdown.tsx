@@ -81,7 +81,7 @@ const ProfileDropdown = ({
             <Share2 className="w-4 h-4" />
             Invite a Friend
           </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="w-48">
+          <DropdownMenuSubContent className="w-48" sideOffset={4} alignOffset={-5}>
             <DropdownMenuItem onClick={() => {
               const body = `Check out SUPERHUMAN Tracker — track your protocol and optimize your performance. Create your account here: ${inviteUrl}`;
               window.open(`sms:?&body=${encodeURIComponent(body)}`);
