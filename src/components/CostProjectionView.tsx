@@ -35,7 +35,7 @@ interface MonthData {
   month: number;
   year: number;
   name: string;
-  compounds: { name: string; qty: string; unitPrice: number; cost: number; compoundId: string }[];
+  compounds: { name: string; qty: string; unitPrice: number; cost: number; compoundId: string; isReceived?: boolean }[];
   total: number;
 }
 
@@ -146,21 +146,23 @@ function buildProjection(compounds: Compound[], getModifiers: (compoundId: strin
       const old = months[slotIndex].compounds[existingIdx];
       months[slotIndex].total -= old.cost;
       months[slotIndex].compounds[existingIdx] = {
-        name: `${name} ✓`,
+        name: name,
         qty: `${order.quantity}`,
         unitPrice: Math.round((order.cost / Math.max(order.quantity, 1)) * 100) / 100,
         cost: order.cost,
         compoundId: order.compound_id,
+        isReceived: true,
       };
       months[slotIndex].total += order.cost;
     } else {
       // Add received order as new entry
       months[slotIndex].compounds.push({
-        name: `${name} ✓`,
+        name: name,
         qty: `${order.quantity}`,
         unitPrice: Math.round((order.cost / Math.max(order.quantity, 1)) * 100) / 100,
         cost: order.cost,
         compoundId: order.compound_id,
+        isReceived: true,
       });
       months[slotIndex].total += order.cost;
     }
@@ -242,6 +244,9 @@ const CostProjectionView = ({ compounds, protocols = [], customFields = [], cust
 
   const projection = buildProjection(compounds, getModifiers, receivedOrders);
   const totalAnnual = projection.reduce((sum, m) => sum + m.total, 0);
+  const totalSpent = projection.reduce((sum, m) => 
+    sum + m.compounds.filter(c => c.isReceived).reduce((s, c) => s + c.cost, 0), 0);
+  const remainingAnnual = totalAnnual - totalSpent;
   const monthlyAvg = compounds.reduce((sum, c) => {
     const mods = getModifiers(c.id);
     // Apply dosesPerDay override for monthly burn calculation
@@ -269,14 +274,18 @@ const CostProjectionView = ({ compounds, protocols = [], customFields = [], cust
   return (
     <div className="space-y-4">
       {/* Summary */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-2">
         <div className="bg-card rounded-lg border border-border/50 p-3">
-          <p className="text-xs text-muted-foreground">Est. Annual Total</p>
-          <p className="text-xl font-bold font-mono text-primary">${Math.round(totalAnnual).toLocaleString()}</p>
+          <p className="text-[10px] text-muted-foreground">Est. Annual</p>
+          <p className="text-lg font-bold font-mono text-primary">${Math.round(totalAnnual).toLocaleString()}</p>
         </div>
         <div className="bg-card rounded-lg border border-border/50 p-3">
-          <p className="text-xs text-muted-foreground">Monthly Avg Burn</p>
-          <p className="text-xl font-bold font-mono text-accent">${Math.round(monthlyAvg).toLocaleString()}</p>
+          <p className="text-[10px] text-muted-foreground">Remaining</p>
+          <p className="text-lg font-bold font-mono text-accent">${Math.round(remainingAnnual).toLocaleString()}</p>
+        </div>
+        <div className="bg-card rounded-lg border border-border/50 p-3">
+          <p className="text-[10px] text-muted-foreground">Spent</p>
+          <p className="text-lg font-bold font-mono text-status-good">${Math.round(totalSpent).toLocaleString()}</p>
         </div>
       </div>
 
@@ -330,12 +339,21 @@ const CostProjectionView = ({ compounds, protocols = [], customFields = [], cust
                   )}
                   <div className="space-y-1.5">
                     {group.items.map((item, i) => (
-                      <div key={i} className="flex items-center justify-between text-sm bg-secondary/50 rounded px-3 py-1.5">
-                        <span className="text-foreground/80 truncate mr-2">{item.name}</span>
+                      <div key={i} className={`flex items-center justify-between text-sm rounded px-3 py-1.5 ${
+                        item.isReceived 
+                          ? 'bg-status-good/10 border border-status-good/20' 
+                          : 'bg-secondary/50'
+                      }`}>
+                        <span className="text-foreground/80 truncate mr-2 flex items-center gap-1.5">
+                          {item.name}
+                          {item.isReceived && (
+                            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-status-good/20 text-status-good whitespace-nowrap">RECEIVED</span>
+                          )}
+                        </span>
                         <div className="flex items-center gap-3 text-xs font-mono flex-shrink-0">
                           <span className="text-muted-foreground">{item.qty}</span>
                           <span className="text-muted-foreground">@${item.unitPrice}</span>
-                          <span className="text-primary font-semibold">${item.cost}</span>
+                          <span className={`font-semibold ${item.isReceived ? 'text-status-good' : 'text-primary'}`}>${item.cost}</span>
                         </div>
                       </div>
                     ))}
