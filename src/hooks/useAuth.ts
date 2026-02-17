@@ -8,6 +8,7 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Set up listener FIRST (before getSession) per Supabase best practices
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -18,9 +19,29 @@ export function useAuth() {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+    }).catch((err) => {
+      // Prevent crash on stale/corrupt session (e.g. expired token from closed tab)
+      console.error('getSession failed:', err);
+      setSession(null);
+      setUser(null);
+      setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    // Safety timeout: if auth takes too long (network issues, stale state), stop loading
+    const timeout = setTimeout(() => {
+      setLoading((prev) => {
+        if (prev) {
+          console.warn('Auth loading timeout – forcing unauthenticated state');
+          return false;
+        }
+        return prev;
+      });
+    }, 8000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
 
   const signOut = useCallback(async () => {

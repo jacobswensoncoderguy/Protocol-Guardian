@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertTriangle, RotateCcw, Trash2, HelpCircle } from 'lucide-react';
+import { AlertTriangle, RotateCcw, Trash2, HelpCircle, KeyRound, Loader2 } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
 
 interface AccountSettingsDialogProps {
   open: boolean;
@@ -45,11 +46,50 @@ const USER_TABLES = [
 ] as const;
 
 const AccountSettingsDialog = ({ open, onOpenChange, userId, onResetComplete, onStartTour }: AccountSettingsDialogProps) => {
+  const { user } = useAuth();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showSetPassword, setShowSetPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [settingPassword, setSettingPassword] = useState(false);
   const [deleteTyped, setDeleteTyped] = useState('');
   const [resetting, setResetting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // Check if user signed up via OAuth (no password identity)
+  const isOAuthOnly = user?.app_metadata?.providers?.length === 1 && 
+    user.app_metadata.providers[0] !== 'email';
+  const hasEmailIdentity = user?.identities?.some(i => i.provider === 'email');
+
+  const handleSetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmNewPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+    setSettingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success('Password set! You can now sign in with email & password.');
+        setShowSetPassword(false);
+        setNewPassword('');
+        setConfirmNewPassword('');
+      }
+    } catch (err) {
+      console.error('Set password error:', err);
+      toast.error('Failed to set password');
+    } finally {
+      setSettingPassword(false);
+    }
+  };
 
   const handleReset = async () => {
     if (!userId) return;
@@ -109,6 +149,21 @@ const AccountSettingsDialog = ({ open, onOpenChange, userId, onResetComplete, on
                 </div>
               </button>
             )}
+
+            {/* Set Password - for OAuth users who want email/password login */}
+            <button
+              onClick={() => setShowSetPassword(true)}
+              className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-secondary/50 transition-colors text-left"
+            >
+              <KeyRound className="w-5 h-5 text-primary flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium">{hasEmailIdentity ? 'Change Password' : 'Set Password'}</p>
+                <p className="text-xs text-muted-foreground">
+                  {hasEmailIdentity ? 'Update your login password' : 'Enable email & password sign-in'}
+                </p>
+              </div>
+            </button>
+
             <button
               onClick={() => setShowResetConfirm(true)}
               className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-secondary/50 transition-colors text-left"
@@ -193,6 +248,51 @@ const AccountSettingsDialog = ({ open, onOpenChange, userId, onResetComplete, on
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Set Password Dialog */}
+      <Dialog open={showSetPassword} onOpenChange={(v) => { setShowSetPassword(v); if (!v) { setNewPassword(''); setConfirmNewPassword(''); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="w-5 h-5 text-primary" />
+              {hasEmailIdentity ? 'Change Password' : 'Set Password'}
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSetPassword} className="space-y-3 pt-1">
+            <p className="text-sm text-muted-foreground">
+              {hasEmailIdentity
+                ? 'Enter a new password for your account.'
+                : `Set a password so you can sign in with ${user?.email} using email & password.`}
+            </p>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="New password"
+              required
+              minLength={6}
+              className="w-full px-3 py-2.5 rounded-lg border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+            />
+            <input
+              type="password"
+              value={confirmNewPassword}
+              onChange={(e) => setConfirmNewPassword(e.target.value)}
+              placeholder="Confirm password"
+              required
+              minLength={6}
+              className="w-full px-3 py-2.5 rounded-lg border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+            />
+            <button
+              type="submit"
+              disabled={settingPassword}
+              className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {settingPassword && <Loader2 className="w-4 h-4 animate-spin" />}
+              {hasEmailIdentity ? 'Update Password' : 'Set Password'}
+            </button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
