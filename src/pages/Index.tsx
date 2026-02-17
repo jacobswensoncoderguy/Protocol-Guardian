@@ -14,6 +14,7 @@ import { useProtocolAnalysis } from '@/hooks/useProtocolAnalysis';
 import { useProtocolChat } from '@/hooks/useProtocolChat';
 import { useConversations } from '@/hooks/useConversations';
 import { useCustomFields } from '@/hooks/useCustomFields';
+import { useDoseCheckOffs } from '@/hooks/useDoseCheckOffs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCallback, useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
@@ -85,6 +86,8 @@ const Index = () => {
   } = useProtocols(user?.id);
 
   const { fields: customFields, values: customFieldValues, addField: addCustomField, removeField: removeCustomField, reorderField: reorderCustomField, setValue: setCustomFieldValue } = useCustomFields(user?.id);
+
+  const { checkedDoses, toggleChecked: toggleDoseCheck } = useDoseCheckOffs();
 
   const {
     stackAnalysis, compoundAnalyses, loading: aiLoading, compoundLoading,
@@ -311,7 +314,7 @@ const Index = () => {
             <OutcomesView userId={user?.id} goals={fullGoals} onRefreshGoals={fetchFullGoals} onUploadClick={() => setShowBiomarkerUpload(true)} profile={profile} measurementSystem={measurementSystem} onCreateGoal={createGoals} onUpdateGoal={updateGoal} onDeleteGoal={deleteGoal} />
           </TabsContent>
           <TabsContent value="schedule" className="animate-slide-up">
-            <WeeklyScheduleView compounds={compounds} protocols={protocols} compoundAnalyses={compoundAnalyses} compoundLoading={compoundLoading} onAnalyzeCompound={analyzeCompound} customFields={customFields} customFieldValues={customFieldValues} />
+            <WeeklyScheduleView compounds={compounds} protocols={protocols} compoundAnalyses={compoundAnalyses} compoundLoading={compoundLoading} onAnalyzeCompound={analyzeCompound} customFields={customFields} customFieldValues={customFieldValues} checkedDoses={checkedDoses} onToggleChecked={toggleDoseCheck} />
           </TabsContent>
           <TabsContent value="inventory" className="animate-slide-up">
             <InventoryView

@@ -45,6 +45,8 @@ interface WeeklyScheduleViewProps {
   onAnalyzeCompound?: (compoundId: string) => void;
   customFields?: CustomField[];
   customFieldValues?: Map<string, Map<string, string>>;
+  checkedDoses?: Set<string>;
+  onToggleChecked?: (key: string) => void;
 }
 
 function getResumeDate(daysLeft: number): string {
@@ -54,22 +56,24 @@ function getResumeDate(daysLeft: number): string {
   return `${months[d.getMonth()]} ${d.getDate()}`;
 }
 
-const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compoundLoading, onAnalyzeCompound, customFields, customFieldValues }: WeeklyScheduleViewProps) => {
+const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compoundLoading, onAnalyzeCompound, customFields, customFieldValues, checkedDoses: externalChecked, onToggleChecked: externalToggle }: WeeklyScheduleViewProps) => {
   const today = new Date().getDay();
   const [selectedDay, setSelectedDay] = useState(today);
   const [selectedCompound, setSelectedCompound] = useState<Compound | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [doseUnit, setDoseUnit] = useState<'mg' | 'ml'>('mg');
-  const [checkedDoses, setCheckedDoses] = useState<Set<string>>(new Set());
 
-  const toggleChecked = (key: string) => {
-    setCheckedDoses(prev => {
+  // Use external (persisted) state if provided, otherwise local fallback
+  const [localChecked, setLocalChecked] = useState<Set<string>>(new Set());
+  const checkedDoses = externalChecked ?? localChecked;
+  const toggleChecked = externalToggle ?? ((key: string) => {
+    setLocalChecked(prev => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
       return next;
     });
-  };
+  });
 
   const weeklySchedule = useMemo(() => generateScheduleFromCompounds(compounds, customFields, customFieldValues), [compounds, customFields, customFieldValues]);
   const schedule = weeklySchedule[selectedDay];
