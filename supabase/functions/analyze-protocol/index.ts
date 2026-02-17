@@ -5,6 +5,20 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 2): Promise<Response> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const response = await fetch(url, options);
+    if (response.ok || response.status === 429 || response.status === 402) return response;
+    if (response.status === 500 && attempt < maxRetries) {
+      console.warn(`AI gateway 500 on attempt ${attempt + 1}, retrying in ${(attempt + 1) * 2}s...`);
+      await new Promise(r => setTimeout(r, (attempt + 1) * 2000));
+      continue;
+    }
+    return response;
+  }
+  throw new Error("AI gateway unreachable after retries");
+}
+
 const SYSTEM_PROMPT = `You are an advanced pharmacology and supplement intelligence engine for a biohacker's protocol tracker. Your job is to analyze a user's complete compound/supplement stack and provide detailed, practical analysis.
 
 You MUST cross-reference multiple sources to produce trustworthy, balanced analysis. Consider:
@@ -222,14 +236,14 @@ serve(async (req) => {
         }
       }];
 
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const response = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${LOVABLE_API_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model: "google/gemini-3-flash-preview",
           messages: chatMessages,
           tools: chatTools,
           stream: true,
@@ -352,14 +366,14 @@ Remember the grading calibration rules — conservative grades harshly, performa
         }
       }];
 
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const response = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${LOVABLE_API_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model: "google/gemini-3-flash-preview",
           messages: [
             { role: "system", content: SYSTEM_PROMPT },
             { role: "user", content: comparePrompt },
@@ -604,14 +618,14 @@ Provide a comprehensive analysis covering:
       toolChoice = { type: "function", function: { name: "stack_analysis" } };
     }
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: userPrompt },
