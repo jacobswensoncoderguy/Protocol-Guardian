@@ -310,7 +310,7 @@ const Index = () => {
             <OutcomesView userId={user?.id} goals={fullGoals} onRefreshGoals={fetchFullGoals} onUploadClick={() => setShowBiomarkerUpload(true)} profile={profile} measurementSystem={measurementSystem} onCreateGoal={createGoals} onUpdateGoal={updateGoal} onDeleteGoal={deleteGoal} />
           </TabsContent>
           <TabsContent value="schedule" className="animate-slide-up">
-            <WeeklyScheduleView compounds={compounds} protocols={protocols} compoundAnalyses={compoundAnalyses} compoundLoading={compoundLoading} onAnalyzeCompound={analyzeCompound} />
+            <WeeklyScheduleView compounds={compounds} protocols={protocols} compoundAnalyses={compoundAnalyses} compoundLoading={compoundLoading} onAnalyzeCompound={analyzeCompound} customFields={customFields} customFieldValues={customFieldValues} />
           </TabsContent>
           <TabsContent value="inventory" className="animate-slide-up">
             <InventoryView

@@ -1,5 +1,6 @@
 import { Compound, CompoundCategory } from '@/data/compounds';
 import { DayDose, DaySchedule } from '@/data/schedule';
+import { CustomField } from '@/hooks/useCustomFields';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -61,7 +62,7 @@ function parseDays(compound: Compound): number[] {
 /**
  * Parse the timing(s) of day for a compound from timingNote and dosesPerDay.
  */
-function parseTimings(compound: Compound): ('morning' | 'afternoon' | 'evening')[] {
+function parseTimings(compound: Compound, effectiveDosesPerDay: number): ('morning' | 'afternoon' | 'evening')[] {
   const note = (compound.timingNote || '').toLowerCase();
 
   // Check for explicit timing keywords
@@ -80,16 +81,16 @@ function parseTimings(compound: Compound): ('morning' | 'afternoon' | 'evening')
     return timings;
   }
 
-  // "daily" without a specific AM/PM — use dosesPerDay to infer
+  // "daily" without a specific AM/PM — use effective dosesPerDay to infer
   if (hasDaily) {
-    if (compound.dosesPerDay >= 2) {
+    if (effectiveDosesPerDay >= 2) {
       return ['morning', 'evening'];
     }
     return ['morning'];
   }
 
-  // If dosesPerDay >= 2 and no explicit timing, split morning + evening
-  if (compound.dosesPerDay >= 2) {
+  // If effective dosesPerDay >= 2 and no explicit timing, split morning + evening
+  if (effectiveDosesPerDay >= 2) {
     return ['morning', 'evening'];
   }
 
@@ -130,9 +131,38 @@ function formatDose(compound: Compound): string {
 }
 
 /**
+ * Resolve the effective dosesPerDay for a compound, checking custom field overrides.
+ */
+function getEffectiveDosesPerDay(
+  compound: Compound,
+  customFields?: CustomField[],
+  customFieldValues?: Map<string, Map<string, string>>
+): number {
+  if (customFields && customFieldValues) {
+    const vals = customFieldValues.get(compound.id);
+    if (vals) {
+      for (const f of customFields) {
+        if (f.field_name === 'Doses Per Day' && f.affects_calculation) {
+          const v = vals.get(f.id);
+          if (v) {
+            const num = parseFloat(v);
+            if (!isNaN(num) && num > 0) return num;
+          }
+        }
+      }
+    }
+  }
+  return compound.dosesPerDay;
+}
+
+/**
  * Generate a dynamic weekly schedule from the user's compounds.
  */
-export function generateScheduleFromCompounds(compounds: Compound[]): DaySchedule[] {
+export function generateScheduleFromCompounds(
+  compounds: Compound[],
+  customFields?: CustomField[],
+  customFieldValues?: Map<string, Map<string, string>>
+): DaySchedule[] {
   const schedule: DaySchedule[] = DAYS.map((day, i) => ({
     dayIndex: i,
     dayName: day,
@@ -142,7 +172,8 @@ export function generateScheduleFromCompounds(compounds: Compound[]): DaySchedul
 
   compounds.filter(c => c.daysPerWeek > 0 || (c.cycleOnDays && c.cycleOffDays)).forEach(compound => {
     const days = parseDays(compound);
-    const timings = parseTimings(compound);
+    const effectiveDpd = getEffectiveDosesPerDay(compound, customFields, customFieldValues);
+    const timings = parseTimings(compound, effectiveDpd);
     const doseStr = formatDose(compound);
 
     timings.forEach(timing => {
