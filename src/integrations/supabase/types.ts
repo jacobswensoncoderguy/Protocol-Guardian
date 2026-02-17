@@ -250,6 +250,36 @@ export type Database = {
         }
         Relationships: []
       }
+      dose_check_offs: {
+        Row: {
+          check_date: string
+          checked_at: string
+          compound_id: string
+          dose_index: number
+          id: string
+          timing: string
+          user_id: string
+        }
+        Insert: {
+          check_date?: string
+          checked_at?: string
+          compound_id: string
+          dose_index?: number
+          id?: string
+          timing: string
+          user_id: string
+        }
+        Update: {
+          check_date?: string
+          checked_at?: string
+          compound_id?: string
+          dose_index?: number
+          id?: string
+          timing?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       feature_requests: {
         Row: {
           created_at: string
