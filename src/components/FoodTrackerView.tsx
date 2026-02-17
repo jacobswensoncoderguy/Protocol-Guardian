@@ -321,45 +321,71 @@ const FoodTrackerView = () => {
     setBarcodeLoading(false);
   }, [stopLiveScanner]);
 
-  // Start live barcode scanner
-  const startLiveScanner = useCallback(async () => {
+  // Start live barcode scanner — just flips the flag; useEffect handles init once video mounts
+  const startLiveScanner = useCallback(() => {
     setShowLiveScanner(true);
     setLiveScannerLoading(true);
     setLiveScannerError(null);
-    // Wait a tick for the video element to mount
-    await new Promise(r => setTimeout(r, 100));
-    const video = videoRef.current;
-    if (!video) {
-      setLiveScannerError('Camera element not found.');
-      setLiveScannerLoading(false);
-      return;
-    }
-    try {
-      const codeReader = new BrowserMultiFormatReader();
-      const controls = await codeReader.decodeFromVideoDevice(
-        undefined, // uses default camera (rear on mobile)
-        video,
-        (result, err) => {
-          if (result) {
-            const barcode = result.getText();
-            lookupAndFillBarcode(barcode);
+  }, []);
+
+  // Initialize ZXing once the video element is in the DOM
+  useEffect(() => {
+    if (!showLiveScanner) return;
+    let cancelled = false;
+
+    const initScanner = async () => {
+      // Poll until videoRef is available (renders after state update)
+      let video = videoRef.current;
+      let attempts = 0;
+      while (!video && attempts < 20) {
+        await new Promise(r => setTimeout(r, 50));
+        video = videoRef.current;
+        attempts++;
+      }
+      if (cancelled) return;
+      if (!video) {
+        setLiveScannerError('Camera element not found.');
+        setLiveScannerLoading(false);
+        return;
+      }
+      try {
+        const codeReader = new BrowserMultiFormatReader();
+        const controls = await codeReader.decodeFromVideoDevice(
+          undefined, // uses default (rear) camera
+          video,
+          (result, err) => {
+            if (cancelled) return;
+            if (result) {
+              lookupAndFillBarcode(result.getText());
+            }
+            // NotFoundException fires every frame with no barcode — safe to ignore
+            if (err && err.name !== 'NotFoundException') {
+              console.warn('Scanner error:', err);
+            }
           }
-          // Ignore NotFoundException (no barcode in frame yet)
-          if (err && err.name !== 'NotFoundException') {
-            console.warn('Scanner error:', err);
-          }
+        );
+        if (cancelled) {
+          try { controls.stop(); } catch { /* ignore */ }
+          return;
         }
-      );
-      scannerControlsRef.current = controls;
-      setLiveScannerLoading(false);
-    } catch (e: any) {
-      const msg = e?.message?.includes('Permission') || e?.name === 'NotAllowedError'
-        ? 'Camera permission denied. Please allow camera access and try again.'
-        : 'Could not access camera. Please try the manual barcode entry instead.';
-      setLiveScannerError(msg);
-      setLiveScannerLoading(false);
-    }
-  }, [lookupAndFillBarcode]);
+        scannerControlsRef.current = controls;
+        setLiveScannerLoading(false);
+      } catch (e: any) {
+        if (cancelled) return;
+        const msg = e?.name === 'NotAllowedError' || e?.message?.includes('Permission')
+          ? 'Camera permission denied. Please allow camera access and try again.'
+          : 'Could not access camera. Please try the manual barcode entry instead.';
+        setLiveScannerError(msg);
+        setLiveScannerLoading(false);
+      }
+    };
+
+    initScanner();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [showLiveScanner, lookupAndFillBarcode]);
 
   // Fetch saved/recent foods from the database
   const fetchSavedFoods = useCallback(async () => {
