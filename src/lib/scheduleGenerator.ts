@@ -65,10 +65,10 @@ function parseDays(compound: Compound): number[] {
 function parseTimings(compound: Compound, effectiveDosesPerDay: number): ('morning' | 'afternoon' | 'evening')[] {
   const note = (compound.timingNote || '').toLowerCase();
 
-  // Check for explicit timing keywords
-  const hasMorningExplicit = /\bmorning\b|\bam\b/.test(note);
-  const hasEveningExplicit = /\bevening\b|\bpm\b|\bnightly\b|\bnight\b/.test(note);
-  const hasAfternoon = /\bafternoon\b|\bpost[- ]?workout\b|\bpre[- ]?workout\b/.test(note);
+  // Check for explicit timing keywords (including plurals)
+  const hasMorningExplicit = /\b(mornings?|am)\b/.test(note);
+  const hasEveningExplicit = /\b(evenings?|pm|nightl?y?|nights?)\b/.test(note);
+  const hasAfternoon = /\b(afternoons?|post[- ]?workouts?|pre[- ]?workouts?)\b/.test(note);
   const hasDaily = /\bdaily\b|\bevery\s*day\b/.test(note);
 
   // If note says "daily" but also specifies a specific time (e.g. "daily evening"),

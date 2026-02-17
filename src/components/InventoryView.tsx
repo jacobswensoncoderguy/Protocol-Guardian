@@ -301,7 +301,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
     const days = new Set<number>();
 
     // Check "daily" / "nightly" / "every day" FIRST — these mean all 7 days
-    if (/\bdaily\b|\bnightly\b|\bevery\s*day\b/i.test(lower)) {
+    if (/\bdaily\b|\bnightl?y?\b|\bevery\s*day\b/i.test(lower)) {
       [0,1,2,3,4,5,6].forEach(i => days.add(i));
       return days;
     }
@@ -310,10 +310,12 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
       [/\bm[\/-]f\b|mon[\s-]*fri/i, [1,2,3,4,5]],
       [/\bm\/w\/f\b/i, [1,3,5]],
       [/\bt\/th\b/i, [2,4]],
+      [/M\/T\/W\/Th\/F/i, [1,2,3,4,5]], // Handle M/T/W/Th/F pattern
     ];
     for (const [pat, idxs] of patterns) {
-      if (pat.test(lower)) { idxs.forEach(i => days.add(i)); return days; }
+      if (pat.test(note)) { idxs.forEach(i => days.add(i)); }
     }
+    // Don't return early for patterns — also check individual day mentions
     const dayMap: Record<string, number> = { su: 0, sun: 0, mo: 1, mon: 1, tu: 2, tue: 2, tues: 2, we: 3, wed: 3, th: 4, thu: 4, thurs: 4, fr: 5, fri: 5, sa: 6, sat: 6 };
     const matches = lower.match(/\b(su(?:n(?:day)?)?|mo(?:n(?:day)?)?|tu(?:e(?:s(?:day)?)?)?|we(?:d(?:nesday)?)?|th(?:u(?:rs(?:day)?)?)?|fr(?:i(?:day)?)?|sa(?:t(?:urday)?)?)\b/gi);
     if (matches) matches.forEach(m => { const i = dayMap[m.toLowerCase()]; if (i !== undefined) days.add(i); });
@@ -764,23 +766,24 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
             <div className="flex gap-1 flex-1 flex-wrap">
               {(['morning', 'afternoon', 'evening'] as const).map(t => {
                 const current = (editState.timing || '').toLowerCase();
-                const timingKeywords = /\b(morning|am|evening|pm|nightly|night|afternoon|pre[- ]?workout|post[- ]?workout)\b/gi;
-                const isActive = current.includes(t) || 
-                  (t === 'morning' && (/\bam\b/.test(current))) ||
-                  (t === 'evening' && (/\b(pm|nightly|night)\b/.test(current))) ||
-                  (t === 'afternoon' && (/\b(pre[- ]?workout|post[- ]?workout)\b/.test(current)));
+                // Match plurals and variants
+                const timingKeywords = /\b(mornings?|am|evenings?|pm|nightl?y?|nights?|afternoons?|pre[- ]?workouts?|post[- ]?workouts?)\b/gi;
+                const isActive = 
+                  (t === 'morning' && (/\b(mornings?|am)\b/i.test(current))) ||
+                  (t === 'evening' && (/\b(evenings?|pm|nightl?y?|nights?)\b/i.test(current))) ||
+                  (t === 'afternoon' && (/\b(afternoons?|pre[- ]?workouts?|post[- ]?workouts?)\b/i.test(current)));
                 return (
                   <button
                     key={t}
                     onClick={() => {
                       const note = editState.timing || '';
-                      // Strip ALL timing keywords first
+                      // Strip ALL timing keywords (including plurals)
                       const stripped = note.replace(timingKeywords, '').replace(/[,\s]+/g, ' ').trim();
-                      // Determine active set
+                      // Determine active set from current text
                       const active = new Set<string>();
-                      if (current.includes('morning') || /\bam\b/.test(current)) active.add('morning');
-                      if (current.includes('afternoon') || /\b(pre|post)[- ]?workout\b/.test(current)) active.add('afternoon');
-                      if (current.includes('evening') || /\b(pm|nightly|night)\b/.test(current)) active.add('evening');
+                      if (/\b(mornings?|am)\b/i.test(current)) active.add('morning');
+                      if (/\b(afternoons?|pre[- ]?workouts?|post[- ]?workouts?)\b/i.test(current)) active.add('afternoon');
+                      if (/\b(evenings?|pm|nightl?y?|nights?)\b/i.test(current)) active.add('evening');
                       // Toggle
                       if (active.has(t)) active.delete(t); else active.add(t);
                       // Rebuild
@@ -812,7 +815,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                   else days.add(idx);
                   const note = editState.timing || '';
                   let cleaned = note
-                    .replace(/\b(daily|nightly|every\s*day|m[\/-]f|mon[\s-]*fri|m\/w\/f|t\/th)\b/gi, '')
+                    .replace(/\b(daily|nightl?y?|every\s*day|m[\/-]f|mon[\s-]*fri|m\/w\/f|t\/th|M\/T\/W\/Th\/F\/?)\b/gi, '')
                     .replace(/\b(sun(?:day)?|mon(?:day)?|tue(?:s(?:day)?)?|wed(?:nesday)?|thu(?:rs(?:day)?)?|fri(?:day)?|sat(?:urday)?|sa)\b/gi, '')
                     .replace(/[,\/]\s*[,\/]/g, ',')
                     .replace(/^[,\s]+|[,\s]+$/g, '')
@@ -824,7 +827,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                 const toggleAll = () => {
                   const note = editState.timing || '';
                   let cleaned = note
-                    .replace(/\b(daily|nightly|every\s*day|m[\/-]f|mon[\s-]*fri|m\/w\/f|t\/th)\b/gi, '')
+                    .replace(/\b(daily|nightl?y?|every\s*day|m[\/-]f|mon[\s-]*fri|m\/w\/f|t\/th|M\/T\/W\/Th\/F\/?)\b/gi, '')
                     .replace(/\b(sun(?:day)?|mon(?:day)?|tue(?:s(?:day)?)?|wed(?:nesday)?|thu(?:rs(?:day)?)?|fri(?:day)?|sat(?:urday)?|sa)\b/gi, '')
                     .replace(/[,\/]\s*[,\/]/g, ',')
                     .replace(/^[,\s]+|[,\s]+$/g, '')
@@ -895,8 +898,8 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
               )}
             </div>
           </div>
-          {/* Volume (peptides/oils) or Per Unit (others) */}
-          {(editState.category === 'peptide' || editState.category === 'injectable-oil') ? (
+          {/* Volume (peptides only) or Per Unit (others) */}
+          {editState.category === 'peptide' ? (
             <div className="flex items-center gap-2 text-[11px]">
               <span className="text-muted-foreground w-16 flex-shrink-0">Volume</span>
               <div className="flex items-center gap-1 flex-1">
@@ -920,6 +923,23 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                 <span className="text-muted-foreground text-[10px] whitespace-nowrap">/vial</span>
               </div>
             </div>
+          ) : editState.category === 'injectable-oil' ? (
+            <>
+              <div className="flex items-center gap-2 text-[11px]">
+                <span className="text-muted-foreground w-16 flex-shrink-0">Conc.</span>
+                <div className="flex items-center gap-1 flex-1">
+                  <input
+                    type="number"
+                    value={editState.unitSize}
+                    onChange={e => setEditState(s => ({ ...s, unitSize: e.target.value }))}
+                    className="w-full bg-secondary border border-border/50 rounded px-2 py-1 text-foreground font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50"
+                  />
+                  <span className="text-muted-foreground text-[10px] whitespace-nowrap">mg/mL</span>
+                </div>
+              </div>
+              <EditRow label="Vial Size" value={editState.vialSizeMl || '10'} suffix="mL"
+                onChange={v => setEditState(s => ({ ...s, vialSizeMl: v }))} type="number" />
+            </>
           ) : (
             <div className="flex items-center gap-2 text-[11px]">
               <span className="text-muted-foreground w-16 flex-shrink-0">Per Unit</span>
@@ -951,55 +971,6 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                 </select>
               </div>
             </div>
-          )}
-          {/* Strength (weight per unit) — available for all compound types */}
-          <div className="flex items-center gap-2 text-[11px]">
-            <span className="text-muted-foreground w-16 flex-shrink-0">Strength</span>
-            <div className="flex items-center gap-1 flex-1">
-              <input
-                type="number"
-                value={editState.weightPerUnit || ''}
-                onChange={e => setEditState(s => ({ ...s, weightPerUnit: e.target.value }))}
-                placeholder="e.g. 500"
-                className="w-full bg-secondary border border-border/50 rounded px-2 py-1 text-foreground font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50"
-              />
-              <select
-                value={editState.strengthUnit || 'mg'}
-                onChange={e => {
-                  const newUnit = e.target.value;
-                  const oldUnit = editState.strengthUnit || 'mg';
-                  if (newUnit === oldUnit) return;
-                  const currentVal = parseFloat(editState.weightPerUnit || '0');
-                  if (!currentVal) {
-                    setEditState(s => ({ ...s, strengthUnit: newUnit }));
-                    return;
-                  }
-                  let mgVal = currentVal;
-                  if (oldUnit === 'mcg') mgVal = currentVal / 1000;
-                  else if (oldUnit === 'g') mgVal = currentVal * 1000;
-                  else if (oldUnit === 'IU') mgVal = currentVal;
-
-                  let newVal = mgVal;
-                  if (newUnit === 'mcg') newVal = mgVal * 1000;
-                  else if (newUnit === 'g') newVal = mgVal / 1000;
-                  else if (newUnit === 'IU') newVal = mgVal;
-
-                  newVal = Math.round(newVal * 10000) / 10000;
-                  setEditState(s => ({ ...s, strengthUnit: newUnit, weightPerUnit: newVal.toString() }));
-                }}
-                className="bg-secondary border border-border/50 rounded px-1.5 py-1 text-foreground font-mono text-[10px] focus:outline-none focus:ring-1 focus:ring-primary/50 min-w-[52px]"
-              >
-                <option value="mg">mg</option>
-                <option value="mcg">mcg</option>
-                <option value="g">g</option>
-                <option value="IU">IU</option>
-              </select>
-              <span className="text-muted-foreground text-[10px] whitespace-nowrap">each</span>
-            </div>
-          </div>
-          {isOil && (
-            <EditRow label="Vial Size" value={editState.vialSizeMl || '10'} suffix="mL"
-              onChange={v => setEditState(s => ({ ...s, vialSizeMl: v }))} type="number" />
           )}
           <div className="flex items-center gap-2 text-[11px]">
             <span className="text-muted-foreground w-16 flex-shrink-0">Dose</span>
