@@ -102,6 +102,7 @@ const FoodTrackerView = () => {
   const [showLiveScanner, setShowLiveScanner] = useState(false);
   const [liveScannerLoading, setLiveScannerLoading] = useState(false);
   const [liveScannerError, setLiveScannerError] = useState<string | null>(null);
+  const scanCancelledRef = useRef(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const scannerControlsRef = useRef<MediaStream | null>(null);
   const scanAnimRef = useRef<number | null>(null);
@@ -278,6 +279,7 @@ const FoodTrackerView = () => {
 
   // Stop live scanner — cancels RAF loop and releases camera stream
   const stopLiveScanner = useCallback(() => {
+    scanCancelledRef.current = true; // kill the tick loop immediately
     if (scanAnimRef.current !== null) {
       cancelAnimationFrame(scanAnimRef.current);
       scanAnimRef.current = null;
@@ -339,7 +341,8 @@ const FoodTrackerView = () => {
   // Initialize scanner: getUserMedia → canvas frame loop → ZXing decode
   useEffect(() => {
     if (!showLiveScanner) return;
-    let cancelled = false;
+    // Reset the shared cancel ref so the new session can run
+    scanCancelledRef.current = false;
 
     const initScanner = async () => {
       // Poll until videoRef is mounted (conditional render)
@@ -350,7 +353,7 @@ const FoodTrackerView = () => {
         video = videoRef.current;
         attempts++;
       }
-      if (cancelled || !video) {
+      if (scanCancelledRef.current || !video) {
         setLiveScannerError('Camera element not found.');
         setLiveScannerLoading(false);
         return;
@@ -367,11 +370,11 @@ const FoodTrackerView = () => {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
         });
-        if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
+        if (scanCancelledRef.current) { stream.getTracks().forEach(t => t.stop()); return; }
         scannerControlsRef.current = stream;
         video.srcObject = stream;
         await video.play();
-        if (cancelled) return;
+        if (scanCancelledRef.current) return;
         setLiveScannerLoading(false);
 
         const codeReader = new BrowserMultiFormatReader();
@@ -379,7 +382,8 @@ const FoodTrackerView = () => {
         const ctx = canvas.getContext('2d');
 
         const tick = () => {
-          if (cancelled || !ctx || !videoRef.current) return;
+          // Use the shared ref so stopLiveScanner can kill this loop synchronously
+          if (scanCancelledRef.current || !ctx || !videoRef.current) return;
           const v = videoRef.current;
           if (v.readyState === v.HAVE_ENOUGH_DATA && v.videoWidth > 0) {
             canvas.width = v.videoWidth;
@@ -387,9 +391,9 @@ const FoodTrackerView = () => {
             ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
             try {
               const result = codeReader.decodeFromCanvas(canvas);
-              if (result && !cancelled) {
+              if (result && !scanCancelledRef.current) {
                 lookupAndFillBarcode(result.getText());
-                return; // stop loop
+                return; // stop loop — lookupAndFillBarcode calls stopLiveScanner which sets scanCancelledRef
               }
             } catch {
               // NotFoundException on every empty frame — expected, continue
@@ -399,7 +403,7 @@ const FoodTrackerView = () => {
         };
         scanAnimRef.current = requestAnimationFrame(tick);
       } catch (e: any) {
-        if (cancelled) return;
+        if (scanCancelledRef.current) return;
         const msg = e?.name === 'NotAllowedError' || e?.message?.includes('Permission') || e?.name === 'NotFoundError'
           ? 'Camera permission denied. Please allow camera access and try again.'
           : `Could not access camera: ${e?.message || 'unknown error'}`;
@@ -410,7 +414,7 @@ const FoodTrackerView = () => {
 
     initScanner();
 
-    return () => { cancelled = true; };
+    return () => { scanCancelledRef.current = true; };
   }, [showLiveScanner, lookupAndFillBarcode]);
 
   // Fetch saved/recent foods from the database
