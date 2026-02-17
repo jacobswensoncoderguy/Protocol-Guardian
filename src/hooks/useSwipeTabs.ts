@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useState } from 'react';
 
 interface UseSwipeTabsOptions {
   tabs: string[];
@@ -9,11 +9,10 @@ interface UseSwipeTabsOptions {
 
 export function useSwipeTabs({ tabs, currentTab, onTabChange, threshold = 50 }: UseSwipeTabsOptions) {
   const touchStart = useRef<{ x: number; y: number } | null>(null);
-  const swiping = useRef(false);
+  const [slideClass, setSlideClass] = useState('');
 
   const onTouchStart = useCallback((e: React.TouchEvent) => {
     touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    swiping.current = false;
   }, []);
 
   const onTouchEnd = useCallback((e: React.TouchEvent) => {
@@ -22,16 +21,20 @@ export function useSwipeTabs({ tabs, currentTab, onTabChange, threshold = 50 }: 
     const dy = e.changedTouches[0].clientY - touchStart.current.y;
     touchStart.current = null;
 
-    // Only swipe if horizontal movement dominates
     if (Math.abs(dx) < threshold || Math.abs(dx) < Math.abs(dy) * 1.5) return;
 
     const idx = tabs.indexOf(currentTab);
     if (dx < 0 && idx < tabs.length - 1) {
+      setSlideClass('animate-slide-in-from-right');
       onTabChange(tabs[idx + 1]);
     } else if (dx > 0 && idx > 0) {
+      setSlideClass('animate-slide-in-from-left');
       onTabChange(tabs[idx - 1]);
     }
   }, [tabs, currentTab, onTabChange, threshold]);
 
-  return { onTouchStart, onTouchEnd };
+  // Clear animation class after it plays so it can re-trigger
+  const onAnimationEnd = useCallback(() => setSlideClass(''), []);
+
+  return { onTouchStart, onTouchEnd, slideClass, onAnimationEnd };
 }
