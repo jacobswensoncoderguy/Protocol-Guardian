@@ -1,0 +1,545 @@
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Plus, AlertCircle, Activity, Smile, Zap, Moon, ChevronDown, ChevronUp, Trash2, Calendar, ClipboardList, ArrowRightLeft, X } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
+import { format, parseISO, subDays } from 'date-fns';
+
+interface SymptomDefinition {
+  id: string;
+  name: string;
+  category: string;
+  body_area: string | null;
+  is_system: boolean;
+}
+
+interface SymptomLog {
+  id: string;
+  symptom_definition_id: string | null;
+  custom_symptom: string | null;
+  severity: number;
+  timing: string;
+  log_date: string;
+  log_time: string | null;
+  notes: string | null;
+}
+
+interface DailyCheckin {
+  id: string;
+  checkin_date: string;
+  energy_score: number | null;
+  mood_score: number | null;
+  pain_score: number | null;
+  sleep_score: number | null;
+  notes: string | null;
+}
+
+interface ProtocolChange {
+  id: string;
+  change_date: string;
+  compound_id: string | null;
+  change_type: string;
+  description: string;
+  previous_value: string | null;
+  new_value: string | null;
+}
+
+const SEVERITY_LABELS = ['', 'Minimal', 'Mild', 'Moderate', 'Severe', 'Extreme'];
+const SEVERITY_COLORS = ['', 'text-status-good', 'text-status-good', 'text-status-warning', 'text-status-critical', 'text-destructive'];
+const TIMING_OPTIONS = ['new', 'chronic', 'infrequent', 'recurring'];
+const CHANGE_TYPES = ['dose_change', 'started', 'stopped', 'timing_change', 'new_compound', 'behavior_change'];
+
+const CATEGORY_ICONS: Record<string, React.ElementType> = {
+  pain: AlertCircle,
+  energy: Zap,
+  mood: Smile,
+  sleep: Moon,
+  digestive: Activity,
+  neurological: Activity,
+  skin: Activity,
+  hormonal: Activity,
+  other: Activity,
+};
+
+const CHECKIN_EMOJIS = ['', '😞', '😕', '😐', '🙂', '😄'];
+
+const SymptomsTrackerView = () => {
+  const { user } = useAuth();
+  const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [definitions, setDefinitions] = useState<SymptomDefinition[]>([]);
+  const [logs, setLogs] = useState<SymptomLog[]>([]);
+  const [checkin, setCheckin] = useState<DailyCheckin | null>(null);
+  const [changes, setChanges] = useState<ProtocolChange[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [subTab, setSubTab] = useState('log');
+
+  // Dialogs
+  const [showAddSymptom, setShowAddSymptom] = useState(false);
+  const [showAddChange, setShowAddChange] = useState(false);
+
+  // Symptom form
+  const [selectedDefId, setSelectedDefId] = useState('');
+  const [customSymptom, setCustomSymptom] = useState('');
+  const [severity, setSeverity] = useState(3);
+  const [timing, setTiming] = useState('new');
+  const [symptomNotes, setSymptomNotes] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Change form
+  const [changeType, setChangeType] = useState('dose_change');
+  const [changeDescription, setChangeDescription] = useState('');
+  const [changeDate, setChangeDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [prevValue, setPrevValue] = useState('');
+  const [newValue, setNewValue] = useState('');
+
+  // Checkin form
+  const [energy, setEnergy] = useState(3);
+  const [mood, setMood] = useState(3);
+  const [pain, setPain] = useState(3);
+  const [sleep, setSleep] = useState(3);
+  const [checkinNotes, setCheckinNotes] = useState('');
+
+  const fetchData = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+
+    const [defsRes, logsRes, checkinRes, changesRes] = await Promise.all([
+      supabase.from('symptom_definitions').select('*').order('category').order('name'),
+      supabase.from('symptom_logs').select('*').eq('user_id', user.id).eq('log_date', selectedDate).order('created_at', { ascending: false }),
+      supabase.from('daily_checkins').select('*').eq('user_id', user.id).eq('checkin_date', selectedDate).single(),
+      supabase.from('protocol_changes').select('*').eq('user_id', user.id).order('change_date', { ascending: false }).limit(20),
+    ]);
+
+    setDefinitions((defsRes.data || []) as unknown as SymptomDefinition[]);
+    setLogs((logsRes.data || []) as unknown as SymptomLog[]);
+    setCheckin(checkinRes.data as unknown as DailyCheckin | null);
+    setChanges((changesRes.data || []) as unknown as ProtocolChange[]);
+
+    if (checkinRes.data) {
+      const c = checkinRes.data as any;
+      setEnergy(c.energy_score || 3);
+      setMood(c.mood_score || 3);
+      setPain(c.pain_score || 3);
+      setSleep(c.sleep_score || 3);
+      setCheckinNotes(c.notes || '');
+    } else {
+      setEnergy(3); setMood(3); setPain(3); setSleep(3); setCheckinNotes('');
+    }
+
+    setLoading(false);
+  }, [user, selectedDate]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const filteredDefs = useMemo(() => {
+    if (!searchQuery.trim()) return definitions;
+    const q = searchQuery.toLowerCase();
+    return definitions.filter(d => d.name.toLowerCase().includes(q) || d.category.toLowerCase().includes(q));
+  }, [definitions, searchQuery]);
+
+  const groupedDefs = useMemo(() => {
+    const groups: Record<string, SymptomDefinition[]> = {};
+    filteredDefs.forEach(d => {
+      if (!groups[d.category]) groups[d.category] = [];
+      groups[d.category].push(d);
+    });
+    return groups;
+  }, [filteredDefs]);
+
+  const handleAddSymptom = async () => {
+    if (!user || (!selectedDefId && !customSymptom.trim())) return;
+
+    const { data, error } = await supabase.from('symptom_logs').insert({
+      user_id: user.id,
+      symptom_definition_id: selectedDefId || null,
+      custom_symptom: selectedDefId ? null : customSymptom.trim(),
+      severity,
+      timing,
+      log_date: selectedDate,
+      notes: symptomNotes.trim() || null,
+    }).select().single();
+
+    if (error) { toast.error('Failed to log symptom'); return; }
+    setLogs(prev => [data as unknown as SymptomLog, ...prev]);
+    toast.success('Symptom logged');
+    setShowAddSymptom(false);
+    setSelectedDefId(''); setCustomSymptom(''); setSeverity(3); setTiming('new'); setSymptomNotes('');
+  };
+
+  const handleDeleteLog = async (id: string) => {
+    await supabase.from('symptom_logs').delete().eq('id', id);
+    setLogs(prev => prev.filter(l => l.id !== id));
+  };
+
+  const handleSaveCheckin = async () => {
+    if (!user) return;
+
+    if (checkin) {
+      await supabase.from('daily_checkins').update({
+        energy_score: energy, mood_score: mood, pain_score: pain, sleep_score: sleep, notes: checkinNotes.trim() || null,
+      }).eq('id', checkin.id);
+    } else {
+      const { data } = await supabase.from('daily_checkins').insert({
+        user_id: user.id, checkin_date: selectedDate,
+        energy_score: energy, mood_score: mood, pain_score: pain, sleep_score: sleep, notes: checkinNotes.trim() || null,
+      }).select().single();
+      if (data) setCheckin(data as unknown as DailyCheckin);
+    }
+    toast.success('Check-in saved');
+  };
+
+  const handleAddChange = async () => {
+    if (!user || !changeDescription.trim()) return;
+
+    const { data, error } = await supabase.from('protocol_changes').insert({
+      user_id: user.id,
+      change_date: changeDate,
+      change_type: changeType,
+      description: changeDescription.trim(),
+      previous_value: prevValue.trim() || null,
+      new_value: newValue.trim() || null,
+    }).select().single();
+
+    if (error) { toast.error('Failed to log change'); return; }
+    setChanges(prev => [data as unknown as ProtocolChange, ...prev]);
+    toast.success('Protocol change logged');
+    setShowAddChange(false);
+    setChangeDescription(''); setPrevValue(''); setNewValue('');
+  };
+
+  const getSymptomName = (log: SymptomLog) => {
+    if (log.custom_symptom) return log.custom_symptom;
+    const def = definitions.find(d => d.id === log.symptom_definition_id);
+    return def?.name || 'Unknown';
+  };
+
+  const ScoreSelector = ({ label, icon: Icon, value, onChange, emoji }: { label: string; icon: React.ElementType; value: number; onChange: (v: number) => void; emoji: boolean }) => (
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-1.5">
+        <Icon className="w-3.5 h-3.5 text-primary" />
+        <span className="text-xs font-medium text-foreground">{label}</span>
+      </div>
+      <div className="flex gap-1">
+        {[1, 2, 3, 4, 5].map(score => (
+          <button
+            key={score}
+            onClick={() => onChange(score)}
+            className={`flex-1 py-1.5 rounded-md text-xs font-semibold transition-all ${
+              value === score
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-secondary/50 text-muted-foreground hover:bg-secondary'
+            }`}
+          >
+            {emoji ? CHECKIN_EMOJIS[score] : score}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  const dateLabel = selectedDate === format(new Date(), 'yyyy-MM-dd') ? 'Today' :
+    format(parseISO(selectedDate), 'EEE, MMM d');
+
+  return (
+    <div className="space-y-4">
+      {/* Date selector */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold text-foreground">{dateLabel}</h2>
+        <Input
+          type="date"
+          value={selectedDate}
+          onChange={(e) => setSelectedDate(e.target.value)}
+          className="w-auto h-8 text-xs"
+        />
+      </div>
+
+      {/* Sub-navigation */}
+      <Tabs value={subTab} onValueChange={setSubTab}>
+        <TabsList className="w-full bg-card/80 border border-border/60 h-9 p-0.5 gap-0.5">
+          <TabsTrigger value="log" className="flex-1 text-[10px] font-semibold rounded data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <AlertCircle className="w-3 h-3 mr-1" />Symptoms
+          </TabsTrigger>
+          <TabsTrigger value="checkin" className="flex-1 text-[10px] font-semibold rounded data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <Smile className="w-3 h-3 mr-1" />Check-in
+          </TabsTrigger>
+          <TabsTrigger value="changes" className="flex-1 text-[10px] font-semibold rounded data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <ArrowRightLeft className="w-3 h-3 mr-1" />Changes
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Symptoms log tab */}
+        <TabsContent value="log" className="space-y-3 mt-3">
+          <Button onClick={() => setShowAddSymptom(true)} size="sm" className="w-full gap-1.5">
+            <Plus className="w-4 h-4" /> Log Symptom
+          </Button>
+
+          {logs.length === 0 ? (
+            <Card className="border-border/50">
+              <CardContent className="p-6 text-center">
+                <AlertCircle className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">No symptoms logged for {dateLabel}</p>
+                <p className="text-xs text-muted-foreground mt-1">Tap "Log Symptom" to start tracking</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {logs.map(log => (
+                <Card key={log.id} className="border-border/50">
+                  <CardContent className="p-3 flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-sm font-medium text-foreground">{getSymptomName(log)}</span>
+                        <Badge variant="outline" className={`text-[10px] h-4 ${SEVERITY_COLORS[log.severity]}`}>
+                          {SEVERITY_LABELS[log.severity]}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                        <span className="capitalize">{log.timing}</span>
+                        {log.notes && <span>· {log.notes}</span>}
+                      </div>
+                    </div>
+                    <button onClick={() => handleDeleteLog(log.id)} className="text-muted-foreground hover:text-destructive">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Daily check-in tab */}
+        <TabsContent value="checkin" className="mt-3">
+          <Card className="border-border/50">
+            <CardHeader className="p-3 pb-0">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Smile className="w-4 h-4 text-primary" />
+                Daily Wellness Check-in
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 space-y-4">
+              <ScoreSelector label="Energy" icon={Zap} value={energy} onChange={setEnergy} emoji />
+              <ScoreSelector label="Mood" icon={Smile} value={mood} onChange={setMood} emoji />
+              <ScoreSelector label="Pain Level" icon={AlertCircle} value={pain} onChange={setPain} emoji={false} />
+              <ScoreSelector label="Sleep Quality" icon={Moon} value={sleep} onChange={setSleep} emoji />
+              <Textarea
+                placeholder="Any notes about how you're feeling today..."
+                value={checkinNotes}
+                onChange={e => setCheckinNotes(e.target.value)}
+                className="text-sm min-h-[60px]"
+              />
+              <Button onClick={handleSaveCheckin} className="w-full">
+                {checkin ? 'Update Check-in' : 'Save Check-in'}
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Protocol changes tab */}
+        <TabsContent value="changes" className="space-y-3 mt-3">
+          <Button onClick={() => setShowAddChange(true)} size="sm" className="w-full gap-1.5">
+            <Plus className="w-4 h-4" /> Log Protocol Change
+          </Button>
+
+          {changes.length === 0 ? (
+            <Card className="border-border/50">
+              <CardContent className="p-6 text-center">
+                <ArrowRightLeft className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">No protocol changes logged</p>
+                <p className="text-xs text-muted-foreground mt-1">Record dose changes, new compounds, or behavior adjustments</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {changes.map(change => (
+                <Card key={change.id} className="border-border/50">
+                  <CardContent className="p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <Badge variant="secondary" className="text-[10px] h-4 capitalize">
+                            {change.change_type.replace(/_/g, ' ')}
+                          </Badge>
+                          <span className="text-[10px] text-muted-foreground">{format(parseISO(change.change_date), 'MMM d, yyyy')}</span>
+                        </div>
+                        <p className="text-xs text-foreground">{change.description}</p>
+                        {(change.previous_value || change.new_value) && (
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            {change.previous_value && <span>{change.previous_value}</span>}
+                            {change.previous_value && change.new_value && <span> → </span>}
+                            {change.new_value && <span className="text-primary">{change.new_value}</span>}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Add symptom dialog */}
+      <Dialog open={showAddSymptom} onOpenChange={setShowAddSymptom}>
+        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-base flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-primary" />
+              Log Symptom
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              placeholder="Search symptoms or type custom..."
+              value={searchQuery || customSymptom}
+              onChange={e => {
+                setSearchQuery(e.target.value);
+                setCustomSymptom(e.target.value);
+                setSelectedDefId('');
+              }}
+              autoFocus
+            />
+
+            {/* Predefined symptoms */}
+            {!selectedDefId && (
+              <div className="max-h-40 overflow-y-auto space-y-2 border border-border/50 rounded-lg p-2">
+                {Object.entries(groupedDefs).map(([category, defs]) => (
+                  <div key={category}>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">{category}</p>
+                    <div className="flex flex-wrap gap-1">
+                      {defs.map(d => (
+                        <button
+                          key={d.id}
+                          onClick={() => { setSelectedDefId(d.id); setSearchQuery(d.name); setCustomSymptom(''); }}
+                          className="px-2 py-0.5 text-[11px] rounded-full bg-secondary/50 text-foreground hover:bg-primary/20 hover:text-primary transition-colors"
+                        >
+                          {d.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {selectedDefId && (
+              <div className="flex items-center gap-2">
+                <Badge className="text-xs">{searchQuery}</Badge>
+                <button onClick={() => { setSelectedDefId(''); setSearchQuery(''); }} className="text-muted-foreground hover:text-foreground">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* Severity */}
+            <div>
+              <p className="text-xs font-medium text-foreground mb-1.5">Severity</p>
+              <div className="flex gap-1">
+                {[1, 2, 3, 4, 5].map(s => (
+                  <button
+                    key={s}
+                    onClick={() => setSeverity(s)}
+                    className={`flex-1 py-2 rounded-md text-xs font-semibold transition-all flex flex-col items-center gap-0.5 ${
+                      severity === s ? 'bg-primary text-primary-foreground' : 'bg-secondary/50 text-muted-foreground hover:bg-secondary'
+                    }`}
+                  >
+                    <span>{s}</span>
+                    <span className="text-[8px]">{SEVERITY_LABELS[s]}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Timing */}
+            <div>
+              <p className="text-xs font-medium text-foreground mb-1.5">Symptom timing</p>
+              <div className="flex gap-1">
+                {TIMING_OPTIONS.map(t => (
+                  <button
+                    key={t}
+                    onClick={() => setTiming(t)}
+                    className={`flex-1 py-1.5 rounded-md text-[11px] font-semibold capitalize transition-all ${
+                      timing === t ? 'bg-primary text-primary-foreground' : 'bg-secondary/50 text-muted-foreground hover:bg-secondary'
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <Textarea
+              placeholder="Additional notes..."
+              value={symptomNotes}
+              onChange={e => setSymptomNotes(e.target.value)}
+              className="min-h-[50px] text-sm"
+            />
+
+            <Button onClick={handleAddSymptom} disabled={!selectedDefId && !customSymptom.trim()} className="w-full">
+              Log Symptom
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add protocol change dialog */}
+      <Dialog open={showAddChange} onOpenChange={setShowAddChange}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base flex items-center gap-2">
+              <ArrowRightLeft className="w-4 h-4 text-primary" />
+              Log Protocol Change
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <p className="text-xs font-medium text-foreground mb-1.5">Change type</p>
+              <Select value={changeType} onValueChange={setChangeType}>
+                <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {CHANGE_TYPES.map(ct => (
+                    <SelectItem key={ct} value={ct} className="capitalize">{ct.replace(/_/g, ' ')}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Input
+              type="date"
+              value={changeDate}
+              onChange={e => setChangeDate(e.target.value)}
+            />
+
+            <Textarea
+              placeholder="Describe what changed (e.g., 'Increased BPC-157 from 250mcg to 500mcg')"
+              value={changeDescription}
+              onChange={e => setChangeDescription(e.target.value)}
+              className="min-h-[60px] text-sm"
+              autoFocus
+            />
+
+            <div className="grid grid-cols-2 gap-2">
+              <Input placeholder="Previous value" value={prevValue} onChange={e => setPrevValue(e.target.value)} className="text-sm" />
+              <Input placeholder="New value" value={newValue} onChange={e => setNewValue(e.target.value)} className="text-sm" />
+            </div>
+
+            <Button onClick={handleAddChange} disabled={!changeDescription.trim()} className="w-full">
+              Log Change
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+export default SymptomsTrackerView;

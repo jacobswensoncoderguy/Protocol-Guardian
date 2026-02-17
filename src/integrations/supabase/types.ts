@@ -250,6 +250,42 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_checkins: {
+        Row: {
+          checkin_date: string
+          created_at: string
+          energy_score: number | null
+          id: string
+          mood_score: number | null
+          notes: string | null
+          pain_score: number | null
+          sleep_score: number | null
+          user_id: string
+        }
+        Insert: {
+          checkin_date?: string
+          created_at?: string
+          energy_score?: number | null
+          id?: string
+          mood_score?: number | null
+          notes?: string | null
+          pain_score?: number | null
+          sleep_score?: number | null
+          user_id: string
+        }
+        Update: {
+          checkin_date?: string
+          created_at?: string
+          energy_score?: number | null
+          id?: string
+          mood_score?: number | null
+          notes?: string | null
+          pain_score?: number | null
+          sleep_score?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       dose_check_offs: {
         Row: {
           check_date: string
@@ -300,6 +336,155 @@ export type Database = {
           id?: string
           is_read?: boolean
           request_text?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      food_entries: {
+        Row: {
+          ai_confidence: number | null
+          barcode: string | null
+          brand: string | null
+          calories: number | null
+          carbs_g: number | null
+          cholesterol_mg: number | null
+          created_at: string
+          fat_g: number | null
+          fiber_g: number | null
+          food_name: string
+          id: string
+          meal_id: string | null
+          protein_g: number | null
+          serving_size: number | null
+          serving_unit: string | null
+          servings: number
+          sodium_mg: number | null
+          source: string | null
+          sugar_g: number | null
+          user_id: string
+        }
+        Insert: {
+          ai_confidence?: number | null
+          barcode?: string | null
+          brand?: string | null
+          calories?: number | null
+          carbs_g?: number | null
+          cholesterol_mg?: number | null
+          created_at?: string
+          fat_g?: number | null
+          fiber_g?: number | null
+          food_name: string
+          id?: string
+          meal_id?: string | null
+          protein_g?: number | null
+          serving_size?: number | null
+          serving_unit?: string | null
+          servings?: number
+          sodium_mg?: number | null
+          source?: string | null
+          sugar_g?: number | null
+          user_id: string
+        }
+        Update: {
+          ai_confidence?: number | null
+          barcode?: string | null
+          brand?: string | null
+          calories?: number | null
+          carbs_g?: number | null
+          cholesterol_mg?: number | null
+          created_at?: string
+          fat_g?: number | null
+          fiber_g?: number | null
+          food_name?: string
+          id?: string
+          meal_id?: string | null
+          protein_g?: number | null
+          serving_size?: number | null
+          serving_unit?: string | null
+          servings?: number
+          sodium_mg?: number | null
+          source?: string | null
+          sugar_g?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "food_entries_meal_id_fkey"
+            columns: ["meal_id"]
+            isOneToOne: false
+            referencedRelation: "meals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meals: {
+        Row: {
+          created_at: string
+          id: string
+          meal_date: string
+          meal_time: string | null
+          meal_type: string
+          notes: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          meal_date?: string
+          meal_time?: string | null
+          meal_type?: string
+          notes?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          meal_date?: string
+          meal_time?: string | null
+          meal_type?: string
+          notes?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      nutrition_targets: {
+        Row: {
+          calories_target: number | null
+          carbs_target_g: number | null
+          created_at: string
+          diet_type: string | null
+          fat_target_g: number | null
+          fiber_target_g: number | null
+          id: string
+          protein_target_g: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          calories_target?: number | null
+          carbs_target_g?: number | null
+          created_at?: string
+          diet_type?: string | null
+          fat_target_g?: number | null
+          fiber_target_g?: number | null
+          id?: string
+          protein_target_g?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          calories_target?: number | null
+          carbs_target_g?: number | null
+          created_at?: string
+          diet_type?: string | null
+          fat_target_g?: number | null
+          fiber_target_g?: number | null
+          id?: string
+          protein_target_g?: number | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
@@ -397,6 +582,42 @@ export type Database = {
         }
         Relationships: []
       }
+      protocol_changes: {
+        Row: {
+          change_date: string
+          change_type: string
+          compound_id: string | null
+          created_at: string
+          description: string
+          id: string
+          new_value: string | null
+          previous_value: string | null
+          user_id: string
+        }
+        Insert: {
+          change_date?: string
+          change_type?: string
+          compound_id?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          new_value?: string | null
+          previous_value?: string | null
+          user_id: string
+        }
+        Update: {
+          change_date?: string
+          change_type?: string
+          compound_id?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          new_value?: string | null
+          previous_value?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       protocol_chat_messages: {
         Row: {
           content: string
@@ -431,6 +652,143 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      saved_foods: {
+        Row: {
+          barcode: string | null
+          brand: string | null
+          calories: number | null
+          carbs_g: number | null
+          cholesterol_mg: number | null
+          created_at: string
+          fat_g: number | null
+          fiber_g: number | null
+          food_name: string
+          id: string
+          protein_g: number | null
+          serving_size: number | null
+          serving_unit: string | null
+          sodium_mg: number | null
+          sugar_g: number | null
+          use_count: number | null
+          user_id: string
+        }
+        Insert: {
+          barcode?: string | null
+          brand?: string | null
+          calories?: number | null
+          carbs_g?: number | null
+          cholesterol_mg?: number | null
+          created_at?: string
+          fat_g?: number | null
+          fiber_g?: number | null
+          food_name: string
+          id?: string
+          protein_g?: number | null
+          serving_size?: number | null
+          serving_unit?: string | null
+          sodium_mg?: number | null
+          sugar_g?: number | null
+          use_count?: number | null
+          user_id: string
+        }
+        Update: {
+          barcode?: string | null
+          brand?: string | null
+          calories?: number | null
+          carbs_g?: number | null
+          cholesterol_mg?: number | null
+          created_at?: string
+          fat_g?: number | null
+          fiber_g?: number | null
+          food_name?: string
+          id?: string
+          protein_g?: number | null
+          serving_size?: number | null
+          serving_unit?: string | null
+          sodium_mg?: number | null
+          sugar_g?: number | null
+          use_count?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      symptom_definitions: {
+        Row: {
+          body_area: string | null
+          category: string
+          created_at: string
+          id: string
+          is_system: boolean | null
+          name: string
+          user_id: string | null
+        }
+        Insert: {
+          body_area?: string | null
+          category: string
+          created_at?: string
+          id?: string
+          is_system?: boolean | null
+          name: string
+          user_id?: string | null
+        }
+        Update: {
+          body_area?: string | null
+          category?: string
+          created_at?: string
+          id?: string
+          is_system?: boolean | null
+          name?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      symptom_logs: {
+        Row: {
+          created_at: string
+          custom_symptom: string | null
+          id: string
+          log_date: string
+          log_time: string | null
+          notes: string | null
+          severity: number
+          symptom_definition_id: string | null
+          timing: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          custom_symptom?: string | null
+          id?: string
+          log_date?: string
+          log_time?: string | null
+          notes?: string | null
+          severity?: number
+          symptom_definition_id?: string | null
+          timing?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          custom_symptom?: string | null
+          id?: string
+          log_date?: string
+          log_time?: string | null
+          notes?: string | null
+          severity?: number
+          symptom_definition_id?: string | null
+          timing?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "symptom_logs_symptom_definition_id_fkey"
+            columns: ["symptom_definition_id"]
+            isOneToOne: false
+            referencedRelation: "symptom_definitions"
             referencedColumns: ["id"]
           },
         ]
