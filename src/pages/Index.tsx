@@ -292,6 +292,7 @@ const Index = () => {
               conversationManager={conversationManager}
               appFeatures={appFeatures}
               onEnableFeature={handleToggleFeature}
+              onAddCompound={() => setShowAddDialog(true)}
             />
           </TabsContent>
           <TabsContent value="outcomes" className="animate-slide-up">
