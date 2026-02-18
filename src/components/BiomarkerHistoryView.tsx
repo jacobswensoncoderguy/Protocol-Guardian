@@ -4,8 +4,9 @@ import {
   X, Trash2, RefreshCw, Loader2, Upload, AlertTriangle, FlaskConical,
   AlertCircle, Droplets, Bone, Zap, Syringe, Heart, Bug, ClipboardList,
   Link2, Pencil, Check, GitCompare, BookMarked, Info, Sparkles, Settings2,
-  ArrowRightLeft,
+  ArrowRightLeft, TrendingUp,
 } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { Slider } from '@/components/ui/slider';
 import { supabase } from '@/integrations/supabase/client';
 import { format, differenceInDays } from 'date-fns';
@@ -291,7 +292,164 @@ function InlineEditForm({
   );
 }
 
-// ─── Detail sheet (full AI analysis + sparklines) ─────────────
+// ─── Full Trend Chart (opens from sparkline tooltip) ──────────
+function FullTrendChart({
+  markerName,
+  unit,
+  trend,
+  onClose,
+}: {
+  markerName: string;
+  unit: string;
+  trend: { values: number[]; dates: string[] };
+  onClose: () => void;
+}) {
+  const chartData = trend.values.map((v, i) => ({ date: trend.dates[i], value: v }));
+  const minV = Math.min(...trend.values);
+  const maxV = Math.max(...trend.values);
+  const padding = (maxV - minV) * 0.2 || 1;
+
+  return (
+    <div
+      className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm px-2 pb-2 sm:pb-0"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl bg-card border border-border shadow-2xl p-4"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-primary" />
+            <div>
+              <p className="text-sm font-semibold text-foreground">{markerName}</p>
+              <p className="text-[10px] text-muted-foreground">{trend.values.length} readings · {unit}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Chart */}
+        <div className="h-44">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.3)" />
+              <XAxis
+                dataKey="date"
+                tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis
+                domain={[minV - padding, maxV + padding]}
+                tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
+                tickLine={false}
+                axisLine={false}
+                width={36}
+                tickFormatter={v => v.toFixed(1)}
+              />
+              <RechartsTooltip
+                contentStyle={{
+                  background: 'hsl(var(--card))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '8px',
+                  fontSize: '11px',
+                  color: 'hsl(var(--foreground))',
+                }}
+                formatter={(val: any) => [`${val} ${unit}`, markerName]}
+                labelStyle={{ color: 'hsl(var(--muted-foreground))', fontSize: '10px' }}
+              />
+              <Line
+                type="monotone"
+                dataKey="value"
+                stroke="hsl(var(--primary))"
+                strokeWidth={2}
+                dot={{ r: 3, fill: 'hsl(var(--primary))', strokeWidth: 0 }}
+                activeDot={{ r: 5, fill: 'hsl(var(--primary))' }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Value list */}
+        <div className="mt-3 space-y-1 max-h-24 overflow-y-auto">
+          {chartData.map((d, i) => (
+            <div key={i} className="flex items-center justify-between text-[10px]">
+              <span className="text-muted-foreground">{d.date}</span>
+              <span className={`font-mono font-semibold ${i === chartData.length - 1 ? 'text-foreground' : 'text-muted-foreground'}`}>
+                {d.value} {unit}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Sparkline + tooltip + full chart button ──────────────────
+function SparklineWithChart({
+  markerName,
+  unit,
+  trend,
+}: {
+  markerName: string;
+  unit: string;
+  trend: { values: number[]; dates: string[] };
+}) {
+  const [fullChartOpen, setFullChartOpen] = useState(false);
+
+  return (
+    <>
+      <Popover>
+        <PopoverTrigger asChild>
+          <button className="focus:outline-none" title={`${markerName} trend — click for details`}>
+            <MiniSparkline
+              values={trend.values}
+              width={40}
+              height={14}
+              className="opacity-80 hover:opacity-100 transition-opacity cursor-pointer"
+            />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-52 p-2.5 bg-card border-border shadow-xl z-[70]" side="top" align="end">
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{markerName} trend</p>
+          <div className="space-y-1">
+            {trend.dates.map((d, di) => (
+              <div key={di} className="flex items-center justify-between text-[10px]">
+                <span className="text-muted-foreground">{d}</span>
+                <span className={`font-mono font-medium ${di === trend.dates.length - 1 ? 'text-foreground' : 'text-muted-foreground'}`}>
+                  {trend.values[di]} {unit}
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="text-[9px] text-muted-foreground mt-1.5 italic">{trend.values.length} readings across uploads</p>
+          <button
+            onClick={() => setFullChartOpen(true)}
+            className="mt-2 w-full flex items-center justify-center gap-1 text-[10px] font-semibold text-primary border border-primary/20 bg-primary/5 hover:bg-primary/10 rounded-lg py-1.5 transition-colors"
+          >
+            <TrendingUp className="w-3 h-3" /> View Full Trend
+          </button>
+        </PopoverContent>
+      </Popover>
+
+      {fullChartOpen && (
+        <FullTrendChart
+          markerName={markerName}
+          unit={unit}
+          trend={trend}
+          onClose={() => setFullChartOpen(false)}
+        />
+      )}
+    </>
+  );
+}
+
+
 function DetailSheet({
   upload,
   allUploads,
@@ -498,34 +656,11 @@ function DetailSheet({
                             <div className="flex items-center gap-2 flex-shrink-0">
                               {/* Sparkline with tooltip if 2+ historical data points */}
                               {trend ? (
-                                <Popover>
-                                  <PopoverTrigger asChild>
-                                    <button className="focus:outline-none" title={`${m.name} trend — click for details`}>
-                                      <MiniSparkline
-                                        values={trend.values}
-                                        width={40}
-                                        height={14}
-                                        className="opacity-80 hover:opacity-100 transition-opacity cursor-pointer"
-                                      />
-                                    </button>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-52 p-2.5 bg-card border-border shadow-xl z-[70]" side="top" align="end">
-                                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{m.name} trend</p>
-                                    <div className="space-y-1">
-                                      {trend.dates.map((d, di) => (
-                                        <div key={di} className="flex items-center justify-between text-[10px]">
-                                          <span className="text-muted-foreground">{d}</span>
-                                          <span className={`font-mono font-medium ${
-                                            di === trend.dates.length - 1 ? 'text-foreground' : 'text-muted-foreground'
-                                          }`}>
-                                            {trend.values[di]} {m.unit}
-                                          </span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                    <p className="text-[9px] text-muted-foreground mt-1.5 italic">{trend.values.length} readings across uploads</p>
-                                  </PopoverContent>
-                                </Popover>
+                                <SparklineWithChart
+                                  markerName={m.name}
+                                  unit={m.unit}
+                                  trend={trend}
+                                />
                               ) : null}
                               <span className="font-mono text-foreground">{m.value} {m.unit}</span>
                               <span className={`text-[10px] ${STATUS_TEXT_COLORS[m.status] || 'text-muted-foreground'}`}>
@@ -606,19 +741,19 @@ function ComparisonSheet({
     const sorted = [...uploads].sort((a, b) => parseRecordDate(a).getTime() - parseRecordDate(b).getTime());
     const earliest = sorted[0];
     const latest = sorted[sorted.length - 1];
-    const oldMap = new Map<string, string>();
+    const oldMap = new Map<string, { value: any; unit: string; status: string }>();
     const newMap = new Map<string, { value: any; unit: string; status: string }>();
-    (earliest.ai_extracted_data?.biomarkers || []).forEach((b: any) => oldMap.set(b.name, b.status));
+    (earliest.ai_extracted_data?.biomarkers || []).forEach((b: any) => oldMap.set(b.name, { value: b.value, unit: b.unit, status: b.status }));
     (latest.ai_extracted_data?.biomarkers || []).forEach((b: any) => newMap.set(b.name, { value: b.value, unit: b.unit, status: b.status }));
 
-    const changes: { name: string; from: string; to: string; value: any; unit: string; direction: 'improved' | 'worsened' | 'changed' }[] = [];
+    const changes: { name: string; from: string; to: string; oldValue: any; value: any; unit: string; direction: 'improved' | 'worsened' | 'changed' }[] = [];
     newMap.forEach((curr, name) => {
       const prev = oldMap.get(name);
-      if (!prev || prev === curr.status) return;
-      const wasNormal = prev === 'normal';
+      if (!prev || prev.status === curr.status) return;
+      const wasNormal = prev.status === 'normal';
       const isNormal = curr.status === 'normal';
       const direction = wasNormal && !isNormal ? 'worsened' : !wasNormal && isNormal ? 'improved' : 'changed';
-      changes.push({ name, from: prev, to: curr.status, value: curr.value, unit: curr.unit, direction });
+      changes.push({ name, from: prev.status, to: curr.status, oldValue: prev.value, value: curr.value, unit: curr.unit, direction });
     });
     return changes;
   }, [uploads]);
@@ -798,21 +933,27 @@ function ComparisonSheet({
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                 <ArrowRightLeft className="w-3 h-3 text-primary" /> Key Changes
               </p>
-              <p className="text-[10px] text-muted-foreground">Markers that moved between normal and flagged across selected uploads</p>
-              <div className="space-y-1">
+              <p className="text-[10px] text-muted-foreground">Markers that changed status across selected uploads</p>
+              <div className="space-y-1.5">
                 {keyChanges.map((c, i) => (
-                  <div key={i} className="flex items-center justify-between text-xs px-2 py-1.5 rounded-lg bg-card border border-border/30">
-                    <span className="font-medium text-foreground min-w-0 truncate flex-1 mr-2">{c.name}</span>
-                    <div className="flex items-center gap-1.5 flex-shrink-0 text-[10px]">
+                  <div key={i} className="flex flex-col gap-1 px-2.5 py-2 rounded-lg bg-card border border-border/30">
+                    {/* Top row: name + direction indicator */}
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-foreground text-xs truncate flex-1 mr-2">{c.name}</span>
+                      <span className={`text-[10px] font-bold ${c.direction === 'improved' ? 'text-emerald-400' : c.direction === 'worsened' ? 'text-destructive' : 'text-muted-foreground'}`}>
+                        {c.direction === 'improved' ? '↑ Improved' : c.direction === 'worsened' ? '↓ Worsened' : '↔ Changed'}
+                      </span>
+                    </div>
+                    {/* Bottom row: numeric values + status badges */}
+                    <div className="flex items-center gap-2 text-[10px]">
+                      <span className="font-mono text-muted-foreground">{c.oldValue ?? '—'} {c.unit}</span>
                       <span className={`px-1 py-0.5 rounded font-medium ${c.from === 'normal' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-status-warning/10 text-status-warning'}`}>
                         {c.from.replace('_', ' ')}
                       </span>
                       <span className="text-muted-foreground">→</span>
+                      <span className="font-mono text-foreground font-semibold">{c.value ?? '—'} {c.unit}</span>
                       <span className={`px-1 py-0.5 rounded font-medium ${c.to === 'normal' ? 'bg-emerald-500/10 text-emerald-400' : c.to.startsWith('critical') ? 'bg-destructive/10 text-destructive' : 'bg-status-warning/10 text-status-warning'}`}>
                         {c.to.replace('_', ' ')}
-                      </span>
-                      <span className={`ml-1 font-semibold ${c.direction === 'improved' ? 'text-emerald-400' : c.direction === 'worsened' ? 'text-destructive' : 'text-muted-foreground'}`}>
-                        {c.direction === 'improved' ? '↑' : c.direction === 'worsened' ? '↓' : '↔'}
                       </span>
                     </div>
                   </div>
