@@ -47,6 +47,10 @@ interface WeeklyScheduleViewProps {
   customFieldValues?: Map<string, Map<string, string>>;
   checkedDoses?: Set<string>;
   onToggleChecked?: (key: string) => void;
+  /** When true, dose checkboxes are hidden (read-only mode for member views) */
+  readOnly?: boolean;
+  /** Map of memberInitial -> Set<checkKey> for combined view initials badges */
+  memberInitialsDoses?: Map<string, Set<string>>;
 }
 
 function getResumeDate(daysLeft: number): string {
@@ -56,7 +60,7 @@ function getResumeDate(daysLeft: number): string {
   return `${months[d.getMonth()]} ${d.getDate()}`;
 }
 
-const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compoundLoading, onAnalyzeCompound, customFields, customFieldValues, checkedDoses: externalChecked, onToggleChecked: externalToggle }: WeeklyScheduleViewProps) => {
+const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compoundLoading, onAnalyzeCompound, customFields, customFieldValues, checkedDoses: externalChecked, onToggleChecked: externalToggle, readOnly = false, memberInitialsDoses }: WeeklyScheduleViewProps) => {
   const today = new Date().getDay();
   const [selectedDay, setSelectedDay] = useState(today);
   const [selectedCompound, setSelectedCompound] = useState<Compound | null>(null);
@@ -165,6 +169,8 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
           doseUnit={doseUnit}
           checkedDoses={checkedDoses}
           onToggleChecked={toggleChecked}
+          readOnly={readOnly}
+          memberInitialsDoses={memberInitialsDoses}
         />
 
         {/* Afternoon */}
@@ -183,6 +189,8 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
             doseUnit={doseUnit}
             checkedDoses={checkedDoses}
             onToggleChecked={toggleChecked}
+            readOnly={readOnly}
+            memberInitialsDoses={memberInitialsDoses}
           />
         )}
 
@@ -201,6 +209,8 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
           doseUnit={doseUnit}
           checkedDoses={checkedDoses}
           onToggleChecked={toggleChecked}
+          readOnly={readOnly}
+          memberInitialsDoses={memberInitialsDoses}
         />
 
         <CompoundInfoDrawer
@@ -231,6 +241,8 @@ const DoseSection = ({
   doseUnit,
   checkedDoses,
   onToggleChecked,
+  readOnly = false,
+  memberInitialsDoses,
 }: {
   icon: React.ReactNode;
   title: string;
@@ -245,6 +257,8 @@ const DoseSection = ({
   doseUnit: 'mg' | 'ml';
   checkedDoses: Set<string>;
   onToggleChecked: (key: string) => void;
+  readOnly?: boolean;
+  memberInitialsDoses?: Map<string, Set<string>>;
 }) => {
   const allPeptides = doses.filter(d => d.category === 'peptide' || d.category === 'injectable-oil');
   const allOrals = doses.filter(d => d.category === 'oral' || d.category === 'prescription' || d.category === 'vitamin' || d.category === 'adaptogen' || d.category === 'nootropic' || d.category === 'holistic' || d.category === 'probiotic' || d.category === 'alternative-medicine');
@@ -278,19 +292,19 @@ const DoseSection = ({
 
       <div className="space-y-3">
         {allPeptides.length > 0 && (
-          <DoseGroup label="Injectables" doses={allPeptides} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} />
+          <DoseGroup label="Injectables" doses={allPeptides} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} />
         )}
         {protocolGroups.map(pg => (
-          <DoseGroup key={pg.label} label={pg.label} doses={pg.doses} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} />
+          <DoseGroup key={pg.label} label={pg.label} doses={pg.doses} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} />
         ))}
         {ungroupedOrals.length > 0 && (
-          <DoseGroup label="Oral Supplements" doses={ungroupedOrals} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} />
+          <DoseGroup label="Oral Supplements" doses={ungroupedOrals} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} />
         )}
         {ungroupedPowders.length > 0 && (
-          <DoseGroup label="Powders" doses={ungroupedPowders} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} />
+          <DoseGroup label="Powders" doses={ungroupedPowders} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} />
         )}
         {ungroupedTopicals.length > 0 && (
-          <DoseGroup label="Topicals" doses={ungroupedTopicals} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} />
+          <DoseGroup label="Topicals" doses={ungroupedTopicals} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} />
         )}
       </div>
     </div>
@@ -307,6 +321,8 @@ const DoseGroup = ({
   doseUnit,
   checkedDoses,
   onToggleChecked,
+  readOnly = false,
+  memberInitialsDoses,
 }: {
   label: string;
   doses: DayDose[];
@@ -317,6 +333,8 @@ const DoseGroup = ({
   doseUnit: 'mg' | 'ml';
   checkedDoses: Set<string>;
   onToggleChecked: (key: string) => void;
+  readOnly?: boolean;
+  memberInitialsDoses?: Map<string, Set<string>>;
 }) => {
   const seenOff = new Set<string>();
   const filteredDoses = doses.filter(d => {
@@ -379,12 +397,21 @@ const DoseGroup = ({
           const checkKey = `${dose.compoundId}-${dose.timing}-${i}`;
           const isChecked = checkedDoses.has(checkKey);
           const isInactive = isOff || isPausedItem;
+
+          // Collect which member initials checked this dose (combined view)
+          const checkedByInitials: string[] = [];
+          if (memberInitialsDoses) {
+            memberInitialsDoses.forEach((keySet, initial) => {
+              if (keySet.has(checkKey)) checkedByInitials.push(initial);
+            });
+          }
+
           return (
             <div
               key={`${dose.compoundId}-${i}`}
               className={`flex items-center gap-2 rounded px-2.5 py-1.5 transition-colors hover:bg-card/80 active:bg-card ${isInactive ? 'bg-card/20 opacity-50' : 'bg-card/50'}`}
             >
-              {!isInactive && (
+              {!isInactive && !readOnly && (
                 <button
                   onClick={(e) => { e.stopPropagation(); onToggleChecked(checkKey); }}
                   className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
@@ -395,6 +422,16 @@ const DoseGroup = ({
                 >
                   {isChecked && <Check className="w-3 h-3" />}
                 </button>
+              )}
+              {/* Read-only indicator: show a dimmed eye-like dot for member views */}
+              {!isInactive && readOnly && (
+                <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                  isChecked
+                    ? 'bg-muted-foreground/30 border-muted-foreground/40'
+                    : 'border-muted-foreground/20'
+                }`}>
+                  {isChecked && <Check className="w-3 h-3 text-muted-foreground" />}
+                </div>
               )}
               <button
                 onClick={() => onCompoundClick(dose.compoundId)}
@@ -408,20 +445,32 @@ const DoseGroup = ({
                     </span>
                   )}
                 </span>
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  {isPausedItem && (
-                    <span className="flex items-center gap-1 text-[10px] font-mono text-muted-foreground">
-                      <Pause className="w-3 h-3" />
-                      {pauseRestart ? `→ ${pauseRestart}` : 'Paused'}
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  {/* Member initials badges for combined view */}
+                  {checkedByInitials.map((initial, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-accent/20 text-accent border border-accent/30 text-[9px] font-bold"
+                      title={`Checked by ${initial}`}
+                    >
+                      {initial}
                     </span>
-                  )}
-                  {!isPausedItem && isOff && status?.hasCycle && (
-                    <span className="text-[10px] font-mono text-status-warning">OFF → {getResumeDate(status.daysLeftInPhase)}</span>
-                  )}
-                  {showCycleDays && (
-                    <span className="text-[10px] font-mono text-muted-foreground">{status.daysLeftInPhase}d</span>
-                  )}
-                  {!isOff && !isPausedItem && <span className={`text-xs font-mono text-primary ${isChecked ? 'line-through opacity-60' : ''}`}>{displayDose}</span>}
+                  ))}
+                  <div className="flex items-center gap-1.5">
+                    {isPausedItem && (
+                      <span className="flex items-center gap-1 text-[10px] font-mono text-muted-foreground">
+                        <Pause className="w-3 h-3" />
+                        {pauseRestart ? `→ ${pauseRestart}` : 'Paused'}
+                      </span>
+                    )}
+                    {!isPausedItem && isOff && status?.hasCycle && (
+                      <span className="text-[10px] font-mono text-status-warning">OFF → {getResumeDate(status.daysLeftInPhase)}</span>
+                    )}
+                    {showCycleDays && (
+                      <span className="text-[10px] font-mono text-muted-foreground">{status.daysLeftInPhase}d</span>
+                    )}
+                    {!isOff && !isPausedItem && <span className={`text-xs font-mono text-primary ${isChecked ? 'line-through opacity-60' : ''}`}>{displayDose}</span>}
+                  </div>
                 </div>
               </button>
             </div>

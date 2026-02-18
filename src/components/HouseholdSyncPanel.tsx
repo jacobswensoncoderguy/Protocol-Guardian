@@ -1,7 +1,17 @@
 import { useState } from 'react';
-import { Users, UserPlus, Check, X, Trash2, Loader2, Mail, Clock, UserCheck } from 'lucide-react';
+import { Users, UserPlus, Check, X, Trash2, Loader2, Mail, Clock, UserCheck, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 import { HouseholdMember } from '@/hooks/useHousehold';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface HouseholdSyncPanelProps {
   members: HouseholdMember[];
@@ -12,6 +22,17 @@ interface HouseholdSyncPanelProps {
   onAccept: (linkId: string) => Promise<boolean>;
   onReject: (linkId: string) => Promise<boolean>;
   onRemove: (linkId: string) => Promise<boolean>;
+}
+
+/** Returns the best display label for a household member */
+function getMemberLabel(m: HouseholdMember): string {
+  if (m.displayName) return m.displayName;
+  if (m.email) {
+    // Show everything before the @ symbol as a friendly fallback
+    const atIdx = m.email.indexOf('@');
+    return atIdx > 0 ? m.email.slice(0, atIdx) : m.email;
+  }
+  return 'Unknown User';
 }
 
 const HouseholdSyncPanel = ({
@@ -27,6 +48,7 @@ const HouseholdSyncPanel = ({
   const [inviteEmail, setInviteEmail] = useState('');
   const [sending, setSending] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [leaveConfirmMember, setLeaveConfirmMember] = useState<HouseholdMember | null>(null);
 
   const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,7 +121,7 @@ const HouseholdSyncPanel = ({
               <div className="flex items-center gap-2">
                 <Clock className="w-3.5 h-3.5 text-primary" />
                 <div>
-                  <p className="text-xs font-medium">{m.displayName || 'Unknown User'}</p>
+                  <p className="text-xs font-medium">{getMemberLabel(m)}</p>
                   <p className="text-[10px] text-muted-foreground">Wants to link with you</p>
                 </div>
               </div>
@@ -133,7 +155,7 @@ const HouseholdSyncPanel = ({
               <div className="flex items-center gap-2">
                 <Clock className="w-3.5 h-3.5 text-muted-foreground" />
                 <div>
-                  <p className="text-xs font-medium">{m.displayName || 'Unknown User'}</p>
+                  <p className="text-xs font-medium">{getMemberLabel(m)}</p>
                   <p className="text-[10px] text-muted-foreground">Pending acceptance</p>
                 </div>
               </div>
@@ -149,7 +171,7 @@ const HouseholdSyncPanel = ({
         </div>
       )}
 
-      {/* Accepted Members */}
+      {/* Accepted Members with Leave Household */}
       {acceptedMembers.length > 0 && (
         <div className="space-y-1.5">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Linked Members</p>
@@ -157,14 +179,20 @@ const HouseholdSyncPanel = ({
             <div key={m.linkId} className="flex items-center justify-between p-2.5 rounded-lg border border-status-good/30 bg-status-good/5">
               <div className="flex items-center gap-2">
                 <UserCheck className="w-3.5 h-3.5 text-status-good" />
-                <p className="text-xs font-medium">{m.displayName || 'Unknown User'}</p>
+                <div>
+                  <p className="text-xs font-medium">{getMemberLabel(m)}</p>
+                  {m.email && m.displayName && (
+                    <p className="text-[10px] text-muted-foreground">{m.email}</p>
+                  )}
+                </div>
               </div>
               <button
-                onClick={() => handleAction(() => onRemove(m.linkId), m.linkId, 'Member removed from household.')}
+                onClick={() => setLeaveConfirmMember(m)}
                 disabled={actionLoading === m.linkId}
-                className="p-1.5 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                className="flex items-center gap-1 px-2 py-1.5 rounded-md text-xs text-muted-foreground border border-border/50 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-colors"
               >
-                <Trash2 className="w-3.5 h-3.5" />
+                <LogOut className="w-3 h-3" />
+                Leave
               </button>
             </div>
           ))}
@@ -183,8 +211,47 @@ const HouseholdSyncPanel = ({
           No household members yet. Invite someone above to get started.
         </div>
       )}
+
+      {/* Leave Household Confirmation Dialog */}
+      <AlertDialog open={!!leaveConfirmMember} onOpenChange={open => { if (!open) setLeaveConfirmMember(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Leave Household?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <span>
+                You are about to remove the link with <strong>{leaveConfirmMember ? getMemberLabel(leaveConfirmMember) : ''}</strong>.
+              </span>
+              <span className="block mt-2 text-destructive/80 font-medium text-xs">
+                ⚠️ Combined views (inventory, schedule, costs) will no longer be available and the household toggle will disappear.
+              </span>
+              <span className="block mt-1">
+                This action can be undone by sending a new invite.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setLeaveConfirmMember(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (!leaveConfirmMember) return;
+                const m = leaveConfirmMember;
+                setLeaveConfirmMember(null);
+                await handleAction(
+                  () => onRemove(m.linkId),
+                  m.linkId,
+                  'Left household. Combined views have been disabled.'
+                );
+              }}
+            >
+              Leave Household
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
 
 export default HouseholdSyncPanel;
+

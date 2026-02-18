@@ -6,6 +6,7 @@ export interface HouseholdMember {
   linkId: string;
   userId: string;
   displayName: string | null;
+  email: string | null; // fallback when no display_name
   status: 'pending' | 'accepted' | 'rejected';
   isRequester: boolean; // true if current user sent the invite
 }
@@ -41,7 +42,7 @@ export function useHousehold(userId?: string) {
 
     setLinks(data || []);
 
-    // For each link, fetch the other user's profile
+  // For each link, fetch the other user's profile + use invite_token as email fallback
     const enriched: HouseholdMember[] = [];
     for (const link of (data || [])) {
       const otherUserId = link.requester_id === userId ? link.member_id : link.requester_id;
@@ -51,10 +52,19 @@ export function useHousehold(userId?: string) {
         .eq('user_id', otherUserId)
         .maybeSingle();
 
+      const displayName: string | null = profileData?.display_name || null;
+      // invite_token stores the invited member's email prefixed with "email:"
+      // so we can show it as a fallback when display_name is not set
+      const storedToken: string | null = link.invite_token || null;
+      const emailFallback = storedToken?.startsWith('email:')
+        ? storedToken.slice(6)
+        : null;
+
       enriched.push({
         linkId: link.id,
         userId: otherUserId,
-        displayName: profileData?.display_name || null,
+        displayName,
+        email: emailFallback,
         status: link.status as 'pending' | 'accepted' | 'rejected',
         isRequester: link.requester_id === userId,
       });
@@ -95,6 +105,8 @@ export function useHousehold(userId?: string) {
         requester_id: userId,
         member_id: targetUser.user_id,
         status: 'pending',
+        // Store invited email as fallback display label (prefix to distinguish from real tokens)
+        invite_token: `email:${email}`,
       });
 
     if (insertError) {
