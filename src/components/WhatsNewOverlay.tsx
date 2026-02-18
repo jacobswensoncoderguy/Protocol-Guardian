@@ -16,7 +16,7 @@ interface ChangelogEntry {
 }
 
 const APP_VERSION = '1.4.0';
-const STORAGE_KEY = 'superhuman_whats_new_dismissed';
+const STORAGE_KEY = 'protocol_guardian_whats_new_dismissed';
 
 const CHANGELOG: ChangelogEntry[] = [
   {

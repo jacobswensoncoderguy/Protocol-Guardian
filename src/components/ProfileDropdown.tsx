@@ -83,15 +83,15 @@ const ProfileDropdown = ({
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent className="w-48" sideOffset={4} alignOffset={-5}>
             <DropdownMenuItem onClick={() => {
-              const body = `Check out SUPERHUMAN Tracker — track your protocol and optimize your performance. Create your account here: ${inviteUrl}`;
+              const body = `Check out PROTOCOL Guardian — track your protocol and optimize your performance. Create your account here: ${inviteUrl}`;
               window.open(`sms:?&body=${encodeURIComponent(body)}`);
             }} className="gap-2 cursor-pointer">
               <MessageSquare className="w-4 h-4" />
               Share via Text
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => {
-              const subject = 'Try SUPERHUMAN Tracker';
-              const body = `Check out SUPERHUMAN Tracker — track your protocol and optimize your performance.\n\nCreate your account here: ${inviteUrl}`;
+              const subject = 'Try PROTOCOL Guardian';
+              const body = `Check out PROTOCOL Guardian — track your protocol and optimize your performance.\n\nCreate your account here: ${inviteUrl}`;
               window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
             }} className="gap-2 cursor-pointer">
               <Mail className="w-4 h-4" />
