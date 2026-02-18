@@ -191,6 +191,7 @@ const Index = () => {
     conversationManager.activeConversationId,
     conversationManager.refreshConversation,
     conversationManager.renameConversation,
+    () => { setActiveTab('protocol'); setScheduleSubTab('ai-changes'); },
   );
 
   const [activeTab, setActiveTab] = useState('dashboard');
