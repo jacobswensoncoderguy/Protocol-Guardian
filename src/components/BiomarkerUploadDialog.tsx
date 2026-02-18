@@ -1,5 +1,5 @@
-import { useState, useCallback, useRef } from 'react';
-import { Upload, FileText, Loader2, AlertCircle, CheckCircle2, ChevronDown, ChevronUp, X, Beaker, TrendingUp, Plus, Droplets, Bone, Zap, Syringe, Heart, Bug, ClipboardList } from 'lucide-react';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { Upload, FileText, Loader2, AlertCircle, CheckCircle2, ChevronDown, ChevronUp, X, Beaker, TrendingUp, Plus, Droplets, Bone, Zap, Syringe, Heart, Bug, ClipboardList, FlaskConical, Calendar, Tag } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { UserGoal } from '@/hooks/useGoals';
@@ -80,6 +80,20 @@ const DOC_TYPE_ICONS: Record<string, React.ComponentType<{ className?: string }>
   other: ClipboardList,
 };
 
+/** Build a human-friendly default label from doc type + date */
+function buildDefaultLabel(docType: string, docDate?: string): string {
+  const typeLabel = DOC_TYPE_LABELS[docType] || 'Lab Results';
+  if (!docDate) return typeLabel;
+  try {
+    const d = new Date(docDate);
+    const month = d.toLocaleString('en-US', { month: 'long' });
+    const year = d.getFullYear();
+    return `${typeLabel} ${month} ${year}`;
+  } catch {
+    return typeLabel;
+  }
+}
+
 export default function BiomarkerUploadDialog({
   open,
   onOpenChange,
@@ -94,8 +108,21 @@ export default function BiomarkerUploadDialog({
   const [savingReadings, setSavingReadings] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [parseProgress, setParseProgress] = useState<{ current: number; total: number } | null>(null);
+  // Label + date for the upload record
+  const [uploadLabel, setUploadLabel] = useState('');
+  const [uploadDate, setUploadDate] = useState('');
+  const [saved, setSaved] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
+
+  // When a result arrives, pre-fill label and date
+  useEffect(() => {
+    if (parsedResult) {
+      setUploadLabel(buildDefaultLabel(parsedResult.document_type, parsedResult.document_date));
+      setUploadDate(parsedResult.document_date || new Date().toISOString().split('T')[0]);
+      setSaved(false);
+    }
+  }, [parsedResult]);
 
   const resetState = () => {
     setStep('upload');
@@ -105,6 +132,9 @@ export default function BiomarkerUploadDialog({
     setSavingReadings(false);
     setDragOver(false);
     setParseProgress(null);
+    setUploadLabel('');
+    setUploadDate('');
+    setSaved(false);
   };
 
   const handleClose = (open: boolean) => {
@@ -126,7 +156,6 @@ export default function BiomarkerUploadDialog({
       const reader = new FileReader();
       reader.onload = () => {
         const result = reader.result as string;
-        // Strip data URL prefix to get raw base64
         const base64 = result.split(',')[1];
         resolve(base64);
       };
@@ -212,17 +241,13 @@ export default function BiomarkerUploadDialog({
         if (result) {
           if (!mergedResult) {
             mergedResult = { ...result };
+            mergedBiomarkers.push(...result.biomarkers);
           } else {
-            // Merge biomarkers (avoid duplicates by name)
             const existingNames = new Set(mergedBiomarkers.map(b => b.name));
             result.biomarkers.forEach(b => { if (!existingNames.has(b.name)) mergedBiomarkers.push(b); });
             if (result.recommendations) {
               mergedResult.recommendations = [...(mergedResult.recommendations || []), ...result.recommendations];
             }
-          }
-          // Add new biomarkers from this file
-          if (mergedResult === result) {
-            mergedBiomarkers.push(...result.biomarkers);
           }
         }
       } catch {
@@ -246,17 +271,13 @@ export default function BiomarkerUploadDialog({
       setStep('upload');
     }
     setParseProgress(null);
-  }, [parseSingleFile, readFileAsBase64, readFileAsText]);
+  }, [parseSingleFile]);
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
     const files = Array.from(e.dataTransfer.files);
-    if (files.length === 1) {
-      parseMultipleFiles([files[0]]);
-    } else if (files.length > 1) {
-      parseMultipleFiles(files);
-    }
+    if (files.length > 0) parseMultipleFiles(files);
   };
 
   const handlePasteSubmit = () => {
@@ -268,76 +289,76 @@ export default function BiomarkerUploadDialog({
     parseContent(text);
   };
 
-  const saveSelectedAsReadings = async () => {
-    if (!userId || !parsedResult) return;
+  /** Always persist the upload record — no goal dependency */
+  const persistUploadRecord = async (result: ParsedResult, label: string, date: string): Promise<boolean> => {
+    if (!userId) return false;
+    try {
+      const { error } = await supabase.from('user_goal_uploads').insert({
+        user_id: userId,
+        user_goal_id: goals.find(g => g.status === 'active')?.id ?? null,
+        file_name: label,
+        file_url: 'parsed_text',
+        upload_type: result.document_type,
+        reading_date: date,
+        ai_extracted_data: result as any,
+      });
+      if (error) throw error;
+      return true;
+    } catch (e: any) {
+      console.error('Persist error:', e);
+      return false;
+    }
+  };
+
+  const saveAndClose = async () => {
+    if (!parsedResult || !userId) return;
     setSavingReadings(true);
     try {
-      const selectedMarkers = parsedResult.biomarkers.filter(b => selectedBiomarkers.has(b.name));
-      const readingDate = parsedResult.document_date || new Date().toISOString().split('T')[0];
+      const label = uploadLabel.trim() || buildDefaultLabel(parsedResult.document_type, parsedResult.document_date);
+      const date = uploadDate || parsedResult.document_date || new Date().toISOString().split('T')[0];
 
-      // Match biomarkers to existing goals and create readings
+      // 1. Always save the upload record
+      const ok = await persistUploadRecord(parsedResult, label, date);
+      if (!ok) throw new Error('Could not save upload record');
+
+      // 2. Optionally link selected markers to matching goals
+      const selectedMarkers = parsedResult.biomarkers.filter(b => selectedBiomarkers.has(b.name));
       const matchedReadings: Array<{ goalId: string; value: number; unit: string; notes: string }> = [];
 
       for (const marker of selectedMarkers) {
-        // Find matching goals by type or by unit similarity
         const matchingGoals = goals.filter(g => {
           if (g.status !== 'active') return false;
           if (marker.relevant_goal_types?.includes(g.goal_type)) return true;
           if (g.target_unit && g.target_unit.toLowerCase() === marker.unit.toLowerCase()) return true;
           return false;
         });
-
         for (const goal of matchingGoals) {
-          matchedReadings.push({
-            goalId: goal.id!,
-            value: marker.value,
-            unit: marker.unit,
-            notes: `${marker.name} from ${parsedResult.document_type} (${marker.status})`,
-          });
+          matchedReadings.push({ goalId: goal.id!, value: marker.value, unit: marker.unit, notes: `${marker.name} from ${label} (${marker.status})` });
         }
       }
 
-      // Save as goal readings
       if (matchedReadings.length > 0) {
         const inserts = matchedReadings.map(r => ({
           user_id: userId,
           user_goal_id: r.goalId,
           value: r.value,
           unit: r.unit,
-          reading_date: readingDate,
+          reading_date: date,
           notes: r.notes,
           source: parsedResult.document_type,
         }));
-
-        const { error } = await supabase.from('user_goal_readings').insert(inserts);
-        if (error) throw error;
-
-        toast.success(`${matchedReadings.length} reading(s) linked to goals`);
+        await supabase.from('user_goal_readings').insert(inserts);
+        toast.success(`Saved "${label}" · ${matchedReadings.length} reading(s) linked to goals`);
+      } else {
+        toast.success(`Saved "${label}" to Labs history`);
       }
 
-      // Save the upload record
-      const activeGoalId = goals.find(g => g.status === 'active')?.id;
-      if (activeGoalId) {
-        await supabase.from('user_goal_uploads').insert({
-          user_id: userId,
-          user_goal_id: activeGoalId,
-          file_name: `${parsedResult.document_type}_${readingDate}`,
-          file_url: 'parsed_text',
-          upload_type: parsedResult.document_type,
-          reading_date: readingDate,
-          ai_extracted_data: parsedResult as any,
-        });
-      }
-
+      setSaved(true);
       onReadingsCreated();
       handleClose(false);
-      
-      if (matchedReadings.length === 0) {
-        toast.info('Biomarkers saved but no matching goals found. Create goals to track these metrics.');
-      }
     } catch (e: any) {
       console.error('Save error:', e);
-      toast.error('Failed to save readings');
+      toast.error('Failed to save — please try again');
     } finally {
       setSavingReadings(false);
     }
@@ -350,38 +371,36 @@ export default function BiomarkerUploadDialog({
     return acc;
   }, {} as Record<string, Biomarker[]>) || {};
 
+  const flaggedCount = parsedResult?.biomarkers.filter(b => b.status !== 'normal').length ?? 0;
+  const criticalCount = parsedResult?.biomarkers.filter(b => b.status.startsWith('critical')).length ?? 0;
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto bg-card border-border">
+      <DialogContent className="max-w-lg max-h-[88vh] overflow-y-auto bg-card border-border">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-foreground">
-            <Beaker className="w-5 h-5 text-primary" />
+            <FlaskConical className="w-5 h-5 text-primary" />
             {step === 'upload' && 'Upload Lab Results'}
-            {step === 'parsing' && 'Analyzing...'}
-            {step === 'results' && (parsedResult ? DOC_TYPE_LABELS[parsedResult.document_type] || 'Results' : 'Results')}
+            {step === 'parsing' && 'Analyzing…'}
+            {step === 'results' && (parsedResult ? (DOC_TYPE_LABELS[parsedResult.document_type] || 'Lab Results') + ' — Review & Save' : 'Results')}
           </DialogTitle>
         </DialogHeader>
 
-        {/* Upload Step */}
+        {/* ── Upload Step ─────────────────────────────────────── */}
         {step === 'upload' && (
           <div className="space-y-4">
-            {/* Drag & Drop Zone */}
             <div
               onDragOver={e => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
-              className={`
-                border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all
-                ${dragOver
-                  ? 'border-primary bg-primary/10'
-                  : 'border-border/50 hover:border-primary/40 hover:bg-secondary/30'
-                }
-              `}
+              className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
+                dragOver ? 'border-primary bg-primary/10' : 'border-border/50 hover:border-primary/40 hover:bg-secondary/30'
+              }`}
             >
               <Upload className={`w-8 h-8 mx-auto mb-3 ${dragOver ? 'text-primary' : 'text-muted-foreground'}`} />
-              <p className="text-sm font-medium text-foreground">Drop file here or click to browse</p>
-              <p className="text-xs text-muted-foreground mt-1">Supports PDF, .txt, .csv, or text-based files</p>
+              <p className="text-sm font-medium text-foreground">Drop files here or click to browse</p>
+              <p className="text-xs text-muted-foreground mt-1">PDF, .txt, .csv — select multiple files at once</p>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -395,17 +414,15 @@ export default function BiomarkerUploadDialog({
               />
             </div>
 
-            {/* Or divider */}
             <div className="flex items-center gap-3">
               <div className="flex-1 h-px bg-border/50" />
               <span className="text-xs text-muted-foreground">or paste text</span>
               <div className="flex-1 h-px bg-border/50" />
             </div>
 
-            {/* Paste area */}
             <textarea
               ref={textAreaRef}
-              placeholder="Paste your bloodwork results, DEXA scan data, or lab report text here..."
+              placeholder="Paste your bloodwork results, DEXA scan data, or lab report text here…"
               className="w-full h-36 px-3 py-2.5 rounded-xl border border-border/50 bg-secondary/30 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 resize-none font-mono"
             />
 
@@ -423,12 +440,12 @@ export default function BiomarkerUploadDialog({
           </div>
         )}
 
-        {/* Parsing Step */}
+        {/* ── Parsing Step ────────────────────────────────────── */}
         {step === 'parsing' && (
           <div className="py-12 text-center space-y-4">
             <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" />
             <div>
-              <p className="text-sm font-medium text-foreground">Analyzing your lab results...</p>
+              <p className="text-sm font-medium text-foreground">Analyzing your lab results…</p>
               {parseProgress && parseProgress.total > 1 ? (
                 <p className="text-xs text-muted-foreground mt-1">
                   File {parseProgress.current} of {parseProgress.total} · Extracting biomarkers
@@ -440,38 +457,73 @@ export default function BiomarkerUploadDialog({
           </div>
         )}
 
-        {/* Results Step */}
+        {/* ── Results Step ─────────────────────────────────────── */}
         {step === 'results' && parsedResult && (
           <div className="space-y-4">
-            {/* Summary */}
-            <div className="bg-secondary/30 rounded-xl p-3 border border-border/30">
-              <p className="text-xs text-foreground">{parsedResult.summary}</p>
-              {parsedResult.document_date && (
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  Test date: {new Date(parsedResult.document_date).toLocaleDateString()}
-                </p>
-              )}
-              <div className="flex items-center gap-3 mt-2">
-                <span className="text-[10px] text-muted-foreground">
-                  {parsedResult.biomarkers.length} biomarkers found
-                </span>
-                <span className="text-[10px] text-emerald-400">
-                  {parsedResult.biomarkers.filter(b => b.status === 'normal').length} normal
-                </span>
-                <span className="text-[10px] text-amber-400">
-                  {parsedResult.biomarkers.filter(b => b.status === 'low' || b.status === 'high').length} flagged
-                </span>
-                <span className="text-[10px] text-destructive">
-                  {parsedResult.biomarkers.filter(b => b.status.startsWith('critical')).length} critical
-                </span>
+
+            {/* ── Label & Date ─── */}
+            <div className="bg-secondary/30 rounded-xl p-3.5 border border-border/40 space-y-3">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Name this record</p>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 bg-card rounded-lg border border-border/50 px-3 py-2">
+                  <Tag className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                  <input
+                    type="text"
+                    value={uploadLabel}
+                    onChange={e => setUploadLabel(e.target.value)}
+                    placeholder="e.g. DEXA January 2025"
+                    className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
+                  />
+                </div>
+                <div className="flex items-center gap-2 bg-card rounded-lg border border-border/50 px-3 py-2">
+                  <Calendar className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                  <input
+                    type="date"
+                    value={uploadDate}
+                    onChange={e => setUploadDate(e.target.value)}
+                    className="flex-1 bg-transparent text-sm text-foreground focus:outline-none"
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Biomarker categories */}
+            {/* ── AI Summary ─── */}
+            <div className="bg-secondary/20 rounded-xl p-3 border border-border/30">
+              <p className="text-xs text-foreground leading-relaxed">{parsedResult.summary}</p>
+              <div className="flex items-center gap-3 mt-2.5 flex-wrap">
+                <span className="text-[10px] text-muted-foreground">{parsedResult.biomarkers.length} markers</span>
+                <span className="text-[10px] text-emerald-400">
+                  {parsedResult.biomarkers.filter(b => b.status === 'normal').length} normal
+                </span>
+                {flaggedCount > 0 && (
+                  <span className="text-[10px] text-amber-400">{flaggedCount} flagged</span>
+                )}
+                {criticalCount > 0 && (
+                  <span className="text-[10px] text-destructive font-semibold">{criticalCount} critical</span>
+                )}
+              </div>
+            </div>
+
+            {/* ── Critical alerts ─── */}
+            {criticalCount > 0 && (
+              <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 space-y-1.5">
+                <p className="text-[10px] font-semibold text-destructive uppercase tracking-wider flex items-center gap-1.5">
+                  <AlertCircle className="w-3.5 h-3.5" /> Critical Alerts
+                </p>
+                {parsedResult.biomarkers.filter(b => b.status.startsWith('critical')).map((m, i) => (
+                  <div key={i} className="flex items-center justify-between text-xs">
+                    <span className="text-foreground font-medium">{m.name}</span>
+                    <span className="font-mono text-destructive">{m.value} {m.unit}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ── Biomarker categories ─── */}
             <div className="space-y-1.5">
               {Object.entries(groupedBiomarkers).map(([category, markers]) => {
                 const isExpanded = expandedCategory === category;
-                const flaggedCount = markers.filter(m => m.status !== 'normal').length;
+                const flagged = markers.filter(m => m.status !== 'normal').length;
                 return (
                   <div key={category} className="bg-card rounded-lg border border-border/50 overflow-hidden">
                     <button
@@ -479,15 +531,11 @@ export default function BiomarkerUploadDialog({
                       className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-secondary/30 transition-colors"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-foreground capitalize">
-                          {category.replace(/_/g, ' ')}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground">
-                          {markers.length} markers
-                        </span>
-                        {flaggedCount > 0 && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                            {flaggedCount} flagged
+                        <span className="text-xs font-medium text-foreground capitalize">{category.replace(/_/g, ' ')}</span>
+                        <span className="text-[10px] text-muted-foreground">{markers.length} markers</span>
+                        {flagged > 0 && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-status-warning/10 text-status-warning border border-status-warning/20">
+                            {flagged} flagged
                           </span>
                         )}
                       </div>
@@ -515,9 +563,7 @@ export default function BiomarkerUploadDialog({
                               <span className="text-xs text-foreground truncate">{marker.name}</span>
                             </div>
                             <div className="flex items-center gap-2 flex-shrink-0">
-                              <span className="text-xs font-mono font-semibold text-foreground">
-                                {marker.value}
-                              </span>
+                              <span className="text-xs font-mono font-semibold text-foreground">{marker.value}</span>
                               <span className="text-[10px] text-muted-foreground">{marker.unit}</span>
                               <span className={`text-[10px] font-medium ${STATUS_COLORS[marker.status]}`}>
                                 {marker.status === 'normal' ? '✓' : marker.status.replace('_', ' ').toUpperCase()}
@@ -532,7 +578,7 @@ export default function BiomarkerUploadDialog({
               })}
             </div>
 
-            {/* Recommendations */}
+            {/* ── Recommendations ─── */}
             {parsedResult.recommendations && parsedResult.recommendations.length > 0 && (
               <div className="bg-secondary/20 rounded-xl p-3 border border-border/30">
                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
@@ -552,27 +598,30 @@ export default function BiomarkerUploadDialog({
               </div>
             )}
 
-            {/* Actions */}
-            <div className="flex gap-2">
+            {/* ── Actions ─── */}
+            <div className="flex gap-2 pt-1">
               <button
-                onClick={() => { resetState(); }}
-                className="flex-1 py-2 rounded-xl border border-border/50 text-xs text-muted-foreground hover:bg-secondary/30 transition-colors"
+                onClick={resetState}
+                className="flex-1 py-2.5 rounded-xl border border-border/50 text-xs text-muted-foreground hover:bg-secondary/30 transition-colors"
               >
                 Upload Another
               </button>
               <button
-                onClick={saveSelectedAsReadings}
-                disabled={savingReadings || selectedBiomarkers.size === 0}
-                className="flex-1 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-40 flex items-center justify-center gap-1.5"
+                onClick={saveAndClose}
+                disabled={savingReadings || !uploadLabel.trim()}
+                className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors disabled:opacity-40 flex items-center justify-center gap-1.5"
               >
                 {savingReadings ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 ) : (
-                  <Plus className="w-3.5 h-3.5" />
+                  <CheckCircle2 className="w-3.5 h-3.5" />
                 )}
-                Save {selectedBiomarkers.size} to Goals
+                Save to Labs
               </button>
             </div>
+            <p className="text-[10px] text-muted-foreground text-center -mt-1">
+              Saves to Labs history. Checked markers will be linked to matching goals.
+            </p>
           </div>
         )}
       </DialogContent>
