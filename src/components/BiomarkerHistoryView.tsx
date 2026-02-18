@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Beaker, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus, Calendar, FileText, X, Trash2, RefreshCw, Loader2, Upload, AlertTriangle, FlaskConical, AlertCircle, Droplets, Bone, Zap, Syringe, Heart, Bug, ClipboardList } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Beaker, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus, Calendar, FileText, X, Trash2, RefreshCw, Loader2, Upload, AlertTriangle, FlaskConical, AlertCircle, Droplets, Bone, Zap, Syringe, Heart, Bug, ClipboardList, Link2 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
@@ -8,12 +8,18 @@ import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import BiomarkerComparisonChart from './BiomarkerComparisonChart';
 import DexaScanView from './DexaScanView';
+import AlignToGoalDialog from './AlignToGoalDialog';
+import ConfirmDialog from './ConfirmDialog';
+import { UserGoal } from '@/hooks/useGoals';
 import { toast } from 'sonner';
 
 interface BiomarkerHistoryProps {
   userId?: string;
   onUploadClick: () => void;
   onFlaggedCountChange?: (count: number) => void;
+  goals?: UserGoal[];
+  onCreateGoal?: (goals: Omit<UserGoal, 'id' | 'status'>[]) => Promise<void>;
+  onRefreshGoals?: () => void;
 }
 
 interface UploadRecord {
@@ -92,12 +98,14 @@ function UploadCard({
   upload,
   onDelete,
   onReanalyze,
+  onAlignToGoal,
   isDeleting,
   isReanalyzing,
 }: {
   upload: UploadRecord;
   onDelete: (id: string) => void;
   onReanalyze: (u: UploadRecord) => void;
+  onAlignToGoal: (u: UploadRecord) => void;
   isDeleting: boolean;
   isReanalyzing: boolean;
 }) {
@@ -168,6 +176,14 @@ function UploadCard({
         </button>
 
         {/* Action buttons */}
+        <button
+          onClick={() => onAlignToGoal(upload)}
+          disabled={isReanalyzing || isDeleting}
+          title="Align to a goal"
+          className="p-2.5 text-muted-foreground hover:text-primary transition-colors disabled:opacity-40"
+        >
+          <Link2 className="w-4 h-4" />
+        </button>
         <button
           onClick={() => onReanalyze(upload)}
           disabled={isReanalyzing || isDeleting}
@@ -315,7 +331,7 @@ function UploadCard({
   );
 }
 
-export default function BiomarkerHistoryView({ userId, onUploadClick, onFlaggedCountChange }: BiomarkerHistoryProps) {
+export default function BiomarkerHistoryView({ userId, onUploadClick, onFlaggedCountChange, goals = [], onCreateGoal, onRefreshGoals }: BiomarkerHistoryProps) {
   const [uploads, setUploads] = useState<UploadRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedMarker, setExpandedMarker] = useState<string | null>(null);
@@ -323,6 +339,9 @@ export default function BiomarkerHistoryView({ userId, onUploadClick, onFlaggedC
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [reanalyzingId, setReanalyzingId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [alignUpload, setAlignUpload] = useState<UploadRecord | null>(null);
+  const trendsRef = useRef<HTMLDivElement>(null);
 
   const fetchUploads = useCallback(async () => {
     if (!userId) return;
@@ -341,7 +360,11 @@ export default function BiomarkerHistoryView({ userId, onUploadClick, onFlaggedC
 
   useEffect(() => { fetchUploads(); }, [fetchUploads]);
 
-  const handleDelete = useCallback(async (uploadId: string) => {
+  // Delete with confirm — confirm first, then execute
+  const handleDeleteConfirmed = useCallback(async () => {
+    if (!deleteConfirmId) return;
+    const uploadId = deleteConfirmId;
+    setDeleteConfirmId(null);
     setDeletingId(uploadId);
     try {
       const { error } = await supabase.from('user_goal_uploads').delete().eq('id', uploadId);
@@ -353,6 +376,10 @@ export default function BiomarkerHistoryView({ userId, onUploadClick, onFlaggedC
     } finally {
       setDeletingId(null);
     }
+  }, [deleteConfirmId]);
+
+  const handleDelete = useCallback((uploadId: string) => {
+    setDeleteConfirmId(uploadId);
   }, []);
 
   const handleReanalyze = useCallback(async (upload: UploadRecord) => {
@@ -376,6 +403,10 @@ export default function BiomarkerHistoryView({ userId, onUploadClick, onFlaggedC
 
       setUploads(prev => prev.map(u => u.id === upload.id ? { ...u, ai_extracted_data: data } : u));
       toast.success('Re-analysis complete');
+      // Auto-scroll to trends after re-analysis
+      setTimeout(() => {
+        trendsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 300);
     } catch (e: any) {
       toast.error(e.message || 'Re-analysis failed');
     } finally {
@@ -563,7 +594,7 @@ export default function BiomarkerHistoryView({ userId, onUploadClick, onFlaggedC
 
       {/* Key Marker Trend Cards (only when multiple uploads exist) */}
       {keyMarkers.length > 0 && uploads.length >= 2 && (
-        <div>
+        <div ref={trendsRef}>
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Trends Across Uploads</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {keyMarkers.map(markerName => {
@@ -639,12 +670,43 @@ export default function BiomarkerHistoryView({ userId, onUploadClick, onFlaggedC
               upload={upload}
               onDelete={handleDelete}
               onReanalyze={handleReanalyze}
+              onAlignToGoal={setAlignUpload}
               isDeleting={deletingId === upload.id}
               isReanalyzing={reanalyzingId === upload.id}
             />
           ))}
         </div>
       </div>
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        open={!!deleteConfirmId}
+        onOpenChange={open => { if (!open) setDeleteConfirmId(null); }}
+        title="Delete Lab Record?"
+        description="This will permanently remove this lab upload and all its extracted biomarker data. This action cannot be undone."
+        confirmLabel="Delete"
+        destructive
+        onConfirm={handleDeleteConfirmed}
+      />
+
+      {/* Align to Goal */}
+      {alignUpload && (
+        <AlignToGoalDialog
+          open={!!alignUpload}
+          onOpenChange={open => { if (!open) setAlignUpload(null); }}
+          userId={userId}
+          uploadId={alignUpload.id}
+          uploadLabel={alignUpload.file_name || alignUpload.upload_type}
+          uploadDate={alignUpload.reading_date?.split('T')[0] || new Date().toISOString().split('T')[0]}
+          biomarkers={alignUpload.ai_extracted_data?.biomarkers || []}
+          goals={goals}
+          onCreateGoal={onCreateGoal}
+          onGoalAligned={() => {
+            onRefreshGoals?.();
+            fetchUploads();
+          }}
+        />
+      )}
     </div>
   );
 }

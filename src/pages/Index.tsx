@@ -579,6 +579,9 @@ const Index = () => {
                       userId={user?.id}
                       onUploadClick={() => setShowBiomarkerUpload(true)}
                       onFlaggedCountChange={setLabsFlaggedCount}
+                      goals={fullGoals}
+                      onCreateGoal={createGoals}
+                      onRefreshGoals={fetchFullGoals}
                     />
                   )}
                 </TabsContent>
