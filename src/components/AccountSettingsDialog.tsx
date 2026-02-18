@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AlertTriangle, RotateCcw, Trash2, HelpCircle, KeyRound, Loader2, Users, ChevronDown, LogOut, Check, Pencil, X } from 'lucide-react';
 import HouseholdSyncPanel from '@/components/HouseholdSyncPanel';
 import { HouseholdMember } from '@/hooks/useHousehold';
+import { kgToLbs, lbsToKg, MeasurementSystem } from '@/lib/measurements';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,6 +47,7 @@ interface AccountSettingsDialogProps {
   profileHeightCm?: number | null;
   profileWeightKg?: number | null;
   profileGender?: string | null;
+  measurementSystem?: MeasurementSystem;
   // Household sync props
   householdMembers?: HouseholdMember[];
   householdPendingIncoming?: HouseholdMember[];
@@ -77,6 +79,7 @@ const USER_TABLES = [
 const AccountSettingsDialog = ({ open, onOpenChange, userId, displayName, userEmail, onResetComplete, onStartTour,
   onUpdateDisplayName, onUpdateProfile,
   profileAge, profileHeightCm, profileWeightKg, profileGender,
+  measurementSystem = 'metric',
   householdMembers = [], householdPendingIncoming = [], householdPendingOutgoing = [],
   householdLoading = false, onSendHouseholdInvite, onAcceptHouseholdInvite,
   onRejectHouseholdInvite, onRemoveHouseholdMember,
@@ -134,8 +137,14 @@ const AccountSettingsDialog = ({ open, onOpenChange, userId, displayName, userEm
 
   const openProfileEdit = () => {
     setEditAge(profileAge != null ? String(profileAge) : '');
-    setEditHeight(profileHeightCm != null ? String(profileHeightCm) : '');
-    setEditWeight(profileWeightKg != null ? String(profileWeightKg) : '');
+    // Convert stored cm/kg to display units
+    if (measurementSystem === 'imperial') {
+      setEditHeight(profileHeightCm != null ? String(Math.round(profileHeightCm / 2.54)) : '');
+      setEditWeight(profileWeightKg != null ? String(kgToLbs(profileWeightKg)) : '');
+    } else {
+      setEditHeight(profileHeightCm != null ? String(profileHeightCm) : '');
+      setEditWeight(profileWeightKg != null ? String(profileWeightKg) : '');
+    }
     setEditGender(profileGender || '');
     setShowProfileEdit(true);
   };
@@ -144,10 +153,19 @@ const AccountSettingsDialog = ({ open, onOpenChange, userId, displayName, userEm
     if (!onUpdateProfile) return;
     setSavingProfile(true);
     try {
+      // Convert display units back to metric for storage
+      const heightVal = editHeight ? Number(editHeight) : null;
+      const weightVal = editWeight ? Number(editWeight) : null;
+      const heightCm = heightVal != null
+        ? (measurementSystem === 'imperial' ? Math.round(heightVal * 2.54) : heightVal)
+        : null;
+      const weightKg = weightVal != null
+        ? (measurementSystem === 'imperial' ? lbsToKg(weightVal) : weightVal)
+        : null;
       await onUpdateProfile({
         age: editAge ? Number(editAge) : null,
-        height_cm: editHeight ? Number(editHeight) : null,
-        weight_kg: editWeight ? Number(editWeight) : null,
+        height_cm: heightCm,
+        weight_kg: weightKg,
         gender: editGender || null,
       });
       toast.success('Profile updated!');
@@ -357,8 +375,8 @@ const AccountSettingsDialog = ({ open, onOpenChange, userId, displayName, userEm
                     <div className="grid grid-cols-3 gap-2">
                       {[
                         { label: 'Age', value: editAge, setter: setEditAge, unit: 'yrs', type: 'number', min: 1, max: 120 },
-                        { label: 'Height', value: editHeight, setter: setEditHeight, unit: 'cm', type: 'number', min: 50, max: 300 },
-                        { label: 'Weight', value: editWeight, setter: setEditWeight, unit: 'kg', type: 'number', min: 20, max: 400 },
+                        { label: 'Height', value: editHeight, setter: setEditHeight, unit: measurementSystem === 'imperial' ? 'in' : 'cm', type: 'number', min: measurementSystem === 'imperial' ? 20 : 50, max: measurementSystem === 'imperial' ? 118 : 300 },
+                        { label: 'Weight', value: editWeight, setter: setEditWeight, unit: measurementSystem === 'imperial' ? 'lb' : 'kg', type: 'number', min: measurementSystem === 'imperial' ? 44 : 20, max: measurementSystem === 'imperial' ? 880 : 400 },
                       ].map(({ label, value, setter, unit, type, min, max }) => (
                         <div key={label} className="space-y-1">
                           <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium block">{label} <span className="normal-case">({unit})</span></label>

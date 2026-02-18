@@ -651,6 +651,7 @@ const Index = () => {
           profileHeightCm={profile?.height_cm}
           profileWeightKg={profile?.weight_kg}
           profileGender={profile?.gender}
+          measurementSystem={measurementSystem}
           onResetComplete={() => {
             setShowOnboarding(true);
             refetch();

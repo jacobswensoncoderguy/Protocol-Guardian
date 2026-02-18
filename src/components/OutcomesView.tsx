@@ -133,7 +133,8 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
     if (activeGoals.length > 0) {
       fetchReadings(activeGoals.map(g => g.id!).filter(Boolean));
     }
-  }, [activeGoals.length]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeGoals.length, fetchReadings]);
 
   const handleAddReading = async (goalId: string) => {
     const val = parseFloat(newReadingValue);
