@@ -2,14 +2,32 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Compound } from '@/data/compounds';
 import { formatDistanceToNow, parseISO, isAfter, subHours, format, startOfMonth } from 'date-fns';
-import { History, ArrowRight, Undo2, Loader2, Brain, Trash2, ChevronDown, ChevronUp, Search, X, Filter, TrendingUp, TrendingDown, Minus, RotateCcw, Pencil, Check } from 'lucide-react';
+import { History, ArrowRight, Loader2, Brain, Trash2, ChevronDown, ChevronUp, Search, X, Filter, TrendingUp, TrendingDown, Minus, RotateCcw, Pencil, Check, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
+// ── localStorage helpers ─────────────────────────────────────────────────────
+const LS_KEY = 'ai_changes_filters';
+type SavedFilters = { search: string; typeFilter: string; dateFrom?: string; dateTo?: string };
+
+function loadFilters(): SavedFilters {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return { search: '', typeFilter: 'all' };
+}
+
+function saveFilters(f: SavedFilters) {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(f)); } catch {}
+}
+
+// ── Types ────────────────────────────────────────────────────────────────────
 interface ProtocolChange {
   id: string;
   change_date: string;
@@ -29,6 +47,7 @@ interface ProtocolChangeHistoryViewProps {
   userId?: string;
 }
 
+// ── Constants ────────────────────────────────────────────────────────────────
 const CHANGE_TYPES = [
   { value: 'all', label: 'All Types' },
   { value: 'adjust_dose', label: 'Dose' },
@@ -39,6 +58,7 @@ const CHANGE_TYPES = [
   { value: 'remove_compound', label: 'Removed' },
 ];
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
 const changeTypeLabel = (type: string) => {
   switch (type) {
     case 'adjust_dose': return 'Dose';
@@ -78,6 +98,19 @@ const extractField = (description: string): string | null => {
 const isRecent = (createdAt: string) =>
   isAfter(parseISO(createdAt), subHours(new Date(), 48));
 
+/** Compute weekly dose totals from a compound and a numeric value for a specific field */
+function weeklyDoseFromField(
+  compound: Compound,
+  field: string,
+  value: number
+): number {
+  const d = field === 'dosePerUse' ? value : compound.dosePerUse;
+  const f = field === 'dosesPerDay' ? value : compound.dosesPerDay;
+  const w = field === 'daysPerWeek' ? value : compound.daysPerWeek;
+  return Math.round(d * f * w * 1000) / 1000;
+}
+
+// ── Component ────────────────────────────────────────────────────────────────
 export default function ProtocolChangeHistoryView({ compounds, updateCompound, refetch, userId }: ProtocolChangeHistoryViewProps) {
   const [changes, setChanges] = useState<ProtocolChange[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,13 +123,35 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
   const [editValue, setEditValue] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // Filter state
-  const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [dateFrom, setDateFrom] = useState<Date | undefined>();
-  const [dateTo, setDateTo] = useState<Date | undefined>();
+  // Confirmation dialog state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    action: 'revert' | 'delete' | null;
+    change: ProtocolChange | null;
+  }>({ open: false, action: null, change: null });
+
+  // Filter state — initialised from localStorage
+  const savedFilters = useMemo(() => loadFilters(), []);
+  const [search, setSearch] = useState(savedFilters.search ?? '');
+  const [typeFilter, setTypeFilter] = useState(savedFilters.typeFilter ?? 'all');
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(
+    savedFilters.dateFrom ? new Date(savedFilters.dateFrom) : undefined
+  );
+  const [dateTo, setDateTo] = useState<Date | undefined>(
+    savedFilters.dateTo ? new Date(savedFilters.dateTo) : undefined
+  );
   const [fromOpen, setFromOpen] = useState(false);
   const [toOpen, setToOpen] = useState(false);
+
+  // Persist filters whenever they change
+  useEffect(() => {
+    saveFilters({
+      search,
+      typeFilter,
+      dateFrom: dateFrom?.toISOString(),
+      dateTo: dateTo?.toISOString(),
+    });
+  }, [search, typeFilter, dateFrom, dateTo]);
 
   const fetchChanges = useCallback(async () => {
     if (!userId) { setLoading(false); return; }
@@ -118,22 +173,17 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
 
   useEffect(() => { fetchChanges(); }, [fetchChanges]);
 
-  // Revert: apply previous_value back to compound
+  // ── Actions ────────────────────────────────────────────────────────────────
   const handleRevert = useCallback(async (change: ProtocolChange) => {
     if (!change.compound_id || !change.previous_value) {
       toast.error('Cannot revert — no previous value recorded');
       return;
     }
     const compound = compounds.find(c => c.id === change.compound_id);
-    if (!compound) {
-      toast.error('Compound no longer in your protocol');
-      return;
-    }
+    if (!compound) { toast.error('Compound no longer in your protocol'); return; }
     const field = extractField(change.description);
-    if (!field) {
-      toast.error('Cannot determine which field to revert');
-      return;
-    }
+    if (!field) { toast.error('Cannot determine which field to revert'); return; }
+
     setUndoing(change.id);
     try {
       const numericFields = ['dosePerUse', 'dosesPerDay', 'daysPerWeek', 'cycleOnDays', 'cycleOffDays'];
@@ -161,7 +211,6 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
     }
   }, [compounds, updateCompound, refetch, fetchChanges, userId]);
 
-  // Adjust: apply the edited new_value to the compound live
   const handleStartEdit = (change: ProtocolChange) => {
     setEditingId(change.id);
     setEditValue(change.new_value ?? '');
@@ -184,11 +233,7 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
         return;
       }
       updateCompound(compound.id, { [field]: value } as Partial<Compound>);
-
-      // Update the record's new_value in DB
       await supabase.from('protocol_changes').update({ new_value: editValue }).eq('id', change.id);
-
-      // Log the adjustment
       await supabase.from('protocol_changes').insert({
         user_id: userId!,
         change_type: change.change_type,
@@ -210,7 +255,6 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
     }
   }, [compounds, updateCompound, refetch, fetchChanges, userId, editValue]);
 
-  // Delete: remove the change record from DB (does NOT revert the compound)
   const handleDelete = useCallback(async (change: ProtocolChange) => {
     setDeleting(change.id);
     try {
@@ -226,13 +270,35 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
     }
   }, []);
 
-  // Filtered changes — use created_at for date comparison consistently
+  // ── Confirm dialog helpers ─────────────────────────────────────────────────
+  const requestRevert = (change: ProtocolChange) =>
+    setConfirmDialog({ open: true, action: 'revert', change });
+  const requestDelete = (change: ProtocolChange) =>
+    setConfirmDialog({ open: true, action: 'delete', change });
+
+  const handleConfirmDialogAction = async () => {
+    const { action, change } = confirmDialog;
+    setConfirmDialog({ open: false, action: null, change: null });
+    if (!change) return;
+    if (action === 'revert') await handleRevert(change);
+    if (action === 'delete') await handleDelete(change);
+  };
+
+  // ── Filters ────────────────────────────────────────────────────────────────
+  const hasActiveFilters = search || typeFilter !== 'all' || dateFrom || dateTo;
+
+  const clearFilters = () => {
+    setSearch('');
+    setTypeFilter('all');
+    setDateFrom(undefined);
+    setDateTo(undefined);
+  };
+
   const filtered = useMemo(() => {
     return changes.filter(c => {
       const compoundName = c.description.split(':')[0].trim().toLowerCase();
       if (search && !compoundName.includes(search.toLowerCase())) return false;
       if (typeFilter !== 'all' && c.change_type !== typeFilter) return false;
-      // Use created_at for reliable date comparison
       const changeDate = parseISO(c.created_at);
       if (dateFrom) {
         const from = new Date(dateFrom);
@@ -248,41 +314,45 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
     });
   }, [changes, search, typeFilter, dateFrom, dateTo]);
 
-  const hasActiveFilters = search || typeFilter !== 'all' || dateFrom || dateTo;
-
-  const clearFilters = () => {
-    setSearch('');
-    setTypeFilter('all');
-    setDateFrom(undefined);
-    setDateTo(undefined);
-  };
-
-  // Stats computations
+  // ── Stats ──────────────────────────────────────────────────────────────────
   const stats = useMemo(() => {
     const monthStart = startOfMonth(new Date());
     const thisMonth = changes.filter(c => parseISO(c.created_at) >= monthStart);
-
     const freq: Record<string, number> = {};
     changes.forEach(c => {
       const name = c.description.split(':')[0].trim();
       freq[name] = (freq[name] ?? 0) + 1;
     });
     const topCompound = Object.entries(freq).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
-
     let up = 0, down = 0;
     changes.forEach(c => {
       if (c.change_type !== 'adjust_dose') return;
       const prev = parseFloat(c.previous_value ?? '');
       const next = parseFloat(c.new_value ?? '');
       if (isNaN(prev) || isNaN(next)) return;
-      if (next > prev) up++;
-      else if (next < prev) down++;
+      if (next > prev) up++; else if (next < prev) down++;
     });
-
     const netDir = up > down ? 'up' : down > up ? 'down' : 'neutral';
     return { thisMonth: thisMonth.length, topCompound, netDir, up, down };
   }, [changes]);
 
+  // ── Weekly dose diff helper ────────────────────────────────────────────────
+  function getWeeklyDoseDiff(change: ProtocolChange): { oldW: number; newW: number; unit: string } | null {
+    if (change.change_type !== 'adjust_dose') return null;
+    if (!change.compound_id || !change.previous_value || !change.new_value) return null;
+    const compound = compounds.find(c => c.id === change.compound_id);
+    if (!compound) return null;
+    const field = extractField(change.description);
+    if (!['dosePerUse', 'dosesPerDay', 'daysPerWeek'].includes(field ?? '')) return null;
+    const prevNum = parseFloat(change.previous_value.replace(/[^\d.]/g, ''));
+    const newNum = parseFloat(change.new_value.replace(/[^\d.]/g, ''));
+    if (isNaN(prevNum) || isNaN(newNum)) return null;
+    const oldW = weeklyDoseFromField(compound, field!, prevNum);
+    const newW = weeklyDoseFromField(compound, field!, newNum);
+    return { oldW, newW, unit: compound.doseLabel };
+  }
+
+  // ── Early returns ──────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -305,12 +375,19 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
     );
   }
 
-  // Group filtered results by date
   const grouped = filtered.reduce<Record<string, ProtocolChange[]>>((acc, c) => {
     const day = c.created_at.slice(0, 10);
     (acc[day] = acc[day] ?? []).push(c);
     return acc;
   }, {});
+
+  // Confirmation dialog labels
+  const confirmTitle = confirmDialog.action === 'delete'
+    ? 'Delete change record?'
+    : 'Revert this change?';
+  const confirmDescription = confirmDialog.action === 'delete'
+    ? 'This will permanently remove the log entry. The compound\'s current value will NOT be changed.'
+    : `This will restore ${confirmDialog.change?.description.split(':')[0].trim() ?? 'the compound'} to its previous value. The action will also be logged.`;
 
   return (
     <div className="space-y-3 pb-6">
@@ -389,7 +466,7 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
           ))}
         </div>
 
-        <div className="flex gap-2 items-center">
+        <div className="flex gap-2 items-center flex-wrap">
           <Popover open={fromOpen} onOpenChange={setFromOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className={cn('h-7 text-[10px] border-border/50 bg-card/60 font-normal', dateFrom && 'border-primary/50 text-primary')}>
@@ -423,11 +500,22 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
               />
             </PopoverContent>
           </Popover>
-          {hasActiveFilters && (
-            <button onClick={clearFilters} className="text-[10px] text-muted-foreground hover:text-destructive flex items-center gap-1 ml-auto transition-colors">
-              <X className="w-3 h-3" /> Clear
-            </button>
-          )}
+
+          {/* Always-visible Clear Filters button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={clearFilters}
+            className={cn(
+              'h-7 text-[10px] border-border/50 bg-card/60 gap-1 transition-all ml-auto',
+              hasActiveFilters
+                ? 'border-destructive/40 text-destructive hover:bg-destructive/10'
+                : 'text-muted-foreground opacity-50 cursor-default pointer-events-none'
+            )}
+          >
+            <X className="w-3 h-3" />
+            Clear filters
+          </Button>
         </div>
       </div>
 
@@ -468,6 +556,7 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
             const compoundName = change.description.split(':')[0].trim();
             const isExpanded = expanded === change.id;
             const isEditing = editingId === change.id;
+            const weeklyDiff = getWeeklyDoseDiff(change);
 
             return (
               <div key={change.id} className="rounded-xl border border-border/40 bg-card/60 overflow-hidden">
@@ -488,6 +577,28 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
                         <span className="text-[11px] text-primary font-semibold">{change.new_value}</span>
                       </div>
                     )}
+
+                    {/* Weekly dose visual diff for adjust_dose type */}
+                    {weeklyDiff && (
+                      <div className="flex items-center gap-1.5 mt-1 rounded-md bg-primary/5 border border-primary/15 px-2 py-1">
+                        <span className="text-[9px] text-muted-foreground font-medium uppercase tracking-wider mr-0.5">Weekly:</span>
+                        <span className="text-[11px] font-mono text-muted-foreground line-through opacity-60">
+                          {weeklyDiff.oldW} {weeklyDiff.unit}
+                        </span>
+                        <ArrowRight className="w-2.5 h-2.5 text-primary flex-shrink-0" />
+                        <span className="text-[11px] font-mono font-semibold text-primary">
+                          {weeklyDiff.newW} {weeklyDiff.unit}
+                        </span>
+                        <span className={cn(
+                          'text-[10px] font-semibold ml-0.5',
+                          weeklyDiff.newW < weeklyDiff.oldW ? 'text-status-warning' : 'text-status-good'
+                        )}>
+                          ({weeklyDiff.newW > weeklyDiff.oldW ? '+' : ''}
+                          {Math.round((weeklyDiff.newW - weeklyDiff.oldW) * 1000) / 1000})
+                        </span>
+                      </div>
+                    )}
+
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-[10px] text-muted-foreground/60">
                         {formatDistanceToNow(parseISO(change.created_at), { addSuffix: true })}
@@ -506,7 +617,7 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
                   <div className="flex flex-col gap-1 flex-shrink-0">
                     {canRevert && (
                       <button
-                        onClick={() => handleRevert(change)}
+                        onClick={() => requestRevert(change)}
                         disabled={undoing === change.id}
                         className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-lg bg-secondary/70 text-muted-foreground hover:bg-accent/20 hover:text-status-warning border border-border/40 transition-all disabled:opacity-40"
                         title="Revert to previous value"
@@ -529,7 +640,7 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
                       </button>
                     )}
                     <button
-                      onClick={() => handleDelete(change)}
+                      onClick={() => requestDelete(change)}
                       disabled={deleting === change.id}
                       className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-lg bg-secondary/70 text-muted-foreground hover:bg-destructive/10 hover:text-destructive border border-border/40 transition-all disabled:opacity-40"
                       title="Delete this record"
@@ -599,6 +710,18 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
           })}
         </div>
       ))}
+
+      {/* Confirmation dialog */}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onOpenChange={open => !open && setConfirmDialog(p => ({ ...p, open: false }))}
+        title={confirmTitle}
+        description={confirmDescription}
+        confirmLabel={confirmDialog.action === 'delete' ? 'Delete' : 'Revert'}
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmDialogAction}
+        destructive={true}
+      />
     </div>
   );
 }
