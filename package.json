@@ -48,6 +48,7 @@
     "@tanstack/react-query": "^5.83.0",
     "@types/three": "^0.160.0",
     "@zxing/browser": "^0.1.5",
+    "@zxing/library": "^0.21.3",
     "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
