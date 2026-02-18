@@ -179,6 +179,21 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
           </div>
         </div>
 
+        {/* Combined view legend */}
+        {memberCompoundIds && (
+          <div className="flex items-center gap-3 px-2 py-1.5 rounded-md bg-card/40 border border-border/40 w-fit text-[10px] text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
+              Mine
+            </span>
+            <span className="w-px h-3 bg-border/60" />
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-accent flex-shrink-0" />
+              Member
+            </span>
+          </div>
+        )}
+
         {/* Morning */}
         <DoseSection
           icon={<Sun className="w-4 h-4" />}
