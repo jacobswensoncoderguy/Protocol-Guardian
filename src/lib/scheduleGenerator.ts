@@ -22,7 +22,7 @@ function parseDays(compound: Compound): number[] {
   // Specific day patterns
   if (/\bm[\/-]f\b|mon[\s-]*fri/i.test(note)) return [1, 2, 3, 4, 5];
   if (/\bm\/w\/f\b/i.test(note)) return [1, 3, 5];
-  if (/\bt\/th\b|tues.*thurs|tue.*thu/i.test(note)) return [2, 4];
+  if (/\bt\/th\b/i.test(note)) return [2, 4];
 
   // Check for specific day names
   const dayMap: Record<string, number> = {
