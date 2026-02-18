@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { AlertTriangle, RotateCcw, Trash2, HelpCircle, KeyRound, Loader2 } from 'lucide-react';
+import { AlertTriangle, RotateCcw, Trash2, HelpCircle, KeyRound, Loader2, Users, ChevronDown } from 'lucide-react';
+import HouseholdSyncPanel from '@/components/HouseholdSyncPanel';
+import { HouseholdMember } from '@/hooks/useHousehold';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +28,15 @@ interface AccountSettingsDialogProps {
   userId?: string;
   onResetComplete: () => void;
   onStartTour?: () => void;
+  // Household sync props
+  householdMembers?: HouseholdMember[];
+  householdPendingIncoming?: HouseholdMember[];
+  householdPendingOutgoing?: HouseholdMember[];
+  householdLoading?: boolean;
+  onSendHouseholdInvite?: (email: string) => Promise<{ success: boolean; error?: string }>;
+  onAcceptHouseholdInvite?: (linkId: string) => Promise<boolean>;
+  onRejectHouseholdInvite?: (linkId: string) => Promise<boolean>;
+  onRemoveHouseholdMember?: (linkId: string) => Promise<boolean>;
 }
 
 const USER_TABLES = [
@@ -45,11 +56,16 @@ const USER_TABLES = [
   'profiles',
 ] as const;
 
-const AccountSettingsDialog = ({ open, onOpenChange, userId, onResetComplete, onStartTour }: AccountSettingsDialogProps) => {
+const AccountSettingsDialog = ({ open, onOpenChange, userId, onResetComplete, onStartTour,
+  householdMembers = [], householdPendingIncoming = [], householdPendingOutgoing = [],
+  householdLoading = false, onSendHouseholdInvite, onAcceptHouseholdInvite,
+  onRejectHouseholdInvite, onRemoveHouseholdMember,
+}: AccountSettingsDialogProps) => {
   const { user } = useAuth();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showSetPassword, setShowSetPassword] = useState(false);
+  const [showHousehold, setShowHousehold] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [settingPassword, setSettingPassword] = useState(false);
@@ -150,6 +166,37 @@ const AccountSettingsDialog = ({ open, onOpenChange, userId, onResetComplete, on
               </button>
             )}
 
+            {/* Household Sync */}
+            {onSendHouseholdInvite && (
+              <div className="border border-border rounded-lg overflow-hidden">
+                <button
+                  onClick={() => setShowHousehold(v => !v)}
+                  className="w-full flex items-center gap-3 p-3 hover:bg-secondary/50 transition-colors text-left"
+                >
+                  <Users className="w-5 h-5 text-primary flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Household Sync</p>
+                    <p className="text-xs text-muted-foreground">Link accounts to share inventory & costs</p>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${showHousehold ? 'rotate-180' : ''}`} />
+                </button>
+                {showHousehold && (
+                  <div className="border-t border-border px-3 pb-3">
+                    <HouseholdSyncPanel
+                      members={householdMembers}
+                      pendingIncoming={householdPendingIncoming}
+                      pendingOutgoing={householdPendingOutgoing}
+                      loading={householdLoading}
+                      onSendInvite={onSendHouseholdInvite}
+                      onAccept={onAcceptHouseholdInvite!}
+                      onReject={onRejectHouseholdInvite!}
+                      onRemove={onRemoveHouseholdMember!}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Set Password - for OAuth users who want email/password login */}
             <button
               onClick={() => setShowSetPassword(true)}
@@ -168,7 +215,7 @@ const AccountSettingsDialog = ({ open, onOpenChange, userId, onResetComplete, on
               onClick={() => setShowResetConfirm(true)}
               className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-secondary/50 transition-colors text-left"
             >
-              <RotateCcw className="w-5 h-5 text-amber-500 flex-shrink-0" />
+              <RotateCcw className="w-5 h-5 text-status-warning flex-shrink-0" />
               <div>
                 <p className="text-sm font-medium">Reset Profile</p>
                 <p className="text-xs text-muted-foreground">Clear all data and restart onboarding</p>
