@@ -1,0 +1,1 @@
+ALTER TABLE public.user_goal_uploads ALTER COLUMN user_goal_id DROP NOT NULL;
