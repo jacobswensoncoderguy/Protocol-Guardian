@@ -1,5 +1,10 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Beaker, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus, Calendar, FileText, X, Trash2, RefreshCw, Loader2, Upload, AlertTriangle, FlaskConical, AlertCircle, Droplets, Bone, Zap, Syringe, Heart, Bug, ClipboardList, Link2 } from 'lucide-react';
+import {
+  Beaker, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus, Calendar,
+  X, Trash2, RefreshCw, Loader2, Upload, AlertTriangle, FlaskConical,
+  AlertCircle, Droplets, Bone, Zap, Syringe, Heart, Bug, ClipboardList,
+  Link2, Pencil, Check,
+} from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
@@ -42,6 +47,7 @@ interface BiomarkerPoint {
   reference_high?: number;
 }
 
+// ─── Design tokens ────────────────────────────────────────────
 const MARKER_COLORS: Record<string, string> = {
   'Total Testosterone': 'hsl(var(--primary))',
   'Free Testosterone': 'hsl(var(--chart-2))',
@@ -56,72 +62,107 @@ const MARKER_COLORS: Record<string, string> = {
   'Glucose': 'hsl(var(--chart-5))',
   'Estradiol': 'hsl(var(--chart-3))',
 };
-
 const DEFAULT_COLOR = 'hsl(var(--muted-foreground))';
 
 const STATUS_ICONS: Record<string, typeof TrendingUp> = {
-  normal: Minus,
-  low: TrendingDown,
-  high: TrendingUp,
-  critical_low: TrendingDown,
-  critical_high: TrendingUp,
+  normal: Minus, low: TrendingDown, high: TrendingUp, critical_low: TrendingDown, critical_high: TrendingUp,
 };
-
 const STATUS_TEXT_COLORS: Record<string, string> = {
-  normal: 'text-emerald-400',
-  low: 'text-amber-400',
-  high: 'text-amber-400',
-  critical_low: 'text-destructive',
-  critical_high: 'text-destructive',
-};
-
-const STATUS_BG: Record<string, string> = {
-  normal: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400',
-  low: 'bg-status-warning/10 border-status-warning/20 text-status-warning',
-  high: 'bg-status-warning/10 border-status-warning/20 text-status-warning',
-  critical_low: 'bg-destructive/10 border-destructive/20 text-destructive',
-  critical_high: 'bg-destructive/10 border-destructive/20 text-destructive',
+  normal: 'text-emerald-400', low: 'text-amber-400', high: 'text-amber-400',
+  critical_low: 'text-destructive', critical_high: 'text-destructive',
 };
 
 const DOC_TYPE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  bloodwork: Droplets,
-  dexa_scan: Bone,
-  metabolic_panel: Zap,
-  hormone_panel: Syringe,
-  lipid_panel: Heart,
-  thyroid_panel: Bug,
-  other: ClipboardList,
+  bloodwork: Droplets, dexa_scan: Bone, metabolic_panel: Zap,
+  hormone_panel: Syringe, lipid_panel: Heart, thyroid_panel: Bug, other: ClipboardList,
 };
 
-/** A rich expandable card for a single upload record */
-function UploadCard({
+const CATEGORY_LABELS: Record<string, string> = {
+  bloodwork: 'Bloodwork Panels',
+  dexa_scan: 'DEXA Scans',
+  metabolic_panel: 'Metabolic Panels',
+  hormone_panel: 'Hormone Panels',
+  lipid_panel: 'Lipid Panels',
+  thyroid_panel: 'Thyroid Panels',
+  other: 'Lab Results',
+};
+
+// ─── Inline edit form ─────────────────────────────────────────
+function InlineEditForm({
   upload,
+  onSave,
+  onCancel,
+}: {
+  upload: UploadRecord;
+  onSave: (label: string, date: string) => void;
+  onCancel: () => void;
+}) {
+  const [label, setLabel] = useState(upload.file_name || '');
+  const [date, setDate] = useState(upload.reading_date?.split('T')[0] || '');
+  return (
+    <div
+      className="absolute inset-0 z-10 bg-card rounded-xl border border-primary/40 p-3 flex flex-col gap-2"
+      onClick={e => e.stopPropagation()}
+    >
+      <input
+        type="text"
+        value={label}
+        onChange={e => setLabel(e.target.value)}
+        placeholder="Record name"
+        autoFocus
+        className="w-full px-2 py-1.5 rounded-lg border border-border/50 bg-secondary/30 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50"
+      />
+      <input
+        type="date"
+        value={date}
+        onChange={e => setDate(e.target.value)}
+        className="w-full px-2 py-1.5 rounded-lg border border-border/50 bg-secondary/30 text-xs text-foreground focus:outline-none focus:border-primary/50"
+      />
+      <div className="flex gap-1.5 mt-auto">
+        <button
+          onClick={onCancel}
+          className="flex-1 py-1.5 rounded-lg border border-border/50 text-[10px] text-muted-foreground hover:bg-secondary/30 transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={() => onSave(label.trim(), date)}
+          disabled={!label.trim()}
+          className="flex-1 py-1.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-semibold hover:bg-primary/90 transition-colors disabled:opacity-40 flex items-center justify-center gap-1"
+        >
+          <Check className="w-3 h-3" /> Save
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Detail sheet (full AI analysis) ─────────────────────────
+function DetailSheet({
+  upload,
+  onClose,
   onDelete,
   onReanalyze,
   onAlignToGoal,
   isDeleting,
   isReanalyzing,
-  startExpanded = false,
 }: {
   upload: UploadRecord;
+  onClose: () => void;
   onDelete: (id: string) => void;
   onReanalyze: (u: UploadRecord) => void;
   onAlignToGoal: (u: UploadRecord) => void;
   isDeleting: boolean;
   isReanalyzing: boolean;
-  startExpanded?: boolean;
 }) {
-  const [expanded, setExpanded] = useState(startExpanded);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
-
   const biomarkers: any[] = upload.ai_extracted_data?.biomarkers || [];
   const recommendations: any[] = upload.ai_extracted_data?.recommendations || [];
   const summary: string = upload.ai_extracted_data?.summary || '';
-  const docType: string = upload.upload_type || 'other';
-  const DocIcon = DOC_TYPE_ICONS[docType] || ClipboardList;
+  const DocIcon = DOC_TYPE_ICONS[upload.upload_type] || ClipboardList;
 
-  const flagged = biomarkers.filter(b => b.status !== 'normal');
   const critical = biomarkers.filter(b => b.status?.startsWith('critical'));
+  const flaggedOnly = biomarkers.filter(b => b.status !== 'normal' && !b.status?.startsWith('critical'));
   const normal = biomarkers.filter(b => b.status === 'normal');
 
   const groupedByCategory = biomarkers.reduce((acc, b) => {
@@ -131,86 +172,67 @@ function UploadCard({
   }, {} as Record<string, any[]>);
 
   const labelDate = upload.reading_date
-    ? new Date(upload.reading_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    ? new Date(upload.reading_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
     : new Date(upload.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
   return (
-    <div className="bg-card rounded-xl border border-border/50 overflow-hidden">
-      {/* Header row — always visible */}
-      <div className="flex items-center">
-        <button
-          onClick={() => setExpanded(v => !v)}
-          className="flex-1 flex items-center gap-3 px-4 py-3.5 text-left hover:bg-secondary/20 transition-colors min-w-0"
-        >
-          {/* Doc type icon */}
-          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-            <DocIcon className="w-4 h-4 text-primary" />
-          </div>
-
-          <div className="min-w-0 flex-1">
-            {/* Label */}
-            <p className="text-sm font-semibold text-foreground truncate">
-              {upload.file_name || docType.replace(/_/g, ' ')}
-            </p>
-            {/* Meta row */}
-            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-              <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                <Calendar className="w-3 h-3" />
-                {labelDate}
-              </span>
-              <span className="text-[10px] text-muted-foreground">·</span>
-              <span className="text-[10px] text-muted-foreground">{biomarkers.length} markers</span>
-              {critical.length > 0 && (
-                <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/20 font-medium">
-                  <AlertCircle className="w-2.5 h-2.5" />
-                  {critical.length} critical
-                </span>
-              )}
-              {flagged.length > 0 && critical.length === 0 && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-status-warning/10 text-status-warning border border-status-warning/20">
-                  {flagged.length} flagged
-                </span>
-              )}
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm px-2 pb-2 sm:pb-0"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-lg max-h-[88vh] overflow-y-auto rounded-2xl bg-card border border-border shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Sticky header */}
+        <div className="flex items-center justify-between px-4 pt-4 pb-3 sticky top-0 bg-card border-b border-border/30 z-10">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <DocIcon className="w-4 h-4 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground truncate">{upload.file_name || upload.upload_type.replace(/_/g, ' ')}</p>
+              <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                <Calendar className="w-2.5 h-2.5" /> {labelDate}
+              </p>
             </div>
           </div>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <button
+              onClick={() => { onAlignToGoal(upload); onClose(); }}
+              title="Align to a goal"
+              disabled={isReanalyzing || isDeleting}
+              className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-40"
+            >
+              <Link2 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => onReanalyze(upload)}
+              title="Re-analyze with AI"
+              disabled={isReanalyzing || isDeleting}
+              className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-40"
+            >
+              {isReanalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            </button>
+            <button
+              onClick={() => { onDelete(upload.id); onClose(); }}
+              title="Delete record"
+              disabled={isDeleting || isReanalyzing}
+              className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-40"
+            >
+              {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+            </button>
+            <button onClick={onClose} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
 
-          {expanded ? <ChevronUp className="w-4 h-4 text-muted-foreground flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
-        </button>
-
-        {/* Action buttons */}
-        <button
-          onClick={() => onAlignToGoal(upload)}
-          disabled={isReanalyzing || isDeleting}
-          title="Align to a goal"
-          className="p-2.5 text-muted-foreground hover:text-primary transition-colors disabled:opacity-40"
-        >
-          <Link2 className="w-4 h-4" />
-        </button>
-        <button
-          onClick={() => onReanalyze(upload)}
-          disabled={isReanalyzing || isDeleting}
-          title="Re-analyze with AI"
-          className="p-2.5 text-muted-foreground hover:text-primary transition-colors disabled:opacity-40"
-        >
-          {isReanalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-        </button>
-        <button
-          onClick={() => onDelete(upload.id)}
-          disabled={isDeleting || isReanalyzing}
-          title="Delete upload"
-          className="p-2.5 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40"
-        >
-          {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-        </button>
-      </div>
-
-      {/* Expanded body */}
-      {expanded && (
-        <div className="border-t border-border/30 px-4 py-3 space-y-3">
-
-          {/* AI summary */}
+        {/* Body */}
+        <div className="px-4 py-4 space-y-3">
+          {/* AI Summary */}
           {summary && (
-            <p className="text-xs text-muted-foreground bg-secondary/20 rounded-lg px-3 py-2 leading-relaxed">
+            <p className="text-xs text-muted-foreground bg-secondary/20 rounded-xl px-3 py-2.5 leading-relaxed border border-border/30">
               {summary}
             </p>
           )}
@@ -218,19 +240,16 @@ function UploadCard({
           {/* Quick stats */}
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-1.5 text-[11px] text-emerald-400">
-              <div className="w-2 h-2 rounded-full bg-emerald-400" />
-              {normal.length} normal
+              <div className="w-2 h-2 rounded-full bg-emerald-400" /> {normal.length} normal
             </div>
-            {flagged.length > 0 && (
+            {flaggedOnly.length > 0 && (
               <div className="flex items-center gap-1.5 text-[11px] text-status-warning">
-                <div className="w-2 h-2 rounded-full bg-status-warning" />
-                {flagged.length} flagged
+                <div className="w-2 h-2 rounded-full bg-status-warning" /> {flaggedOnly.length} flagged
               </div>
             )}
             {critical.length > 0 && (
               <div className="flex items-center gap-1.5 text-[11px] text-destructive font-semibold">
-                <div className="w-2 h-2 rounded-full bg-destructive" />
-                {critical.length} critical
+                <div className="w-2 h-2 rounded-full bg-destructive" /> {critical.length} critical
               </div>
             )}
           </div>
@@ -250,11 +269,11 @@ function UploadCard({
             </div>
           )}
 
-          {/* Flagged (non-critical) */}
-          {flagged.filter(b => !b.status?.startsWith('critical')).length > 0 && (
+          {/* Out of range (non-critical) */}
+          {flaggedOnly.length > 0 && (
             <div className="rounded-xl border border-status-warning/30 bg-status-warning/5 p-3 space-y-1.5">
               <p className="text-[10px] font-semibold text-status-warning uppercase tracking-wider">Out of Range</p>
-              {flagged.filter(b => !b.status?.startsWith('critical')).map((m: any, i: number) => (
+              {flaggedOnly.map((m: any, i: number) => (
                 <div key={i} className="flex items-center justify-between text-xs">
                   <span className="text-foreground font-medium">{m.name}</span>
                   <div className="flex items-center gap-2">
@@ -272,10 +291,10 @@ function UploadCard({
               const isCatExpanded = expandedCategory === cat;
               const catFlagged = markers.filter(m => m.status !== 'normal').length;
               return (
-                <div key={cat} className="border border-border/40 rounded-lg overflow-hidden">
+                <div key={cat} className="border border-border/40 rounded-xl overflow-hidden">
                   <button
                     onClick={() => setExpandedCategory(isCatExpanded ? null : cat)}
-                    className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-secondary/20 transition-colors"
+                    className="w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-secondary/20 transition-colors"
                   >
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-medium text-foreground capitalize">{cat.replace(/_/g, ' ')}</span>
@@ -289,9 +308,9 @@ function UploadCard({
                     {isCatExpanded ? <ChevronUp className="w-3 h-3 text-muted-foreground" /> : <ChevronDown className="w-3 h-3 text-muted-foreground" />}
                   </button>
                   {isCatExpanded && (
-                    <div className="px-3 pb-2 space-y-1">
+                    <div className="px-3 pb-2.5 space-y-1">
                       {markers.map((m: any, i: number) => (
-                        <div key={i} className="flex items-center justify-between text-xs px-2 py-1.5 rounded-lg bg-secondary/20">
+                        <div key={i} className="flex items-center justify-between text-xs px-2.5 py-2 rounded-lg bg-secondary/20">
                           <span className="text-foreground">{m.name}</span>
                           <div className="flex items-center gap-2">
                             <span className="font-mono text-foreground">{m.value} {m.unit}</span>
@@ -311,9 +330,7 @@ function UploadCard({
           {/* AI Recommendations */}
           {recommendations.length > 0 && (
             <div className="bg-secondary/20 rounded-xl p-3 border border-border/30 space-y-1.5">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                AI Recommendations
-              </p>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">AI Recommendations</p>
               {recommendations.map((rec: any, i: number) => (
                 <div key={i} className="flex items-start gap-2">
                   <AlertCircle className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 ${
@@ -327,18 +344,28 @@ function UploadCard({
               ))}
             </div>
           )}
+
+          {/* Align to goal CTA */}
+          <button
+            onClick={() => { onAlignToGoal(upload); onClose(); }}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors text-xs font-semibold text-primary"
+          >
+            <Link2 className="w-3.5 h-3.5" />
+            Align This Lab to a Goal
+          </button>
         </div>
-      )}
+      </div>
     </div>
   );
 }
 
-/** Compact tile for the category grid — click to open full UploadCard sheet */
+// ─── Clean tile card ──────────────────────────────────────────
 function UploadTile({
   upload,
   onDelete,
   onReanalyze,
   onAlignToGoal,
+  onEditSaved,
   isDeleting,
   isReanalyzing,
 }: {
@@ -346,54 +373,94 @@ function UploadTile({
   onDelete: (id: string) => void;
   onReanalyze: (u: UploadRecord) => void;
   onAlignToGoal: (u: UploadRecord) => void;
+  onEditSaved: (id: string, label: string, date: string) => void;
   isDeleting: boolean;
   isReanalyzing: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+
   const biomarkers: any[] = upload.ai_extracted_data?.biomarkers || [];
   const critical = biomarkers.filter(b => b.status?.startsWith('critical'));
   const flagged = biomarkers.filter(b => b.status !== 'normal');
-  const docType: string = upload.upload_type || 'other';
-  const DocIcon = DOC_TYPE_ICONS[docType] || ClipboardList;
+  const DocIcon = DOC_TYPE_ICONS[upload.upload_type] || ClipboardList;
 
   const labelDate = upload.reading_date
     ? new Date(upload.reading_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
     : new Date(upload.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 
-  const tileName = upload.file_name || docType.replace(/_/g, ' ');
+  const tileName = upload.file_name || upload.upload_type.replace(/_/g, ' ');
+
+  const handleEditSave = async (label: string, date: string) => {
+    setSavingEdit(true);
+    try {
+      const { error } = await supabase
+        .from('user_goal_uploads')
+        .update({ file_name: label, reading_date: date })
+        .eq('id', upload.id);
+      if (error) throw error;
+      onEditSaved(upload.id, label, date);
+      toast.success('Record updated');
+    } catch {
+      toast.error('Failed to update record');
+    } finally {
+      setSavingEdit(false);
+      setEditing(false);
+    }
+  };
 
   return (
     <>
-      {/* The Tile */}
+      {/* Tile */}
       <div
-        className={`relative bg-card rounded-xl border cursor-pointer hover:border-primary/40 hover:bg-secondary/20 transition-all overflow-hidden ${
+        className={cn(
+          'relative bg-card rounded-xl border cursor-pointer hover:border-primary/40 hover:shadow-sm transition-all overflow-hidden',
           critical.length > 0 ? 'border-destructive/30' : flagged.length > 0 ? 'border-status-warning/30' : 'border-border/50'
-        }`}
-        onClick={() => setExpanded(true)}
+        )}
+        onClick={() => !editing && setDetailOpen(true)}
       >
-        {/* Status stripe at top */}
+        {/* Status stripe */}
         {(critical.length > 0 || flagged.length > 0) && (
           <div className={`h-0.5 w-full ${critical.length > 0 ? 'bg-destructive' : 'bg-status-warning'}`} />
         )}
 
+        {/* Inline edit form overlay */}
+        {editing && (
+          <InlineEditForm
+            upload={upload}
+            onSave={handleEditSave}
+            onCancel={() => setEditing(false)}
+          />
+        )}
+
         <div className="p-3">
-          {/* Icon */}
-          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center mb-2">
-            <DocIcon className="w-4 h-4 text-primary" />
+          {/* Header row with icon + edit button */}
+          <div className="flex items-start justify-between mb-2">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <DocIcon className="w-4 h-4 text-primary" />
+            </div>
+            <button
+              onClick={e => { e.stopPropagation(); setEditing(true); }}
+              title="Edit label & date"
+              className="p-1 rounded-md text-muted-foreground/40 hover:text-muted-foreground hover:bg-secondary/40 transition-colors"
+            >
+              <Pencil className="w-3 h-3" />
+            </button>
           </div>
 
-          {/* Name — truncated to 2 lines */}
+          {/* Name */}
           <p className="text-xs font-semibold text-foreground leading-snug line-clamp-2 mb-1">{tileName}</p>
 
           {/* Date */}
-          <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+          <p className="text-[10px] text-muted-foreground flex items-center gap-1 mb-2">
             <Calendar className="w-2.5 h-2.5 flex-shrink-0" />
             {labelDate}
           </p>
 
-          {/* Marker count + flags */}
-          <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-            <span className="text-[9px] text-muted-foreground">{biomarkers.length} markers</span>
+          {/* Status chips */}
+          <div className="flex items-center gap-1 flex-wrap">
+            <span className="text-[9px] text-muted-foreground">{biomarkers.length}m</span>
             {critical.length > 0 && (
               <span className="text-[9px] px-1 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/20 font-semibold">
                 {critical.length}!
@@ -408,75 +475,31 @@ function UploadTile({
         </div>
       </div>
 
-      {/* Full detail — rendered as the old UploadCard in a dialog-like overlay */}
-      {expanded && (
-        <div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm px-2 pb-2 sm:pb-0"
-          onClick={() => setExpanded(false)}
-        >
-          <div
-            className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl bg-card border border-border shadow-2xl"
-            onClick={e => e.stopPropagation()}
-          >
-            {/* Sheet header */}
-            <div className="flex items-center justify-between px-4 pt-4 pb-2 sticky top-0 bg-card border-b border-border/30 z-10">
-              <div className="flex items-center gap-2">
-                <DocIcon className="w-4 h-4 text-primary" />
-                <span className="text-sm font-semibold text-foreground truncate">{tileName}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => { onAlignToGoal(upload); setExpanded(false); }}
-                  title="Align to goal"
-                  disabled={isReanalyzing || isDeleting}
-                  className="p-2 text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 rounded-lg"
-                >
-                  <Link2 className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => onReanalyze(upload)}
-                  title="Re-analyze"
-                  disabled={isReanalyzing || isDeleting}
-                  className="p-2 text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 rounded-lg"
-                >
-                  {isReanalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                </button>
-                <button
-                  onClick={() => { onDelete(upload.id); setExpanded(false); }}
-                  title="Delete"
-                  disabled={isDeleting || isReanalyzing}
-                  className="p-2 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40 rounded-lg"
-                >
-                  {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                </button>
-                <button
-                  onClick={() => setExpanded(false)}
-                  className="p-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Reuse the expanded body from UploadCard */}
-            <UploadCard
-              upload={upload}
-              onDelete={id => { onDelete(id); setExpanded(false); }}
-              onReanalyze={onReanalyze}
-              onAlignToGoal={u => { onAlignToGoal(u); setExpanded(false); }}
-              isDeleting={isDeleting}
-              isReanalyzing={isReanalyzing}
-              startExpanded
-            />
-          </div>
-        </div>
+      {/* Detail sheet */}
+      {detailOpen && (
+        <DetailSheet
+          upload={upload}
+          onClose={() => setDetailOpen(false)}
+          onDelete={onDelete}
+          onReanalyze={onReanalyze}
+          onAlignToGoal={onAlignToGoal}
+          isDeleting={isDeleting}
+          isReanalyzing={isReanalyzing}
+        />
       )}
     </>
   );
 }
 
-
-export default function BiomarkerHistoryView({ userId, onUploadClick, onFlaggedCountChange, goals = [], onCreateGoal, onRefreshGoals }: BiomarkerHistoryProps) {
+// ─── Main export ──────────────────────────────────────────────
+export default function BiomarkerHistoryView({
+  userId,
+  onUploadClick,
+  onFlaggedCountChange,
+  goals = [],
+  onCreateGoal,
+  onRefreshGoals,
+}: BiomarkerHistoryProps) {
   const [uploads, setUploads] = useState<UploadRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedMarker, setExpandedMarker] = useState<string | null>(null);
@@ -496,36 +519,27 @@ export default function BiomarkerHistoryView({ userId, onUploadClick, onFlaggedC
       .select('*')
       .eq('user_id', userId)
       .order('reading_date', { ascending: false });
-
-    if (!error && data) {
-      setUploads(data as UploadRecord[]);
-    }
+    if (!error && data) setUploads(data as UploadRecord[]);
     setLoading(false);
   }, [userId]);
 
   useEffect(() => { fetchUploads(); }, [fetchUploads]);
 
-  // Delete with confirm — confirm first, then execute
+  const handleDelete = useCallback((id: string) => setDeleteConfirmId(id), []);
+
   const handleDeleteConfirmed = useCallback(async () => {
     if (!deleteConfirmId) return;
-    const uploadId = deleteConfirmId;
+    const id = deleteConfirmId;
     setDeleteConfirmId(null);
-    setDeletingId(uploadId);
+    setDeletingId(id);
     try {
-      const { error } = await supabase.from('user_goal_uploads').delete().eq('id', uploadId);
+      const { error } = await supabase.from('user_goal_uploads').delete().eq('id', id);
       if (error) throw error;
-      setUploads(prev => prev.filter(u => u.id !== uploadId));
-      toast.success('Upload deleted');
-    } catch {
-      toast.error('Failed to delete upload');
-    } finally {
-      setDeletingId(null);
-    }
+      setUploads(prev => prev.filter(u => u.id !== id));
+      toast.success('Record deleted');
+    } catch { toast.error('Failed to delete'); }
+    finally { setDeletingId(null); }
   }, [deleteConfirmId]);
-
-  const handleDelete = useCallback((uploadId: string) => {
-    setDeleteConfirmId(uploadId);
-  }, []);
 
   const handleReanalyze = useCallback(async (upload: UploadRecord) => {
     setReanalyzingId(upload.id);
@@ -539,56 +553,41 @@ export default function BiomarkerHistoryView({ userId, onUploadClick, onFlaggedC
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-
       const { error: updateError } = await supabase
         .from('user_goal_uploads')
         .update({ ai_extracted_data: data })
         .eq('id', upload.id);
       if (updateError) throw updateError;
-
       setUploads(prev => prev.map(u => u.id === upload.id ? { ...u, ai_extracted_data: data } : u));
       toast.success('Re-analysis complete');
-      // Auto-scroll to trends after re-analysis
-      setTimeout(() => {
-        trendsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 300);
+      setTimeout(() => trendsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
     } catch (e: any) {
       toast.error(e.message || 'Re-analysis failed');
-    } finally {
-      setReanalyzingId(null);
-    }
+    } finally { setReanalyzingId(null); }
   }, []);
 
-  // Filter uploads by date range
-  const filteredUploads = useMemo(() => {
-    return uploads.filter(upload => {
-      const d = new Date(upload.reading_date || upload.created_at);
-      if (dateFrom && d < dateFrom) return false;
-      if (dateTo) {
-        const endOfDay = new Date(dateTo);
-        endOfDay.setHours(23, 59, 59, 999);
-        if (d > endOfDay) return false;
-      }
-      return true;
-    });
-  }, [uploads, dateFrom, dateTo]);
+  const handleEditSaved = useCallback((id: string, label: string, date: string) => {
+    setUploads(prev => prev.map(u => u.id === id ? { ...u, file_name: label, reading_date: date } : u));
+  }, []);
+
+  // Date filter
+  const filteredUploads = useMemo(() => uploads.filter(u => {
+    const d = new Date(u.reading_date || u.created_at);
+    if (dateFrom && d < dateFrom) return false;
+    if (dateTo) { const e = new Date(dateTo); e.setHours(23, 59, 59, 999); if (d > e) return false; }
+    return true;
+  }), [uploads, dateFrom, dateTo]);
 
   const hasDateFilter = dateFrom || dateTo;
 
-  // Build timeline across ALL uploads for trend charts
+  // Build cross-upload timelines for trend cards
   const allPoints: BiomarkerPoint[] = [];
   [...uploads].reverse().forEach(upload => {
-    const biomarkers = upload.ai_extracted_data?.biomarkers || [];
-    biomarkers.forEach((b: any) => {
+    (upload.ai_extracted_data?.biomarkers || []).forEach((b: any) => {
       allPoints.push({
-        name: b.name,
-        value: b.value,
-        unit: b.unit,
-        status: b.status,
+        name: b.name, value: b.value, unit: b.unit, status: b.status,
         date: upload.reading_date?.split('T')[0] || upload.created_at.split('T')[0],
-        category: b.category,
-        reference_low: b.reference_low,
-        reference_high: b.reference_high,
+        category: b.category, reference_low: b.reference_low, reference_high: b.reference_high,
       });
     });
   });
@@ -599,26 +598,19 @@ export default function BiomarkerHistoryView({ userId, onUploadClick, onFlaggedC
     arr.push(p);
     markerTimelines.set(p.name, arr);
   });
-  markerTimelines.forEach(points => points.sort((a, b) => a.date.localeCompare(b.date)));
+  markerTimelines.forEach(pts => pts.sort((a, b) => a.date.localeCompare(b.date)));
 
   const KEY_MARKERS = ['Total Testosterone', 'Free Testosterone', 'hs-CRP', 'Vitamin D', 'Total Cholesterol', 'LDL', 'HDL', 'Cortisol', 'IGF-1'];
   const keyMarkers = KEY_MARKERS.filter(m => markerTimelines.has(m));
 
-  // Summary stats
-  const mostRecentUpload = uploads.length > 0 ? uploads[0] : null;
   const totalMarkersTracked = markerTimelines.size;
   const totalFlagged = useMemo(() => {
     let count = 0;
-    markerTimelines.forEach(points => {
-      const latest = points[points.length - 1];
-      if (latest.status !== 'normal') count++;
-    });
+    markerTimelines.forEach(pts => { if (pts[pts.length - 1].status !== 'normal') count++; });
     return count;
   }, [markerTimelines]);
 
-  useEffect(() => {
-    onFlaggedCountChange?.(totalFlagged);
-  }, [totalFlagged, onFlaggedCountChange]);
+  useEffect(() => { onFlaggedCountChange?.(totalFlagged); }, [totalFlagged, onFlaggedCountChange]);
 
   if (loading) {
     return (
@@ -652,9 +644,20 @@ export default function BiomarkerHistoryView({ userId, onUploadClick, onFlaggedC
     );
   }
 
+  // Group filtered uploads by category for tile grid
+  const categoryOrder: string[] = [];
+  const categoryMap: Record<string, UploadRecord[]> = {};
+  [...filteredUploads]
+    .sort((a, b) => new Date(a.reading_date || a.created_at).getTime() - new Date(b.reading_date || b.created_at).getTime())
+    .forEach(upload => {
+      const cat = upload.upload_type || 'other';
+      if (!categoryMap[cat]) { categoryMap[cat] = []; categoryOrder.push(cat); }
+      categoryMap[cat].push(upload);
+    });
+
   return (
-    <div className="space-y-3">
-      {/* Summary Card + Upload Button */}
+    <div className="space-y-4">
+      {/* Summary header + Upload button */}
       <div className="bg-card rounded-xl border border-border/50 p-3.5 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
@@ -667,15 +670,12 @@ export default function BiomarkerHistoryView({ userId, onUploadClick, onFlaggedC
               </span>
               {totalFlagged > 0 && (
                 <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-status-warning/10 text-status-warning border border-status-warning/20 font-medium">
-                  <AlertTriangle className="w-2.5 h-2.5" />
-                  {totalFlagged} flagged
+                  <AlertTriangle className="w-2.5 h-2.5" /> {totalFlagged} flagged
                 </span>
               )}
             </div>
             <p className="text-[11px] text-muted-foreground mt-0.5">
-              {mostRecentUpload
-                ? `Last: ${mostRecentUpload.file_name || mostRecentUpload.upload_type} · ${uploads.length} upload${uploads.length !== 1 ? 's' : ''} total`
-                : 'No uploads yet'}
+              {uploads.length} upload{uploads.length !== 1 ? 's' : ''} · tap a tile to view full analysis
             </p>
           </div>
         </div>
@@ -683,8 +683,7 @@ export default function BiomarkerHistoryView({ userId, onUploadClick, onFlaggedC
           onClick={onUploadClick}
           className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm"
         >
-          <Upload className="w-3.5 h-3.5" />
-          Upload
+          <Upload className="w-3.5 h-3.5" /> Upload
         </button>
       </div>
 
@@ -693,8 +692,8 @@ export default function BiomarkerHistoryView({ userId, onUploadClick, onFlaggedC
         <Popover>
           <PopoverTrigger asChild>
             <button className={cn(
-              "text-[11px] px-2.5 py-1.5 rounded-lg border transition-colors inline-flex items-center gap-1.5 font-medium",
-              dateFrom ? "bg-primary/10 text-primary border-primary/20" : "bg-secondary/30 text-muted-foreground border-border/50 hover:bg-secondary/50"
+              'text-[11px] px-2.5 py-1.5 rounded-lg border transition-colors inline-flex items-center gap-1.5 font-medium',
+              dateFrom ? 'bg-primary/10 text-primary border-primary/20' : 'bg-secondary/30 text-muted-foreground border-border/50 hover:bg-secondary/50'
             )}>
               <Calendar className="w-3 h-3" />
               {dateFrom ? format(dateFrom, 'MMM d, yyyy') : 'From'}
@@ -702,17 +701,15 @@ export default function BiomarkerHistoryView({ userId, onUploadClick, onFlaggedC
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
             <CalendarPicker mode="single" selected={dateFrom} onSelect={setDateFrom}
-              disabled={(date) => dateTo ? date > dateTo : false} initialFocus className="p-3 pointer-events-auto" />
+              disabled={date => !!dateTo && date > dateTo} initialFocus className="p-3 pointer-events-auto" />
           </PopoverContent>
         </Popover>
-
         <span className="text-[10px] text-muted-foreground">→</span>
-
         <Popover>
           <PopoverTrigger asChild>
             <button className={cn(
-              "text-[11px] px-2.5 py-1.5 rounded-lg border transition-colors inline-flex items-center gap-1.5 font-medium",
-              dateTo ? "bg-primary/10 text-primary border-primary/20" : "bg-secondary/30 text-muted-foreground border-border/50 hover:bg-secondary/50"
+              'text-[11px] px-2.5 py-1.5 rounded-lg border transition-colors inline-flex items-center gap-1.5 font-medium',
+              dateTo ? 'bg-primary/10 text-primary border-primary/20' : 'bg-secondary/30 text-muted-foreground border-border/50 hover:bg-secondary/50'
             )}>
               <Calendar className="w-3 h-3" />
               {dateTo ? format(dateTo, 'MMM d, yyyy') : 'To'}
@@ -720,10 +717,9 @@ export default function BiomarkerHistoryView({ userId, onUploadClick, onFlaggedC
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
             <CalendarPicker mode="single" selected={dateTo} onSelect={setDateTo}
-              disabled={(date) => dateFrom ? date < dateFrom : false} initialFocus className="p-3 pointer-events-auto" />
+              disabled={date => !!dateFrom && date < dateFrom} initialFocus className="p-3 pointer-events-auto" />
           </PopoverContent>
         </Popover>
-
         {hasDateFilter && (
           <button
             onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}
@@ -737,7 +733,7 @@ export default function BiomarkerHistoryView({ userId, onUploadClick, onFlaggedC
       {/* DEXA Body Composition */}
       <DexaScanView uploads={filteredUploads} />
 
-      {/* Key Marker Trend Cards (only when multiple uploads exist) */}
+      {/* Key Marker Trend Cards (multi-upload only) */}
       {keyMarkers.length > 0 && uploads.length >= 2 && (
         <div ref={trendsRef}>
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Trends Across Uploads</p>
@@ -755,7 +751,6 @@ export default function BiomarkerHistoryView({ userId, onUploadClick, onFlaggedC
                 date: new Date(p.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
                 value: p.value,
               }));
-
               return (
                 <div key={markerName} className="bg-card rounded-xl border border-border/50 overflow-hidden">
                   <button onClick={() => setExpandedMarker(isExpanded ? null : markerName)} className="w-full p-3 text-left hover:bg-secondary/20 transition-colors">
@@ -798,82 +793,46 @@ export default function BiomarkerHistoryView({ userId, onUploadClick, onFlaggedC
 
       {/* Comparison Chart */}
       {markerTimelines.size >= 2 && uploads.length >= 2 && (
-        <BiomarkerComparisonChart
-          markerTimelines={markerTimelines}
-          markerColors={MARKER_COLORS}
-          defaultColor={DEFAULT_COLOR}
-        />
+        <BiomarkerComparisonChart markerTimelines={markerTimelines} markerColors={MARKER_COLORS} defaultColor={DEFAULT_COLOR} />
       )}
 
-      {/* Upload Records — grouped by document type, tiles in horizontal-first grid */}
-      {(() => {
-        // Group uploads by upload_type (category)
-        const categoryOrder: string[] = [];
-        const categoryMap: Record<string, UploadRecord[]> = {};
+      {/* ── Category-grouped tile grid ── */}
+      <div className="space-y-6">
+        {categoryOrder.map(cat => {
+          const catUploads = categoryMap[cat];
+          const label = CATEGORY_LABELS[cat] || cat.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+          return (
+            <div key={cat}>
+              {/* Category header + horizontal separator */}
+              <div className="flex items-center gap-3 mb-3">
+                <span className="text-[11px] font-bold text-foreground uppercase tracking-widest whitespace-nowrap">
+                  {label}
+                </span>
+                <div className="flex-1 h-px bg-border/50" />
+                <span className="text-[10px] text-muted-foreground tabular-nums">{catUploads.length}</span>
+              </div>
 
-        const sortedUploads = [...filteredUploads].sort((a, b) => {
-          const da = new Date(a.reading_date || a.created_at).getTime();
-          const db = new Date(b.reading_date || b.created_at).getTime();
-          return da - db; // chronological within each category
-        });
+              {/* Tiles — horizontal first, 2 per row mobile → 3 on sm */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {catUploads.map(upload => (
+                  <UploadTile
+                    key={upload.id}
+                    upload={upload}
+                    onDelete={handleDelete}
+                    onReanalyze={handleReanalyze}
+                    onAlignToGoal={setAlignUpload}
+                    onEditSaved={handleEditSaved}
+                    isDeleting={deletingId === upload.id}
+                    isReanalyzing={reanalyzingId === upload.id}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
-        sortedUploads.forEach(upload => {
-          const cat = upload.upload_type || 'other';
-          if (!categoryMap[cat]) {
-            categoryMap[cat] = [];
-            categoryOrder.push(cat);
-          }
-          categoryMap[cat].push(upload);
-        });
-
-        const CATEGORY_LABELS: Record<string, string> = {
-          bloodwork: 'Bloodwork Panels',
-          dexa_scan: 'DEXA Scans',
-          metabolic_panel: 'Metabolic Panels',
-          hormone_panel: 'Hormone Panels',
-          lipid_panel: 'Lipid Panels',
-          thyroid_panel: 'Thyroid Panels',
-          other: 'Lab Results',
-        };
-
-        return (
-          <div className="space-y-6">
-            {categoryOrder.map(cat => {
-              const uploads = categoryMap[cat];
-              const label = CATEGORY_LABELS[cat] || cat.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-              return (
-                <div key={cat}>
-                  {/* Category header with separator */}
-                  <div className="flex items-center gap-3 mb-3">
-                    <span className="text-[11px] font-bold text-foreground uppercase tracking-widest whitespace-nowrap">
-                      {label}
-                    </span>
-                    <div className="flex-1 h-px bg-border/50" />
-                    <span className="text-[10px] text-muted-foreground">{uploads.length}</span>
-                  </div>
-
-                  {/* Tile grid — horizontal-first (2 per row on mobile, 3 on sm+) */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {uploads.map(upload => (
-                      <UploadTile
-                        key={upload.id}
-                        upload={upload}
-                        onDelete={handleDelete}
-                        onReanalyze={handleReanalyze}
-                        onAlignToGoal={setAlignUpload}
-                        isDeleting={deletingId === upload.id}
-                        isReanalyzing={reanalyzingId === upload.id}
-                      />
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        );
-      })()}
-
-      {/* Delete Confirmation */}
+      {/* Delete confirmation */}
       <ConfirmDialog
         open={!!deleteConfirmId}
         onOpenChange={open => { if (!open) setDeleteConfirmId(null); }}
@@ -884,7 +843,7 @@ export default function BiomarkerHistoryView({ userId, onUploadClick, onFlaggedC
         onConfirm={handleDeleteConfirmed}
       />
 
-      {/* Align to Goal */}
+      {/* Align to Goal dialog */}
       {alignUpload && (
         <AlignToGoalDialog
           open={!!alignUpload}
@@ -896,10 +855,7 @@ export default function BiomarkerHistoryView({ userId, onUploadClick, onFlaggedC
           biomarkers={alignUpload.ai_extracted_data?.biomarkers || []}
           goals={goals}
           onCreateGoal={onCreateGoal}
-          onGoalAligned={() => {
-            onRefreshGoals?.();
-            fetchUploads();
-          }}
+          onGoalAligned={() => { onRefreshGoals?.(); fetchUploads(); }}
         />
       )}
     </div>
