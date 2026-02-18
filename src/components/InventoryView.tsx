@@ -596,7 +596,15 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
               {cycleStatus.isOn ? `ON ${cycleStatus.daysLeftInPhase}d` : `OFF ${cycleStatus.daysLeftInPhase}d`}
             </span>
           )}
-          {!compoundIsPaused && (
+          {!compoundIsPaused && !compound.purchaseDate && (
+            <span
+              className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border/50"
+              title="Set a purchase date to activate depletion tracking"
+            >
+              no date
+            </span>
+          )}
+          {!compoundIsPaused && compound.purchaseDate && (
             <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
               status === 'critical' ? 'bg-destructive/20 text-status-critical' :
               status === 'warning' ? 'bg-accent/20 text-status-warning' :
