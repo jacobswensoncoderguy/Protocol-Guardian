@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Compound } from '@/data/compounds';
 import { formatDistanceToNow, parseISO, isAfter, subHours, format, startOfMonth } from 'date-fns';
-import { History, ArrowRight, Undo2, Loader2, Brain, Trash2, ChevronDown, ChevronUp, Search, X, Filter, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { History, ArrowRight, Undo2, Loader2, Brain, Trash2, ChevronDown, ChevronUp, Search, X, Filter, TrendingUp, TrendingDown, Minus, RotateCcw, Pencil, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -82,7 +82,13 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
   const [changes, setChanges] = useState<ProtocolChange[]>([]);
   const [loading, setLoading] = useState(true);
   const [undoing, setUndoing] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+
+  // Inline-edit state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const [saving, setSaving] = useState(false);
 
   // Filter state
   const [search, setSearch] = useState('');
@@ -112,9 +118,10 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
 
   useEffect(() => { fetchChanges(); }, [fetchChanges]);
 
-  const handleUndo = useCallback(async (change: ProtocolChange) => {
+  // Revert: apply previous_value back to compound
+  const handleRevert = useCallback(async (change: ProtocolChange) => {
     if (!change.compound_id || !change.previous_value) {
-      toast.error('Cannot undo — no previous value recorded');
+      toast.error('Cannot revert — no previous value recorded');
       return;
     }
     const compound = compounds.find(c => c.id === change.compound_id);
@@ -122,13 +129,11 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
       toast.error('Compound no longer in your protocol');
       return;
     }
-
     const field = extractField(change.description);
     if (!field) {
       toast.error('Cannot determine which field to revert');
       return;
     }
-
     setUndoing(change.id);
     try {
       const numericFields = ['dosePerUse', 'dosesPerDay', 'daysPerWeek', 'cycleOnDays', 'cycleOffDays'];
@@ -149,32 +154,95 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
       await fetchChanges();
       toast.success(`Reverted ${compound.name}: ${fieldLabel(field)} → ${change.previous_value}`);
     } catch (e) {
-      console.error('Undo failed:', e);
-      toast.error('Undo failed');
+      console.error('Revert failed:', e);
+      toast.error('Revert failed');
     } finally {
       setUndoing(null);
     }
   }, [compounds, updateCompound, refetch, fetchChanges, userId]);
 
-  // Derived: unique compound names for search suggestions
-  const compoundNames = useMemo(() => {
-    const names = new Set<string>();
-    changes.forEach(c => names.add(c.description.split(':')[0].trim()));
-    return Array.from(names).sort();
-  }, [changes]);
+  // Adjust: apply the edited new_value to the compound live
+  const handleStartEdit = (change: ProtocolChange) => {
+    setEditingId(change.id);
+    setEditValue(change.new_value ?? '');
+    setExpanded(change.id);
+  };
 
-  // Filtered changes
+  const handleSaveEdit = useCallback(async (change: ProtocolChange) => {
+    if (!change.compound_id) { toast.error('No compound linked'); return; }
+    const compound = compounds.find(c => c.id === change.compound_id);
+    if (!compound) { toast.error('Compound not found'); return; }
+    const field = extractField(change.description);
+    if (!field) { toast.error('Cannot determine field'); return; }
+
+    setSaving(true);
+    try {
+      const numericFields = ['dosePerUse', 'dosesPerDay', 'daysPerWeek', 'cycleOnDays', 'cycleOffDays'];
+      const value = numericFields.includes(field) ? parseFloat(editValue) : editValue;
+      if (numericFields.includes(field) && isNaN(value as number)) {
+        toast.error('Please enter a valid number');
+        return;
+      }
+      updateCompound(compound.id, { [field]: value } as Partial<Compound>);
+
+      // Update the record's new_value in DB
+      await supabase.from('protocol_changes').update({ new_value: editValue }).eq('id', change.id);
+
+      // Log the adjustment
+      await supabase.from('protocol_changes').insert({
+        user_id: userId!,
+        change_type: change.change_type,
+        compound_id: compound.id,
+        description: `${compound.name}: ${field} adjusted manually`,
+        previous_value: change.new_value,
+        new_value: editValue,
+      });
+
+      await refetch();
+      await fetchChanges();
+      toast.success(`${compound.name} adjusted: ${fieldLabel(field)} → ${editValue}`);
+      setEditingId(null);
+    } catch (e) {
+      console.error('Adjust failed:', e);
+      toast.error('Adjust failed');
+    } finally {
+      setSaving(false);
+    }
+  }, [compounds, updateCompound, refetch, fetchChanges, userId, editValue]);
+
+  // Delete: remove the change record from DB (does NOT revert the compound)
+  const handleDelete = useCallback(async (change: ProtocolChange) => {
+    setDeleting(change.id);
+    try {
+      const { error } = await supabase.from('protocol_changes').delete().eq('id', change.id);
+      if (error) throw error;
+      setChanges(prev => prev.filter(c => c.id !== change.id));
+      toast.success('Change record deleted');
+    } catch (e) {
+      console.error('Delete failed:', e);
+      toast.error('Delete failed');
+    } finally {
+      setDeleting(null);
+    }
+  }, []);
+
+  // Filtered changes — use created_at for date comparison consistently
   const filtered = useMemo(() => {
     return changes.filter(c => {
       const compoundName = c.description.split(':')[0].trim().toLowerCase();
       if (search && !compoundName.includes(search.toLowerCase())) return false;
       if (typeFilter !== 'all' && c.change_type !== typeFilter) return false;
+      // Use created_at for reliable date comparison
       const changeDate = parseISO(c.created_at);
-      if (dateFrom && changeDate < dateFrom) return false;
+      if (dateFrom) {
+        const from = new Date(dateFrom);
+        from.setHours(0, 0, 0, 0);
+        if (changeDate < from) return false;
+      }
       if (dateTo) {
-        const toEnd = new Date(dateTo);
-        toEnd.setHours(23, 59, 59, 999);
-        if (changeDate > toEnd) return false;
+        const to = new Date(dateTo);
+        to.setHours(23, 59, 59, 999);
+        if (changeDate > to) return false;
       }
       return true;
     });
@@ -189,7 +257,7 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
     setDateTo(undefined);
   };
 
-  // --- Stats computations (must be before early returns) ---
+  // Stats computations
   const stats = useMemo(() => {
     const monthStart = startOfMonth(new Date());
     const thisMonth = changes.filter(c => parseISO(c.created_at) >= monthStart);
@@ -237,13 +305,12 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
     );
   }
 
-  // Group by date
+  // Group filtered results by date
   const grouped = filtered.reduce<Record<string, ProtocolChange[]>>((acc, c) => {
-    const day = c.change_date ?? c.created_at.slice(0, 10);
+    const day = c.created_at.slice(0, 10);
     (acc[day] = acc[day] ?? []).push(c);
     return acc;
   }, {});
-
 
   return (
     <div className="space-y-3 pb-6">
@@ -289,7 +356,6 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
 
       {/* Filters */}
       <div className="space-y-2">
-        {/* Search bar */}
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
           <Input
@@ -305,7 +371,6 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
           )}
         </div>
 
-        {/* Type filter chips + date range */}
         <div className="flex gap-1.5 flex-wrap items-center">
           <Filter className="w-3 h-3 text-muted-foreground flex-shrink-0" />
           {CHANGE_TYPES.map(t => (
@@ -324,7 +389,6 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
           ))}
         </div>
 
-        {/* Date range pickers */}
         <div className="flex gap-2 items-center">
           <Popover open={fromOpen} onOpenChange={setFromOpen}>
             <PopoverTrigger asChild>
@@ -390,15 +454,20 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
           {dayChanges.map((change) => {
             const field = extractField(change.description);
             const recent = isRecent(change.created_at);
-            const canUndo = recent
+            const canRevert = recent
               && change.change_type !== 'remove_compound'
               && change.change_type !== 'add_compound'
               && !!change.previous_value
               && !!change.compound_id
               && !!field;
+            const canAdjust = change.change_type !== 'remove_compound'
+              && change.change_type !== 'add_compound'
+              && !!change.compound_id
+              && !!field;
 
             const compoundName = change.description.split(':')[0].trim();
             const isExpanded = expanded === change.id;
+            const isEditing = editingId === change.id;
 
             return (
               <div key={change.id} className="rounded-xl border border-border/40 bg-card/60 overflow-hidden">
@@ -432,38 +501,96 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
                       </button>
                     </div>
                   </div>
-                  {canUndo && (
+
+                  {/* Action buttons */}
+                  <div className="flex flex-col gap-1 flex-shrink-0">
+                    {canRevert && (
+                      <button
+                        onClick={() => handleRevert(change)}
+                        disabled={undoing === change.id}
+                        className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-lg bg-secondary/70 text-muted-foreground hover:bg-accent/20 hover:text-status-warning border border-border/40 transition-all disabled:opacity-40"
+                        title="Revert to previous value"
+                      >
+                        {undoing === change.id
+                          ? <Loader2 className="w-3 h-3 animate-spin" />
+                          : <RotateCcw className="w-3 h-3" />
+                        }
+                        Revert
+                      </button>
+                    )}
+                    {canAdjust && (
+                      <button
+                        onClick={() => handleStartEdit(change)}
+                        className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-lg bg-secondary/70 text-muted-foreground hover:bg-primary/10 hover:text-primary border border-border/40 transition-all"
+                        title="Adjust value"
+                      >
+                        <Pencil className="w-3 h-3" />
+                        Adjust
+                      </button>
+                    )}
                     <button
-                      onClick={() => handleUndo(change)}
-                      disabled={undoing === change.id}
-                      className="flex items-center gap-1 text-[10px] font-medium px-2 py-1.5 rounded-lg bg-secondary/70 text-muted-foreground hover:bg-accent/20 hover:text-status-warning border border-border/40 transition-all flex-shrink-0 disabled:opacity-40"
-                      title="Revert this change"
+                      onClick={() => handleDelete(change)}
+                      disabled={deleting === change.id}
+                      className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-lg bg-secondary/70 text-muted-foreground hover:bg-destructive/10 hover:text-destructive border border-border/40 transition-all disabled:opacity-40"
+                      title="Delete this record"
                     >
-                      {undoing === change.id
+                      {deleting === change.id
                         ? <Loader2 className="w-3 h-3 animate-spin" />
-                        : <Undo2 className="w-3 h-3" />
+                        : <Trash2 className="w-3 h-3" />
                       }
-                      Undo
+                      Delete
                     </button>
-                  )}
+                  </div>
                 </div>
 
+                {/* Expanded details / inline edit */}
                 {isExpanded && (
                   <div className="px-3 pb-3 pt-0 border-t border-border/30 bg-secondary/20 animate-fade-in">
-                    <p className="text-[11px] text-muted-foreground leading-relaxed mt-2">
-                      <span className="font-semibold text-foreground/70">Description:</span> {change.description}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground/60 mt-1 font-mono">ID: {change.id.slice(0, 8)}…</p>
-                    {!canUndo && recent && change.change_type === 'remove_compound' && (
-                      <p className="text-[10px] text-status-warning mt-1.5 flex items-center gap-1">
-                        <Trash2 className="w-3 h-3" />
-                        Compound removal cannot be undone automatically — re-add via the + button.
-                      </p>
-                    )}
-                    {!recent && (
-                      <p className="text-[10px] text-muted-foreground/50 mt-1.5">
-                        Undo only available within 48 hours of the change.
-                      </p>
+                    {isEditing ? (
+                      <div className="mt-2 space-y-2">
+                        <p className="text-[11px] text-muted-foreground font-medium">Adjust {fieldLabel(field)} value:</p>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={editValue}
+                            onChange={e => setEditValue(e.target.value)}
+                            className="h-7 text-xs flex-1 bg-background/60"
+                            autoFocus
+                          />
+                          <button
+                            onClick={() => handleSaveEdit(change)}
+                            disabled={saving}
+                            className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all disabled:opacity-40"
+                          >
+                            {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                            Apply
+                          </button>
+                          <button
+                            onClick={() => setEditingId(null)}
+                            className="text-[10px] text-muted-foreground hover:text-foreground px-1"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                        <p className="text-[9px] text-muted-foreground/60">Current applied value: {change.new_value}</p>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed mt-2">
+                          <span className="font-semibold text-foreground/70">Description:</span> {change.description}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground/60 mt-1 font-mono">ID: {change.id.slice(0, 8)}…</p>
+                        {!canRevert && recent && change.change_type === 'remove_compound' && (
+                          <p className="text-[10px] text-status-warning mt-1.5 flex items-center gap-1">
+                            <Trash2 className="w-3 h-3" />
+                            Compound removal cannot be undone automatically — re-add via the + button.
+                          </p>
+                        )}
+                        {!recent && (
+                          <p className="text-[10px] text-muted-foreground/50 mt-1.5">
+                            Revert only available within 48 hours of the change.
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
