@@ -5,7 +5,7 @@ import { getCycleStatus, isPaused } from '@/lib/cycling';
 import { generateScheduleFromCompounds } from '@/lib/scheduleGenerator';
 import { CustomField } from '@/hooks/useCustomFields';
 import { UserProtocol } from '@/hooks/useProtocols';
-import { Sun, Moon, Dumbbell, Info, Syringe, Pause, Check } from 'lucide-react';
+import { Sun, Moon, Dumbbell, Info, Syringe, Pause, Check, ArrowLeft } from 'lucide-react';
 
 function getFrequencyLabel(compound: Compound): string {
   const dpw = compound.daysPerWeek;
@@ -49,8 +49,14 @@ interface WeeklyScheduleViewProps {
   onToggleChecked?: (key: string) => void;
   /** When true, dose checkboxes are hidden (read-only mode for member views) */
   readOnly?: boolean;
+  /** Name of the member being viewed in read-only mode — shown in a banner */
+  readOnlyMemberName?: string;
+  /** Callback to exit member read-only view back to self */
+  onExitReadOnly?: () => void;
   /** Map of memberInitial -> Set<checkKey> for combined view initials badges */
   memberInitialsDoses?: Map<string, Set<string>>;
+  /** Set of compound IDs belonging to household member (for ownership dot in combined view) */
+  memberCompoundIds?: Set<string>;
 }
 
 function getResumeDate(daysLeft: number): string {
@@ -60,7 +66,7 @@ function getResumeDate(daysLeft: number): string {
   return `${months[d.getMonth()]} ${d.getDate()}`;
 }
 
-const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compoundLoading, onAnalyzeCompound, customFields, customFieldValues, checkedDoses: externalChecked, onToggleChecked: externalToggle, readOnly = false, memberInitialsDoses }: WeeklyScheduleViewProps) => {
+const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compoundLoading, onAnalyzeCompound, customFields, customFieldValues, checkedDoses: externalChecked, onToggleChecked: externalToggle, readOnly = false, readOnlyMemberName, onExitReadOnly, memberInitialsDoses, memberCompoundIds }: WeeklyScheduleViewProps) => {
   const today = new Date().getDay();
   const [selectedDay, setSelectedDay] = useState(today);
   const [selectedCompound, setSelectedCompound] = useState<Compound | null>(null);
@@ -111,6 +117,25 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
   return (
     <TooltipProvider>
       <div className="space-y-4">
+        {/* Read-only member banner */}
+        {readOnly && readOnlyMemberName && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/20 text-xs">
+            {onExitReadOnly && (
+              <button
+                onClick={onExitReadOnly}
+                className="flex items-center gap-1 text-primary hover:text-primary/80 transition-colors flex-shrink-0 font-medium"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                Back
+              </button>
+            )}
+            <span className="w-px h-4 bg-border/50 flex-shrink-0" />
+            <span className="text-muted-foreground truncate">
+              Viewing <span className="text-foreground font-semibold">{readOnlyMemberName}</span>'s schedule
+              <span className="ml-1.5 text-[10px] uppercase tracking-wider text-muted-foreground/70 font-medium">— read only</span>
+            </span>
+          </div>
+        )}
         {/* Day Selector */}
         <div className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-thin">
           {weeklySchedule.map((day) => (
@@ -171,6 +196,7 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
           onToggleChecked={toggleChecked}
           readOnly={readOnly}
           memberInitialsDoses={memberInitialsDoses}
+          memberCompoundIds={memberCompoundIds}
         />
 
         {/* Afternoon */}
@@ -191,6 +217,7 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
             onToggleChecked={toggleChecked}
             readOnly={readOnly}
             memberInitialsDoses={memberInitialsDoses}
+            memberCompoundIds={memberCompoundIds}
           />
         )}
 
@@ -211,6 +238,7 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
           onToggleChecked={toggleChecked}
           readOnly={readOnly}
           memberInitialsDoses={memberInitialsDoses}
+          memberCompoundIds={memberCompoundIds}
         />
 
         <CompoundInfoDrawer
@@ -243,6 +271,7 @@ const DoseSection = ({
   onToggleChecked,
   readOnly = false,
   memberInitialsDoses,
+  memberCompoundIds,
 }: {
   icon: React.ReactNode;
   title: string;
@@ -259,6 +288,7 @@ const DoseSection = ({
   onToggleChecked: (key: string) => void;
   readOnly?: boolean;
   memberInitialsDoses?: Map<string, Set<string>>;
+  memberCompoundIds?: Set<string>;
 }) => {
   const allPeptides = doses.filter(d => d.category === 'peptide' || d.category === 'injectable-oil');
   const allOrals = doses.filter(d => d.category === 'oral' || d.category === 'prescription' || d.category === 'vitamin' || d.category === 'adaptogen' || d.category === 'nootropic' || d.category === 'holistic' || d.category === 'probiotic' || d.category === 'alternative-medicine');
@@ -292,19 +322,19 @@ const DoseSection = ({
 
       <div className="space-y-3">
         {allPeptides.length > 0 && (
-          <DoseGroup label="Injectables" doses={allPeptides} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} />
+          <DoseGroup label="Injectables" doses={allPeptides} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} />
         )}
         {protocolGroups.map(pg => (
-          <DoseGroup key={pg.label} label={pg.label} doses={pg.doses} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} />
+          <DoseGroup key={pg.label} label={pg.label} doses={pg.doses} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} />
         ))}
         {ungroupedOrals.length > 0 && (
-          <DoseGroup label="Oral Supplements" doses={ungroupedOrals} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} />
+          <DoseGroup label="Oral Supplements" doses={ungroupedOrals} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} />
         )}
         {ungroupedPowders.length > 0 && (
-          <DoseGroup label="Powders" doses={ungroupedPowders} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} />
+          <DoseGroup label="Powders" doses={ungroupedPowders} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} />
         )}
         {ungroupedTopicals.length > 0 && (
-          <DoseGroup label="Topicals" doses={ungroupedTopicals} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} />
+          <DoseGroup label="Topicals" doses={ungroupedTopicals} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} />
         )}
       </div>
     </div>
@@ -323,6 +353,7 @@ const DoseGroup = ({
   onToggleChecked,
   readOnly = false,
   memberInitialsDoses,
+  memberCompoundIds,
 }: {
   label: string;
   doses: DayDose[];
@@ -335,6 +366,7 @@ const DoseGroup = ({
   onToggleChecked: (key: string) => void;
   readOnly?: boolean;
   memberInitialsDoses?: Map<string, Set<string>>;
+  memberCompoundIds?: Set<string>;
 }) => {
   const seenOff = new Set<string>();
   const filteredDoses = doses.filter(d => {
@@ -437,13 +469,22 @@ const DoseGroup = ({
                 onClick={() => onCompoundClick(dose.compoundId)}
                 className={`flex items-center justify-between flex-1 min-w-0 text-left ${isChecked ? 'opacity-60' : ''}`}
               >
-                <span className={`text-xs truncate mr-2 ${isInactive ? 'text-muted-foreground' : isChecked ? 'text-muted-foreground line-through' : 'text-foreground/90'}`}>
-                  {compound?.name || dose.compoundId}
-                  {compound && !isPausedItem && (
-                    <span className="ml-1.5 text-[10px] text-muted-foreground font-normal">
-                      ({getFrequencyLabel(compound)})
-                    </span>
+                <span className={`flex items-center gap-1 text-xs truncate mr-2 ${isInactive ? 'text-muted-foreground' : isChecked ? 'text-muted-foreground line-through' : 'text-foreground/90'}`}>
+                  {/* Member ownership dot in combined view */}
+                  {memberCompoundIds && memberCompoundIds.has(dose.compoundId) && (
+                    <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-accent" title="Household member's compound" />
                   )}
+                  {memberCompoundIds && !memberCompoundIds.has(dose.compoundId) && (
+                    <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-primary" title="Your compound" />
+                  )}
+                  <span className="truncate">
+                    {compound?.name || dose.compoundId}
+                    {compound && !isPausedItem && (
+                      <span className="ml-1.5 text-[10px] text-muted-foreground font-normal">
+                        ({getFrequencyLabel(compound)})
+                      </span>
+                    )}
+                  </span>
                 </span>
                 <div className="flex items-center gap-1 flex-shrink-0">
                   {/* Member initials badges for combined view */}
