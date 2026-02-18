@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
-import { Compound, getStatus, getReorderDateString, CompoundCategory, getDaysRemaining } from '@/data/compounds';
+import { Compound, getStatus, getReorderDateString, CompoundCategory, getDaysRemaining, getEffectiveQuantity, getConsumedSinceDate, consumedToContainerUnits } from '@/data/compounds';
 import { getCycleStatus, getDaysRemainingWithCycling, isPaused } from '@/lib/cycling';
 import { UserProtocol } from '@/hooks/useProtocols';
 import { CustomField, CustomFieldValue, PREDEFINED_FIELDS } from '@/hooks/useCustomFields';
@@ -1538,26 +1538,37 @@ const InlineQuantityEditor = ({ compound, status, isOil, isPeptide, onUpdate }: 
   const [justSaved, setJustSaved] = useState(false);
 
   const label = isPeptide ? 'Vials' : 'On Hand';
-  const displayValue = isPeptide
-    ? `${compound.currentQuantity}`
-    : isOil
-      ? `${compound.currentQuantity} vial${compound.currentQuantity !== 1 ? 's' : ''} (${compound.vialSizeMl || 10}mL)`
-        : (() => {
-           const notesMatch = (compound.notes || '').match(/\[CONTAINER:(bag|bottle)\]/i);
-           if (notesMatch) {
-             const ct = notesMatch[1].toLowerCase();
-             return `${compound.currentQuantity} ${ct}${compound.currentQuantity !== 1 ? 's' : ''}`;
-           }
-           const ul = (compound.unitLabel || '').toLowerCase();
-           let container = 'bottle';
-           if (ul.includes('scoop') || ul.includes('serving') || ul.includes('g') || ul === 'oz') container = 'bag';
-           return `${compound.currentQuantity} ${container}${compound.currentQuantity !== 1 ? 's' : ''}`;
-         })();
+
+  // Effective quantity = currentQuantity minus consumed since purchaseDate
+  const effectiveQty = getEffectiveQuantity(compound);
+  const consumedUnits = consumedToContainerUnits(compound, getConsumedSinceDate(compound));
+  const hasDepletion = consumedUnits > 0.005 && compound.purchaseDate;
+
+  const formatQty = (qty: number) => {
+    if (isPeptide) return `${Math.round(qty * 100) / 100}`;
+    if (isOil) return `${Math.round(qty * 100) / 100} vial${qty !== 1 ? 's' : ''} (${compound.vialSizeMl || 10}mL)`;
+    const notesMatch = (compound.notes || '').match(/\[CONTAINER:(bag|bottle)\]/i);
+    if (notesMatch) {
+      const ct = notesMatch[1].toLowerCase();
+      return `${Math.round(qty * 100) / 100} ${ct}${qty !== 1 ? 's' : ''}`;
+    }
+    const ul = (compound.unitLabel || '').toLowerCase();
+    let container = 'bottle';
+    if (ul.includes('scoop') || ul.includes('serving') || ul.includes('g') || ul === 'oz') container = 'bag';
+    return `${Math.round(qty * 100) / 100} ${container}${qty !== 1 ? 's' : ''}`;
+  };
+
+  const displayValue = formatQty(effectiveQty);
 
   const saveInline = () => {
     const val = parseFloat(inlineValue);
     if (!isNaN(val) && val >= 0) {
-      onUpdate(compound.id, { currentQuantity: val });
+      // When user manually sets quantity, treat it as "as of today" by resetting purchaseDate to today
+      // so the depletion math starts fresh from this new baseline.
+      onUpdate(compound.id, {
+        currentQuantity: val,
+        purchaseDate: new Date().toISOString().split('T')[0],
+      });
       hapticTap(15);
       setJustSaved(true);
       setTimeout(() => setJustSaved(false), 600);
@@ -1605,10 +1616,15 @@ const InlineQuantityEditor = ({ compound, status, isOil, isPeptide, onUpdate }: 
       <button
         onClick={() => { hapticTap(8); setInlineValue(compound.currentQuantity.toString()); setInlineEditing(true); }}
         className={`font-mono text-[10px] text-foreground underline decoration-dotted underline-offset-2 cursor-pointer hover:text-primary transition-all duration-150 ${justSaved ? 'text-primary scale-110' : ''} ${status === 'critical' ? 'animate-pulse text-status-critical' : status === 'warning' ? 'text-status-warning' : ''}`}
-        title="Tap to edit quantity"
+        title={hasDepletion ? `Purchased ${compound.currentQuantity} — ~${Math.round(consumedUnits * 100) / 100} consumed since ${compound.purchaseDate}. Tap to set current stock.` : 'Tap to edit quantity'}
       >
         {displayValue}
       </button>
+      {hasDepletion && (
+        <span className="text-[9px] text-muted-foreground/60 ml-1" title={`Started with ${compound.currentQuantity}, ~${Math.round(consumedUnits * 100) / 100} used since ${compound.purchaseDate}`}>
+          (of {compound.currentQuantity} purchased)
+        </span>
+      )}
     </div>
   );
 };

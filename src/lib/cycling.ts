@@ -1,4 +1,4 @@
-import { Compound, getNormalizedDailyConsumption } from '@/data/compounds';
+import { Compound, getNormalizedDailyConsumption, getEffectiveQuantity } from '@/data/compounds';
 
 export interface CycleStatus {
   /** Whether this compound has a cycling pattern at all */
@@ -97,11 +97,14 @@ export function getDaysRemainingWithCycling(compound: Compound): number {
   const rawDaily = getNormalizedDailyConsumption(compound);
   if (rawDaily === 0) return 999;
 
+  // Use effective quantity (adjusted for usage since purchaseDate)
+  const effectiveQty = getEffectiveQuantity(compound);
+
   const totalSupply = compound.category === 'peptide' && compound.bacstatPerVial
-    ? compound.currentQuantity * compound.bacstatPerVial
+    ? effectiveQty * compound.bacstatPerVial
     : compound.category === 'injectable-oil' && compound.vialSizeMl
-      ? compound.currentQuantity * compound.unitSize * compound.vialSizeMl
-      : compound.currentQuantity * compound.unitSize;
+      ? effectiveQty * compound.unitSize * compound.vialSizeMl
+      : effectiveQty * compound.unitSize;
 
   if (!compound.cycleOnDays || !compound.cycleOffDays || !compound.cycleStartDate) {
     // No cycling — simple division
