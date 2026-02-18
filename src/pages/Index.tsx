@@ -642,6 +642,7 @@ const Index = () => {
           open={showAccountSettings}
           onOpenChange={setShowAccountSettings}
           userId={user?.id}
+          displayName={profile?.display_name}
           onResetComplete={() => {
             setShowOnboarding(true);
             refetch();
