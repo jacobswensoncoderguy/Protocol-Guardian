@@ -1,6 +1,6 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CalendarDays, Package, LayoutDashboard, RefreshCw, Brain, Gauge, LineChart } from 'lucide-react';
-import { getDaysRemainingWithCycling } from '@/lib/cycling';
+import { getDaysRemainingWithCycling, getEffectiveDailyConsumption } from '@/lib/cycling';
 import { getStatus } from '@/data/compounds';
 import { Compound } from '@/data/compounds';
 import { useCompounds } from '@/hooks/useCompounds';
@@ -48,7 +48,9 @@ import { useScheduleSnapshots } from '@/hooks/useScheduleSnapshots';
 import { useHistoricalCheckOffs } from '@/hooks/useHistoricalCheckOffs';
 import { useSwipeTabs } from '@/hooks/useSwipeTabs';
 import { useHousehold, useHouseholdMemberCompounds } from '@/hooks/useHousehold';
+import { useHouseholdDoseCheckOffs } from '@/hooks/useHouseholdDoseCheckOffs';
 import HouseholdMemberToggle, { HouseholdViewOption } from '@/components/HouseholdMemberToggle';
+
 
 const LoadingSkeleton = () => (
   <div className="min-h-screen bg-background">
@@ -88,6 +90,11 @@ const Index = () => {
     householdViewId !== 'self' && householdViewId !== 'combined' ? householdViewId : null
   );
 
+  // Realtime dose check-offs for household members (combined schedule view)
+  const { memberCheckedDoses } = useHouseholdDoseCheckOffs(
+    householdViewId === 'combined' ? household.acceptedMembers.map(m => m.userId) : []
+  );
+
   // The active compound set depending on household view selection
   const viewCompounds = (() => {
     if (householdViewId === 'combined') return [...compounds, ...memberCompounds];
@@ -118,6 +125,17 @@ const Index = () => {
   const { checkedDoses, toggleChecked: toggleDoseCheck } = useDoseCheckOffs();
   const { snapshots: scheduleSnapshots, loading: snapshotsLoading } = useScheduleSnapshots(compounds);
   const { checkedDosesMap: historicalCheckOffs } = useHistoricalCheckOffs();
+
+  // Merge self + member checked doses for combined view display (after checkedDoses is declared)
+  const combinedCheckedDoses = useMemo(() => {
+    if (householdViewId !== 'combined') return checkedDoses;
+    const merged = new Set(checkedDoses);
+    memberCheckedDoses.forEach(memberSet => {
+      memberSet.forEach(k => merged.add(k));
+    });
+    return merged;
+  }, [householdViewId, checkedDoses, memberCheckedDoses]);
+
 
   const {
     stackAnalysis, compoundAnalyses, loading: aiLoading, compoundLoading,
@@ -210,6 +228,40 @@ const Index = () => {
     updateCompound(id, updates);
   };
 
+  // Compute per-member annual/monthly cost estimates for the combined cost breakdown
+  const memberCostBreakdowns = useMemo(() => {
+    if (householdViewId !== 'combined' || household.acceptedMembers.length === 0) return undefined;
+
+    const computeAnnual = (cmpds: Compound[]) => {
+      return cmpds.reduce((sum, c) => {
+        const effectiveDaily = getEffectiveDailyConsumption(c);
+        if (effectiveDaily === 0) return sum;
+        const monthlyConsumption = effectiveDaily * 30;
+        if (c.category === 'peptide' && c.bacstatPerVial) {
+          const kitsPerMonth = monthlyConsumption / c.bacstatPerVial / 10;
+          return sum + kitsPerMonth * (c.kitPrice || 0) * 12;
+        }
+        const totalMgPerUnit = c.category === 'injectable-oil' && c.vialSizeMl
+          ? c.unitSize * c.vialSizeMl : c.unitSize;
+        const unitsPerMonth = totalMgPerUnit > 0 ? monthlyConsumption / totalMgPerUnit : 0;
+        return sum + unitsPerMonth * c.unitPrice * 12;
+      }, 0);
+    };
+
+    const selfAnnual = computeAnnual(compounds);
+    const memberAnnual = computeAnnual(memberCompounds);
+
+    const result: { name: string; annual: number; monthly: number }[] = [
+      { name: profile?.display_name || 'Mine', annual: selfAnnual, monthly: selfAnnual / 12 },
+    ];
+    household.acceptedMembers.forEach((m, i) => {
+      if (i === 0) {
+        result.push({ name: m.displayName || 'Member', annual: memberAnnual, monthly: memberAnnual / 12 });
+      }
+    });
+    return result;
+  }, [householdViewId, compounds, memberCompounds, household.acceptedMembers, profile?.display_name]);
+
   if (loading) {
     return <LoadingSkeleton />;
   }
@@ -250,6 +302,28 @@ const Index = () => {
           <span className="ml-2 text-xs text-muted-foreground">Refreshing…</span>
         )}
       </div>
+
+      {/* Pending household invite banner */}
+      {household.pendingIncoming.length > 0 && (
+        <div className="bg-accent/10 border-b border-accent/20 px-4 py-2">
+          <div className="container mx-auto flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="flex-shrink-0 w-2 h-2 rounded-full bg-accent animate-pulse" />
+              <p className="text-xs text-accent font-medium truncate">
+                {household.pendingIncoming.length === 1
+                  ? `${household.pendingIncoming[0].displayName || 'Someone'} invited you to their household`
+                  : `${household.pendingIncoming.length} household invites pending`}
+              </p>
+            </div>
+            <button
+              onClick={() => setShowAccountSettings(true)}
+              className="flex-shrink-0 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-accent/20 text-accent hover:bg-accent/30 transition-colors"
+            >
+              Review
+            </button>
+          </div>
+        </div>
+      )}
 
       <header className="border-b border-border/50 px-4 py-2.5 sm:py-4">
         <div className="container mx-auto flex items-center justify-between">
@@ -364,7 +438,7 @@ const Index = () => {
               </TabsList>
               <div key={scheduleSubTab} className={scheduleSwipe.slideClass} onAnimationEnd={scheduleSwipe.onAnimationEnd} onTouchStart={scheduleSwipe.onTouchStart} onTouchEnd={scheduleSwipe.onTouchEnd}>
                 <TabsContent value="this-week" forceMount={scheduleSubTab === 'this-week' ? true : undefined}>
-                  {scheduleSubTab === 'this-week' && <WeeklyScheduleView compounds={viewCompounds} protocols={protocols} compoundAnalyses={compoundAnalyses} compoundLoading={compoundLoading} onAnalyzeCompound={analyzeCompound} customFields={customFields} customFieldValues={customFieldValues} checkedDoses={checkedDoses} onToggleChecked={toggleDoseCheck} />}
+                  {scheduleSubTab === 'this-week' && <WeeklyScheduleView compounds={viewCompounds} protocols={protocols} compoundAnalyses={compoundAnalyses} compoundLoading={compoundLoading} onAnalyzeCompound={analyzeCompound} customFields={customFields} customFieldValues={customFieldValues} checkedDoses={combinedCheckedDoses} onToggleChecked={householdViewId === 'self' ? toggleDoseCheck : () => {}} />}
                 </TabsContent>
                 <TabsContent value="history" forceMount={scheduleSubTab === 'history' ? true : undefined}>
                   {scheduleSubTab === 'history' && <ScheduleHistoryView snapshots={scheduleSnapshots} loading={snapshotsLoading} checkedDosesMap={historicalCheckOffs} />}
@@ -421,7 +495,7 @@ const Index = () => {
                   />}
                 </TabsContent>
                 <TabsContent value="costs" forceMount={inventorySubTab === 'costs' ? true : undefined}>
-                  {inventorySubTab === 'costs' && <CostProjectionView compounds={viewCompounds} protocols={protocols} customFields={customFields} customFieldValues={customFieldValues} userId={user?.id} />}
+                  {inventorySubTab === 'costs' && <CostProjectionView compounds={viewCompounds} protocols={protocols} customFields={customFields} customFieldValues={customFieldValues} userId={user?.id} memberBreakdowns={memberCostBreakdowns} />}
                 </TabsContent>
                 <TabsContent value="reorder" forceMount={inventorySubTab === 'reorder' ? true : undefined}>
                   {inventorySubTab === 'reorder' && <ReorderView compounds={viewCompounds} onUpdateCompound={householdViewId === 'self' ? handleUpdateCompound : () => {}} userId={user?.id} protocols={protocols} reorderHorizon={reorderHorizon} onHorizonChange={updateReorderHorizon} />}
