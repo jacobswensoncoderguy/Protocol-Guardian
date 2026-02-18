@@ -54,11 +54,14 @@ function buildNeededItems(compounds: Compound[], horizon: Horizon): (Omit<OrderI
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const items: (Omit<OrderItem, 'id' | 'ordered_at' | 'received_at' | 'notes'>)[] = [];
 
-  const activeCompounds = compounds.filter(c =>
-    !c.notes?.includes('[DORMANT]') &&
-    c.currentQuantity > 0 &&
-    c.purchaseDate && c.purchaseDate.trim() !== ''
-  );
+  // Peptides and oils calculate burn rate from dose × frequency — no purchaseDate needed.
+  // Orals/powders/vitamins still require purchaseDate to know units per bottle.
+  const activeCompounds = compounds.filter(c => {
+    if (c.notes?.includes('[DORMANT]') || c.currentQuantity <= 0) return false;
+    const isPeptideOrOil = c.category === 'peptide' || c.category === 'injectable-oil';
+    if (isPeptideOrOil) return true;
+    return !!(c.purchaseDate && c.purchaseDate.trim() !== '');
+  });
 
   activeCompounds.forEach(compound => {
     const daysLeft = getDaysRemainingWithCycling(compound);
@@ -366,7 +369,15 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
                               <div className="flex items-center gap-3 mt-0.5 text-[10px] text-muted-foreground flex-wrap">
                                 <span>{getDisplayQty(item.compound_id, item.quantity)}</span>
                                 <span className="font-mono">${item.cost}</span>
-                                <span>{item.month_label}</span>
+                                <span className="flex items-center gap-0.5">
+                                  <CalendarIcon className="w-2.5 h-2.5" />
+                                  {item.month_label}
+                                </span>
+                                {days < 999 && (
+                                  <span className="flex items-center gap-0.5 font-mono">
+                                    Runs out: {new Date(Date.now() + days * 86400000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                  </span>
+                                )}
                               </div>
                             </div>
                             <div className="flex items-center gap-1 ml-2 flex-shrink-0">
