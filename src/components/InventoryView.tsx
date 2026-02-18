@@ -425,11 +425,14 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
       weightPerUnit: (() => {
         const wpu = compound.weightPerUnit || 0;
         if (wpu === 0) return '';
-        if (wpu < 0.1) return (wpu * 1000).toString(); // display as mcg
-        if (wpu >= 1000 && wpu % 1000 === 0) return (wpu / 1000).toString(); // display as g
-        return wpu.toString(); // display as mg
+        const su = compound.weightUnit || 'mg';
+        if (su === 'mcg') return (wpu * 1000).toString();
+        if (su === 'g') return (wpu / 1000).toString();
+        if (su === 'oz') return (wpu / 28349.5).toFixed(4).replace(/\.?0+$/, '');
+        if (su === 'lb') return (wpu / 453592).toFixed(6).replace(/\.?0+$/, '');
+        return wpu.toString(); // mg
       })(),
-      strengthUnit: (() => {
+      strengthUnit: compound.weightUnit || (() => {
         const wpu = compound.weightPerUnit || 0;
         if (wpu === 0) return 'mg';
         if (wpu < 0.1) return 'mcg';
@@ -529,12 +532,16 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
     const rawVal = parseFloat(editState.weightPerUnit || '');
     if (isNaN(rawVal) || rawVal <= 0) {
       updates.weightPerUnit = undefined;
+      updates.weightUnit = undefined;
     } else {
       const su = editState.strengthUnit || 'mg';
       let mgVal = rawVal;
       if (su === 'mcg') mgVal = rawVal / 1000;
       else if (su === 'g') mgVal = rawVal * 1000;
+      else if (su === 'oz') mgVal = rawVal * 28349.5;
+      else if (su === 'lb') mgVal = rawVal * 453592;
       updates.weightPerUnit = mgVal;
+      updates.weightUnit = su;
     }
 
     if (editIsOil) {
@@ -627,6 +634,18 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
           </p>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+          {compound.weightPerUnit && compound.weightPerUnit > 0 && !isPeptide && !isOil && (
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground border border-border/40" title="Weight per unit">
+              {(() => {
+                const su = compound.weightUnit || 'mg';
+                if (su === 'mcg') return `${(compound.weightPerUnit * 1000).toFixed(0)}mcg`;
+                if (su === 'g') return `${(compound.weightPerUnit / 1000).toFixed(compound.weightPerUnit % 1000 === 0 ? 0 : 2).replace(/\.?0+$/, '')}g`;
+                if (su === 'oz') return `${(compound.weightPerUnit / 28349.5).toFixed(3).replace(/\.?0+$/, '')}oz`;
+                if (su === 'lb') return `${(compound.weightPerUnit / 453592).toFixed(4).replace(/\.?0+$/, '')}lb`;
+                return `${compound.weightPerUnit}mg`;
+              })()}/unit
+            </span>
+          )}
           {compoundIsPaused && (
             <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-accent/20 text-status-warning">
               PAUSED
@@ -1524,7 +1543,14 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
               {!isOil && compound.weightPerUnit && compound.weightPerUnit > 0 && (
                 <div>
                   <span className="text-muted-foreground">Per {(compound.unitLabel || 'cap').replace(/s$/, '')}:</span>{' '}
-                  <span className="font-mono text-foreground">{compound.weightPerUnit >= 1000 ? `${compound.weightPerUnit / 1000}g` : `${compound.weightPerUnit}mg`}</span>
+                  <span className="font-mono text-foreground">{compound.weightPerUnit >= 1000 && (!compound.weightUnit || compound.weightUnit === 'mg') ? `${compound.weightPerUnit / 1000}g` : `${(() => {
+                    const su = compound.weightUnit || 'mg';
+                    if (su === 'mcg') return (compound.weightPerUnit * 1000).toFixed(0);
+                    if (su === 'g') return (compound.weightPerUnit / 1000).toFixed(compound.weightPerUnit % 1000 === 0 ? 0 : 2).replace(/\.?0+$/, '');
+                    if (su === 'oz') return (compound.weightPerUnit / 28349.5).toFixed(3).replace(/\.?0+$/, '');
+                    if (su === 'lb') return (compound.weightPerUnit / 453592).toFixed(4).replace(/\.?0+$/, '');
+                    return compound.weightPerUnit;
+                  })()}${compound.weightUnit || 'mg'}`}</span>
                 </div>
               )}
               <div>

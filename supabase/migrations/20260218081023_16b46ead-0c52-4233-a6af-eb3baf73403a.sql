@@ -1,0 +1,1 @@
+ALTER TABLE public.user_compounds ADD COLUMN IF NOT EXISTS weight_unit text DEFAULT 'mg';
