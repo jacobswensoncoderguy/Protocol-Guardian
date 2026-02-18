@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import {
   Check, Package, PackageCheck, ShoppingCart, Undo2, Trash2, ChevronDown,
   AlertTriangle, TrendingUp, ExternalLink, ShoppingBag, Info, Calendar,
-  Clock, Truck, CalendarIcon, Store,
+  Clock, Truck, CalendarIcon, Store, Pencil,
 } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -132,7 +132,15 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
   const [editUnitSize, setEditUnitSize] = useState('');
   const [editUnitLabel, setEditUnitLabel] = useState('');
   const [editUnitPrice, setEditUnitPrice] = useState('');
+  const [editDosePerUse, setEditDosePerUse] = useState('');
+  const [editDoseLabel, setEditDoseLabel] = useState('');
+  const [editDosesPerDay, setEditDosesPerDay] = useState('');
 
+  // Edit existing order state
+  const [editOrderDialog, setEditOrderDialog] = useState<OrderItem | null>(null);
+  const [editOrderQty, setEditOrderQty] = useState('');
+  const [editOrderCost, setEditOrderCost] = useState('');
+  const [editOrderNotes, setEditOrderNotes] = useState('');
   const horizon: Horizon = reorderHorizon;
   const compoundMap = new Map(compounds.map(c => [c.id, c]));
 
@@ -162,6 +170,9 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
     setEditUnitSize(String(compound?.unitSize || ''));
     setEditUnitLabel(compound?.unitLabel || '');
     setEditUnitPrice(String(compound?.unitPrice || ''));
+    setEditDosePerUse(String(compound?.dosePerUse || ''));
+    setEditDoseLabel(compound?.doseLabel || '');
+    setEditDosesPerDay(String(compound?.dosesPerDay || ''));
     setOrderDialog({ compoundId, quantity, cost, monthLabel });
   };
 
@@ -181,6 +192,11 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
       if (editUnitLabel.trim() && editUnitLabel.trim() !== compound.unitLabel) compoundUpdates.unitLabel = editUnitLabel.trim();
       const parsedUnitPrice = parseFloat(editUnitPrice);
       if (!isNaN(parsedUnitPrice) && parsedUnitPrice !== compound.unitPrice) compoundUpdates.unitPrice = parsedUnitPrice;
+      const parsedDosePerUse = parseFloat(editDosePerUse);
+      if (!isNaN(parsedDosePerUse) && parsedDosePerUse !== compound.dosePerUse) compoundUpdates.dosePerUse = parsedDosePerUse;
+      if (editDoseLabel.trim() && editDoseLabel.trim() !== compound.doseLabel) compoundUpdates.doseLabel = editDoseLabel.trim();
+      const parsedDosesPerDay = parseFloat(editDosesPerDay);
+      if (!isNaN(parsedDosesPerDay) && parsedDosesPerDay !== compound.dosesPerDay) compoundUpdates.dosesPerDay = parsedDosesPerDay;
       if (Object.keys(compoundUpdates).length > 0) onUpdateCompound(compoundId, compoundUpdates);
     }
 
@@ -200,6 +216,31 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
       .single();
     if (!error && data) setOrders(prev => [data as OrderItem, ...prev]);
     setOrderDialog(null);
+  };
+
+  const handleOpenEditOrder = (order: OrderItem) => {
+    setEditOrderQty(String(order.quantity));
+    setEditOrderCost(String(order.cost));
+    setEditOrderNotes(order.notes || '');
+    setEditOrderDialog(order);
+  };
+
+  const handleSaveEditOrder = async () => {
+    if (!editOrderDialog) return;
+    const finalQty = parseFloat(editOrderQty) || editOrderDialog.quantity;
+    const finalCost = parseFloat(editOrderCost) || editOrderDialog.cost;
+    const finalNotes = editOrderNotes.trim() || null;
+    const { error } = await supabase
+      .from('orders')
+      .update({ quantity: finalQty, cost: finalCost, notes: finalNotes })
+      .eq('id', editOrderDialog.id);
+    if (!error) {
+      setOrders(prev => prev.map(o => o.id === editOrderDialog.id
+        ? { ...o, quantity: finalQty, cost: finalCost, notes: finalNotes }
+        : o
+      ));
+    }
+    setEditOrderDialog(null);
   };
 
   const handleMarkReceived = async (order: OrderItem) => {
@@ -543,6 +584,13 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
                               </div>
                               <div className="flex items-center gap-1 flex-shrink-0">
                                 <button
+                                  onClick={() => handleOpenEditOrder(order)}
+                                  className="p-1.5 rounded-md bg-secondary/60 text-muted-foreground border border-border/30 active:bg-secondary touch-manipulation"
+                                  title="Edit order details"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                                <button
                                   onClick={() => handleReturnToNeeded(order)}
                                   className="p-1.5 rounded-md bg-secondary/60 text-muted-foreground border border-border/30 active:bg-secondary touch-manipulation"
                                   title="Return to Needed list"
@@ -789,6 +837,42 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
               </div>
             </div>
 
+            {/* Dosing */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider">Dosing (updates protocol)</Label>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="space-y-1">
+                  <p className="text-[10px] text-muted-foreground">Dose/Use</p>
+                  <Input
+                    type="number"
+                    value={editDosePerUse}
+                    onChange={e => setEditDosePerUse(e.target.value)}
+                    placeholder="e.g. 2.5"
+                    className="text-sm h-8"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] text-muted-foreground">Dose Label</p>
+                  <Input
+                    value={editDoseLabel}
+                    onChange={e => setEditDoseLabel(e.target.value)}
+                    placeholder="g, mg, mL…"
+                    className="text-sm h-8"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] text-muted-foreground">Doses/Day</p>
+                  <Input
+                    type="number"
+                    value={editDosesPerDay}
+                    onChange={e => setEditDosesPerDay(e.target.value)}
+                    placeholder="1"
+                    className="text-sm h-8"
+                  />
+                </div>
+              </div>
+            </div>
+
             {/* Order cost (auto-calculated but editable) */}
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground uppercase tracking-wider">Order Cost ($)</Label>
@@ -844,10 +928,12 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
             {(editName !== (compoundMap.get(orderDialog.compoundId)?.name || '') ||
               editUnitSize !== String(compoundMap.get(orderDialog.compoundId)?.unitSize || '') ||
               editUnitLabel !== (compoundMap.get(orderDialog.compoundId)?.unitLabel || '') ||
-              editUnitPrice !== String(compoundMap.get(orderDialog.compoundId)?.unitPrice || '')) && (
+              editUnitPrice !== String(compoundMap.get(orderDialog.compoundId)?.unitPrice || '') ||
+              editDosePerUse !== String(compoundMap.get(orderDialog.compoundId)?.dosePerUse || '') ||
+              editDosesPerDay !== String(compoundMap.get(orderDialog.compoundId)?.dosesPerDay || '')) && (
               <div className="bg-accent/10 border border-accent/30 rounded-lg p-2.5 flex items-start gap-2">
                 <Info className="w-3.5 h-3.5 text-status-warning flex-shrink-0 mt-0.5" />
-                <p className="text-[10px] text-status-warning">Changes to name, unit size, label, or price will update the compound in your inventory.</p>
+                <p className="text-[10px] text-status-warning">Changes to compound fields will update the compound in your inventory and protocol.</p>
               </div>
             )}
           </div>
@@ -864,6 +950,70 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
             className="flex-1 py-2 rounded-lg bg-primary/15 text-primary text-sm font-semibold border border-primary/30 hover:bg-primary/25 transition-colors"
           >
             Mark as Ordered
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    {/* ── Edit Existing Order Dialog ── */}
+    <Dialog open={!!editOrderDialog} onOpenChange={(v) => { if (!v) setEditOrderDialog(null); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <Pencil className="w-4 h-4 text-primary" />
+            Edit Order
+          </DialogTitle>
+        </DialogHeader>
+        {editOrderDialog && (
+          <div className="space-y-4 py-1">
+            <p className="text-sm text-muted-foreground">
+              Update order details for{' '}
+              <span className="font-semibold text-foreground">{compoundMap.get(editOrderDialog.compound_id)?.name}</span>.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Quantity</Label>
+                <Input
+                  type="number"
+                  value={editOrderQty}
+                  onChange={e => setEditOrderQty(e.target.value)}
+                  className="text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Cost ($)</Label>
+                <Input
+                  type="number"
+                  value={editOrderCost}
+                  onChange={e => setEditOrderCost(e.target.value)}
+                  className="text-sm"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider">Supplier / Notes</Label>
+              <Textarea
+                placeholder="e.g. Empower Pharmacy, batch #, different brand…"
+                value={editOrderNotes}
+                onChange={e => setEditOrderNotes(e.target.value)}
+                rows={3}
+                className="text-sm resize-none"
+              />
+            </div>
+          </div>
+        )}
+        <DialogFooter className="gap-2">
+          <button
+            onClick={() => setEditOrderDialog(null)}
+            className="flex-1 py-2 rounded-lg border border-border/50 text-sm text-muted-foreground hover:bg-secondary/60 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSaveEditOrder}
+            className="flex-1 py-2 rounded-lg bg-primary/15 text-primary text-sm font-semibold border border-primary/30 hover:bg-primary/25 transition-colors"
+          >
+            Save Changes
           </button>
         </DialogFooter>
       </DialogContent>
