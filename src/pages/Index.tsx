@@ -643,11 +643,15 @@ const Index = () => {
           onOpenChange={setShowAccountSettings}
           userId={user?.id}
           displayName={profile?.display_name}
+          userEmail={user?.email}
           onResetComplete={() => {
             setShowOnboarding(true);
             refetch();
           }}
           onStartTour={() => setShowGuidedTour(true)}
+          onUpdateDisplayName={async (name) => {
+            await updateProfile({ display_name: name });
+          }}
           householdMembers={household.members}
           householdPendingIncoming={household.pendingIncoming}
           householdPendingOutgoing={household.pendingOutgoing}
