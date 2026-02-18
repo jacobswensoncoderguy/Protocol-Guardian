@@ -101,6 +101,7 @@ function UploadCard({
   onAlignToGoal,
   isDeleting,
   isReanalyzing,
+  startExpanded = false,
 }: {
   upload: UploadRecord;
   onDelete: (id: string) => void;
@@ -108,8 +109,9 @@ function UploadCard({
   onAlignToGoal: (u: UploadRecord) => void;
   isDeleting: boolean;
   isReanalyzing: boolean;
+  startExpanded?: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(startExpanded);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
   const biomarkers: any[] = upload.ai_extracted_data?.biomarkers || [];
@@ -330,6 +332,149 @@ function UploadCard({
     </div>
   );
 }
+
+/** Compact tile for the category grid — click to open full UploadCard sheet */
+function UploadTile({
+  upload,
+  onDelete,
+  onReanalyze,
+  onAlignToGoal,
+  isDeleting,
+  isReanalyzing,
+}: {
+  upload: UploadRecord;
+  onDelete: (id: string) => void;
+  onReanalyze: (u: UploadRecord) => void;
+  onAlignToGoal: (u: UploadRecord) => void;
+  isDeleting: boolean;
+  isReanalyzing: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const biomarkers: any[] = upload.ai_extracted_data?.biomarkers || [];
+  const critical = biomarkers.filter(b => b.status?.startsWith('critical'));
+  const flagged = biomarkers.filter(b => b.status !== 'normal');
+  const docType: string = upload.upload_type || 'other';
+  const DocIcon = DOC_TYPE_ICONS[docType] || ClipboardList;
+
+  const labelDate = upload.reading_date
+    ? new Date(upload.reading_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+    : new Date(upload.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+
+  const tileName = upload.file_name || docType.replace(/_/g, ' ');
+
+  return (
+    <>
+      {/* The Tile */}
+      <div
+        className={`relative bg-card rounded-xl border cursor-pointer hover:border-primary/40 hover:bg-secondary/20 transition-all overflow-hidden ${
+          critical.length > 0 ? 'border-destructive/30' : flagged.length > 0 ? 'border-status-warning/30' : 'border-border/50'
+        }`}
+        onClick={() => setExpanded(true)}
+      >
+        {/* Status stripe at top */}
+        {(critical.length > 0 || flagged.length > 0) && (
+          <div className={`h-0.5 w-full ${critical.length > 0 ? 'bg-destructive' : 'bg-status-warning'}`} />
+        )}
+
+        <div className="p-3">
+          {/* Icon */}
+          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center mb-2">
+            <DocIcon className="w-4 h-4 text-primary" />
+          </div>
+
+          {/* Name — truncated to 2 lines */}
+          <p className="text-xs font-semibold text-foreground leading-snug line-clamp-2 mb-1">{tileName}</p>
+
+          {/* Date */}
+          <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+            <Calendar className="w-2.5 h-2.5 flex-shrink-0" />
+            {labelDate}
+          </p>
+
+          {/* Marker count + flags */}
+          <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+            <span className="text-[9px] text-muted-foreground">{biomarkers.length} markers</span>
+            {critical.length > 0 && (
+              <span className="text-[9px] px-1 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/20 font-semibold">
+                {critical.length}!
+              </span>
+            )}
+            {flagged.length > 0 && critical.length === 0 && (
+              <span className="text-[9px] px-1 py-0.5 rounded-full bg-status-warning/10 text-status-warning border border-status-warning/20">
+                {flagged.length}↑
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Full detail — rendered as the old UploadCard in a dialog-like overlay */}
+      {expanded && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm px-2 pb-2 sm:pb-0"
+          onClick={() => setExpanded(false)}
+        >
+          <div
+            className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl bg-card border border-border shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Sheet header */}
+            <div className="flex items-center justify-between px-4 pt-4 pb-2 sticky top-0 bg-card border-b border-border/30 z-10">
+              <div className="flex items-center gap-2">
+                <DocIcon className="w-4 h-4 text-primary" />
+                <span className="text-sm font-semibold text-foreground truncate">{tileName}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => { onAlignToGoal(upload); setExpanded(false); }}
+                  title="Align to goal"
+                  disabled={isReanalyzing || isDeleting}
+                  className="p-2 text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 rounded-lg"
+                >
+                  <Link2 className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => onReanalyze(upload)}
+                  title="Re-analyze"
+                  disabled={isReanalyzing || isDeleting}
+                  className="p-2 text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 rounded-lg"
+                >
+                  {isReanalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                </button>
+                <button
+                  onClick={() => { onDelete(upload.id); setExpanded(false); }}
+                  title="Delete"
+                  disabled={isDeleting || isReanalyzing}
+                  className="p-2 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40 rounded-lg"
+                >
+                  {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                </button>
+                <button
+                  onClick={() => setExpanded(false)}
+                  className="p-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Reuse the expanded body from UploadCard */}
+            <UploadCard
+              upload={upload}
+              onDelete={id => { onDelete(id); setExpanded(false); }}
+              onReanalyze={onReanalyze}
+              onAlignToGoal={u => { onAlignToGoal(u); setExpanded(false); }}
+              isDeleting={isDeleting}
+              isReanalyzing={isReanalyzing}
+              startExpanded
+            />
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 
 export default function BiomarkerHistoryView({ userId, onUploadClick, onFlaggedCountChange, goals = [], onCreateGoal, onRefreshGoals }: BiomarkerHistoryProps) {
   const [uploads, setUploads] = useState<UploadRecord[]>([]);
@@ -660,23 +805,73 @@ export default function BiomarkerHistoryView({ userId, onUploadClick, onFlaggedC
         />
       )}
 
-      {/* Upload Records — named containers */}
-      <div>
-        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Lab Records</p>
-        <div className="space-y-2">
-          {filteredUploads.map(upload => (
-            <UploadCard
-              key={upload.id}
-              upload={upload}
-              onDelete={handleDelete}
-              onReanalyze={handleReanalyze}
-              onAlignToGoal={setAlignUpload}
-              isDeleting={deletingId === upload.id}
-              isReanalyzing={reanalyzingId === upload.id}
-            />
-          ))}
-        </div>
-      </div>
+      {/* Upload Records — grouped by document type, tiles in horizontal-first grid */}
+      {(() => {
+        // Group uploads by upload_type (category)
+        const categoryOrder: string[] = [];
+        const categoryMap: Record<string, UploadRecord[]> = {};
+
+        const sortedUploads = [...filteredUploads].sort((a, b) => {
+          const da = new Date(a.reading_date || a.created_at).getTime();
+          const db = new Date(b.reading_date || b.created_at).getTime();
+          return da - db; // chronological within each category
+        });
+
+        sortedUploads.forEach(upload => {
+          const cat = upload.upload_type || 'other';
+          if (!categoryMap[cat]) {
+            categoryMap[cat] = [];
+            categoryOrder.push(cat);
+          }
+          categoryMap[cat].push(upload);
+        });
+
+        const CATEGORY_LABELS: Record<string, string> = {
+          bloodwork: 'Bloodwork Panels',
+          dexa_scan: 'DEXA Scans',
+          metabolic_panel: 'Metabolic Panels',
+          hormone_panel: 'Hormone Panels',
+          lipid_panel: 'Lipid Panels',
+          thyroid_panel: 'Thyroid Panels',
+          other: 'Lab Results',
+        };
+
+        return (
+          <div className="space-y-6">
+            {categoryOrder.map(cat => {
+              const uploads = categoryMap[cat];
+              const label = CATEGORY_LABELS[cat] || cat.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+              return (
+                <div key={cat}>
+                  {/* Category header with separator */}
+                  <div className="flex items-center gap-3 mb-3">
+                    <span className="text-[11px] font-bold text-foreground uppercase tracking-widest whitespace-nowrap">
+                      {label}
+                    </span>
+                    <div className="flex-1 h-px bg-border/50" />
+                    <span className="text-[10px] text-muted-foreground">{uploads.length}</span>
+                  </div>
+
+                  {/* Tile grid — horizontal-first (2 per row on mobile, 3 on sm+) */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {uploads.map(upload => (
+                      <UploadTile
+                        key={upload.id}
+                        upload={upload}
+                        onDelete={handleDelete}
+                        onReanalyze={handleReanalyze}
+                        onAlignToGoal={setAlignUpload}
+                        isDeleting={deletingId === upload.id}
+                        isReanalyzing={reanalyzingId === upload.id}
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* Delete Confirmation */}
       <ConfirmDialog

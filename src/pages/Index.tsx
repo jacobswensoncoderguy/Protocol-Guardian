@@ -116,6 +116,7 @@ const Index = () => {
   const [showProtocolManager, setShowProtocolManager] = useState(false);
   const [showGoalExpansion, setShowGoalExpansion] = useState(false);
   const [showBiomarkerUpload, setShowBiomarkerUpload] = useState(false);
+  const [labsRefreshKey, setLabsRefreshKey] = useState(0);
   const {
     protocols, createProtocol, deleteProtocol, cloneProtocol, updateProtocol,
     addCompoundToProtocol, removeCompoundFromProtocol, refetch: refetchProtocols,
@@ -576,6 +577,7 @@ const Index = () => {
                 <TabsContent value="labs" forceMount={trackingSubTab === 'labs' ? true : undefined}>
                   {trackingSubTab === 'labs' && (
                     <BiomarkerHistoryView
+                      key={labsRefreshKey}
                       userId={user?.id}
                       onUploadClick={() => setShowBiomarkerUpload(true)}
                       onFlaggedCountChange={setLabsFlaggedCount}
@@ -673,7 +675,7 @@ const Index = () => {
           onOpenChange={setShowBiomarkerUpload}
           userId={user?.id}
           goals={fullGoals}
-          onReadingsCreated={() => fetchFullGoals()}
+          onReadingsCreated={() => { fetchFullGoals(); setLabsRefreshKey(k => k + 1); }}
         />
 
         <AccountSettingsDialog
