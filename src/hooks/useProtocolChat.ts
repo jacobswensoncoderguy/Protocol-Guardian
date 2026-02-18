@@ -54,6 +54,11 @@ export function useProtocolChat(
   const [loadedConvId, setLoadedConvId] = useState<string | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // Refs to avoid stale closures in confirmChange / undoChange
+  const proposalsRef = useRef<ChangeProposal[]>([]);
+  const messagesRef = useRef<ChatMessage[]>([]);
+  proposalsRef.current = proposals;
+  messagesRef.current = messages;
 
   // Load chat history when conversationId changes
   useEffect(() => {
@@ -317,7 +322,8 @@ export function useProtocolChat(
     const { proposalId, changeIndex } = pendingConfirm;
     setPendingConfirm(null);
 
-    const proposal = proposals.find(p => p.id === proposalId);
+    // Use refs to avoid stale closure issues
+    const proposal = proposalsRef.current.find(p => p.id === proposalId);
     if (!proposal) return;
     const change = proposal.changes[changeIndex];
     if (!change) return;
@@ -365,15 +371,16 @@ export function useProtocolChat(
     setProposals(prev => prev.map(p => p.id === proposalId ? updateProposalStatus(p) : p));
     setMessages(prev => prev.map(m => m.proposal?.id === proposalId ? { ...m, proposal: updateProposalStatus(m.proposal!) } : m));
 
-    const msg = messages.find(m => m.proposal?.id === proposalId);
+    // Use ref to find message with fresh data
+    const msg = messagesRef.current.find(m => m.proposal?.id === proposalId);
     if (msg) updatePersistedMessage(msg.id, { proposal: updateProposalStatus(msg.proposal!) });
 
     // Cascade: refetch compounds so all views (schedule, dashboard, costs) update
     await refetch();
-  }, [pendingConfirm, proposals, compounds, updateCompound, deleteCompound, messages, updatePersistedMessage, refetch]);
+  }, [pendingConfirm, compounds, updateCompound, deleteCompound, updatePersistedMessage, refetch]);
 
   const undoChange = useCallback(async (proposalId: string, changeIndex: number) => {
-    const proposal = proposals.find(p => p.id === proposalId);
+    const proposal = proposalsRef.current.find(p => p.id === proposalId);
     if (!proposal) return;
     const change = proposal.changes[changeIndex];
     if (!change || change.status !== 'accepted') return;
@@ -395,11 +402,11 @@ export function useProtocolChat(
     setProposals(prev => prev.map(p => p.id === proposalId ? updateProposalStatus(p) : p));
     setMessages(prev => prev.map(m => m.proposal?.id === proposalId ? { ...m, proposal: updateProposalStatus(m.proposal!) } : m));
 
-    const msg = messages.find(m => m.proposal?.id === proposalId);
+    const msg = messagesRef.current.find(m => m.proposal?.id === proposalId);
     if (msg) updatePersistedMessage(msg.id, { proposal: updateProposalStatus(msg.proposal!) });
 
     await refetch();
-  }, [proposals, compounds, updateCompound, messages, updatePersistedMessage, refetch]);
+  }, [compounds, updateCompound, updatePersistedMessage, refetch]);
 
   const rejectChange = useCallback((proposalId: string, changeIndex: number) => {
     const updateProposalStatus = (p: ChangeProposal) => ({
@@ -408,19 +415,17 @@ export function useProtocolChat(
     });
     setProposals(prev => prev.map(p => p.id === proposalId ? updateProposalStatus(p) : p));
     setMessages(prev => prev.map(m => m.proposal?.id === proposalId ? { ...m, proposal: updateProposalStatus(m.proposal!) } : m));
-    const msg = messages.find(m => m.proposal?.id === proposalId);
+    const msg = messagesRef.current.find(m => m.proposal?.id === proposalId);
     if (msg) updatePersistedMessage(msg.id, { proposal: updateProposalStatus(msg.proposal!) });
-  }, [messages, updatePersistedMessage]);
+  }, [updatePersistedMessage]);
 
-  // "Accept All" uses confirmChange directly for each pending item in sequence
+  // "Accept All" applies all pending changes directly (no confirm sheet per item)
   const applyAllPending = useCallback(async (proposalId: string) => {
     const proposal = proposals.find(p => p.id === proposalId);
     if (!proposal) return;
     for (let i = 0; i < proposal.changes.length; i++) {
       if (proposal.changes[i].status === 'pending') {
-        setPendingConfirm({ proposalId, changeIndex: i });
-        // Small delay to allow state to settle; caller shows confirm for each
-        // For "Accept All", we bypass confirm and apply directly
+        // Apply directly without confirm sheet
         await (async () => {
           const change = proposal.changes[i];
           const compound = compounds.find(c => c.name === change.compoundName);
