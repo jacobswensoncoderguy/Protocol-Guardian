@@ -136,12 +136,23 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
   const [editDoseLabel, setEditDoseLabel] = useState('');
   const [editDosesPerDay, setEditDosesPerDay] = useState('');
   const [editWeightPerUnit, setEditWeightPerUnit] = useState('');
+  const [editWeightUnit, setEditWeightUnit] = useState('g');
 
   // Edit existing order state
   const [editOrderDialog, setEditOrderDialog] = useState<OrderItem | null>(null);
   const [editOrderQty, setEditOrderQty] = useState('');
   const [editOrderCost, setEditOrderCost] = useState('');
   const [editOrderNotes, setEditOrderNotes] = useState('');
+  // Edit existing order — compound fields
+  const [editOrderName, setEditOrderName] = useState('');
+  const [editOrderUnitSize, setEditOrderUnitSize] = useState('');
+  const [editOrderUnitLabel, setEditOrderUnitLabel] = useState('');
+  const [editOrderUnitPrice, setEditOrderUnitPrice] = useState('');
+  const [editOrderDosePerUse, setEditOrderDosePerUse] = useState('');
+  const [editOrderDoseLabel, setEditOrderDoseLabel] = useState('');
+  const [editOrderDosesPerDay, setEditOrderDosesPerDay] = useState('');
+  const [editOrderWeightPerUnit, setEditOrderWeightPerUnit] = useState('');
+  const [editOrderWeightUnit, setEditOrderWeightUnit] = useState('g');
   const horizon: Horizon = reorderHorizon;
   const compoundMap = new Map(compounds.map(c => [c.id, c]));
 
@@ -175,6 +186,7 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
     setEditDoseLabel(compound?.doseLabel || '');
     setEditDosesPerDay(String(compound?.dosesPerDay || ''));
     setEditWeightPerUnit(compound?.weightPerUnit != null ? String(compound.weightPerUnit) : '');
+    setEditWeightUnit('g');
     setOrderDialog({ compoundId, quantity, cost, monthLabel });
   };
 
@@ -223,9 +235,19 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
   };
 
   const handleOpenEditOrder = (order: OrderItem) => {
+    const compound = compoundMap.get(order.compound_id);
     setEditOrderQty(String(order.quantity));
     setEditOrderCost(String(order.cost));
     setEditOrderNotes(order.notes || '');
+    setEditOrderName(compound?.name || '');
+    setEditOrderUnitSize(String(compound?.unitSize || ''));
+    setEditOrderUnitLabel(compound?.unitLabel || '');
+    setEditOrderUnitPrice(String(compound?.unitPrice || ''));
+    setEditOrderDosePerUse(String(compound?.dosePerUse || ''));
+    setEditOrderDoseLabel(compound?.doseLabel || '');
+    setEditOrderDosesPerDay(String(compound?.dosesPerDay || ''));
+    setEditOrderWeightPerUnit(compound?.weightPerUnit != null ? String(compound.weightPerUnit) : '');
+    setEditOrderWeightUnit('g');
     setEditOrderDialog(order);
   };
 
@@ -244,6 +266,27 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
         : o
       ));
     }
+
+    // Persist compound field edits
+    const compound = compoundMap.get(editOrderDialog.compound_id);
+    if (compound) {
+      const compoundUpdates: Partial<Compound> = {};
+      if (editOrderName.trim() && editOrderName.trim() !== compound.name) compoundUpdates.name = editOrderName.trim();
+      const parsedUnitSize = parseFloat(editOrderUnitSize);
+      if (!isNaN(parsedUnitSize) && parsedUnitSize !== compound.unitSize) compoundUpdates.unitSize = parsedUnitSize;
+      if (editOrderUnitLabel.trim() && editOrderUnitLabel.trim() !== compound.unitLabel) compoundUpdates.unitLabel = editOrderUnitLabel.trim();
+      const parsedUnitPrice = parseFloat(editOrderUnitPrice);
+      if (!isNaN(parsedUnitPrice) && parsedUnitPrice !== compound.unitPrice) compoundUpdates.unitPrice = parsedUnitPrice;
+      const parsedDosePerUse = parseFloat(editOrderDosePerUse);
+      if (!isNaN(parsedDosePerUse) && parsedDosePerUse !== compound.dosePerUse) compoundUpdates.dosePerUse = parsedDosePerUse;
+      if (editOrderDoseLabel.trim() && editOrderDoseLabel.trim() !== compound.doseLabel) compoundUpdates.doseLabel = editOrderDoseLabel.trim();
+      const parsedDosesPerDay = parseFloat(editOrderDosesPerDay);
+      if (!isNaN(parsedDosesPerDay) && parsedDosesPerDay !== compound.dosesPerDay) compoundUpdates.dosesPerDay = parsedDosesPerDay;
+      const parsedWeight = editOrderWeightPerUnit.trim() !== '' ? parseFloat(editOrderWeightPerUnit) : null;
+      if (parsedWeight !== (compound.weightPerUnit ?? null)) compoundUpdates.weightPerUnit = parsedWeight ?? undefined;
+      if (Object.keys(compoundUpdates).length > 0) onUpdateCompound(editOrderDialog.compound_id, compoundUpdates);
+    }
+
     setEditOrderDialog(null);
   };
 
@@ -875,14 +918,27 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
                   />
                 </div>
                 <div className="space-y-1">
-                  <p className="text-[10px] text-muted-foreground">Weight/Unit (g)</p>
-                  <Input
-                    type="number"
-                    value={editWeightPerUnit}
-                    onChange={e => setEditWeightPerUnit(e.target.value)}
-                    placeholder="e.g. 5"
-                    className="text-sm h-8"
-                  />
+                  <p className="text-[10px] text-muted-foreground">Weight/Unit</p>
+                  <div className="flex gap-1">
+                    <Input
+                      type="number"
+                      value={editWeightPerUnit}
+                      onChange={e => setEditWeightPerUnit(e.target.value)}
+                      placeholder="e.g. 5"
+                      className="text-sm h-8 flex-1 min-w-0"
+                    />
+                    <select
+                      value={editWeightUnit}
+                      onChange={e => setEditWeightUnit(e.target.value)}
+                      className="text-sm h-8 rounded-md border border-input bg-background px-1.5 text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      <option value="g">g</option>
+                      <option value="mg">mg</option>
+                      <option value="mcg">mcg</option>
+                      <option value="oz">oz</option>
+                      <option value="lb">lb</option>
+                    </select>
+                  </div>
                 </div>
               </div>
             </div>
@@ -972,7 +1028,8 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
 
     {/* ── Edit Existing Order Dialog ── */}
     <Dialog open={!!editOrderDialog} onOpenChange={(v) => { if (!v) setEditOrderDialog(null); }}>
-      <DialogContent className="max-w-sm">
+
+      <DialogContent className="max-w-sm max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             <Pencil className="w-4 h-4 text-primary" />
@@ -980,38 +1037,91 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
           </DialogTitle>
         </DialogHeader>
         {editOrderDialog && (
-          <div className="space-y-4 py-1">
-            <p className="text-sm text-muted-foreground">
-              Update order details for{' '}
-              <span className="font-semibold text-foreground">{compoundMap.get(editOrderDialog.compound_id)?.name}</span>.
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Quantity</Label>
-                <Input
-                  type="number"
-                  value={editOrderQty}
-                  onChange={e => setEditOrderQty(e.target.value)}
-                  className="text-sm"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Cost ($)</Label>
-                <Input
-                  type="number"
-                  value={editOrderCost}
-                  onChange={e => setEditOrderCost(e.target.value)}
-                  className="text-sm"
-                />
+          <div className="space-y-4 py-1 max-h-[70vh] overflow-y-auto">
+            {/* Compound name */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider">Compound Name</Label>
+              <Input value={editOrderName} onChange={e => setEditOrderName(e.target.value)} placeholder="Compound name" className="text-sm" />
+            </div>
+
+            {/* Packaging */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider">Packaging / Units</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <p className="text-[10px] text-muted-foreground">Unit Size</p>
+                  <Input type="number" value={editOrderUnitSize} onChange={e => setEditOrderUnitSize(e.target.value)} placeholder="e.g. 100" className="text-sm h-8" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] text-muted-foreground">Unit Label</p>
+                  <Input value={editOrderUnitLabel} onChange={e => setEditOrderUnitLabel(e.target.value)} placeholder="e.g. caps, mL" className="text-sm h-8" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] text-muted-foreground">Unit Price ($)</p>
+                  <Input type="number" value={editOrderUnitPrice} onChange={e => setEditOrderUnitPrice(e.target.value)} placeholder="0.00" className="text-sm h-8" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] text-muted-foreground">Reorder Qty</p>
+                  <Input type="number" value={editOrderQty} onChange={e => {
+                    setEditOrderQty(e.target.value);
+                    const price = parseFloat(editOrderUnitPrice) || 0;
+                    setEditOrderCost(String(Math.round(parseFloat(e.target.value) * price * 100) / 100));
+                  }} placeholder="1" className="text-sm h-8" />
+                </div>
               </div>
             </div>
+
+            {/* Dosing */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider">Dosing (updates protocol)</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <p className="text-[10px] text-muted-foreground">Dose/Use</p>
+                  <Input type="number" value={editOrderDosePerUse} onChange={e => setEditOrderDosePerUse(e.target.value)} placeholder="e.g. 2.5" className="text-sm h-8" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] text-muted-foreground">Dose Label</p>
+                  <Input value={editOrderDoseLabel} onChange={e => setEditOrderDoseLabel(e.target.value)} placeholder="g, mg, mL…" className="text-sm h-8" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] text-muted-foreground">Doses/Day</p>
+                  <Input type="number" value={editOrderDosesPerDay} onChange={e => setEditOrderDosesPerDay(e.target.value)} placeholder="1" className="text-sm h-8" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] text-muted-foreground">Weight/Unit</p>
+                  <div className="flex gap-1">
+                    <Input type="number" value={editOrderWeightPerUnit} onChange={e => setEditOrderWeightPerUnit(e.target.value)} placeholder="e.g. 5" className="text-sm h-8 flex-1 min-w-0" />
+                    <select
+                      value={editOrderWeightUnit}
+                      onChange={e => setEditOrderWeightUnit(e.target.value)}
+                      className="text-sm h-8 rounded-md border border-input bg-background px-1.5 text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      <option value="g">g</option>
+                      <option value="mg">mg</option>
+                      <option value="mcg">mcg</option>
+                      <option value="oz">oz</option>
+                      <option value="lb">lb</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Order cost */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider">Order Cost ($)</Label>
+              <Input type="number" value={editOrderCost} onChange={e => setEditOrderCost(e.target.value)} placeholder="0.00" className="text-sm" />
+              <p className="text-[10px] text-muted-foreground">Auto-calculated from qty × price. Override if needed.</p>
+            </div>
+
+            {/* Notes */}
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground uppercase tracking-wider">Supplier / Notes</Label>
               <Textarea
                 placeholder="e.g. Empower Pharmacy, batch #, different brand…"
                 value={editOrderNotes}
                 onChange={e => setEditOrderNotes(e.target.value)}
-                rows={3}
+                rows={2}
                 className="text-sm resize-none"
               />
             </div>
@@ -1060,6 +1170,7 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
                   ...(detailsCompound.vialSizeMl ? [{ label: 'Vial Size', value: `${detailsCompound.vialSizeMl} mL` }] : []),
                   ...(detailsCompound.reconVolume ? [{ label: 'Recon Volume', value: `${detailsCompound.reconVolume} mL` }] : []),
                   ...(detailsCompound.bacstatPerVial ? [{ label: 'Bac/Vial', value: `${detailsCompound.bacstatPerVial}` }] : []),
+                  ...(detailsCompound.weightPerUnit != null ? [{ label: 'Weight/Unit', value: `${detailsCompound.weightPerUnit} g` }] : []),
                 ].map(({ label, value }) => (
                   <div key={label} className="bg-secondary/30 rounded-lg p-2.5 border border-border/20">
                     <p className="text-[9px] uppercase tracking-wider text-muted-foreground mb-0.5">{label}</p>
