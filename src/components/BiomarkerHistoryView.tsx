@@ -6,7 +6,8 @@ import {
   Link2, Pencil, Check, GitCompare, BookMarked, Info, Sparkles, Settings2,
   ArrowRightLeft, TrendingUp,
 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { getReferenceRange, formatRange } from '@/lib/biomarkerReferenceRanges';
+import { LineChart, Line, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid, ReferenceArea } from 'recharts';
 import { Slider } from '@/components/ui/slider';
 import { supabase } from '@/integrations/supabase/client';
 import { format, differenceInDays } from 'date-fns';
@@ -23,6 +24,11 @@ import { toast } from 'sonner';
 const DEFAULT_FLAG_RECENCY_DAYS = 90;
 const RECENCY_OPTIONS = [30, 60, 90, 180] as const;
 
+interface UserProfileSnippet {
+  gender?: string | null;
+  age?: number | null;
+}
+
 interface BiomarkerHistoryProps {
   userId?: string;
   onUploadClick: () => void;
@@ -30,6 +36,7 @@ interface BiomarkerHistoryProps {
   goals?: UserGoal[];
   onCreateGoal?: (goals: Omit<UserGoal, 'id' | 'status'>[]) => Promise<void>;
   onRefreshGoals?: () => void;
+  profile?: UserProfileSnippet | null;
 }
 
 interface UploadRecord {
@@ -298,16 +305,24 @@ function FullTrendChart({
   unit,
   trend,
   onClose,
+  userGender,
+  userAge,
 }: {
   markerName: string;
   unit: string;
   trend: { values: number[]; dates: string[] };
   onClose: () => void;
+  userGender?: string | null;
+  userAge?: number | null;
 }) {
   const chartData = trend.values.map((v, i) => ({ date: trend.dates[i], value: v }));
   const minV = Math.min(...trend.values);
   const maxV = Math.max(...trend.values);
   const padding = (maxV - minV) * 0.2 || 1;
+
+  const refRange = getReferenceRange(markerName, userGender, userAge);
+  const domainLow = refRange ? Math.min(minV - padding, refRange.low * 0.9) : minV - padding;
+  const domainHigh = refRange ? Math.max(maxV + padding, refRange.high * 1.1) : maxV + padding;
 
   return (
     <div
@@ -327,9 +342,16 @@ function FullTrendChart({
               <p className="text-[10px] text-muted-foreground">{trend.values.length} readings · {unit}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors">
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            {refRange && (
+              <span className="text-[9px] text-muted-foreground bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded font-mono">
+                Normal: {formatRange(refRange)}
+              </span>
+            )}
+            <button onClick={onClose} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Chart */}
@@ -337,6 +359,16 @@ function FullTrendChart({
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.3)" />
+              {/* Reference band — green shaded normal range */}
+              {refRange && (
+                <ReferenceArea
+                  y1={refRange.low}
+                  y2={refRange.high}
+                  fill="hsl(var(--chart-2) / 0.08)"
+                  stroke="hsl(var(--chart-2) / 0.3)"
+                  strokeDasharray="4 3"
+                />
+              )}
               <XAxis
                 dataKey="date"
                 tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
@@ -344,7 +376,7 @@ function FullTrendChart({
                 axisLine={false}
               />
               <YAxis
-                domain={[minV - padding, maxV + padding]}
+                domain={[domainLow, domainHigh]}
                 tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
                 tickLine={false}
                 axisLine={false}
@@ -376,14 +408,22 @@ function FullTrendChart({
 
         {/* Value list */}
         <div className="mt-3 space-y-1 max-h-24 overflow-y-auto">
-          {chartData.map((d, i) => (
-            <div key={i} className="flex items-center justify-between text-[10px]">
-              <span className="text-muted-foreground">{d.date}</span>
-              <span className={`font-mono font-semibold ${i === chartData.length - 1 ? 'text-foreground' : 'text-muted-foreground'}`}>
-                {d.value} {unit}
-              </span>
-            </div>
-          ))}
+          {chartData.map((d, i) => {
+            const inRange = refRange ? d.value >= refRange.low && d.value <= refRange.high : true;
+            return (
+              <div key={i} className="flex items-center justify-between text-[10px]">
+                <span className="text-muted-foreground">{d.date}</span>
+                <div className="flex items-center gap-1.5">
+                  {refRange && !inRange && (
+                    <span className="text-[9px] text-status-warning">↑ out of range</span>
+                  )}
+                  <span className={`font-mono font-semibold ${i === chartData.length - 1 ? 'text-foreground' : 'text-muted-foreground'}`}>
+                    {d.value} {unit}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -395,12 +435,17 @@ function SparklineWithChart({
   markerName,
   unit,
   trend,
+  userGender,
+  userAge,
 }: {
   markerName: string;
   unit: string;
   trend: { values: number[]; dates: string[] };
+  userGender?: string | null;
+  userAge?: number | null;
 }) {
   const [fullChartOpen, setFullChartOpen] = useState(false);
+  const refRange = getReferenceRange(markerName, userGender, userAge);
 
   return (
     <>
@@ -415,17 +460,29 @@ function SparklineWithChart({
             />
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-52 p-2.5 bg-card border-border shadow-xl z-[70]" side="top" align="end">
+        <PopoverContent className="w-56 p-2.5 bg-card border-border shadow-xl z-[70]" side="top" align="end">
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{markerName} trend</p>
+          {refRange && (
+            <p className="text-[9px] text-muted-foreground bg-emerald-500/10 border border-emerald-500/20 rounded px-1.5 py-0.5 font-mono mb-1.5">
+              Normal: {formatRange(refRange)}
+            </p>
+          )}
           <div className="space-y-1">
-            {trend.dates.map((d, di) => (
-              <div key={di} className="flex items-center justify-between text-[10px]">
-                <span className="text-muted-foreground">{d}</span>
-                <span className={`font-mono font-medium ${di === trend.dates.length - 1 ? 'text-foreground' : 'text-muted-foreground'}`}>
-                  {trend.values[di]} {unit}
-                </span>
-              </div>
-            ))}
+            {trend.dates.map((d, di) => {
+              const v = trend.values[di];
+              const inRange = refRange ? v >= refRange.low && v <= refRange.high : true;
+              return (
+                <div key={di} className="flex items-center justify-between text-[10px]">
+                  <span className="text-muted-foreground">{d}</span>
+                  <div className="flex items-center gap-1">
+                    {refRange && !inRange && <span className="text-[8px] text-status-warning">↑</span>}
+                    <span className={`font-mono font-medium ${di === trend.dates.length - 1 ? 'text-foreground' : 'text-muted-foreground'}`}>
+                      {v} {unit}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
           <p className="text-[9px] text-muted-foreground mt-1.5 italic">{trend.values.length} readings across uploads</p>
           <button
@@ -443,12 +500,35 @@ function SparklineWithChart({
           unit={unit}
           trend={trend}
           onClose={() => setFullChartOpen(false)}
+          userGender={userGender}
+          userAge={userAge}
         />
       )}
     </>
   );
 }
 
+// ─── Reference range chip ─────────────────────────────────────
+function RangeChip({
+  markerName,
+  gender,
+  age,
+}: {
+  markerName: string;
+  gender?: string | null;
+  age?: number | null;
+}) {
+  const range = getReferenceRange(markerName, gender, age);
+  if (!range) return null;
+  return (
+    <span
+      className="text-[9px] font-mono text-muted-foreground/70 bg-secondary/40 border border-border/30 rounded px-1 py-0.5 leading-none whitespace-nowrap flex-shrink-0"
+      title={`Reference range${range.label ? ` (${range.label})` : ''}`}
+    >
+      {formatRange(range)}
+    </span>
+  );
+}
 
 function DetailSheet({
   upload,
@@ -459,6 +539,8 @@ function DetailSheet({
   onAlignToGoal,
   isDeleting,
   isReanalyzing,
+  userGender,
+  userAge,
 }: {
   upload: UploadRecord;
   allUploads: UploadRecord[];
@@ -468,6 +550,8 @@ function DetailSheet({
   onAlignToGoal: (u: UploadRecord) => void;
   isDeleting: boolean;
   isReanalyzing: boolean;
+  userGender?: string | null;
+  userAge?: number | null;
 }) {
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const biomarkers: any[] = upload.ai_extracted_data?.biomarkers || [];
@@ -600,9 +684,12 @@ function DetailSheet({
                 <AlertCircle className="w-3.5 h-3.5" /> Critical Alerts
               </p>
               {critical.map((m: any, i: number) => (
-                <div key={i} className="flex items-center justify-between text-xs">
-                  <span className="text-foreground font-medium">{m.name}</span>
-                  <span className="font-mono text-destructive">{m.value} {m.unit}</span>
+                <div key={i} className="flex items-center justify-between text-xs gap-2">
+                  <span className="text-foreground font-medium flex-1 min-w-0 truncate">{m.name}</span>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <RangeChip markerName={m.name} gender={userGender} age={userAge} />
+                    <span className="font-mono text-destructive">{m.value} {m.unit}</span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -615,7 +702,8 @@ function DetailSheet({
               {flaggedOnly.map((m: any, i: number) => (
                 <div key={i} className="flex items-center justify-between text-xs">
                   <span className="text-foreground font-medium">{m.name}</span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                    <RangeChip markerName={m.name} gender={userGender} age={userAge} />
                     <span className="font-mono text-foreground">{m.value} {m.unit}</span>
                     <span className="text-[10px] uppercase text-status-warning">{m.status.replace('_', ' ')}</span>
                   </div>
@@ -660,8 +748,11 @@ function DetailSheet({
                                   markerName={m.name}
                                   unit={m.unit}
                                   trend={trend}
+                                  userGender={userGender}
+                                  userAge={userAge}
                                 />
                               ) : null}
+                              <RangeChip markerName={m.name} gender={userGender} age={userAge} />
                               <span className="font-mono text-foreground">{m.value} {m.unit}</span>
                               <span className={`text-[10px] ${STATUS_TEXT_COLORS[m.status] || 'text-muted-foreground'}`}>
                                 {m.status === 'normal' ? '✓' : m.status?.replace('_', ' ').toUpperCase()}
@@ -1049,6 +1140,8 @@ function UploadTile({
   selected,
   onToggleSelect,
   compareMode,
+  userGender,
+  userAge,
 }: {
   upload: UploadRecord;
   allUploads: UploadRecord[];
@@ -1061,6 +1154,8 @@ function UploadTile({
   selected: boolean;
   onToggleSelect: (id: string) => void;
   compareMode: boolean;
+  userGender?: string | null;
+  userAge?: number | null;
 }) {
   const [detailOpen, setDetailOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -1191,6 +1286,8 @@ function UploadTile({
           onAlignToGoal={onAlignToGoal}
           isDeleting={isDeleting}
           isReanalyzing={isReanalyzing}
+          userGender={userGender}
+          userAge={userAge}
         />
       )}
     </>
@@ -1205,6 +1302,7 @@ export default function BiomarkerHistoryView({
   goals = [],
   onCreateGoal,
   onRefreshGoals,
+  profile,
 }: BiomarkerHistoryProps) {
   const [uploads, setUploads] = useState<UploadRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1568,6 +1666,8 @@ export default function BiomarkerHistoryView({
                     selected={selectedIds.has(upload.id)}
                     onToggleSelect={handleToggleSelect}
                     compareMode={compareMode}
+                    userGender={profile?.gender}
+                    userAge={profile?.age}
                   />
                 ))}
               </div>

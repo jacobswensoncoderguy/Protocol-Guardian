@@ -584,6 +584,7 @@ const Index = () => {
                       goals={fullGoals}
                       onCreateGoal={createGoals}
                       onRefreshGoals={fetchFullGoals}
+                      profile={profile}
                     />
                   )}
                 </TabsContent>
