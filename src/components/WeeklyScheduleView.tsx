@@ -5,20 +5,21 @@ import { getCycleStatus, isPaused } from '@/lib/cycling';
 import { generateScheduleFromCompounds } from '@/lib/scheduleGenerator';
 import { CustomField } from '@/hooks/useCustomFields';
 import { UserProtocol } from '@/hooks/useProtocols';
-import { Sun, Moon, Dumbbell, Info, Syringe, Pause, Check, ArrowLeft } from 'lucide-react';
+import { Sun, Moon, Dumbbell, Info, Syringe, Pause, Check, ArrowLeft, Search, X } from 'lucide-react';
 
 const DAY_SHORT = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
 function getScheduledDays(note: string, dpw: number): number[] {
   const n = note.toLowerCase();
+  // Priority: daily/nightly/every day or dpw===7 → all 7 days
   if (dpw === 7 || /\bdaily\b|\bnightly\b|\bevery\s*day\b/i.test(n)) return [0,1,2,3,4,5,6];
   if (/\bm[\/-]f\b|mon[\s-]*fri/i.test(n)) return [1,2,3,4,5];
   if (/\bm\/w\/f\b/i.test(n)) return [1,3,5];
   if (/\bt\/th\b/i.test(n)) return [2,4];
   if (/\bm\/f\b/i.test(n)) return [1,5];
-  // Extract individual day names
-  const dayMap: Record<string, number> = { su:0, sun:0, mo:1, mon:1, tu:2, tue:2, we:3, wed:3, th:4, thu:4, fr:5, fri:5, sa:6, sat:6 };
-  const matches = n.match(/\b(su(?:n)?|mo(?:n)?|tu(?:e)?|we(?:d)?|th(?:u)?|fr(?:i)?|sa(?:t)?)\b/gi);
+  // Extract individual day names (broader regex matching scheduleGenerator)
+  const dayMap: Record<string, number> = { su:0, sun:0, sunday:0, mo:1, mon:1, monday:1, tu:2, tue:2, tues:2, tuesday:2, we:3, wed:3, wednesday:3, th:4, thu:4, thurs:4, thursday:4, fr:5, fri:5, friday:5, sa:6, sat:6, saturday:6 };
+  const matches = n.match(/\b(su(?:n(?:day)?)?|mo(?:n(?:day)?)?|tu(?:e(?:s(?:day)?)?)?|we(?:d(?:nesday)?)?|th(?:u(?:rs(?:day)?)?)?|fr(?:i(?:day)?)?|sa(?:t(?:urday)?)?)\b/gi);
   if (matches && matches.length > 0) {
     const days = new Set<number>();
     matches.forEach(m => { const i = dayMap[m.toLowerCase()]; if (i !== undefined) days.add(i); });
@@ -87,6 +88,7 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
   const [selectedCompound, setSelectedCompound] = useState<Compound | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [doseUnit, setDoseUnit] = useState<'mg' | 'ml'>('mg');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Use external (persisted) state if provided, otherwise local fallback
   const [localChecked, setLocalChecked] = useState<Set<string>>(new Set());
@@ -104,6 +106,16 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
   const schedule = weeklySchedule[selectedDay];
   const compoundMap = new Map(compounds.map(c => [c.id, c]));
 
+  // Filter doses by search query
+  const filterDoses = (doses: typeof schedule.doses) => {
+    if (!searchQuery.trim()) return doses;
+    const q = searchQuery.toLowerCase();
+    return doses.filter(d => {
+      const c = compoundMap.get(d.compoundId);
+      return c?.name.toLowerCase().includes(q);
+    });
+  };
+
   const offCycleIds = new Set(
     compounds
       .filter(c => {
@@ -117,9 +129,9 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
     compounds.filter(c => isPaused(c)).map(c => c.id)
   );
 
-  const morningDoses = schedule.doses.filter(d => d.timing === 'morning');
-  const afternoonDoses = schedule.doses.filter(d => d.timing === 'afternoon');
-  const eveningDoses = schedule.doses.filter(d => d.timing === 'evening');
+  const morningDoses = filterDoses(schedule.doses.filter(d => d.timing === 'morning'));
+  const afternoonDoses = filterDoses(schedule.doses.filter(d => d.timing === 'afternoon'));
+  const eveningDoses = filterDoses(schedule.doses.filter(d => d.timing === 'evening'));
 
   const handleCompoundClick = (compoundId: string) => {
     const compound = compoundMap.get(compoundId);
@@ -183,6 +195,26 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
             Viewing {schedule.dayName} · Checkmarks only active on <button onClick={() => setSelectedDay(today)} className="text-primary underline-offset-2 underline">Today</button>
           </p>
         )}
+
+        {/* Search / Filter bar */}
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Filter compounds…"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="w-full pl-8 pr-8 py-2 text-xs bg-secondary border border-border/50 rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/40 transition-colors"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
 
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-bold text-foreground">{schedule.dayName}</h2>

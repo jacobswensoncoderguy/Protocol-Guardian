@@ -616,7 +616,8 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
               {cycleStatus.isOn ? `ON ${cycleStatus.daysLeftInPhase}d` : `OFF ${cycleStatus.daysLeftInPhase}d`}
             </span>
           )}
-          {!compoundIsPaused && !compound.purchaseDate && (
+          {/* "no date" badge — only for categories that need purchase date to count units */}
+          {!compoundIsPaused && !compound.purchaseDate && !isPeptide && !isOil && (
             <span
               className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border/50"
               title="Set a purchase date to activate depletion tracking"
@@ -624,7 +625,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
               no date
             </span>
           )}
-          {!compoundIsPaused && compound.purchaseDate && (
+          {!compoundIsPaused && (compound.purchaseDate || isPeptide || isOil) && (
             <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
               status === 'critical' ? 'bg-destructive/20 text-status-critical' :
               status === 'warning' ? 'bg-accent/20 text-status-warning' :
@@ -756,11 +757,13 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
         </div>
       )}
 
-      {/* Purchase date prompt — shown when no purchase date is set and not editing */}
-      {!compound.purchaseDate && !editing && !compoundIsPaused && (
+      {/* Purchase date prompt — only for orals/powders/vitamins/etc where you need to know
+          how many units are in the current bottle. Peptides and oils burn at a known rate
+          from dose × frequency alone, so no purchase date is required. */}
+      {!compound.purchaseDate && !editing && !compoundIsPaused && !isPeptide && !isOil && (
         <div className="mb-2 flex items-center gap-2 bg-primary/5 border border-primary/20 rounded-lg px-2.5 py-1.5">
           <Calendar className="w-3 h-3 text-primary/70 flex-shrink-0" />
-          <span className="text-[10px] text-muted-foreground flex-1">Set purchase date to track depletion</span>
+          <span className="text-[10px] text-muted-foreground flex-1">Set purchase date to track pills remaining</span>
           <input
             type="date"
             max={new Date().toISOString().split('T')[0]}
