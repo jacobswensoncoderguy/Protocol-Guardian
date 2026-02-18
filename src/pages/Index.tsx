@@ -142,11 +142,15 @@ const Index = () => {
   const inventorySwipe = useSwipeTabs({ tabs: ['stock', 'costs', 'reorder'], currentTab: inventorySubTab, onTabChange: setInventorySubTab });
   const trackingSwipe = useSwipeTabs({ tabs: ['food', 'symptoms'], currentTab: trackingSubTab, onTabChange: setTrackingSubTab });
 
-  // Badge counts for low-stock alerts
+  // Badge counts for low-stock alerts.
+  // Must match ReorderView logic: only count compounds with a purchase date set
+  // (no purchase date = depletion tracking unreliable, would inflate badges).
   const lowStockCounts = useMemo(() => {
     let inventoryWarnings = 0;
     let reorderNeeded = 0;
     compounds.forEach(c => {
+      if (c.notes?.includes('[DORMANT]')) return;
+      if (!c.purchaseDate || c.purchaseDate.trim() === '') return;
       const days = getDaysRemainingWithCycling(c);
       const status = getStatus(days);
       if (status === 'warning') inventoryWarnings++;
@@ -175,7 +179,7 @@ const Index = () => {
 
   const handleRefresh = useCallback(async () => {
     await Promise.all([refetch(), refetchProtocols()]);
-  }, [refetch]);
+  }, [refetch, refetchProtocols]);
 
   const { containerRef, pullDistance, refreshing, isTriggered } = usePullToRefresh({
     onRefresh: handleRefresh,
