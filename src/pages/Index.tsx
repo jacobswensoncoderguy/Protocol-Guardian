@@ -490,7 +490,7 @@ const Index = () => {
                   {scheduleSubTab === 'history' && <ScheduleHistoryView snapshots={scheduleSnapshots} loading={snapshotsLoading} checkedDosesMap={historicalCheckOffs} />}
                 </TabsContent>
                 <TabsContent value="ai-changes" forceMount={scheduleSubTab === 'ai-changes' ? true : undefined}>
-                  {scheduleSubTab === 'ai-changes' && <ProtocolChangeHistoryView compounds={compounds} updateCompound={updateCompound} refetch={refetch} userId={user?.id} />}
+                  {scheduleSubTab === 'ai-changes' && <ProtocolChangeHistoryView compounds={compounds} updateCompound={updateCompound} refetch={refetch} userId={user?.id} onOpenChat={() => setActiveTab('ai-insights')} />}
                 </TabsContent>
               </div>
             </Tabs>
