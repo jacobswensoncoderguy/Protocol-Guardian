@@ -1,7 +1,9 @@
 import { useMemo } from 'react';
-import { Scan, Activity, Bone, Flame, Scale, TrendingUp, Zap } from 'lucide-react';
+import { Scan, Activity, Bone, Flame, Scale, TrendingUp, Zap, Info } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, RadialBarChart, RadialBar, LineChart, Line, Legend } from 'recharts';
 import { cn } from '@/lib/utils';
+import { getReferenceRange, formatRange, ReferenceRange } from '@/lib/biomarkerReferenceRanges';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface DexaUpload {
   id: string;
@@ -12,6 +14,8 @@ interface DexaUpload {
 
 interface DexaScanViewProps {
   uploads: DexaUpload[];
+  userGender?: string | null;
+  userAge?: number | null;
 }
 
 interface DexaMetric {
@@ -65,20 +69,55 @@ function findAllMetrics(metrics: DexaMetric[], keys: string[]): DexaMetric[] {
   return metrics.filter(m => keys.some(k => m.name.toLowerCase().includes(k.toLowerCase())));
 }
 
-function GaugeCard({ label, value, unit, icon: Icon, max, color }: {
+function GaugeCard({ label, value, unit, icon: Icon, max, color, refRange }: {
   label: string;
   value: number;
   unit: string;
   icon: typeof Activity;
   max: number;
   color: string;
+  refRange?: ReferenceRange | null;
 }) {
   const percent = Math.min(100, (value / max) * 100);
   const radialData = [{ value: percent, fill: color }];
 
+  // Range arc: show where normal range sits on the gauge
+  const rangeLowPct = refRange ? Math.min(100, (refRange.low / max) * 100) : null;
+  const rangeHighPct = refRange ? Math.min(100, (refRange.high / max) * 100) : null;
+  const rangeData = (rangeLowPct !== null && rangeHighPct !== null)
+    ? [{ value: rangeHighPct, fill: 'hsl(var(--chart-2) / 0.25)' }]
+    : null;
+
+  // Is value inside range?
+  const inRange = refRange ? value >= refRange.low && value <= refRange.high : null;
+
   return (
-    <div className="bg-secondary/20 rounded-xl p-3 flex flex-col items-center gap-1">
+    <div className="bg-secondary/20 rounded-xl p-3 flex flex-col items-center gap-1 relative">
       <div className="relative w-20 h-20">
+        {/* Background range band — drawn first (underneath) */}
+        {rangeData && (
+          <div className="absolute inset-0">
+            <RadialBarChart
+              width={80}
+              height={80}
+              cx={40}
+              cy={40}
+              innerRadius={28}
+              outerRadius={38}
+              barSize={8}
+              data={rangeData}
+              startAngle={210}
+              endAngle={-30}
+            >
+              <RadialBar
+                dataKey="value"
+                cornerRadius={4}
+                background={{ fill: 'transparent' }}
+              />
+            </RadialBarChart>
+          </div>
+        )}
+        {/* Value arc */}
         <RadialBarChart
           width={80}
           height={80}
@@ -106,11 +145,35 @@ function GaugeCard({ label, value, unit, icon: Icon, max, color }: {
         <Icon className="w-3 h-3" style={{ color }} />
         <span className="text-[10px] font-medium text-muted-foreground">{label}</span>
       </div>
+      {/* Range badge below gauge */}
+      {refRange && (
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              className={cn(
+                "text-[8px] font-mono leading-none px-1.5 py-0.5 rounded border cursor-pointer transition-colors",
+                inRange
+                  ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20 hover:bg-emerald-500/20"
+                  : "text-status-warning bg-status-warning/10 border-status-warning/20 hover:bg-status-warning/20"
+              )}
+              type="button"
+            >
+              {inRange ? '✓ ' : '↑ '}{formatRange(refRange)}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent side="bottom" className="w-52 p-2.5 bg-popover border-border text-[11px] z-[60]">
+            <p className="font-semibold text-foreground mb-1">{label} Reference Range</p>
+            <p className="text-muted-foreground leading-relaxed">{formatRange(refRange)}</p>
+            {refRange.label && <p className="text-muted-foreground/70 mt-0.5 italic">{refRange.label}</p>}
+            <p className="text-muted-foreground/60 mt-1.5 text-[10px]">Age/sex-adjusted guideline. Not medical advice.</p>
+          </PopoverContent>
+        </Popover>
+      )}
     </div>
   );
 }
 
-export default function DexaScanView({ uploads }: DexaScanViewProps) {
+export default function DexaScanView({ uploads, userGender, userAge }: DexaScanViewProps) {
   const dexaUploads = useMemo(() => {
     return uploads.filter(u =>
       u.ai_extracted_data?.document_type === 'dexa_scan' ||
@@ -281,6 +344,7 @@ export default function DexaScanView({ uploads }: DexaScanViewProps) {
               icon={Flame}
               max={bodyFat.unit === '%' ? 50 : 100}
               color="hsl(var(--chart-4))"
+              refRange={getReferenceRange('Body Fat %', userGender, userAge)}
             />
           )}
           {leanMass && (
@@ -291,6 +355,7 @@ export default function DexaScanView({ uploads }: DexaScanViewProps) {
               icon={Activity}
               max={leanMass.unit === 'lbs' ? 250 : leanMass.unit === 'kg' ? 115 : 100}
               color="hsl(var(--chart-2))"
+              refRange={null}
             />
           )}
           {bmd && (
@@ -301,6 +366,7 @@ export default function DexaScanView({ uploads }: DexaScanViewProps) {
               icon={Bone}
               max={2}
               color="hsl(var(--chart-5))"
+              refRange={getReferenceRange('Bone Mineral Density', userGender, userAge)}
             />
           )}
           {vat && (
@@ -311,6 +377,7 @@ export default function DexaScanView({ uploads }: DexaScanViewProps) {
               icon={Scale}
               max={vat.unit === 'lbs' ? 10 : vat.unit === 'kg' ? 5 : 200}
               color="hsl(var(--destructive))"
+              refRange={null}
             />
           )}
         </div>

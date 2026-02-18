@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import AlignToGoalDialog from './AlignToGoalDialog';
 import ConfirmDialog from './ConfirmDialog';
 import MiniSparkline from './MiniSparkline';
+import DexaScanView from './DexaScanView';
 import { UserGoal } from '@/hooks/useGoals';
 import { toast } from 'sonner';
 
@@ -712,6 +713,15 @@ function DetailSheet({
             </div>
           )}
 
+          {/* DEXA Scan visualization — shown inline for DEXA uploads */}
+          {upload.upload_type === 'dexa_scan' && (
+            <DexaScanView
+              uploads={allUploads.filter(u => u.upload_type === 'dexa_scan')}
+              userGender={userGender}
+              userAge={userAge}
+            />
+          )}
+
           {/* All markers by category — with sparklines when 2+ data points exist */}
           <div className="space-y-1.5">
             {Object.entries(groupedByCategory).map(([cat, markers]: [string, any[]]) => {
@@ -768,12 +778,26 @@ function DetailSheet({
             })}
           </div>
 
-          {/* Sparkline legend — only shown if any sparklines exist */}
-          {Object.keys(sparklineData).length > 0 && (
-            <p className="text-[9px] text-muted-foreground text-center opacity-60">
-              ∿ Trend lines show values across multiple uploads of the same type
+          {/* Range chip disclaimer legend */}
+          <div className="flex items-start justify-between gap-2 px-0.5">
+            <p className="text-[9px] text-muted-foreground opacity-60 leading-relaxed flex-1">
+              {Object.keys(sparklineData).length > 0 && '∿ Trend lines show values across multiple uploads · '}
+              <span className="font-mono">[ ]</span> = age/gender-adjusted reference range
             </p>
-          )}
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="flex-shrink-0 text-muted-foreground/50 hover:text-muted-foreground transition-colors mt-0.5" type="button">
+                  <Info className="w-3 h-3" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent side="top" align="end" className="w-64 p-3 bg-popover border-border text-xs z-[60]">
+                <p className="font-semibold text-foreground mb-1">Reference Ranges</p>
+                <p className="text-muted-foreground leading-relaxed text-[11px]">
+                  Ranges shown are approximate clinical guidelines adjusted for your age and sex. They are <strong>not</strong> a substitute for medical advice — always consult your healthcare provider to interpret your results.
+                </p>
+              </PopoverContent>
+            </Popover>
+          </div>
 
           {/* AI Recommendations */}
           {recommendations.length > 0 && (
