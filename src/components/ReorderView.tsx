@@ -3,9 +3,12 @@ import { Compound, getReorderCost, getStatus } from '@/data/compounds';
 import { getDaysRemainingWithCycling, getEffectiveDailyConsumption } from '@/lib/cycling';
 import { UserProtocol } from '@/hooks/useProtocols';
 import { supabase } from '@/integrations/supabase/client';
-import { Check, Package, PackageCheck, ShoppingCart, Undo2, Trash2, ChevronDown, AlertTriangle, TrendingUp, ExternalLink, ShoppingBag, Info, Calendar } from 'lucide-react';
+import { Check, Package, PackageCheck, ShoppingCart, Undo2, Trash2, ChevronDown, AlertTriangle, TrendingUp, ExternalLink, ShoppingBag, Info, Calendar, Clock, Truck } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface ReorderViewProps {
   compounds: Compound[];
@@ -115,6 +118,15 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
   const [loading, setLoading] = useState(true);
   const [detailsCompound, setDetailsCompound] = useState<Compound | null>(null);
 
+  // Order date dialog state
+  const [orderDialog, setOrderDialog] = useState<{
+    compoundId: string;
+    quantity: number;
+    cost: number;
+    monthLabel: string;
+  } | null>(null);
+  const [orderDateInput, setOrderDateInput] = useState<string>(() => new Date().toISOString().split('T')[0]);
+
   const horizon: Horizon = reorderHorizon;
 
   const saveHorizon = (h: Horizon) => {
@@ -145,7 +157,16 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
 
   const activeOrderIds = new Set(orderedItems.map(o => o.compound_id));
 
-  const handleMarkOrdered = async (compoundId: string, quantity: number, cost: number, monthLabel: string) => {
+  const handleMarkOrdered = (compoundId: string, quantity: number, cost: number, monthLabel: string) => {
+    setOrderDateInput(new Date().toISOString().split('T')[0]);
+    setOrderDialog({ compoundId, quantity, cost, monthLabel });
+  };
+
+  const confirmMarkOrdered = async () => {
+    if (!orderDialog) return;
+    const { compoundId, quantity, cost, monthLabel } = orderDialog;
+    const orderedAt = orderDateInput ? new Date(orderDateInput).toISOString() : new Date().toISOString();
+
     const { data, error } = await supabase
       .from('orders')
       .insert([{
@@ -154,7 +175,7 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
         cost,
         status: 'ordered',
         month_label: monthLabel,
-        ordered_at: new Date().toISOString(),
+        ordered_at: orderedAt,
         user_id: userId,
       }])
       .select()
@@ -163,6 +184,7 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
     if (!error && data) {
       setOrders(prev => [data as OrderItem, ...prev]);
     }
+    setOrderDialog(null);
   };
 
   const handleMarkReceived = async (order: OrderItem) => {
@@ -468,13 +490,22 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
                         const compound = compoundMap.get(order.compound_id);
                         return (
                           <div key={order.id} className="bg-card rounded-lg border border-primary/20 p-3 flex items-center justify-between">
-                            <div className="min-w-0 flex-1">
+                          <div className="min-w-0 flex-1">
                               <h4 className="text-sm font-semibold text-foreground truncate">{compound?.name || order.compound_id}</h4>
-                              <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground">
+                              <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground flex-wrap">
                                 <span>{getDisplayQty(order.compound_id, order.quantity)}</span>
                                 <span className="font-mono">${order.cost}</span>
                                 {order.ordered_at && (
-                                  <span>Ordered {new Date(order.ordered_at).toLocaleDateString()}</span>
+                                  <span className="flex items-center gap-0.5">
+                                    <Calendar className="w-2.5 h-2.5" />
+                                    {new Date(order.ordered_at).toLocaleDateString()}
+                                  </span>
+                                )}
+                                {order.ordered_at && (
+                                  <span className="flex items-center gap-0.5 text-accent font-medium">
+                                    <Clock className="w-2.5 h-2.5" />
+                                    {Math.floor((Date.now() - new Date(order.ordered_at).getTime()) / 86400000)}d in transit
+                                  </span>
                                 )}
                               </div>
                             </div>
@@ -547,13 +578,28 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
                         <div key={order.id} className="bg-card rounded-lg border border-status-good/20 p-3 flex items-center justify-between">
                           <div className="min-w-0 flex-1">
                             <h4 className="text-sm font-semibold text-foreground truncate">{compound?.name || order.compound_id}</h4>
-                            <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground">
-                              <span>{getDisplayQty(order.compound_id, order.quantity)}</span>
-                              <span className="font-mono">${order.cost}</span>
-                              {order.received_at && (
-                                <span>Received {new Date(order.received_at).toLocaleDateString()}</span>
-                              )}
-                            </div>
+                             <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground flex-wrap">
+                               <span>{getDisplayQty(order.compound_id, order.quantity)}</span>
+                               <span className="font-mono">${order.cost}</span>
+                               {order.ordered_at && (
+                                 <span className="flex items-center gap-0.5">
+                                   <Calendar className="w-2.5 h-2.5" />
+                                   Ordered {new Date(order.ordered_at).toLocaleDateString()}
+                                 </span>
+                               )}
+                               {order.received_at && (
+                                 <span className="flex items-center gap-0.5">
+                                   <PackageCheck className="w-2.5 h-2.5" />
+                                   Received {new Date(order.received_at).toLocaleDateString()}
+                                 </span>
+                               )}
+                               {order.ordered_at && order.received_at && (
+                                 <span className="flex items-center gap-0.5 text-status-good font-semibold">
+                                   <Truck className="w-2.5 h-2.5" />
+                                   {Math.floor((new Date(order.received_at).getTime() - new Date(order.ordered_at).getTime()) / 86400000)}d shipping
+                                 </span>
+                               )}
+                             </div>
                           </div>
                           <div className="flex items-center gap-1 ml-2 flex-shrink-0">
                             <button
@@ -582,6 +628,60 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
         </div>
       )}
     </div>
+
+    {/* Order date dialog */}
+    <Dialog open={!!orderDialog} onOpenChange={(v) => { if (!v) setOrderDialog(null); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <Calendar className="w-4 h-4 text-primary" />
+            Confirm Order Date
+          </DialogTitle>
+        </DialogHeader>
+        {orderDialog && (
+          <div className="space-y-4 py-1">
+            <p className="text-sm text-muted-foreground">
+              When did you place this order for <span className="font-semibold text-foreground">{compoundMap.get(orderDialog.compoundId)?.name}</span>?
+            </p>
+            <div className="space-y-1.5">
+              <Label htmlFor="order-date" className="text-xs text-muted-foreground uppercase tracking-wider">Order / Refill Date</Label>
+              <Input
+                id="order-date"
+                type="date"
+                value={orderDateInput}
+                onChange={e => setOrderDateInput(e.target.value)}
+                max={new Date().toISOString().split('T')[0]}
+                className="text-sm"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-[10px] text-muted-foreground bg-secondary/40 rounded-lg p-2.5 border border-border/30">
+              <div>
+                <p className="uppercase tracking-wider mb-0.5">Cost</p>
+                <p className="font-mono font-semibold text-foreground">${orderDialog.cost}</p>
+              </div>
+              <div>
+                <p className="uppercase tracking-wider mb-0.5">Quantity</p>
+                <p className="font-semibold text-foreground">{getDisplayQty(orderDialog.compoundId, orderDialog.quantity)}</p>
+              </div>
+            </div>
+          </div>
+        )}
+        <DialogFooter className="gap-2">
+          <button
+            onClick={() => setOrderDialog(null)}
+            className="flex-1 py-2 rounded-lg border border-border/50 text-sm text-muted-foreground hover:bg-secondary/60 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={confirmMarkOrdered}
+            className="flex-1 py-2 rounded-lg bg-primary/15 text-primary text-sm font-semibold border border-primary/30 hover:bg-primary/25 transition-colors"
+          >
+            Mark as Ordered
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
     {/* Compound details sheet for reorder reference */}
     <Sheet open={!!detailsCompound} onOpenChange={(v) => { if (!v) setDetailsCompound(null); }}>
