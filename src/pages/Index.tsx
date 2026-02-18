@@ -47,6 +47,8 @@ import SymptomsTrackerView from '@/components/SymptomsTrackerView';
 import { useScheduleSnapshots } from '@/hooks/useScheduleSnapshots';
 import { useHistoricalCheckOffs } from '@/hooks/useHistoricalCheckOffs';
 import { useSwipeTabs } from '@/hooks/useSwipeTabs';
+import { useHousehold, useHouseholdMemberCompounds } from '@/hooks/useHousehold';
+import HouseholdMemberToggle, { HouseholdViewOption } from '@/components/HouseholdMemberToggle';
 
 const LoadingSkeleton = () => (
   <div className="min-h-screen bg-background">
@@ -77,6 +79,25 @@ const Index = () => {
   const { user, signOut } = useAuth();
   const { profile, currentTolerance, setTolerance, toleranceHistory, updateProfile, measurementSystem, doseUnitPreference, appFeatures, updateAppFeatures, reorderHorizon, updateReorderHorizon } = useProfile(user?.id);
   const { compounds, loading, hasCompounds, updateCompound, addCompound, deleteCompound, refetch } = useCompounds(user?.id);
+  const household = useHousehold(user?.id);
+
+  // Household view selection state
+  const [householdViewId, setHouseholdViewId] = useState<string>('self');
+  const selectedMemberUserId = household.acceptedMembers.find(m => m.userId === householdViewId)?.userId ?? null;
+  const { compounds: memberCompounds } = useHouseholdMemberCompounds(
+    householdViewId !== 'self' && householdViewId !== 'combined' ? householdViewId : null
+  );
+
+  // The active compound set depending on household view selection
+  const viewCompounds = (() => {
+    if (householdViewId === 'combined') return [...compounds, ...memberCompounds];
+    if (selectedMemberUserId) return memberCompounds;
+    return compounds;
+  })();
+
+  const handleHouseholdSelect = (option: HouseholdViewOption) => {
+    setHouseholdViewId(option.id);
+  };
   const { isDark, toggle } = useTheme();
   const { createGoals, updateGoal, deleteGoal, goals: fullGoals, fetchGoals: fetchFullGoals } = useGoals(user?.id);
 
@@ -328,6 +349,13 @@ const Index = () => {
             <OutcomesView userId={user?.id} goals={fullGoals} onRefreshGoals={fetchFullGoals} onUploadClick={() => setShowBiomarkerUpload(true)} profile={profile} measurementSystem={measurementSystem} onCreateGoal={createGoals} onUpdateGoal={updateGoal} onDeleteGoal={deleteGoal} />
           </TabsContent>
           <TabsContent value="schedule" className="animate-slide-up">
+            {/* Household toggle for Schedule */}
+            <HouseholdMemberToggle
+              selfName={profile?.display_name || null}
+              members={household.acceptedMembers}
+              selectedIds={[householdViewId]}
+              onSelect={handleHouseholdSelect}
+            />
             <Tabs value={scheduleSubTab} onValueChange={setScheduleSubTab} className="w-full">
               <TabsList className="w-full bg-card/80 border border-border/60 mb-3 h-10 p-1 gap-1">
                 <TabsTrigger value="this-week" className="flex-1 text-xs font-semibold rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">This Week</TabsTrigger>
@@ -336,7 +364,7 @@ const Index = () => {
               </TabsList>
               <div key={scheduleSubTab} className={scheduleSwipe.slideClass} onAnimationEnd={scheduleSwipe.onAnimationEnd} onTouchStart={scheduleSwipe.onTouchStart} onTouchEnd={scheduleSwipe.onTouchEnd}>
                 <TabsContent value="this-week" forceMount={scheduleSubTab === 'this-week' ? true : undefined}>
-                  {scheduleSubTab === 'this-week' && <WeeklyScheduleView compounds={compounds} protocols={protocols} compoundAnalyses={compoundAnalyses} compoundLoading={compoundLoading} onAnalyzeCompound={analyzeCompound} customFields={customFields} customFieldValues={customFieldValues} checkedDoses={checkedDoses} onToggleChecked={toggleDoseCheck} />}
+                  {scheduleSubTab === 'this-week' && <WeeklyScheduleView compounds={viewCompounds} protocols={protocols} compoundAnalyses={compoundAnalyses} compoundLoading={compoundLoading} onAnalyzeCompound={analyzeCompound} customFields={customFields} customFieldValues={customFieldValues} checkedDoses={checkedDoses} onToggleChecked={toggleDoseCheck} />}
                 </TabsContent>
                 <TabsContent value="history" forceMount={scheduleSubTab === 'history' ? true : undefined}>
                   {scheduleSubTab === 'history' && <ScheduleHistoryView snapshots={scheduleSnapshots} loading={snapshotsLoading} checkedDosesMap={historicalCheckOffs} />}
@@ -348,6 +376,19 @@ const Index = () => {
             </Tabs>
           </TabsContent>
           <TabsContent value="inventory" className="animate-slide-up">
+            {/* Household toggle for Inventory/Costs/Reorder */}
+            <HouseholdMemberToggle
+              selfName={profile?.display_name || null}
+              members={household.acceptedMembers}
+              selectedIds={[householdViewId]}
+              onSelect={handleHouseholdSelect}
+            />
+            {/* Combined label for costs header */}
+            {householdViewId === 'combined' && (
+              <div className="mb-2 px-2 py-1.5 rounded-lg bg-accent/10 border border-accent/20 text-[11px] text-accent font-medium">
+                Showing combined household data — {[profile?.display_name || 'Mine', ...household.acceptedMembers.map(m => m.displayName || 'Member')].join(' + ')}
+              </div>
+            )}
             <Tabs value={inventorySubTab} onValueChange={setInventorySubTab} className="w-full">
               <TabsList className="w-full bg-card/80 border border-border/60 mb-3 h-10 p-1 gap-1">
                 <TabsTrigger value="stock" className="flex-1 text-xs font-semibold rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">Stock</TabsTrigger>
@@ -364,26 +405,26 @@ const Index = () => {
               <div key={inventorySubTab} className={inventorySwipe.slideClass} onAnimationEnd={inventorySwipe.onAnimationEnd} onTouchStart={inventorySwipe.onTouchStart} onTouchEnd={inventorySwipe.onTouchEnd}>
                 <TabsContent value="stock" forceMount={inventorySubTab === 'stock' ? true : undefined}>
                   {inventorySubTab === 'stock' && <InventoryView
-                    compounds={compounds}
-                    onUpdateCompound={handleUpdateCompound}
-                    onDeleteCompound={deleteCompound}
-                    onAddCompound={() => setShowAddDialog(true)}
+                    compounds={viewCompounds}
+                    onUpdateCompound={householdViewId === 'self' ? handleUpdateCompound : () => {}}
+                    onDeleteCompound={householdViewId === 'self' ? deleteCompound : undefined}
+                    onAddCompound={householdViewId === 'self' ? () => setShowAddDialog(true) : undefined}
                     protocols={protocols}
                     toleranceLevel={toleranceLevel}
                     onToleranceChange={handleToleranceChange}
                     customFields={customFields}
                     customFieldValues={customFieldValues}
-                    onAddCustomField={addCustomField}
-                    onRemoveCustomField={removeCustomField}
-                    onReorderCustomField={reorderCustomField}
-                    onSetCustomFieldValue={setCustomFieldValue}
+                    onAddCustomField={householdViewId === 'self' ? addCustomField : undefined}
+                    onRemoveCustomField={householdViewId === 'self' ? removeCustomField : undefined}
+                    onReorderCustomField={householdViewId === 'self' ? reorderCustomField : undefined}
+                    onSetCustomFieldValue={householdViewId === 'self' ? setCustomFieldValue : undefined}
                   />}
                 </TabsContent>
                 <TabsContent value="costs" forceMount={inventorySubTab === 'costs' ? true : undefined}>
-                  {inventorySubTab === 'costs' && <CostProjectionView compounds={compounds} protocols={protocols} customFields={customFields} customFieldValues={customFieldValues} userId={user?.id} />}
+                  {inventorySubTab === 'costs' && <CostProjectionView compounds={viewCompounds} protocols={protocols} customFields={customFields} customFieldValues={customFieldValues} userId={user?.id} />}
                 </TabsContent>
                 <TabsContent value="reorder" forceMount={inventorySubTab === 'reorder' ? true : undefined}>
-                  {inventorySubTab === 'reorder' && <ReorderView compounds={compounds} onUpdateCompound={handleUpdateCompound} userId={user?.id} protocols={protocols} reorderHorizon={reorderHorizon} onHorizonChange={updateReorderHorizon} />}
+                  {inventorySubTab === 'reorder' && <ReorderView compounds={viewCompounds} onUpdateCompound={householdViewId === 'self' ? handleUpdateCompound : () => {}} userId={user?.id} protocols={protocols} reorderHorizon={reorderHorizon} onHorizonChange={updateReorderHorizon} />}
                 </TabsContent>
               </div>
             </Tabs>
@@ -498,6 +539,14 @@ const Index = () => {
             refetch();
           }}
           onStartTour={() => setShowGuidedTour(true)}
+          householdMembers={household.members}
+          householdPendingIncoming={household.pendingIncoming}
+          householdPendingOutgoing={household.pendingOutgoing}
+          householdLoading={household.loading}
+          onSendHouseholdInvite={household.sendInvite}
+          onAcceptHouseholdInvite={household.acceptInvite}
+          onRejectHouseholdInvite={household.rejectInvite}
+          onRemoveHouseholdMember={household.removeLink}
         />
 
         <ConfirmDialog

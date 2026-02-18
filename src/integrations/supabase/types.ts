@@ -417,6 +417,36 @@ export type Database = {
           },
         ]
       }
+      household_links: {
+        Row: {
+          created_at: string
+          id: string
+          invite_token: string | null
+          member_id: string
+          requester_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invite_token?: string | null
+          member_id: string
+          requester_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invite_token?: string | null
+          member_id?: string
+          requester_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       meals: {
         Row: {
           created_at: string
@@ -1240,7 +1270,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      find_user_for_household: {
+        Args: { lookup_email: string }
+        Returns: {
+          display_name: string
+          user_id: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
