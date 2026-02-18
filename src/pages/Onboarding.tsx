@@ -347,8 +347,8 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
           <div className="flex items-center gap-2 mb-3">
             <Zap className="w-5 h-5 text-primary" />
             <h1 className="text-lg font-bold">
-              <span className="text-gradient-cyan">SUPERHUMAN</span>
-              <span className="text-muted-foreground font-medium ml-1.5">Setup</span>
+              <span className="text-gradient-cyan">PROTOCOL</span>
+              <span className="text-muted-foreground font-medium ml-1.5">Guardian Setup</span>
             </h1>
           </div>
 

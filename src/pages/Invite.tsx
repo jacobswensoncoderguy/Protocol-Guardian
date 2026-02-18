@@ -132,8 +132,8 @@ const Invite = () => {
             <Zap className="w-10 h-10 text-primary" />
           </div>
           <h1 className="text-3xl font-bold tracking-tight">
-            <span className="text-gradient-cyan">SUPERHUMAN</span>
-            <span className="text-muted-foreground font-medium ml-2">Tracker</span>
+            <span className="text-gradient-cyan">PROTOCOL</span>
+            <span className="text-muted-foreground font-medium ml-2">Guardian</span>
           </h1>
           <p className="text-muted-foreground mt-3 text-sm leading-relaxed">
             {mode === 'signup' ? (
