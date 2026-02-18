@@ -191,7 +191,15 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
     const compound = compoundMap.get(order.compound_id);
     if (compound) onUpdateCompound(compound.id, { currentQuantity: Math.max(0, compound.currentQuantity - order.quantity) });
     const { error } = await supabase.from('orders').update({ status: 'ordered', received_at: null }).eq('id', order.id);
-    if (!error) setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'ordered', received_at: null } : o));
+    if (!error) {
+      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'ordered', received_at: null } : o));
+      setTab('ordered');
+    }
+  };
+
+  const handleReturnToNeeded = async (order: OrderItem) => {
+    const { error } = await supabase.from('orders').delete().eq('id', order.id);
+    if (!error) setOrders(prev => prev.filter(o => o.id !== order.id));
   };
 
   const handleDeleteOrder = async (order: OrderItem) => {
@@ -484,6 +492,13 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
                                 )}
                               </div>
                               <div className="flex items-center gap-1 flex-shrink-0">
+                                <button
+                                  onClick={() => handleReturnToNeeded(order)}
+                                  className="p-1.5 rounded-md bg-secondary/60 text-muted-foreground border border-border/30 active:bg-secondary touch-manipulation"
+                                  title="Return to Needed list"
+                                >
+                                  <Undo2 className="w-3.5 h-3.5" />
+                                </button>
                                 <button
                                   onClick={() => handleDeleteOrder(order)}
                                   className="p-1.5 rounded-md bg-destructive/10 text-status-critical border border-destructive/20 active:bg-destructive/20 touch-manipulation"
