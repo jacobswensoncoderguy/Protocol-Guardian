@@ -72,11 +72,23 @@ export function useConversations(userId: string | undefined) {
           message_count: countMap.get(c.id) ?? 0,
           last_message_preview: previewMap.get(c.id) ?? '',
         }));
-        setConversations(enriched);
+
+        // Silently delete empty conversations (0 messages) older than 5 minutes
+        const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+        const emptyConvIds = enriched
+          .filter(c => (countMap.get(c.id) ?? 0) === 0 && c.created_at < fiveMinAgo)
+          .map(c => c.id);
+        const nonEmpty = enriched.filter(c => !emptyConvIds.includes(c.id));
+
+        if (emptyConvIds.length > 0) {
+          await supabase.from('chat_conversations').delete().in('id', emptyConvIds);
+        }
+
+        setConversations(nonEmpty);
 
         // Auto-select most recent if none active
-        if (!activeConversationId && enriched.length > 0) {
-          setActiveConversationId(enriched[0].id);
+        if (!activeConversationId && nonEmpty.length > 0) {
+          setActiveConversationId(nonEmpty[0].id);
         }
       }
       setLoading(false);
@@ -121,6 +133,14 @@ export function useConversations(userId: string | undefined) {
     setActiveConversationId(conv.id);
     return conv;
   }, [userId]);
+
+  // Auto-delete conversations that have zero messages (abandoned empty threads)
+  const deleteEmptyConversations = useCallback(async (conversationIds: string[]) => {
+    if (conversationIds.length === 0) return;
+    await supabase.from('chat_conversations').delete().in('id', conversationIds);
+    setConversations(prev => prev.filter(c => !conversationIds.includes(c.id)));
+    setActiveConversationId(prev => prev && conversationIds.includes(prev) ? null : prev);
+  }, []);
 
   const deleteConversation = useCallback(async (id: string) => {
     await supabase.from('chat_conversations').delete().eq('id', id);
@@ -179,6 +199,7 @@ export function useConversations(userId: string | undefined) {
     setActiveConversationId,
     createProject, deleteProject,
     createConversation, deleteConversation, renameConversation, moveConversation,
+    deleteEmptyConversations,
     searchMessages, refreshConversation,
   };
 }

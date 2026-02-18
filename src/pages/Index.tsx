@@ -34,6 +34,7 @@ import { AppFeatures } from '@/lib/appFeatures';
 import { supabase } from '@/integrations/supabase/client';
 
 import DashboardView from '@/components/DashboardView';
+import { TabErrorBoundary } from '@/components/TabErrorBoundary';
 import WeeklyScheduleView from '@/components/WeeklyScheduleView';
 import ScheduleHistoryView from '@/components/ScheduleHistoryView';
 import ProtocolChangeHistoryView from '@/components/ProtocolChangeHistoryView';
@@ -417,6 +418,7 @@ const Index = () => {
           </TabsList>
 
           <TabsContent value="dashboard" className="animate-slide-up">
+            <TabErrorBoundary tabName="Home">
             <DashboardView
               compounds={compounds}
               stackAnalysis={stackAnalysis}
@@ -440,11 +442,15 @@ const Index = () => {
               onEnableFeature={handleToggleFeature}
               onAddCompound={() => setShowAddDialog(true)}
             />
+            </TabErrorBoundary>
           </TabsContent>
           <TabsContent value="outcomes" className="animate-slide-up">
+            <TabErrorBoundary tabName="Progress">
             <OutcomesView userId={user?.id} goals={fullGoals} onRefreshGoals={fetchFullGoals} onUploadClick={() => setShowBiomarkerUpload(true)} profile={profile} measurementSystem={measurementSystem} onCreateGoal={createGoals} onUpdateGoal={updateGoal} onDeleteGoal={deleteGoal} />
+            </TabErrorBoundary>
           </TabsContent>
           <TabsContent value="schedule" className="animate-slide-up">
+            <TabErrorBoundary tabName="Protocol">
             {/* Household toggle for Schedule */}
             <HouseholdMemberToggle
               selfName={profile?.display_name || null}
@@ -485,8 +491,10 @@ const Index = () => {
                 </TabsContent>
               </div>
             </Tabs>
+            </TabErrorBoundary>
           </TabsContent>
           <TabsContent value="inventory" className="animate-slide-up">
+            <TabErrorBoundary tabName="Inventory">
             {/* Household toggle for Inventory/Costs/Reorder */}
             <HouseholdMemberToggle
               selfName={profile?.display_name || null}
@@ -539,8 +547,10 @@ const Index = () => {
                 </TabsContent>
               </div>
             </Tabs>
+            </TabErrorBoundary>
           </TabsContent>
           <TabsContent value="tracking" className="animate-slide-up">
+            <TabErrorBoundary tabName="Logging">
             <Tabs value={trackingSubTab} onValueChange={setTrackingSubTab} className="w-full">
               <TabsList className="w-full bg-card/80 border border-border/60 mb-3 h-10 p-1 gap-1">
                 <TabsTrigger value="food" className="flex-1 text-xs font-semibold rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">Food</TabsTrigger>
@@ -555,8 +565,10 @@ const Index = () => {
                 </TabsContent>
               </div>
             </Tabs>
+            </TabErrorBoundary>
           </TabsContent>
           <TabsContent value="ai-insights" className="animate-slide-up">
+            <TabErrorBoundary tabName="AI">
             <AIInsightsView
               analysis={stackAnalysis}
               loading={aiLoading}
@@ -582,6 +594,7 @@ const Index = () => {
               compareLoading={compareLoading}
               onCompareAllLevels={compareAllLevels}
             />
+            </TabErrorBoundary>
           </TabsContent>
         </Tabs>
 
