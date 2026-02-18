@@ -46,8 +46,13 @@ function buildNeededItems(compounds: Compound[]): (Omit<OrderItem, 'id' | 'order
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const items: (Omit<OrderItem, 'id' | 'ordered_at' | 'received_at'>)[] = [];
 
-  // Exclude dormant placeholders and zero-quantity entries with no purchase date
-  const activeCompounds = compounds.filter(c => !c.notes?.includes('[DORMANT]') && c.currentQuantity > 0);
+  // Exclude dormant placeholders, zero-quantity entries, and compounds without a purchase date
+  // (no purchase date = depletion tracking unreliable, would show misleading low-stock alerts)
+  const activeCompounds = compounds.filter(c =>
+    !c.notes?.includes('[DORMANT]') &&
+    c.currentQuantity > 0 &&
+    c.purchaseDate && c.purchaseDate.trim() !== ''
+  );
 
   activeCompounds.forEach(compound => {
     const daysLeft = getDaysRemainingWithCycling(compound);
@@ -234,7 +239,13 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [] }: Re
   const orderedGroups = groupByProtocol(orderedItems, protocols, compoundMap);
   const receivedGroups = groupByProtocol(receivedItems, protocols, compoundMap);
 
-  const activeCompounds = compounds.filter(c => !c.notes?.includes('[DORMANT]') && c.currentQuantity > 0);
+  // Only flag compounds that have a purchase date set — without one, depletion tracking
+  // is unreliable and placeholder entries (e.g. Escitalopram, Prednisone) inflate counts.
+  const activeCompounds = compounds.filter(c =>
+    !c.notes?.includes('[DORMANT]') &&
+    c.currentQuantity > 0 &&
+    c.purchaseDate && c.purchaseDate.trim() !== ''
+  );
   const criticalCompounds = activeCompounds.filter(c => getStatus(getDaysRemainingWithCycling(c)) === 'critical');
   const warningCompounds = activeCompounds.filter(c => getStatus(getDaysRemainingWithCycling(c)) === 'warning');
 
