@@ -109,7 +109,10 @@ const WeekCard = ({
         return !(status.hasCycle && !status.isOn) && !isPaused(compound);
       });
       planned += activeDoses.length;
-      taken += dayChecks.size;
+      // Count only check-offs that match a planned dose key (avoid overcounting)
+      activeDoses.forEach((dose, i) => {
+        if (dayChecks.has(`${dose.compoundId}-${dose.timing}-${i}`)) taken++;
+      });
     });
     return { totalPlanned: planned, totalTaken: taken };
   }, [schedule, snapshot, checkedDosesMap]);
