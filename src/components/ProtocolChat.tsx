@@ -55,14 +55,21 @@ const ProposalCard = ({
   onReject,
   onApplyAll,
   onUndo,
+  compounds,
 }: {
   proposal: ChangeProposal;
   onApply: (index: number) => void;
   onReject: (index: number) => void;
   onApplyAll: () => void;
   onUndo?: (index: number) => void;
+  compounds?: Compound[];
 }) => {
   const hasPending = proposal.changes.some(c => c.status === 'pending');
+
+  const normalize = (s: string) => s.replace(/\s*\([^)]*\)\s*$/, '').trim().toLowerCase();
+  const findCompound = (name: string) =>
+    compounds?.find(c => normalize(c.name) === normalize(name))
+    ?? compounds?.find(c => normalize(c.name).includes(normalize(name)) || normalize(name).includes(normalize(c.name)));
 
   return (
     <div className="mt-3 rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2.5">
@@ -82,15 +89,20 @@ const ProposalCard = ({
       <p className="text-[11px] text-muted-foreground leading-relaxed">{proposal.summary}</p>
 
       <div className="space-y-1.5">
-        {proposal.changes.map((change, i) => (
-          <ChangeRow
-            key={i}
-            change={change}
-            onApply={() => onApply(i)}
-            onReject={() => onReject(i)}
-            onUndo={onUndo ? () => onUndo(i) : undefined}
-          />
-        ))}
+        {proposal.changes.map((change, i) => {
+          const matched = compounds ? findCompound(change.compoundName) : undefined;
+          const compoundFound = compounds ? !!matched : undefined;
+          return (
+            <ChangeRow
+              key={i}
+              change={change}
+              onApply={() => onApply(i)}
+              onReject={() => onReject(i)}
+              onUndo={onUndo ? () => onUndo(i) : undefined}
+              compoundFound={compoundFound}
+            />
+          );
+        })}
       </div>
     </div>
   );
@@ -101,25 +113,38 @@ const ChangeRow = ({
   onApply,
   onReject,
   onUndo,
+  compoundFound,
 }: {
   change: ProposedChange;
   onApply: () => void;
   onReject: () => void;
   onUndo?: () => void;
+  compoundFound?: boolean;
 }) => (
   <div className={`flex items-start gap-2 p-2 rounded-md border transition-all ${
+    compoundFound === false ? 'border-destructive/40 bg-destructive/5' :
     change.status === 'accepted' ? 'border-status-good/30 bg-status-good/5' :
     change.status === 'rejected' ? 'border-destructive/30 bg-destructive/5 opacity-60' :
     change.status === 'undone' ? 'border-accent/30 bg-accent/5 opacity-70' :
     'border-border/50 bg-card'
   }`}>
     <div className="flex-1 min-w-0">
-      <div className="flex items-center gap-1.5 mb-0.5">
+      <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
         <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-full ${changeTypeColor(change.type)}`}>
           {changeTypeLabel(change.type)}
         </span>
         <span className="text-xs font-semibold text-foreground truncate">{change.compoundName}</span>
+        {compoundFound === false && (
+          <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-destructive/15 text-status-critical flex items-center gap-0.5">
+            ⚠ Not in stack
+          </span>
+        )}
       </div>
+      {compoundFound === false && (
+        <p className="text-[10px] text-status-critical mb-0.5 leading-snug">
+          Compound not found in your stack — this change cannot be applied.
+        </p>
+      )}
       {change.oldValue && change.newValue && (
         <div className="flex items-center gap-1.5 text-[11px] mb-0.5">
           <span className="text-muted-foreground line-through">{change.oldValue}</span>
@@ -487,6 +512,7 @@ const ProtocolChat = ({
                       onReject={(i) => onRejectChange(msg.proposal!.id, i)}
                       onApplyAll={() => onApplyAll(msg.proposal!.id)}
                       onUndo={onUndoChange ? (i) => onUndoChange(msg.proposal!.id, i) : undefined}
+                      compounds={compounds}
                     />
                   )}
                   <button

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Compound } from '@/data/compounds';
 import { formatDistanceToNow, parseISO, isAfter, subHours, format, startOfMonth } from 'date-fns';
-import { History, ArrowRight, Loader2, Brain, Trash2, ChevronDown, ChevronUp, Search, X, Filter, TrendingUp, TrendingDown, Minus, RotateCcw, Pencil, Check, AlertTriangle } from 'lucide-react';
+import { History, ArrowRight, Loader2, Brain, Trash2, ChevronDown, ChevronUp, Search, X, Filter, TrendingUp, TrendingDown, Minus, RotateCcw, Pencil, Check, AlertTriangle, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -45,6 +45,7 @@ interface ProtocolChangeHistoryViewProps {
   updateCompound: (id: string, updates: Partial<Compound>) => void;
   refetch: () => Promise<void>;
   userId?: string;
+  onOpenChat?: () => void;
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -111,7 +112,7 @@ function weeklyDoseFromField(
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
-export default function ProtocolChangeHistoryView({ compounds, updateCompound, refetch, userId }: ProtocolChangeHistoryViewProps) {
+export default function ProtocolChangeHistoryView({ compounds, updateCompound, refetch, userId, onOpenChat }: ProtocolChangeHistoryViewProps) {
   const [changes, setChanges] = useState<ProtocolChange[]>([]);
   const [loading, setLoading] = useState(true);
   const [undoing, setUndoing] = useState<string | null>(null);
@@ -570,11 +571,19 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
                       {field && <span className="text-[10px] text-muted-foreground">· {fieldLabel(field)}</span>}
                       {recent && <span className="text-[9px] font-mono px-1 py-0.5 rounded-full bg-primary/10 text-primary">recent</span>}
                     </div>
+
+                    {/* Before/after value visual — always prominent */}
                     {change.previous_value && change.new_value && (
-                      <div className="flex items-center gap-1.5 mt-1">
-                        <span className="text-[11px] text-muted-foreground line-through opacity-70">{change.previous_value}</span>
-                        <ArrowRight className="w-3 h-3 text-primary flex-shrink-0" />
-                        <span className="text-[11px] text-primary font-semibold">{change.new_value}</span>
+                      <div className="flex items-center gap-1.5 mt-1.5 px-2 py-1.5 rounded-lg bg-secondary/40 border border-border/30">
+                        <div className="flex flex-col items-center">
+                          <span className="text-[8px] text-muted-foreground/60 uppercase tracking-wider mb-0.5">Before</span>
+                          <span className="text-[11px] text-muted-foreground line-through font-mono">{change.previous_value}</span>
+                        </div>
+                        <ArrowRight className="w-3 h-3 text-primary flex-shrink-0 mx-1" />
+                        <div className="flex flex-col items-center">
+                          <span className="text-[8px] text-muted-foreground/60 uppercase tracking-wider mb-0.5">After</span>
+                          <span className="text-[11px] text-primary font-semibold font-mono">{change.new_value}</span>
+                        </div>
                       </div>
                     )}
 
@@ -599,7 +608,7 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
                       </div>
                     )}
 
-                    <div className="flex items-center gap-2 mt-1">
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <span className="text-[10px] text-muted-foreground/60">
                         {formatDistanceToNow(parseISO(change.created_at), { addSuffix: true })}
                       </span>
@@ -610,6 +619,16 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
                         {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                         details
                       </button>
+                      {onOpenChat && (
+                        <button
+                          onClick={onOpenChat}
+                          className="flex items-center gap-0.5 text-[10px] text-primary/60 hover:text-primary transition-colors"
+                          title="Open Protocol Advisor chat"
+                        >
+                          <MessageCircle className="w-3 h-3" />
+                          view in chat
+                        </button>
+                      )}
                     </div>
                   </div>
 
