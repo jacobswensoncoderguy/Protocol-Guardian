@@ -37,6 +37,7 @@ export interface Compound {
   reorderType?: 'single' | 'kit'; // whether reorder quantity is single units or kits
   notes?: string;
   weightPerUnit?: number; // mg per individual unit (pill, cap, tab, scoop) for non-injectable compounds
+  weightUnit?: string; // display unit for weightPerUnit ('g', 'mg', 'mcg', 'oz', 'lb')
 }
 
 /**

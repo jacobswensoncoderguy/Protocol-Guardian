@@ -186,7 +186,7 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
     setEditDoseLabel(compound?.doseLabel || '');
     setEditDosesPerDay(String(compound?.dosesPerDay || ''));
     setEditWeightPerUnit(compound?.weightPerUnit != null ? String(compound.weightPerUnit) : '');
-    setEditWeightUnit('g');
+    setEditWeightUnit(compound?.weightUnit || 'mg');
     setOrderDialog({ compoundId, quantity, cost, monthLabel });
   };
 
@@ -213,6 +213,7 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
       if (!isNaN(parsedDosesPerDay) && parsedDosesPerDay !== compound.dosesPerDay) compoundUpdates.dosesPerDay = parsedDosesPerDay;
       const parsedWeightPerUnit = editWeightPerUnit.trim() !== '' ? parseFloat(editWeightPerUnit) : null;
       if (parsedWeightPerUnit !== (compound.weightPerUnit ?? null)) compoundUpdates.weightPerUnit = parsedWeightPerUnit ?? undefined;
+      if (editWeightUnit !== (compound.weightUnit ?? 'mg')) compoundUpdates.weightUnit = editWeightUnit;
       if (Object.keys(compoundUpdates).length > 0) onUpdateCompound(compoundId, compoundUpdates);
     }
 
@@ -247,7 +248,7 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
     setEditOrderDoseLabel(compound?.doseLabel || '');
     setEditOrderDosesPerDay(String(compound?.dosesPerDay || ''));
     setEditOrderWeightPerUnit(compound?.weightPerUnit != null ? String(compound.weightPerUnit) : '');
-    setEditOrderWeightUnit('g');
+    setEditOrderWeightUnit(compound?.weightUnit || 'mg');
     setEditOrderDialog(order);
   };
 
@@ -284,6 +285,7 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
       if (!isNaN(parsedDosesPerDay) && parsedDosesPerDay !== compound.dosesPerDay) compoundUpdates.dosesPerDay = parsedDosesPerDay;
       const parsedWeight = editOrderWeightPerUnit.trim() !== '' ? parseFloat(editOrderWeightPerUnit) : null;
       if (parsedWeight !== (compound.weightPerUnit ?? null)) compoundUpdates.weightPerUnit = parsedWeight ?? undefined;
+      if (editOrderWeightUnit !== (compound.weightUnit ?? 'mg')) compoundUpdates.weightUnit = editOrderWeightUnit;
       if (Object.keys(compoundUpdates).length > 0) onUpdateCompound(editOrderDialog.compound_id, compoundUpdates);
     }
 
@@ -1170,7 +1172,7 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
                   ...(detailsCompound.vialSizeMl ? [{ label: 'Vial Size', value: `${detailsCompound.vialSizeMl} mL` }] : []),
                   ...(detailsCompound.reconVolume ? [{ label: 'Recon Volume', value: `${detailsCompound.reconVolume} mL` }] : []),
                   ...(detailsCompound.bacstatPerVial ? [{ label: 'Bac/Vial', value: `${detailsCompound.bacstatPerVial}` }] : []),
-                  ...(detailsCompound.weightPerUnit != null ? [{ label: 'Weight/Unit', value: `${detailsCompound.weightPerUnit} g` }] : []),
+                  ...(detailsCompound.weightPerUnit != null ? [{ label: 'Weight/Unit', value: `${detailsCompound.weightPerUnit} ${detailsCompound.weightUnit || 'mg'}` }] : []),
                 ].map(({ label, value }) => (
                   <div key={label} className="bg-secondary/30 rounded-lg p-2.5 border border-border/20">
                     <p className="text-[9px] uppercase tracking-wider text-muted-foreground mb-0.5">{label}</p>
