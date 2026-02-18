@@ -1160,6 +1160,32 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
             <EditRow label="Price" value={editState.unitPrice} prefix="$" suffix={`/${isOil ? 'vial' : 'bottle'}`}
               onChange={v => setEditState(s => ({ ...s, unitPrice: v }))} type="number" />
           )}
+          {/* Weight per unit — available for all non-peptide/oil categories */}
+          {!isPeptide && !isOil && (
+          <div className="flex items-center gap-2 text-[11px]">
+            <span className="text-muted-foreground w-16 flex-shrink-0">Weight/Unit</span>
+            <div className="flex items-center gap-1 flex-1">
+              <input
+                type="number"
+                value={editState.weightPerUnit || ''}
+                onChange={e => setEditState(s => ({ ...s, weightPerUnit: e.target.value }))}
+                placeholder="e.g. 500"
+                className="w-full bg-secondary border border-border/50 rounded px-2 py-1 text-foreground font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50"
+              />
+              <select
+                value={editState.strengthUnit || 'mg'}
+                onChange={e => setEditState(s => ({ ...s, strengthUnit: e.target.value }))}
+                className="bg-secondary border border-border/50 rounded px-1.5 py-1 text-foreground font-mono text-[10px] focus:outline-none focus:ring-1 focus:ring-primary/50 min-w-[48px]"
+              >
+                <option value="mg">mg</option>
+                <option value="mcg">mcg</option>
+                <option value="g">g</option>
+                <option value="oz">oz</option>
+                <option value="lb">lb</option>
+              </select>
+            </div>
+          </div>
+          )}
           {!isPeptide && !isOil && (
           <div className="flex items-center gap-2 text-[11px]">
             <span className="text-muted-foreground w-16 flex-shrink-0">Purchased</span>
@@ -1560,18 +1586,27 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                     // For non-oil compounds with weight per unit, show both weight and unit count
                     if (!isOil && compound.weightPerUnit && compound.weightPerUnit > 0) {
                       const doseLabel = compound.doseLabel.toLowerCase();
-                      // If dose is in pills/caps/tabs, convert to weight
+                    // Helper: display weight in user's chosen unit
+                      const wpu = compound.weightPerUnit; // always stored as mg internally
+                      const su = compound.weightUnit || 'mg';
+                      const formatWt = (mgVal: number) => {
+                        if (su === 'mcg') return `${Math.round(mgVal * 1000)}mcg`;
+                        if (su === 'g') { const gVal = mgVal / 1000; return `${gVal % 1 === 0 ? gVal : gVal.toFixed(2).replace(/\.?0+$/, '')}g`; }
+                        if (su === 'oz') return `${(mgVal / 28349.5).toFixed(3).replace(/\.?0+$/, '')}oz`;
+                        if (su === 'lb') return `${(mgVal / 453592).toFixed(4).replace(/\.?0+$/, '')}lb`;
+                        return mgVal >= 1000 ? `${mgVal / 1000}g` : `${mgVal}mg`;
+                      };
+                      // If dose is in pills/caps/tabs, show total serving weight
                       if (doseLabel.includes('pill') || doseLabel.includes('cap') || doseLabel.includes('tab') || doseLabel.includes('softgel') || doseLabel.includes('serving')) {
-                        const totalMg = compound.dosePerUse * compound.weightPerUnit;
-                        const weightStr = totalMg >= 1000 ? `${totalMg / 1000}g` : `${totalMg}mg`;
-                        return `${weightStr} (${compound.dosePerUse} ${compound.doseLabel})`;
+                        const totalMg = compound.dosePerUse * wpu;
+                        return `${formatWt(totalMg)} (${compound.dosePerUse} ${compound.doseLabel})`;
                       }
-                      // If dose is in mg, show how many pills that is
+                      // If dose is in mg/mcg/g, show how many units that is
                       if (doseLabel.includes('mg') || doseLabel.includes('mcg') || doseLabel === 'g') {
                         let doseMg = compound.dosePerUse;
                         if (doseLabel.includes('mcg')) doseMg = compound.dosePerUse / 1000;
                         else if (doseLabel === 'g') doseMg = compound.dosePerUse * 1000;
-                        const pillCount = Math.round((doseMg / compound.weightPerUnit) * 10) / 10;
+                        const pillCount = Math.round((doseMg / wpu) * 10) / 10;
                         const unitSingular = (compound.unitLabel || 'cap').replace(/s$/, '');
                         return `${compound.dosePerUse} ${compound.doseLabel} (${pillCount} ${pillCount !== 1 ? compound.unitLabel || 'caps' : unitSingular})`;
                       }

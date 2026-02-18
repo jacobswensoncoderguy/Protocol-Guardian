@@ -172,6 +172,19 @@ const CompoundInfoDrawer = ({ compound, open, onOpenChange, compoundAnalysis, co
               {compound.timingNote}
             </span>
           )}
+          {compound.weightPerUnit && compound.weightPerUnit > 0 && (
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-secondary text-muted-foreground border border-border/40" title="Weight per unit">
+              {(() => {
+                const wpu = compound.weightPerUnit;
+                const su = compound.weightUnit || 'mg';
+                if (su === 'mcg') return `${Math.round(wpu * 1000)}mcg`;
+                if (su === 'g') { const g = wpu / 1000; return `${g % 1 === 0 ? g : g.toFixed(2).replace(/\.?0+$/, '')}g`; }
+                if (su === 'oz') return `${(wpu / 28349.5).toFixed(3).replace(/\.?0+$/, '')}oz`;
+                if (su === 'lb') return `${(wpu / 453592).toFixed(4).replace(/\.?0+$/, '')}lb`;
+                return wpu >= 1000 ? `${wpu / 1000}g` : `${wpu}mg`;
+              })()}/unit
+            </span>
+          )}
         </div>
 
         {/* Benefits */}
