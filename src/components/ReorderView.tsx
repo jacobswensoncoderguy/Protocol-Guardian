@@ -199,7 +199,10 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
 
   const handleReturnToNeeded = async (order: OrderItem) => {
     const { error } = await supabase.from('orders').delete().eq('id', order.id);
-    if (!error) setOrders(prev => prev.filter(o => o.id !== order.id));
+    if (!error) {
+      setOrders(prev => prev.filter(o => o.id !== order.id));
+      setTab('needed');
+    }
   };
 
   const handleDeleteOrder = async (order: OrderItem) => {
@@ -483,6 +486,22 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
                                       {transitDays}d in transit
                                     </span>
                                   )}
+                                  {(() => {
+                                    const avgShip = shippingByCompound.get(order.compound_id);
+                                    if (!avgShip || !order.ordered_at) return null;
+                                    const estArrival = new Date(new Date(order.ordered_at).getTime() + avgShip * 86400000);
+                                    const isOverdue = estArrival < new Date();
+                                    return (
+                                      <span className={`flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                                        isOverdue
+                                          ? 'bg-destructive/15 text-status-critical border border-destructive/20'
+                                          : 'bg-primary/10 text-primary border border-primary/20'
+                                      }`}>
+                                        <Truck className="w-2.5 h-2.5" />
+                                        {isOverdue ? 'Est. overdue' : `Est. ${estArrival.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+                                      </span>
+                                    );
+                                  })()}
                                 </div>
                                 {order.notes && (
                                   <div className="flex items-center gap-1 mt-1.5">
