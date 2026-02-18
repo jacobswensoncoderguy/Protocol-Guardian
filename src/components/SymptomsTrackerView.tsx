@@ -206,8 +206,10 @@ const SymptomsTrackerView = () => {
   };
 
   const handleDeleteLog = async (id: string) => {
-    await supabase.from('symptom_logs').delete().eq('id', id);
+    const { error } = await supabase.from('symptom_logs').delete().eq('id', id);
+    if (error) { toast.error('Failed to delete symptom log'); return; }
     setLogs(prev => prev.filter(l => l.id !== id));
+    toast.success('Symptom log deleted');
   };
 
   const handleSaveCheckin = async () => {
@@ -244,6 +246,13 @@ const SymptomsTrackerView = () => {
     toast.success('Protocol change logged');
     setShowAddChange(false);
     setChangeDescription(''); setPrevValue(''); setNewValue('');
+  };
+
+  const handleDeleteChange = async (id: string) => {
+    const { error } = await supabase.from('protocol_changes').delete().eq('id', id);
+    if (error) { toast.error('Failed to delete protocol change'); return; }
+    setChanges(prev => prev.filter(c => c.id !== id));
+    toast.success('Protocol change deleted');
   };
 
   const getSymptomName = (log: SymptomLog) => {
@@ -381,7 +390,7 @@ const SymptomsTrackerView = () => {
                 <Card key={change.id} className="border-border/50">
                   <CardContent className="p-3">
                     <div className="flex items-start justify-between gap-2">
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 mb-0.5">
                           <Badge variant="secondary" className="text-[10px] h-4 capitalize">
                             {change.change_type.replace(/_/g, ' ')}
@@ -397,6 +406,9 @@ const SymptomsTrackerView = () => {
                           </p>
                         )}
                       </div>
+                      <button onClick={() => handleDeleteChange(change.id)} className="text-muted-foreground hover:text-destructive flex-shrink-0 mt-0.5">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </CardContent>
                 </Card>
