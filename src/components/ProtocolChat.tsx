@@ -148,10 +148,18 @@ const ChangeRow = ({
           <Undo2 className="w-3.5 h-3.5" />
         </button>
       </div>
+    ) : change.status === 'undone' ? (
+      <div className="flex items-center gap-1 flex-shrink-0">
+        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-accent/15 text-status-warning">
+          undone
+        </span>
+        <button onClick={onApply} className="p-1.5 rounded-md bg-status-good/15 text-status-good hover:bg-status-good/25 transition-colors" title="Re-accept this change">
+          <Check className="w-3.5 h-3.5" />
+        </button>
+      </div>
     ) : (
       <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-full flex-shrink-0 ${
         change.status === 'accepted' ? 'bg-status-good/15 text-status-good' :
-        change.status === 'undone' ? 'bg-accent/15 text-status-warning' :
         'bg-destructive/15 text-status-critical'
       }`}>
         {change.status}
@@ -560,7 +568,13 @@ const ProtocolChat = ({
     {pendingConfirm && onConfirmChange && onCancelConfirm && (() => {
       const proposal = proposals.find(p => p.id === pendingConfirm.proposalId);
       const change = proposal?.changes[pendingConfirm.changeIndex] ?? null;
-      const compound = change ? (compounds.find(c => c.name === change.compoundName) ?? null) : null;
+      // Fuzzy match: strip category suffix like " (peptide)" before comparing
+      const normalize = (s: string) => s.replace(/\s*\([^)]*\)\s*$/, '').trim().toLowerCase();
+      const compound = change
+        ? (compounds.find(c => normalize(c.name) === normalize(change.compoundName))
+          ?? compounds.find(c => normalize(c.name).includes(normalize(change.compoundName)) || normalize(change.compoundName).includes(normalize(c.name)))
+          ?? null)
+        : null;
       return (
         <ProtocolChangeConfirmSheet
           open={true}

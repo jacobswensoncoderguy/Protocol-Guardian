@@ -309,12 +309,23 @@ export function useProtocolChat(
     }
   }, [compounds, protocols, toleranceLevel, analysis, persistMessage, updatePersistedMessage, conversationId, onConversationUpdate]);
 
+  // Fuzzy match compound name: strip category suffix like " (peptide)", case-insensitive, trim
+  const findCompoundByName = useCallback((name: string): typeof compounds[number] | undefined => {
+    if (!name) return undefined;
+    // Strip parenthetical category suffixes e.g. "5-Amino-1MQ (peptide)" → "5-Amino-1MQ"
+    const normalize = (s: string) => s.replace(/\s*\([^)]*\)\s*$/, '').trim().toLowerCase();
+    const normalized = normalize(name);
+    return compounds.find(c => normalize(c.name) === normalized)
+      // fallback: partial match (compound name starts with or contains the query)
+      ?? compounds.find(c => normalize(c.name).includes(normalized) || normalized.includes(normalize(c.name)));
+  }, [compounds]);
+
   // Step 1: Request confirmation before applying — sets pendingConfirm
   const applyChange = useCallback((proposalId: string, changeIndex: number) => {
     const proposal = proposals.find(p => p.id === proposalId);
     if (!proposal) return;
     const change = proposal.changes[changeIndex];
-    if (!change || change.status !== 'pending') return;
+    if (!change || (change.status !== 'pending' && change.status !== 'undone')) return;
     // Show confirm sheet instead of applying immediately
     setPendingConfirm({ proposalId, changeIndex });
   }, [proposals]);
@@ -330,7 +341,7 @@ export function useProtocolChat(
     if (!proposal) return;
     const change = proposal.changes[changeIndex];
     if (!change) return;
-    const compound = compounds.find(c => c.name === change.compoundName);
+    const compound = findCompoundByName(change.compoundName);
 
     if (change.type === 'remove_compound' && compound) {
       await deleteCompound(compound.id);
@@ -391,14 +402,14 @@ export function useProtocolChat(
 
     // Cascade: refetch compounds so all views (schedule, dashboard, costs) update
     await refetch();
-  }, [pendingConfirm, compounds, updateCompound, deleteCompound, updatePersistedMessage, refetch]);
+  }, [pendingConfirm, findCompoundByName, updateCompound, deleteCompound, updatePersistedMessage, refetch]);
 
   const undoChange = useCallback(async (proposalId: string, changeIndex: number) => {
     const proposal = proposalsRef.current.find(p => p.id === proposalId);
     if (!proposal) return;
     const change = proposal.changes[changeIndex];
     if (!change || change.status !== 'accepted') return;
-    const compound = compounds.find(c => c.name === change.compoundName);
+    const compound = findCompoundByName(change.compoundName);
 
     // Revert: set field back to old value
     if (compound && change.field && change.oldValue !== undefined) {
@@ -420,7 +431,7 @@ export function useProtocolChat(
     if (msg) updatePersistedMessage(msg.id, { proposal: updateProposalStatus(msg.proposal!) });
 
     await refetch();
-  }, [compounds, updateCompound, updatePersistedMessage, refetch]);
+  }, [findCompoundByName, updateCompound, updatePersistedMessage, refetch]);
 
   const rejectChange = useCallback((proposalId: string, changeIndex: number) => {
     const updateProposalStatus = (p: ChangeProposal) => ({
@@ -442,7 +453,7 @@ export function useProtocolChat(
         // Apply directly without confirm sheet
         await (async () => {
           const change = proposal.changes[i];
-          const compound = compounds.find(c => c.name === change.compoundName);
+          const compound = findCompoundByName(change.compoundName);
           if (change.type === 'remove_compound' && compound) {
             await deleteCompound(compound.id);
             const { data: { user } } = await supabase.auth.getUser();
@@ -469,7 +480,7 @@ export function useProtocolChat(
     }
     setPendingConfirm(null);
     await refetch();
-  }, [proposals, compounds, updateCompound, deleteCompound, messages, updatePersistedMessage, refetch]);
+  }, [proposals, findCompoundByName, updateCompound, deleteCompound, messages, updatePersistedMessage, refetch]);
 
   const cancelStream = useCallback(() => { abortRef.current?.abort(); }, []);
 
