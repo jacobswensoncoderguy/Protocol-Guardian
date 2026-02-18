@@ -352,11 +352,31 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
     const editDoseUnit = storedUnit;
     let editDose = compound.dosePerUse; // already in stored unit
 
+    // Derive daysPerWeek from the timing note (same logic the UI displays),
+    // so Save always writes what the user SEES, not a stale DB value.
+    const timingNote = compound.timingNote || '';
+    const parsedDays = (() => {
+      const lower = timingNote.toLowerCase();
+      if (/\bdaily\b|\bnightl?y?\b|\bevery\s*day\b/i.test(lower)) return 7;
+      const dayMap: Record<string, number> = { su:0, sun:0, mo:1, mon:1, tu:2, tue:2, tues:2, we:3, wed:3, th:4, thu:4, thurs:4, fr:5, fri:5, sa:6, sat:6 };
+      const pats: [RegExp, number[]][] = [
+        [/\bm[\/-]f\b|mon[\s-]*fri/i, [1,2,3,4,5]],
+        [/\bm\/w\/f\b/i, [1,3,5]],
+        [/\bt\/th\b/i, [2,4]],
+        [/M\/T\/W\/Th\/F/i, [1,2,3,4,5]],
+      ];
+      const ds = new Set<number>();
+      for (const [pat, idxs] of pats) { if (pat.test(timingNote)) idxs.forEach(i => ds.add(i)); }
+      const matches = lower.match(/\b(su(?:n(?:day)?)?|mo(?:n(?:day)?)?|tu(?:e(?:s(?:day)?)?)?|we(?:d(?:nesday)?)?|th(?:u(?:rs(?:day)?)?)?|fr(?:i(?:day)?)?|sa(?:t(?:urday)?)?)\b/gi);
+      if (matches) matches.forEach(m => { const i = dayMap[m.toLowerCase()]; if (i !== undefined) ds.add(i); });
+      return ds.size > 0 ? ds.size : compound.daysPerWeek;
+    })();
+
     const state: Record<string, string> = {
       name: compound.name,
       category: compound.category,
-      timing: compound.timingNote || '',
-      daysPerWeek: compound.daysPerWeek.toString(),
+      timing: timingNote,
+      daysPerWeek: parsedDays.toString(),
       currentQuantity: compound.currentQuantity.toString(),
       unitSize: compound.unitSize.toString(),
       dosePerUse: editDose.toString(),
