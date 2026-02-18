@@ -1,8 +1,38 @@
-import { ArrowRight, Check, X, Zap, Info } from 'lucide-react';
+import { ArrowRight, Check, X, Zap, Info, TrendingDown, TrendingUp, Minus } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { ProposedChange } from '@/hooks/useProtocolChat';
 import { Compound } from '@/data/compounds';
+
+// Compute weekly dose totals before/after a dose or frequency change
+function computeWeeklyPreview(compound: Compound | null, change: ProposedChange | null): { label: string; oldWeekly: number; newWeekly: number; unit: string } | null {
+  if (!compound || !change || !change.field || !change.oldValue || !change.newValue) return null;
+
+  const dosePerUse = compound.dosePerUse;
+  const dosesPerDay = compound.dosesPerDay;
+  const daysPerWeek = compound.daysPerWeek;
+  const unit = compound.doseLabel;
+
+  let oldWeekly = dosePerUse * dosesPerDay * daysPerWeek;
+  let newWeekly = oldWeekly;
+
+  const parseNum = (v: string) => parseFloat(v.replace(/[^\d.]/g, ''));
+
+  if (change.field === 'dosePerUse') {
+    const newDose = parseNum(change.newValue);
+    newWeekly = newDose * dosesPerDay * daysPerWeek;
+  } else if (change.field === 'dosesPerDay') {
+    const newDoses = parseNum(change.newValue);
+    newWeekly = dosePerUse * newDoses * daysPerWeek;
+  } else if (change.field === 'daysPerWeek') {
+    const newDays = parseNum(change.newValue);
+    newWeekly = dosePerUse * dosesPerDay * newDays;
+  } else {
+    return null;
+  }
+
+  return { label: 'Weekly dose', oldWeekly: Math.round(oldWeekly * 100) / 100, newWeekly: Math.round(newWeekly * 100) / 100, unit };
+}
 
 interface ProtocolChangeConfirmSheetProps {
   open: boolean;
@@ -35,6 +65,7 @@ const ProtocolChangeConfirmSheet = ({
   if (!change) return null;
 
   const isRemove = change.type === 'remove_compound';
+  const weeklyPreview = computeWeeklyPreview(compound, change);
   const isAdd = change.type === 'add_compound';
 
   return (
@@ -92,6 +123,38 @@ const ProtocolChangeConfirmSheet = ({
             <p className="leading-relaxed">{change.reasoning}</p>
           </div>
         </div>
+
+        {/* Weekly dose live preview */}
+        {weeklyPreview && (
+          <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 mb-4">
+            <p className="text-[10px] uppercase tracking-wider text-primary/70 mb-2 font-semibold flex items-center gap-1">
+              {weeklyPreview.newWeekly < weeklyPreview.oldWeekly
+                ? <TrendingDown className="w-3 h-3" />
+                : weeklyPreview.newWeekly > weeklyPreview.oldWeekly
+                  ? <TrendingUp className="w-3 h-3" />
+                  : <Minus className="w-3 h-3" />}
+              Weekly Dose Impact
+            </p>
+            <div className="flex items-center gap-3">
+              <div className="flex-1 text-center">
+                <p className="text-[9px] text-muted-foreground mb-0.5">Current</p>
+                <p className="text-sm font-mono font-semibold text-foreground/60 line-through">{weeklyPreview.oldWeekly} {weeklyPreview.unit}</p>
+              </div>
+              <ArrowRight className="w-4 h-4 text-primary flex-shrink-0" />
+              <div className="flex-1 text-center">
+                <p className="text-[9px] text-primary mb-0.5">New</p>
+                <p className="text-sm font-mono font-semibold text-primary">{weeklyPreview.newWeekly} {weeklyPreview.unit}</p>
+              </div>
+              <div className="flex-shrink-0 text-right">
+                <p className="text-[9px] text-muted-foreground mb-0.5">Change</p>
+                <p className={`text-xs font-semibold ${weeklyPreview.newWeekly < weeklyPreview.oldWeekly ? 'text-status-warning' : 'text-status-good'}`}>
+                  {weeklyPreview.newWeekly > weeklyPreview.oldWeekly ? '+' : ''}
+                  {Math.round((weeklyPreview.newWeekly - weeklyPreview.oldWeekly) * 100) / 100} {weeklyPreview.unit}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Compound details if available */}
         {compound && (

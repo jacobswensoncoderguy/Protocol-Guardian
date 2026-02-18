@@ -343,7 +343,10 @@ export function useProtocolChat(
           new_value: null,
         });
       }
-      toast.success(`Removed ${change.compoundName}`);
+      toast.success(`Removed ${change.compoundName} from protocol`, {
+        description: 'Schedule, inventory & costs have been updated.',
+        duration: 4000,
+      });
     } else if (compound && change.field && change.newValue !== undefined) {
       const numericFields = ['dosePerUse', 'dosesPerDay', 'daysPerWeek', 'cycleOnDays', 'cycleOffDays'];
       const value = numericFields.includes(change.field) ? parseFloat(change.newValue) : change.newValue;
@@ -360,7 +363,15 @@ export function useProtocolChat(
           new_value: change.newValue,
         });
       }
-      toast.success(`Updated ${change.compoundName}: ${change.field} → ${change.newValue}`);
+      const fieldNames: Record<string, string> = {
+        dosePerUse: 'dose', dosesPerDay: 'doses/day', daysPerWeek: 'days/week',
+        timingNote: 'timing', cyclingNote: 'cycling', cycleOnDays: 'cycle ON', cycleOffDays: 'cycle OFF',
+      };
+      const friendlyField = fieldNames[change.field] ?? change.field;
+      toast.success(`${change.compoundName} updated`, {
+        description: `${friendlyField}: ${change.oldValue} → ${change.newValue} · Schedule & inventory synced.`,
+        duration: 5000,
+      });
     }
 
     const updateProposalStatus = (p: ChangeProposal) => ({
