@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertTriangle, RotateCcw, Trash2, HelpCircle, KeyRound, Loader2, Users, ChevronDown, UserCircle2, LogOut, Check } from 'lucide-react';
+import { AlertTriangle, RotateCcw, Trash2, HelpCircle, KeyRound, Loader2, Users, ChevronDown, LogOut, Check, Pencil, X } from 'lucide-react';
 import HouseholdSyncPanel from '@/components/HouseholdSyncPanel';
 import { HouseholdMember } from '@/hooks/useHousehold';
 import {
@@ -37,8 +37,10 @@ interface AccountSettingsDialogProps {
   onOpenChange: (open: boolean) => void;
   userId?: string;
   displayName?: string | null;
+  userEmail?: string | null;
   onResetComplete: () => void;
   onStartTour?: () => void;
+  onUpdateDisplayName?: (name: string) => Promise<void>;
   // Household sync props
   householdMembers?: HouseholdMember[];
   householdPendingIncoming?: HouseholdMember[];
@@ -67,7 +69,8 @@ const USER_TABLES = [
   'profiles',
 ] as const;
 
-const AccountSettingsDialog = ({ open, onOpenChange, userId, displayName, onResetComplete, onStartTour,
+const AccountSettingsDialog = ({ open, onOpenChange, userId, displayName, userEmail, onResetComplete, onStartTour,
+  onUpdateDisplayName,
   householdMembers = [], householdPendingIncoming = [], householdPendingOutgoing = [],
   householdLoading = false, onSendHouseholdInvite, onAcceptHouseholdInvite,
   onRejectHouseholdInvite, onRemoveHouseholdMember,
@@ -85,6 +88,35 @@ const AccountSettingsDialog = ({ open, onOpenChange, userId, displayName, onRese
   const [deleteTyped, setDeleteTyped] = useState('');
   const [resetting, setResetting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // Inline display name editing
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState('');
+  const [savingName, setSavingName] = useState(false);
+
+  const effectiveEmail = userEmail ?? user?.email ?? null;
+
+  // Derive initials: display_name > email prefix > 'ME'
+  const initials = displayName
+    ? displayName.slice(0, 2).toUpperCase()
+    : effectiveEmail
+      ? effectiveEmail.slice(0, 2).toUpperCase()
+      : 'ME';
+
+  const handleSaveName = async () => {
+    const trimmed = nameInput.trim();
+    if (!trimmed || !onUpdateDisplayName) return;
+    setSavingName(true);
+    try {
+      await onUpdateDisplayName(trimmed);
+      toast.success('Display name updated!');
+      setEditingName(false);
+    } catch {
+      toast.error('Failed to save name');
+    } finally {
+      setSavingName(false);
+    }
+  };
 
   // Check if user signed up via OAuth (no password identity)
   const isOAuthOnly = user?.app_metadata?.providers?.length === 1 && 
@@ -185,13 +217,58 @@ const AccountSettingsDialog = ({ open, onOpenChange, userId, displayName, onRese
             {/* ── Identity card ─────────────────────────────── */}
             <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
               <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center text-primary font-bold text-sm">
-                {displayName ? displayName.slice(0, 2).toUpperCase() : 'SH'}
+                {initials}
               </div>
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-foreground truncate">{displayName || 'Set your name below'}</p>
-                <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
-                {!displayName && (
-                  <p className="text-[10px] text-accent mt-0.5">Set a display name in Account Settings → Profile</p>
+              <div className="min-w-0 flex-1">
+                {editingName ? (
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      autoFocus
+                      type="text"
+                      value={nameInput}
+                      onChange={e => setNameInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') handleSaveName(); if (e.key === 'Escape') setEditingName(false); }}
+                      placeholder="Your name (e.g. Jake)"
+                      className="flex-1 min-w-0 px-2 py-1 rounded-md border border-primary/40 bg-background text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
+                    />
+                    <button
+                      onClick={handleSaveName}
+                      disabled={savingName || !nameInput.trim()}
+                      className="flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-md bg-primary text-primary-foreground disabled:opacity-50"
+                    >
+                      {savingName ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                    </button>
+                    <button
+                      onClick={() => setEditingName(false)}
+                      className="flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-md border border-border text-muted-foreground hover:bg-secondary"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <p className="text-sm font-semibold text-foreground truncate">
+                      {displayName || (effectiveEmail ? effectiveEmail.split('@')[0] : 'Set your name')}
+                    </p>
+                    {onUpdateDisplayName && (
+                      <button
+                        onClick={() => { setNameInput(displayName || ''); setEditingName(true); }}
+                        className="flex-shrink-0 text-muted-foreground hover:text-primary transition-colors"
+                        title="Edit display name"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground truncate mt-0.5">{effectiveEmail}</p>
+                {!displayName && !editingName && (
+                  <button
+                    onClick={() => { setNameInput(''); setEditingName(true); }}
+                    className="text-[10px] text-accent mt-0.5 hover:underline text-left"
+                  >
+                    Tap to set your display name →
+                  </button>
                 )}
               </div>
             </div>

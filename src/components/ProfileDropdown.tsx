@@ -39,7 +39,9 @@ const ProfileDropdown = ({
   const { user } = useAuth();
   const initials = displayName
     ? displayName.slice(0, 2).toUpperCase()
-    : 'SH';
+    : user?.email
+      ? user.email.slice(0, 2).toUpperCase()
+      : 'ME';
 
   const baseUrl = 'https://superhumanprotocol.lovable.app';
   const inviteUrl = user ? `${baseUrl}/invite?ref=${user.id}` : `${baseUrl}/invite`;
