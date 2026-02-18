@@ -542,6 +542,7 @@ export type Database = {
           id: string
           measurement_system: string
           referred_by: string | null
+          reorder_horizon: number
           updated_at: string
           user_id: string
           weight_kg: number | null
@@ -559,6 +560,7 @@ export type Database = {
           id?: string
           measurement_system?: string
           referred_by?: string | null
+          reorder_horizon?: number
           updated_at?: string
           user_id: string
           weight_kg?: number | null
@@ -576,6 +578,7 @@ export type Database = {
           id?: string
           measurement_system?: string
           referred_by?: string | null
+          reorder_horizon?: number
           updated_at?: string
           user_id?: string
           weight_kg?: number | null

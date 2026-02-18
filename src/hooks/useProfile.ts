@@ -13,6 +13,7 @@ export interface UserProfile {
   measurement_system?: MeasurementSystem;
   dose_unit_preference?: DoseUnitPreference;
   app_features?: AppFeatures | null;
+  reorder_horizon?: number | null;
 }
 
 export interface ToleranceEntry {
@@ -30,7 +31,7 @@ export function useProfile(userId?: string) {
     if (!userId) return;
     const { data } = await (supabase as any)
       .from('profiles')
-      .select('gender, height_cm, weight_kg, body_fat_pct, age, display_name, measurement_system, dose_unit_preference, app_features')
+      .select('gender, height_cm, weight_kg, body_fat_pct, age, display_name, measurement_system, dose_unit_preference, app_features, reorder_horizon')
       .eq('user_id', userId)
       .maybeSingle();
     if (data) setProfile(data);
@@ -90,9 +91,16 @@ export function useProfile(userId?: string) {
   const measurementSystem: MeasurementSystem = profile?.measurement_system || 'metric';
   const doseUnitPreference: DoseUnitPreference = profile?.dose_unit_preference || 'mg';
   const appFeatures: AppFeatures = (profile?.app_features as AppFeatures) || DEFAULT_APP_FEATURES;
+  const reorderHorizon: 30 | 45 | 60 = ([30, 45, 60].includes(profile?.reorder_horizon ?? 30)
+    ? (profile?.reorder_horizon ?? 30)
+    : 30) as 30 | 45 | 60;
 
   const updateAppFeatures = useCallback(async (features: AppFeatures) => {
     await updateProfile({ app_features: features } as any);
+  }, [updateProfile]);
+
+  const updateReorderHorizon = useCallback(async (h: 30 | 45 | 60) => {
+    await updateProfile({ reorder_horizon: h });
   }, [updateProfile]);
 
   return {
@@ -107,5 +115,7 @@ export function useProfile(userId?: string) {
     doseUnitPreference,
     appFeatures,
     updateAppFeatures,
+    reorderHorizon,
+    updateReorderHorizon,
   };
 }
