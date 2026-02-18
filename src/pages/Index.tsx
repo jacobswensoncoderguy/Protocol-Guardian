@@ -36,6 +36,7 @@ import { supabase } from '@/integrations/supabase/client';
 import DashboardView from '@/components/DashboardView';
 import WeeklyScheduleView from '@/components/WeeklyScheduleView';
 import ScheduleHistoryView from '@/components/ScheduleHistoryView';
+import ProtocolChangeHistoryView from '@/components/ProtocolChangeHistoryView';
 import InventoryView from '@/components/InventoryView';
 import CostProjectionView from '@/components/CostProjectionView';
 import ReorderView from '@/components/ReorderView';
@@ -137,7 +138,7 @@ const Index = () => {
   const [inventorySubTab, setInventorySubTab] = useState('stock');
   const [trackingSubTab, setTrackingSubTab] = useState('food');
 
-  const scheduleSwipe = useSwipeTabs({ tabs: ['this-week', 'history'], currentTab: scheduleSubTab, onTabChange: setScheduleSubTab });
+  const scheduleSwipe = useSwipeTabs({ tabs: ['this-week', 'history', 'ai-changes'], currentTab: scheduleSubTab, onTabChange: setScheduleSubTab });
   const inventorySwipe = useSwipeTabs({ tabs: ['stock', 'costs', 'reorder'], currentTab: inventorySubTab, onTabChange: setInventorySubTab });
   const trackingSwipe = useSwipeTabs({ tabs: ['food', 'symptoms'], currentTab: trackingSubTab, onTabChange: setTrackingSubTab });
 
@@ -326,6 +327,7 @@ const Index = () => {
               <TabsList className="w-full bg-card/80 border border-border/60 mb-3 h-10 p-1 gap-1">
                 <TabsTrigger value="this-week" className="flex-1 text-xs font-semibold rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">This Week</TabsTrigger>
                 <TabsTrigger value="history" className="flex-1 text-xs font-semibold rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">History</TabsTrigger>
+                <TabsTrigger value="ai-changes" className="flex-1 text-xs font-semibold rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">AI Changes</TabsTrigger>
               </TabsList>
               <div key={scheduleSubTab} className={scheduleSwipe.slideClass} onAnimationEnd={scheduleSwipe.onAnimationEnd} onTouchStart={scheduleSwipe.onTouchStart} onTouchEnd={scheduleSwipe.onTouchEnd}>
                 <TabsContent value="this-week" forceMount={scheduleSubTab === 'this-week' ? true : undefined}>
@@ -333,6 +335,9 @@ const Index = () => {
                 </TabsContent>
                 <TabsContent value="history" forceMount={scheduleSubTab === 'history' ? true : undefined}>
                   {scheduleSubTab === 'history' && <ScheduleHistoryView snapshots={scheduleSnapshots} loading={snapshotsLoading} checkedDosesMap={historicalCheckOffs} />}
+                </TabsContent>
+                <TabsContent value="ai-changes" forceMount={scheduleSubTab === 'ai-changes' ? true : undefined}>
+                  {scheduleSubTab === 'ai-changes' && <ProtocolChangeHistoryView compounds={compounds} updateCompound={updateCompound} refetch={refetch} userId={user?.id} />}
                 </TabsContent>
               </div>
             </Tabs>
