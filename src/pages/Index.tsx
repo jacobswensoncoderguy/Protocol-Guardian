@@ -394,9 +394,12 @@ const Index = () => {
               <LineChart className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
               <span>Logging</span>
             </TabsTrigger>
-            <TabsTrigger value="schedule" className="flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
+            <TabsTrigger value="schedule" className="relative flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
               <CalendarDays className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
               <span>Protocol</span>
+              {household.pendingIncoming.length > 0 && (
+                <span className="absolute -top-1 -right-1 sm:top-0 sm:right-0 w-2.5 h-2.5 rounded-full bg-destructive ring-2 ring-background" />
+              )}
             </TabsTrigger>
             <TabsTrigger value="inventory" className="relative flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
               <Package className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
@@ -644,6 +647,10 @@ const Index = () => {
           userId={user?.id}
           displayName={profile?.display_name}
           userEmail={user?.email}
+          profileAge={profile?.age}
+          profileHeightCm={profile?.height_cm}
+          profileWeightKg={profile?.weight_kg}
+          profileGender={profile?.gender}
           onResetComplete={() => {
             setShowOnboarding(true);
             refetch();
@@ -651,6 +658,9 @@ const Index = () => {
           onStartTour={() => setShowGuidedTour(true)}
           onUpdateDisplayName={async (name) => {
             await updateProfile({ display_name: name });
+          }}
+          onUpdateProfile={async (updates) => {
+            await updateProfile(updates as any);
           }}
           householdMembers={household.members}
           householdPendingIncoming={household.pendingIncoming}

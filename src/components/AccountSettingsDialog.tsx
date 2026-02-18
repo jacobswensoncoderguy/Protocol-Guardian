@@ -41,6 +41,11 @@ interface AccountSettingsDialogProps {
   onResetComplete: () => void;
   onStartTour?: () => void;
   onUpdateDisplayName?: (name: string) => Promise<void>;
+  onUpdateProfile?: (updates: { display_name?: string; age?: number | null; height_cm?: number | null; weight_kg?: number | null; gender?: string | null }) => Promise<void>;
+  profileAge?: number | null;
+  profileHeightCm?: number | null;
+  profileWeightKg?: number | null;
+  profileGender?: string | null;
   // Household sync props
   householdMembers?: HouseholdMember[];
   householdPendingIncoming?: HouseholdMember[];
@@ -70,7 +75,8 @@ const USER_TABLES = [
 ] as const;
 
 const AccountSettingsDialog = ({ open, onOpenChange, userId, displayName, userEmail, onResetComplete, onStartTour,
-  onUpdateDisplayName,
+  onUpdateDisplayName, onUpdateProfile,
+  profileAge, profileHeightCm, profileWeightKg, profileGender,
   householdMembers = [], householdPendingIncoming = [], householdPendingOutgoing = [],
   householdLoading = false, onSendHouseholdInvite, onAcceptHouseholdInvite,
   onRejectHouseholdInvite, onRemoveHouseholdMember,
@@ -118,10 +124,46 @@ const AccountSettingsDialog = ({ open, onOpenChange, userId, displayName, userEm
     }
   };
 
+  // Profile biometric edit state
+  const [showProfileEdit, setShowProfileEdit] = useState(false);
+  const [editAge, setEditAge] = useState('');
+  const [editHeight, setEditHeight] = useState('');
+  const [editWeight, setEditWeight] = useState('');
+  const [editGender, setEditGender] = useState('');
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  const openProfileEdit = () => {
+    setEditAge(profileAge != null ? String(profileAge) : '');
+    setEditHeight(profileHeightCm != null ? String(profileHeightCm) : '');
+    setEditWeight(profileWeightKg != null ? String(profileWeightKg) : '');
+    setEditGender(profileGender || '');
+    setShowProfileEdit(true);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!onUpdateProfile) return;
+    setSavingProfile(true);
+    try {
+      await onUpdateProfile({
+        age: editAge ? Number(editAge) : null,
+        height_cm: editHeight ? Number(editHeight) : null,
+        weight_kg: editWeight ? Number(editWeight) : null,
+        gender: editGender || null,
+      });
+      toast.success('Profile updated!');
+      setShowProfileEdit(false);
+    } catch {
+      toast.error('Failed to save profile');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
   // Check if user signed up via OAuth (no password identity)
   const isOAuthOnly = user?.app_metadata?.providers?.length === 1 && 
     user.app_metadata.providers[0] !== 'email';
   const hasEmailIdentity = user?.identities?.some(i => i.provider === 'email');
+
 
   const handleSetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -272,6 +314,78 @@ const AccountSettingsDialog = ({ open, onOpenChange, userId, displayName, userEm
                 )}
               </div>
             </div>
+
+            {/* ── Profile biometrics ────────────────────────── */}
+            {onUpdateProfile && (
+              <div className="rounded-lg border border-border overflow-hidden">
+                <button
+                  onClick={openProfileEdit}
+                  className="w-full flex items-center gap-3 p-3 hover:bg-secondary/50 transition-colors text-left"
+                >
+                  <Pencil className="w-4 h-4 text-primary flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Edit Profile</p>
+                    <p className="text-xs text-muted-foreground">
+                      {[
+                        profileGender ? (profileGender === 'male' ? 'Male' : 'Female') : null,
+                        profileAge ? `${profileAge}y` : null,
+                        profileHeightCm ? `${profileHeightCm}cm` : null,
+                        profileWeightKg ? `${profileWeightKg}kg` : null,
+                      ].filter(Boolean).join(' · ') || 'Set age, height, weight & gender'}
+                    </p>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${showProfileEdit ? 'rotate-180' : ''}`} />
+                </button>
+                {showProfileEdit && (
+                  <div className="border-t border-border p-3 space-y-3">
+                    {/* Gender */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Gender</label>
+                      <div className="flex gap-2">
+                        {['male', 'female'].map(g => (
+                          <button
+                            key={g}
+                            onClick={() => setEditGender(g)}
+                            className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition-colors capitalize ${editGender === g ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:bg-secondary/50'}`}
+                          >
+                            {g}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {/* Age / Height / Weight */}
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { label: 'Age', value: editAge, setter: setEditAge, unit: 'yrs', type: 'number', min: 1, max: 120 },
+                        { label: 'Height', value: editHeight, setter: setEditHeight, unit: 'cm', type: 'number', min: 50, max: 300 },
+                        { label: 'Weight', value: editWeight, setter: setEditWeight, unit: 'kg', type: 'number', min: 20, max: 400 },
+                      ].map(({ label, value, setter, unit, type, min, max }) => (
+                        <div key={label} className="space-y-1">
+                          <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium block">{label} <span className="normal-case">({unit})</span></label>
+                          <input
+                            type={type}
+                            value={value}
+                            onChange={e => setter(e.target.value)}
+                            min={min}
+                            max={max}
+                            placeholder="—"
+                            className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-foreground text-sm text-center focus:outline-none focus:ring-1 focus:ring-primary/50"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      onClick={handleSaveProfile}
+                      disabled={savingProfile}
+                      className="w-full py-2 rounded-lg bg-primary text-primary-foreground font-semibold text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {savingProfile && <Loader2 className="w-4 h-4 animate-spin" />}
+                      Save Profile
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* ── Household ─────────────────────────────────── */}
             {onSendHouseholdInvite && (
