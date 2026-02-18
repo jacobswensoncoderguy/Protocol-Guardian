@@ -1141,6 +1141,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
             <EditRow label="Price" value={editState.unitPrice} prefix="$" suffix={`/${isOil ? 'vial' : 'bottle'}`}
               onChange={v => setEditState(s => ({ ...s, unitPrice: v }))} type="number" />
           )}
+          {!isPeptide && !isOil && (
           <div className="flex items-center gap-2 text-[11px]">
             <span className="text-muted-foreground w-16 flex-shrink-0">Purchased</span>
             <div className="flex items-center gap-1 flex-1">
@@ -1161,6 +1162,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
               )}
             </div>
           </div>
+          )}
           <EditRow
             label="Reorder Qty"
             value={editState.reorderQuantity}
