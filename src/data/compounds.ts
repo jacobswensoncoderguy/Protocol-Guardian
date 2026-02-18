@@ -63,15 +63,87 @@ export function getNormalizedDailyConsumption(compound: Compound): number {
   return rawDaily;
 }
 
+/**
+ * Compute how many native supply units (IU for peptides, mg for oils, pills/scoops etc
+ * for orals/powders) have been consumed since the purchaseDate.
+ * This allows the app to dynamically adjust the displayed days-remaining when the user
+ * back-dates a purchase — rather than always treating currentQuantity as "full stock right now".
+ *
+ * The function is deliberately conservative: it only subtracts usage on active (ON-cycle)
+ * days, and it caps the deduction at the total purchase supply so it never goes negative.
+ */
+export function getConsumedSinceDate(compound: Compound, referenceDate: Date = new Date()): number {
+  if (!compound.purchaseDate) return 0;
+
+  const purchaseDay = new Date(compound.purchaseDate);
+  purchaseDay.setHours(0, 0, 0, 0);
+  const now = new Date(referenceDate);
+  now.setHours(0, 0, 0, 0);
+
+  const daysSincePurchase = Math.floor((now.getTime() - purchaseDay.getTime()) / (24 * 60 * 60 * 1000));
+  if (daysSincePurchase <= 0) return 0; // purchase is today or in the future
+
+  const dailyConsumption = getNormalizedDailyConsumption(compound);
+  if (dailyConsumption === 0) return 0;
+
+  // If there is no cycling, every day counts
+  if (!compound.cycleOnDays || !compound.cycleOffDays || !compound.cycleStartDate) {
+    return dailyConsumption * daysSincePurchase;
+  }
+
+  // With cycling: walk each day since purchase and only count ON days
+  const cycleLength = compound.cycleOnDays + compound.cycleOffDays;
+  const cycleStart = new Date(compound.cycleStartDate);
+  let consumed = 0;
+
+  for (let d = 0; d < daysSincePurchase; d++) {
+    const dayDate = new Date(purchaseDay.getTime() + d * 24 * 60 * 60 * 1000);
+    const diffDays = Math.floor((dayDate.getTime() - cycleStart.getTime()) / (24 * 60 * 60 * 1000));
+    const dayInCycle = ((diffDays % cycleLength) + cycleLength) % cycleLength;
+    if (dayInCycle < compound.cycleOnDays) {
+      consumed += dailyConsumption;
+    }
+  }
+
+  return consumed;
+}
+
+/**
+ * Convert a consumed-supply amount (in native dose units) back to container units
+ * (vials, bottles, bags) so we can subtract from currentQuantity.
+ */
+export function consumedToContainerUnits(compound: Compound, consumed: number): number {
+  if (compound.category === 'peptide' && compound.bacstatPerVial) {
+    return consumed / compound.bacstatPerVial;
+  }
+  if (compound.category === 'injectable-oil' && compound.vialSizeMl) {
+    return consumed / (compound.unitSize * compound.vialSizeMl);
+  }
+  return consumed / compound.unitSize;
+}
+
+/**
+ * Get the effective quantity remaining, accounting for usage since purchaseDate.
+ * This is the value that should be used for days-remaining calculations.
+ * We cap at [0, currentQuantity] to avoid negatives or exceeding what was purchased.
+ */
+export function getEffectiveQuantity(compound: Compound): number {
+  const consumed = getConsumedSinceDate(compound);
+  const consumedUnits = consumedToContainerUnits(compound, consumed);
+  return Math.max(0, compound.currentQuantity - consumedUnits);
+}
+
 export function getDaysRemaining(compound: Compound): number {
   const dailyConsumption = getNormalizedDailyConsumption(compound);
   if (dailyConsumption === 0) return 999;
 
+  const effectiveQty = getEffectiveQuantity(compound);
+
   const totalSupply = compound.category === 'peptide' && compound.bacstatPerVial
-    ? compound.currentQuantity * compound.bacstatPerVial
+    ? effectiveQty * compound.bacstatPerVial
     : compound.category === 'injectable-oil' && compound.vialSizeMl
-      ? compound.currentQuantity * compound.unitSize * compound.vialSizeMl
-      : compound.currentQuantity * compound.unitSize;
+      ? effectiveQty * compound.unitSize * compound.vialSizeMl
+      : effectiveQty * compound.unitSize;
 
   return Math.max(0, Math.floor(totalSupply / dailyConsumption));
 }
