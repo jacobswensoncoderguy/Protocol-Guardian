@@ -241,10 +241,12 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [] }: Re
 
   // Only flag compounds that have a purchase date set — without one, depletion tracking
   // is unreliable and placeholder entries (e.g. Escitalopram, Prednisone) inflate counts.
+  // Also exclude already-ordered compounds so tiles match the Needed list exactly.
   const activeCompounds = compounds.filter(c =>
     !c.notes?.includes('[DORMANT]') &&
     c.currentQuantity > 0 &&
-    c.purchaseDate && c.purchaseDate.trim() !== ''
+    c.purchaseDate && c.purchaseDate.trim() !== '' &&
+    !activeOrderIds.has(c.id)
   );
   const criticalCompounds = activeCompounds.filter(c => getStatus(getDaysRemainingWithCycling(c)) === 'critical');
   const warningCompounds = activeCompounds.filter(c => getStatus(getDaysRemainingWithCycling(c)) === 'warning');

@@ -13,11 +13,20 @@ export function usePullToRefresh({ onRefresh, threshold = 80, maxPull = 120 }: U
   const pulling = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const isAtTop = () => {
+    // Check both window scroll and the containerRef element's scroll
+    if (window.scrollY === 0) return true;
+    const el = containerRef.current;
+    if (el && el.scrollTop === 0) return true;
+    return false;
+  };
+
   const handleTouchStart = useCallback((e: TouchEvent) => {
-    if (window.scrollY === 0 && !refreshing) {
+    if (isAtTop() && !refreshing) {
       startY.current = e.touches[0].clientY;
       pulling.current = true;
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshing]);
 
   const handleTouchMove = useCallback((e: TouchEvent) => {
@@ -49,17 +58,15 @@ export function usePullToRefresh({ onRefresh, threshold = 80, maxPull = 120 }: U
   }, [pullDistance, threshold, onRefresh]);
 
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-
-    el.addEventListener('touchstart', handleTouchStart, { passive: true });
-    el.addEventListener('touchmove', handleTouchMove, { passive: true });
-    el.addEventListener('touchend', handleTouchEnd);
+    // Attach to document so events fire regardless of which element is scrolled
+    document.addEventListener('touchstart', handleTouchStart, { passive: true });
+    document.addEventListener('touchmove', handleTouchMove, { passive: true });
+    document.addEventListener('touchend', handleTouchEnd);
 
     return () => {
-      el.removeEventListener('touchstart', handleTouchStart);
-      el.removeEventListener('touchmove', handleTouchMove);
-      el.removeEventListener('touchend', handleTouchEnd);
+      document.removeEventListener('touchstart', handleTouchStart);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
     };
   }, [handleTouchStart, handleTouchMove, handleTouchEnd]);
 
