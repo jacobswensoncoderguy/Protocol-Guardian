@@ -484,7 +484,8 @@ export function useProtocolChat(
     }
     setPendingConfirm(null);
     await refetch();
-  }, [proposals, findCompoundByName, updateCompound, deleteCompound, messages, updatePersistedMessage, refetch]);
+    onChangeAccepted?.();
+  }, [proposals, findCompoundByName, updateCompound, deleteCompound, messages, updatePersistedMessage, refetch, onChangeAccepted]);
 
   const cancelStream = useCallback(() => { abortRef.current?.abort(); }, []);
 
