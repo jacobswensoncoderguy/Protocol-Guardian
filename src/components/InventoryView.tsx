@@ -728,6 +728,24 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
         </div>
       )}
 
+      {/* Purchase date prompt — shown when no purchase date is set and not editing */}
+      {!compound.purchaseDate && !editing && !compoundIsPaused && (
+        <div className="mb-2 flex items-center gap-2 bg-primary/5 border border-primary/20 rounded-lg px-2.5 py-1.5">
+          <Calendar className="w-3 h-3 text-primary/70 flex-shrink-0" />
+          <span className="text-[10px] text-muted-foreground flex-1">Set purchase date to track depletion</span>
+          <input
+            type="date"
+            max={new Date().toISOString().split('T')[0]}
+            className="bg-transparent border-0 text-[10px] text-primary font-mono cursor-pointer focus:outline-none w-24"
+            onChange={e => {
+              if (e.target.value) {
+                onUpdate(compound.id, { purchaseDate: e.target.value });
+              }
+            }}
+          />
+        </div>
+      )}
+
       {/* Burn-down progress bar: shows depletion from purchase date to projected empty date */}
       {(() => {
         const effectiveQty = getEffectiveQuantity(compound);
