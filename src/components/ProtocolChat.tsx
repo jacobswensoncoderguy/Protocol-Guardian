@@ -636,10 +636,12 @@ const ProtocolChat = ({
       const proposal = proposals.find(p => p.id === pendingConfirm.proposalId);
       const change = proposal?.changes[pendingConfirm.changeIndex] ?? null;
       // Fuzzy match: strip category suffix like " (peptide)" before comparing
+      // Use overrideCompoundName if the user manually remapped the compound
       const normalize = (s: string) => s.replace(/\s*\([^)]*\)\s*$/, '').trim().toLowerCase();
+      const lookupName = pendingConfirm.overrideCompoundName ?? change?.compoundName ?? '';
       const compound = change
-        ? (compounds.find(c => normalize(c.name) === normalize(change.compoundName))
-          ?? compounds.find(c => normalize(c.name).includes(normalize(change.compoundName)) || normalize(change.compoundName).includes(normalize(c.name)))
+        ? (compounds.find(c => normalize(c.name) === normalize(lookupName))
+          ?? compounds.find(c => normalize(c.name).includes(normalize(lookupName)) || normalize(lookupName).includes(normalize(c.name)))
           ?? null)
         : null;
       return (
