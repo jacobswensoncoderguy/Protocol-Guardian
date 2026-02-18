@@ -109,8 +109,8 @@ const Auth = () => {
             <Zap className="w-8 h-8 text-primary" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight">
-            <span className="text-gradient-cyan">SUPERHUMAN</span>
-            <span className="text-muted-foreground font-medium ml-2">Tracker</span>
+            <span className="text-gradient-cyan">PROTOCOL</span>
+            <span className="text-muted-foreground font-medium ml-2">Guardian</span>
           </h1>
           <p className="text-sm text-muted-foreground mt-2">
             Track your protocol. Optimize your performance.

@@ -291,7 +291,7 @@ const GuidedTour = ({ onComplete, onNavigateTab, onSkip }: GuidedTourProps) => {
             }}
             className="flex items-center gap-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-all"
           >
-            {isLast ? 'Start Using SUPERHUMAN' : <>Next <ChevronRight className="w-3.5 h-3.5" /></>}
+            {isLast ? 'Start Using PROTOCOL Guardian' : <>Next <ChevronRight className="w-3.5 h-3.5" /></>}
           </button>
         </div>
       </div>
