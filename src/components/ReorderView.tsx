@@ -56,7 +56,7 @@ function buildNeededItems(compounds: Compound[]): (Omit<OrderItem, 'id' | 'order
 
   activeCompounds.forEach(compound => {
     const daysLeft = getDaysRemainingWithCycling(compound);
-    if (daysLeft > 60) return;
+    if (daysLeft > 30) return; // Only show items within 30 days — matches "Running Low" tile threshold
 
     const cost = getReorderCost(compound);
     const reorderDate = new Date(now.getTime() + daysLeft * 24 * 60 * 60 * 1000);
