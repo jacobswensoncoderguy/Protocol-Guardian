@@ -93,6 +93,7 @@ export default function BiomarkerUploadDialog({
   const [selectedBiomarkers, setSelectedBiomarkers] = useState<Set<string>>(new Set());
   const [savingReadings, setSavingReadings] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [parseProgress, setParseProgress] = useState<{ current: number; total: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -103,6 +104,7 @@ export default function BiomarkerUploadDialog({
     setSelectedBiomarkers(new Set());
     setSavingReadings(false);
     setDragOver(false);
+    setParseProgress(null);
   };
 
   const handleClose = (open: boolean) => {
@@ -133,8 +135,7 @@ export default function BiomarkerUploadDialog({
     });
   };
 
-  const parseContent = useCallback(async (content: string, fileType?: string, pdfBase64?: string) => {
-    setStep('parsing');
+  const parseSingleFile = useCallback(async (content: string, fileType?: string, pdfBase64?: string): Promise<ParsedResult | null> => {
     try {
       const body: any = {
         fileType: fileType || 'medical document',
@@ -152,59 +153,110 @@ export default function BiomarkerUploadDialog({
         body.fileContent = content.substring(0, 30000);
       }
 
-      const { data, error } = await supabase.functions.invoke('parse-biomarkers', {
-        body,
-      });
-
+      const { data, error } = await supabase.functions.invoke('parse-biomarkers', { body });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-
-      setParsedResult(data);
-      // Auto-select out-of-range biomarkers
-      const outOfRange = new Set<string>(
-        (data.biomarkers || [])
-          .filter((b: Biomarker) => b.status !== 'normal')
-          .map((b: Biomarker) => b.name)
-      );
-      setSelectedBiomarkers(outOfRange);
-      setStep('results');
+      return data as ParsedResult;
     } catch (e: any) {
       console.error('Parse error:', e);
       toast.error(e.message || 'Failed to parse document');
-      setStep('upload');
+      return null;
     }
   }, [goals]);
 
-  const handleFileUpload = async (file: File) => {
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error('File too large. Maximum 10MB.');
-      return;
-    }
-    try {
-      const ext = file.name.split('.').pop()?.toLowerCase();
-      let fileType = 'medical document';
-      if (file.name.toLowerCase().includes('dexa')) fileType = 'DEXA scan';
-      else if (file.name.toLowerCase().includes('blood')) fileType = 'bloodwork';
-      else if (ext === 'csv') fileType = 'CSV lab data';
-      else if (ext === 'pdf') fileType = file.name.toLowerCase().includes('dexa') ? 'DEXA scan' : 'PDF lab report';
+  const parseContent = useCallback(async (content: string, fileType?: string, pdfBase64?: string) => {
+    setStep('parsing');
+    const result = await parseSingleFile(content, fileType, pdfBase64);
+    if (!result) { setStep('upload'); return; }
+    setParsedResult(result);
+    const outOfRange = new Set<string>(
+      (result.biomarkers || []).filter((b: Biomarker) => b.status !== 'normal').map((b: Biomarker) => b.name)
+    );
+    setSelectedBiomarkers(outOfRange);
+    setStep('results');
+  }, [parseSingleFile]);
 
-      if (ext === 'pdf') {
-        const base64 = await readFileAsBase64(file);
-        await parseContent('', fileType, base64);
-      } else {
-        const text = await readFileAsText(file);
-        await parseContent(text, fileType);
+  const parseMultipleFiles = useCallback(async (files: File[]) => {
+    setStep('parsing');
+    setParseProgress({ current: 0, total: files.length });
+
+    const mergedBiomarkers: Biomarker[] = [];
+    let mergedResult: ParsedResult | null = null;
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      setParseProgress({ current: i + 1, total: files.length });
+
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error(`${file.name}: File too large (max 10MB), skipping.`);
+        continue;
       }
-    } catch {
-      toast.error('Could not read file. Try pasting the text instead.');
+
+      try {
+        const ext = file.name.split('.').pop()?.toLowerCase();
+        let fileType = 'medical document';
+        if (file.name.toLowerCase().includes('dexa')) fileType = 'DEXA scan';
+        else if (file.name.toLowerCase().includes('blood')) fileType = 'bloodwork';
+        else if (ext === 'csv') fileType = 'CSV lab data';
+        else if (ext === 'pdf') fileType = file.name.toLowerCase().includes('dexa') ? 'DEXA scan' : 'PDF lab report';
+
+        let result: ParsedResult | null;
+        if (ext === 'pdf') {
+          const base64 = await readFileAsBase64(file);
+          result = await parseSingleFile('', fileType, base64);
+        } else {
+          const text = await readFileAsText(file);
+          result = await parseSingleFile(text, fileType);
+        }
+
+        if (result) {
+          if (!mergedResult) {
+            mergedResult = { ...result };
+          } else {
+            // Merge biomarkers (avoid duplicates by name)
+            const existingNames = new Set(mergedBiomarkers.map(b => b.name));
+            result.biomarkers.forEach(b => { if (!existingNames.has(b.name)) mergedBiomarkers.push(b); });
+            if (result.recommendations) {
+              mergedResult.recommendations = [...(mergedResult.recommendations || []), ...result.recommendations];
+            }
+          }
+          // Add new biomarkers from this file
+          if (mergedResult === result) {
+            mergedBiomarkers.push(...result.biomarkers);
+          }
+        }
+      } catch {
+        toast.error(`Could not read ${file.name}, skipping.`);
+      }
     }
-  };
+
+    if (mergedResult && mergedBiomarkers.length > 0) {
+      mergedResult.biomarkers = mergedBiomarkers;
+      mergedResult.summary = files.length > 1
+        ? `Merged results from ${files.length} files · ${mergedBiomarkers.length} biomarkers found`
+        : mergedResult.summary;
+      setParsedResult(mergedResult);
+      const outOfRange = new Set<string>(
+        mergedBiomarkers.filter(b => b.status !== 'normal').map(b => b.name)
+      );
+      setSelectedBiomarkers(outOfRange);
+      setStep('results');
+    } else {
+      toast.error('No biomarkers could be extracted from the selected files.');
+      setStep('upload');
+    }
+    setParseProgress(null);
+  }, [parseSingleFile, readFileAsBase64, readFileAsText]);
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
-    const file = e.dataTransfer.files[0];
-    if (file) handleFileUpload(file);
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length === 1) {
+      parseMultipleFiles([files[0]]);
+    } else if (files.length > 1) {
+      parseMultipleFiles(files);
+    }
   };
 
   const handlePasteSubmit = () => {
@@ -337,8 +389,8 @@ export default function BiomarkerUploadDialog({
                 multiple
                 className="hidden"
                 onChange={e => {
-                  const file = e.target.files?.[0];
-                  if (file) handleFileUpload(file);
+                  const files = Array.from(e.target.files || []);
+                  if (files.length > 0) parseMultipleFiles(files);
                 }}
               />
             </div>
@@ -377,7 +429,13 @@ export default function BiomarkerUploadDialog({
             <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" />
             <div>
               <p className="text-sm font-medium text-foreground">Analyzing your lab results...</p>
-              <p className="text-xs text-muted-foreground mt-1">Extracting biomarkers and reference ranges</p>
+              {parseProgress && parseProgress.total > 1 ? (
+                <p className="text-xs text-muted-foreground mt-1">
+                  File {parseProgress.current} of {parseProgress.total} · Extracting biomarkers
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground mt-1">Extracting biomarkers and reference ranges</p>
+              )}
             </div>
           </div>
         )}

@@ -338,15 +338,18 @@ const ToleranceComparisonCard = ({
 const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, onRefresh, chatMessages, isChatStreaming, onChatSend, onChatCancel, onChatClear, onApplyChange, onRejectChange, onApplyAll, onUndoChange, toleranceComparison, compareLoading, onCompareAllLevels, conversationManager, onConfirmChange, onCancelConfirm, pendingConfirm, proposals, compounds }: AIInsightsViewProps) => {
   const sectionScores = analysis ? computeSectionScores(analysis) : [];
   const [dismissedFindings, setDismissedFindings] = useState<Set<string>>(new Set());
+  // Pending message from inline reply — opened in ProtocolChat panel
+  const [pendingChatMessage, setPendingChatMessage] = useState<string | null>(null);
 
-  // Wrap onChatSend so InlineReply always has an active conversation to send into
+  // Inline reply: ensure a conversation exists, then open the chat panel with the message pre-loaded.
+  // We don't call onChatSend here because conversationId state won't have propagated yet.
   const handleInlineReply = useCallback(async (message: string) => {
     if (!conversationManager.activeConversationId) {
       const conv = await conversationManager.createConversation('Protocol Discussion');
       if (!conv) return;
     }
-    onChatSend(message);
-  }, [conversationManager, onChatSend]);
+    setPendingChatMessage(message);
+  }, [conversationManager]);
 
   const dismiss = (key: string) => {
     setDismissedFindings(prev => new Set(prev).add(key));
@@ -574,6 +577,8 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
         proposals={proposals}
         compounds={compounds}
         conversationManager={conversationManager}
+        pendingMessage={pendingChatMessage}
+        onPendingMessageClear={() => setPendingChatMessage(null)}
       />
 
       {/* Header */}

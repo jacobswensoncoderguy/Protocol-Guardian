@@ -281,7 +281,8 @@ export function useProtocolChat(
       onConversationUpdate?.(conversationId, assistantContent);
 
       // Auto-title: if this is the first exchange (only user + assistant), generate a title
-      if (messages.length === 0 && assistantContent && onAutoTitle) {
+      // Use ref to avoid stale closure — messagesRef captured before this send
+      if (currentMessages.length === 0 && assistantContent && onAutoTitle) {
         try {
           const { data: { session } } = await supabase.auth.getSession();
           const titleToken = session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;

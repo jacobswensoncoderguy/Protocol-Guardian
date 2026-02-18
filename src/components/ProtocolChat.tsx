@@ -26,6 +26,9 @@ interface ProtocolChatProps {
   proposals?: ChangeProposal[];
   compounds?: Compound[];
   conversationManager: ReturnType<typeof useConversations>;
+  /** Pre-filled message from an inline reply — causes chat panel to open & auto-send */
+  pendingMessage?: string | null;
+  onPendingMessageClear?: () => void;
 }
 
 const changeTypeLabel = (type: string) => {
@@ -162,6 +165,7 @@ const ProtocolChat = ({
   onApplyChange, onRejectChange, onApplyAll, onUndoChange,
   onConfirmChange, onCancelConfirm, pendingConfirm, proposals = [], compounds = [],
   conversationManager,
+  pendingMessage, onPendingMessageClear,
 }: ProtocolChatProps) => {
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
@@ -171,6 +175,18 @@ const ProtocolChat = ({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<any>(null);
   const isMobile = useIsMobile();
+
+  // When a pending message arrives (from inline reply), expand chat and auto-send
+  useEffect(() => {
+    if (!pendingMessage) return;
+    setIsExpanded(true);
+    // Small delay to let the expansion + conversation state settle before sending
+    const timer = setTimeout(() => {
+      onSend(pendingMessage);
+      onPendingMessageClear?.();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [pendingMessage]);
 
   const {
     projects, conversations, activeConversationId,
