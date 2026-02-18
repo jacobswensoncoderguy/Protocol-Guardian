@@ -6,8 +6,9 @@ import ToleranceSelector from '@/components/ToleranceSelector';
 import MedicalDisclaimer from '@/components/MedicalDisclaimer';
 import ProtocolChat from '@/components/ProtocolChat';
 import GeminiBadge from '@/components/GeminiBadge';
-import { ChatMessage } from '@/hooks/useProtocolChat';
+import { ChatMessage, ChangeProposal, PendingConfirm } from '@/hooks/useProtocolChat';
 import { useConversations } from '@/hooks/useConversations';
+import { Compound } from '@/data/compounds';
 
 interface AIInsightsViewProps {
   analysis: StackAnalysis | null;
@@ -28,6 +29,11 @@ interface AIInsightsViewProps {
   compareLoading: boolean;
   onCompareAllLevels: () => void;
   conversationManager: ReturnType<typeof useConversations>;
+  onConfirmChange?: () => void;
+  onCancelConfirm?: () => void;
+  pendingConfirm?: PendingConfirm | null;
+  proposals?: ChangeProposal[];
+  compounds?: Compound[];
 }
 
 const severityBadge = (severity: string) => {
@@ -329,7 +335,7 @@ const ToleranceComparisonCard = ({
   );
 };
 
-const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, onRefresh, chatMessages, isChatStreaming, onChatSend, onChatCancel, onChatClear, onApplyChange, onRejectChange, onApplyAll, onUndoChange, toleranceComparison, compareLoading, onCompareAllLevels, conversationManager }: AIInsightsViewProps) => {
+const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, onRefresh, chatMessages, isChatStreaming, onChatSend, onChatCancel, onChatClear, onApplyChange, onRejectChange, onApplyAll, onUndoChange, toleranceComparison, compareLoading, onCompareAllLevels, conversationManager, onConfirmChange, onCancelConfirm, pendingConfirm, proposals, compounds }: AIInsightsViewProps) => {
   const sectionScores = analysis ? computeSectionScores(analysis) : [];
   const [dismissedFindings, setDismissedFindings] = useState<Set<string>>(new Set());
 
@@ -553,6 +559,11 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
         onRejectChange={onRejectChange}
         onApplyAll={onApplyAll}
         onUndoChange={onUndoChange}
+        onConfirmChange={onConfirmChange}
+        onCancelConfirm={onCancelConfirm}
+        pendingConfirm={pendingConfirm}
+        proposals={proposals}
+        compounds={compounds}
         conversationManager={conversationManager}
       />
 

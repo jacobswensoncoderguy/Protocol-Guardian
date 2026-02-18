@@ -569,8 +569,11 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
         <FeatureTeaserCard featureKey="supplementation" onEnable={() => onEnableFeature?.('supplementation')} />
       )}
 
-      {/* Goal Progress */}
-      {f.goal_tracking ? (
+      {/* Combined Protocol Metrics — just below avatar */}
+      {f.supplementation && <ProtocolOutcomesCard />}
+
+      {/* Goal Progress - removed from dashboard */}
+      {false && f.goal_tracking ? (
         <div className="rounded-xl border border-border/30 bg-card/40 backdrop-blur-sm p-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -666,7 +669,7 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
         />
       )}
 
-      {f.supplementation && <ProtocolOutcomesCard />}
+      {/* ProtocolOutcomesCard moved up, near avatar */}
 
       <ZoneDetailDrawer
         zone={selectedZone}

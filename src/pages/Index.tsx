@@ -122,7 +122,9 @@ const Index = () => {
     messages: chatMessages, isStreaming: isChatStreaming,
     sendMessage: onChatSend, cancelStream: onChatCancel, clearChat: onChatClear,
     applyChange: onApplyChange, rejectChange: onRejectChange, applyAllPending: onApplyAll,
-    undoChange: onUndoChange,
+    undoChange: onUndoChange, confirmChange: onConfirmChange, pendingConfirm,
+    setPendingConfirm,
+    proposals: chatProposals,
   } = useProtocolChat(
     compounds, protocols, stackAnalysis, toleranceLevel, updateCompound, deleteCompound, refetch,
     conversationManager.activeConversationId,
@@ -408,6 +410,11 @@ const Index = () => {
               onRejectChange={onRejectChange}
               onApplyAll={onApplyAll}
               onUndoChange={onUndoChange}
+              onConfirmChange={onConfirmChange}
+              onCancelConfirm={() => setPendingConfirm(null)}
+              pendingConfirm={pendingConfirm}
+              proposals={chatProposals}
+              compounds={compounds}
               conversationManager={conversationManager}
               toleranceComparison={toleranceComparison}
               compareLoading={compareLoading}
