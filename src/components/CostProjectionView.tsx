@@ -21,12 +21,19 @@ interface ReceivedOrder {
   received_at: string;
 }
 
+interface MemberCostBreakdown {
+  name: string;
+  annual: number;
+  monthly: number;
+}
+
 interface CostProjectionViewProps {
   compounds: Compound[];
   protocols?: UserProtocol[];
   customFields?: CustomField[];
   customFieldValues?: Map<string, Map<string, string>>; // compoundId -> fieldId -> value
   userId?: string;
+  memberBreakdowns?: MemberCostBreakdown[]; // per-member cost totals for combined view
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -194,7 +201,7 @@ function groupItemsByProtocol(
   return groups.length > 0 ? groups : [{ label: '', items }];
 }
 
-const CostProjectionView = ({ compounds, protocols = [], customFields = [], customFieldValues = new Map(), userId }: CostProjectionViewProps) => {
+const CostProjectionView = ({ compounds, protocols = [], customFields = [], customFieldValues = new Map(), userId, memberBreakdowns }: CostProjectionViewProps) => {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [showSavings, setShowSavings] = useState(false);
   const [receivedOrders, setReceivedOrders] = useState<ReceivedOrder[]>([]);
@@ -288,6 +295,32 @@ const CostProjectionView = ({ compounds, protocols = [], customFields = [], cust
           <p className="text-lg font-bold font-mono text-status-good">${Math.round(totalSpent).toLocaleString()}</p>
         </div>
       </div>
+
+      {/* Household cost breakdown (combined view) */}
+      {memberBreakdowns && memberBreakdowns.length > 0 && (
+        <div className="bg-card rounded-lg border border-accent/20 p-3">
+          <p className="text-[10px] uppercase tracking-wider text-accent font-semibold mb-2">Household Breakdown</p>
+          <div className="space-y-1.5">
+            {memberBreakdowns.map((member, i) => (
+              <div key={i} className="flex items-center justify-between text-xs">
+                <span className="text-foreground/80 font-medium truncate mr-2">{member.name}</span>
+                <div className="flex items-center gap-3 flex-shrink-0 font-mono">
+                  <span className="text-muted-foreground">${Math.round(member.monthly).toLocaleString()}/mo</span>
+                  <span className="text-primary font-semibold">${Math.round(member.annual).toLocaleString()}/yr</span>
+                </div>
+              </div>
+            ))}
+            {/* Combined total row */}
+            <div className="flex items-center justify-between text-xs border-t border-border/50 mt-2 pt-2">
+              <span className="text-accent font-semibold">Combined Total</span>
+              <div className="flex items-center gap-3 flex-shrink-0 font-mono">
+                <span className="text-muted-foreground">${Math.round(memberBreakdowns.reduce((s, m) => s + m.monthly, 0)).toLocaleString()}/mo</span>
+                <span className="text-accent font-bold">${Math.round(totalAnnual).toLocaleString()}/yr</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Month Grid */}
       <div className="grid grid-cols-4 sm:grid-cols-4 lg:grid-cols-6 gap-1.5 sm:gap-2">
