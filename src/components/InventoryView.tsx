@@ -275,7 +275,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
   const [confirmDormant, setConfirmDormant] = useState(false);
   const [showPauseDialog, setShowPauseDialog] = useState(false);
   const [pauseDate, setPauseDate] = useState('');
-  const [doseUnit, setDoseUnit] = useState<'mg' | 'ml' | 'iu'>('iu');
+  const [doseUnit, setDoseUnit] = useState<'mg' | 'ml' | 'iu'>('mg');
   const [editing, setEditing] = useState(false);
   const [editState, setEditState] = useState<Record<string, string>>({});
   const [showAddField, setShowAddField] = useState(false);
@@ -638,10 +638,11 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
             <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground border border-border/40" title="Weight per unit">
               {(() => {
                 const su = compound.weightUnit || 'mg';
-                if (su === 'mcg') return `${(compound.weightPerUnit * 1000).toFixed(0)}mcg`;
-                if (su === 'g') return `${(compound.weightPerUnit / 1000).toFixed(compound.weightPerUnit % 1000 === 0 ? 0 : 2).replace(/\.?0+$/, '')}g`;
+                    if (su === 'mcg') return `${Math.round(compound.weightPerUnit * 1000)}mcg`;
+                if (su === 'g') { const gv = compound.weightPerUnit / 1000; return `${gv % 1 === 0 ? gv : gv.toFixed(2).replace(/\.?0+$/, '')}g`; }
                 if (su === 'oz') return `${(compound.weightPerUnit / 28349.5).toFixed(3).replace(/\.?0+$/, '')}oz`;
                 if (su === 'lb') return `${(compound.weightPerUnit / 453592).toFixed(4).replace(/\.?0+$/, '')}lb`;
+                // mg — show as-is, never auto-convert to g
                 return `${compound.weightPerUnit}mg`;
               })()}/unit
             </span>
@@ -1569,14 +1570,15 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
               {!isOil && compound.weightPerUnit && compound.weightPerUnit > 0 && (
                 <div>
                   <span className="text-muted-foreground">Per {(compound.unitLabel || 'cap').replace(/s$/, '')}:</span>{' '}
-                  <span className="font-mono text-foreground">{compound.weightPerUnit >= 1000 && (!compound.weightUnit || compound.weightUnit === 'mg') ? `${compound.weightPerUnit / 1000}g` : `${(() => {
+                  <span className="font-mono text-foreground">{(() => {
                     const su = compound.weightUnit || 'mg';
-                    if (su === 'mcg') return (compound.weightPerUnit * 1000).toFixed(0);
-                    if (su === 'g') return (compound.weightPerUnit / 1000).toFixed(compound.weightPerUnit % 1000 === 0 ? 0 : 2).replace(/\.?0+$/, '');
-                    if (su === 'oz') return (compound.weightPerUnit / 28349.5).toFixed(3).replace(/\.?0+$/, '');
-                    if (su === 'lb') return (compound.weightPerUnit / 453592).toFixed(4).replace(/\.?0+$/, '');
-                    return compound.weightPerUnit;
-                  })()}${compound.weightUnit || 'mg'}`}</span>
+                    const wpu = compound.weightPerUnit!;
+                    if (su === 'mcg') return `${Math.round(wpu * 1000)}mcg`;
+                    if (su === 'g') { const gv = wpu / 1000; return `${gv % 1 === 0 ? gv : gv.toFixed(2).replace(/\.?0+$/, '')}g`; }
+                    if (su === 'oz') return `${(wpu / 28349.5).toFixed(3).replace(/\.?0+$/, '')}oz`;
+                    if (su === 'lb') return `${(wpu / 453592).toFixed(4).replace(/\.?0+$/, '')}lb`;
+                    return `${wpu}mg`;
+                  })()}</span>
                 </div>
               )}
               <div>
@@ -1594,7 +1596,8 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                         if (su === 'g') { const gVal = mgVal / 1000; return `${gVal % 1 === 0 ? gVal : gVal.toFixed(2).replace(/\.?0+$/, '')}g`; }
                         if (su === 'oz') return `${(mgVal / 28349.5).toFixed(3).replace(/\.?0+$/, '')}oz`;
                         if (su === 'lb') return `${(mgVal / 453592).toFixed(4).replace(/\.?0+$/, '')}lb`;
-                        return mgVal >= 1000 ? `${mgVal / 1000}g` : `${mgVal}mg`;
+                        // mg — always show as mg (user explicitly chose mg)
+                        return `${mgVal}mg`;
                       };
                       // If dose is in pills/caps/tabs, show total serving weight
                       if (doseLabel.includes('pill') || doseLabel.includes('cap') || doseLabel.includes('tab') || doseLabel.includes('softgel') || doseLabel.includes('serving')) {

@@ -136,7 +136,7 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
   const [editDoseLabel, setEditDoseLabel] = useState('');
   const [editDosesPerDay, setEditDosesPerDay] = useState('');
   const [editWeightPerUnit, setEditWeightPerUnit] = useState('');
-  const [editWeightUnit, setEditWeightUnit] = useState('g');
+  const [editWeightUnit, setEditWeightUnit] = useState('mg');
 
   // Edit existing order state
   const [editOrderDialog, setEditOrderDialog] = useState<OrderItem | null>(null);
@@ -152,7 +152,7 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
   const [editOrderDoseLabel, setEditOrderDoseLabel] = useState('');
   const [editOrderDosesPerDay, setEditOrderDosesPerDay] = useState('');
   const [editOrderWeightPerUnit, setEditOrderWeightPerUnit] = useState('');
-  const [editOrderWeightUnit, setEditOrderWeightUnit] = useState('g');
+  const [editOrderWeightUnit, setEditOrderWeightUnit] = useState('mg');
   const horizon: Horizon = reorderHorizon;
   const compoundMap = new Map(compounds.map(c => [c.id, c]));
 
@@ -1043,7 +1043,16 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
               editUnitPrice !== String(compoundMap.get(orderDialog.compoundId)?.unitPrice || '') ||
               editDosePerUse !== String(compoundMap.get(orderDialog.compoundId)?.dosePerUse || '') ||
               editDosesPerDay !== String(compoundMap.get(orderDialog.compoundId)?.dosesPerDay || '') ||
-              editWeightPerUnit !== (compoundMap.get(orderDialog.compoundId)?.weightPerUnit != null ? String(compoundMap.get(orderDialog.compoundId)?.weightPerUnit) : '')) && (
+              editWeightPerUnit !== (() => {
+                const c = compoundMap.get(orderDialog.compoundId);
+                if (!c?.weightPerUnit) return '';
+                const wu = c.weightUnit || 'mg';
+                if (wu === 'g') return String(c.weightPerUnit / 1000);
+                if (wu === 'mcg') return String(c.weightPerUnit * 1000);
+                if (wu === 'oz') return String((c.weightPerUnit / 28349.5).toFixed(4).replace(/\.?0+$/, ''));
+                if (wu === 'lb') return String((c.weightPerUnit / 453592).toFixed(6).replace(/\.?0+$/, ''));
+                return String(c.weightPerUnit);
+              })()) && (
               <div className="bg-accent/10 border border-accent/30 rounded-lg p-2.5 flex items-start gap-2">
                 <Info className="w-3.5 h-3.5 text-status-warning flex-shrink-0 mt-0.5" />
                 <p className="text-[10px] text-status-warning">Changes to compound fields will update the compound in your inventory and protocol.</p>

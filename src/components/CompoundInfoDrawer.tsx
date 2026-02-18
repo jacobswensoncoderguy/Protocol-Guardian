@@ -181,7 +181,8 @@ const CompoundInfoDrawer = ({ compound, open, onOpenChange, compoundAnalysis, co
                 if (su === 'g') { const g = wpu / 1000; return `${g % 1 === 0 ? g : g.toFixed(2).replace(/\.?0+$/, '')}g`; }
                 if (su === 'oz') return `${(wpu / 28349.5).toFixed(3).replace(/\.?0+$/, '')}oz`;
                 if (su === 'lb') return `${(wpu / 453592).toFixed(4).replace(/\.?0+$/, '')}lb`;
-                return wpu >= 1000 ? `${wpu / 1000}g` : `${wpu}mg`;
+                // mg — always show as mg (never auto-convert to g)
+                return `${wpu}mg`;
               })()}/unit
             </span>
           )}
