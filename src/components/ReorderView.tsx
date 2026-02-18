@@ -3,7 +3,7 @@ import { Compound, getReorderCost, getStatus } from '@/data/compounds';
 import { getDaysRemainingWithCycling, getEffectiveDailyConsumption } from '@/lib/cycling';
 import { UserProtocol } from '@/hooks/useProtocols';
 import { supabase } from '@/integrations/supabase/client';
-import { Check, Package, PackageCheck, ShoppingCart, Undo2, Trash2, ChevronDown, AlertTriangle, TrendingUp, ExternalLink, ShoppingBag, Info } from 'lucide-react';
+import { Check, Package, PackageCheck, ShoppingCart, Undo2, Trash2, ChevronDown, AlertTriangle, TrendingUp, ExternalLink, ShoppingBag, Info, Calendar } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
@@ -41,13 +41,19 @@ function getReorderSupplyDays(compound: Compound): number {
   return (reorderUnits * unitsPerUnit) / effectiveDaily;
 }
 
-function buildNeededItems(compounds: Compound[]): (Omit<OrderItem, 'id' | 'ordered_at' | 'received_at'>)[] {
+const HORIZON_OPTIONS = [
+  { value: 30, label: '30d' },
+  { value: 45, label: '45d' },
+  { value: 60, label: '60d' },
+] as const;
+type Horizon = 30 | 45 | 60;
+const HORIZON_KEY = 'reorder_horizon';
+
+function buildNeededItems(compounds: Compound[], horizon: Horizon): (Omit<OrderItem, 'id' | 'ordered_at' | 'received_at'>)[] {
   const now = new Date();
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const items: (Omit<OrderItem, 'id' | 'ordered_at' | 'received_at'>)[] = [];
 
-  // Exclude dormant placeholders, zero-quantity entries, and compounds without a purchase date
-  // (no purchase date = depletion tracking unreliable, would show misleading low-stock alerts)
   const activeCompounds = compounds.filter(c =>
     !c.notes?.includes('[DORMANT]') &&
     c.currentQuantity > 0 &&
@@ -56,7 +62,7 @@ function buildNeededItems(compounds: Compound[]): (Omit<OrderItem, 'id' | 'order
 
   activeCompounds.forEach(compound => {
     const daysLeft = getDaysRemainingWithCycling(compound);
-    if (daysLeft > 30) return; // Only show items within 30 days — matches "Running Low" tile threshold
+    if (daysLeft > horizon) return;
 
     const cost = getReorderCost(compound);
     const reorderDate = new Date(now.getTime() + daysLeft * 24 * 60 * 60 * 1000);
@@ -107,6 +113,15 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [] }: Re
   const [orders, setOrders] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [detailsCompound, setDetailsCompound] = useState<Compound | null>(null);
+  const [horizon, setHorizon] = useState<Horizon>(() => {
+    const stored = localStorage.getItem(HORIZON_KEY);
+    return (stored === '45' ? 45 : stored === '60' ? 60 : 30) as Horizon;
+  });
+
+  const saveHorizon = (h: Horizon) => {
+    setHorizon(h);
+    localStorage.setItem(HORIZON_KEY, String(h));
+  };
 
   const compoundMap = new Map(compounds.map(c => [c.id, c]));
 
@@ -126,7 +141,7 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [] }: Re
     fetchOrders();
   }, [fetchOrders]);
 
-  const neededItems = buildNeededItems(compounds);
+  const neededItems = buildNeededItems(compounds, horizon);
   const orderedItems = orders.filter(o => o.status === 'ordered');
   const receivedItems = orders.filter(o => o.status === 'received');
 
@@ -239,16 +254,19 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [] }: Re
   const orderedGroups = groupByProtocol(orderedItems, protocols, compoundMap);
   const receivedGroups = groupByProtocol(receivedItems, protocols, compoundMap);
 
-  // Tile counts must mirror the Needed list exactly:
-  // - same purchase-date gate (no date = tracking inactive)
-  // - same 60-day horizon used in buildNeededItems
-  // - exclude already-ordered compounds
+  // Tile counts derived directly from filteredNeeded (same set as the list) using horizon-aware thresholds.
+  // critical = ≤7d always; warning = 8d..horizon (everything else in the list).
+  // This guarantees tiles + list always match.
   const criticalCompounds = filteredNeeded
     .map(n => compoundMap.get(n.compound_id))
-    .filter((c): c is Compound => !!c && getStatus(getDaysRemainingWithCycling(c)) === 'critical');
+    .filter((c): c is Compound => !!c && getDaysRemainingWithCycling(c) <= 7);
   const warningCompounds = filteredNeeded
     .map(n => compoundMap.get(n.compound_id))
-    .filter((c): c is Compound => !!c && getStatus(getDaysRemainingWithCycling(c)) === 'warning');
+    .filter((c): c is Compound => {
+      if (!c) return false;
+      const d = getDaysRemainingWithCycling(c);
+      return d > 7 && d <= horizon;
+    });
 
   return (
     <>
@@ -270,7 +288,7 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [] }: Re
               <TrendingUp className="w-4 h-4 text-status-warning flex-shrink-0" />
               <div>
                 <p className="text-xs font-semibold text-status-warning">{warningCompounds.length} Running Low</p>
-                <p className="text-[10px] text-muted-foreground">7-30 days left</p>
+                <p className="text-[10px] text-muted-foreground">7–{horizon} days left</p>
               </div>
             </div>
           )}
@@ -304,6 +322,29 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [] }: Re
       {/* Needed Tab */}
       {tab === 'needed' && (
         <div className="space-y-3">
+          {/* Horizon picker */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+              <Calendar className="w-3 h-3" />
+              <span>Reorder horizon</span>
+            </div>
+            <div className="flex gap-0.5 bg-secondary/50 rounded-md p-0.5 border border-border/40">
+              {HORIZON_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => saveHorizon(opt.value)}
+                  className={`px-2.5 py-1 rounded text-[10px] font-medium transition-all touch-manipulation ${
+                    horizon === opt.value
+                      ? 'bg-primary/15 text-primary border border-primary/30'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {filteredNeeded.length === 0 ? (
             <div className="bg-card rounded-lg border border-border/50 p-6 text-center">
               <PackageCheck className="w-8 h-8 text-status-good mx-auto mb-2" />
