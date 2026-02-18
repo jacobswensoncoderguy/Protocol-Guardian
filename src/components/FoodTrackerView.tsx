@@ -268,8 +268,13 @@ const FoodTrackerView = () => {
   };
 
   const handleDeleteEntry = async (id: string) => {
-    await supabase.from('food_entries').delete().eq('id', id);
+    const { error } = await supabase.from('food_entries').delete().eq('id', id);
+    if (error) {
+      toast.error('Failed to delete food entry');
+      return;
+    }
     setEntries(prev => prev.filter(e => e.id !== id));
+    toast.success('Food entry deleted');
   };
 
   const resetForm = () => {
@@ -498,6 +503,11 @@ const FoodTrackerView = () => {
     setSavedFoods(data || []);
     setSavedFoodsLoading(false);
   }, [user]);
+
+  // Fetch saved foods when the add dialog opens
+  useEffect(() => {
+    if (showAddFood) fetchSavedFoods();
+  }, [showAddFood, fetchSavedFoods]);
 
   // Open Food Facts name search
   const handleNameSearch = useCallback(async (query: string) => {

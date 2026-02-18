@@ -406,7 +406,7 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
     if (activeGoals.length > 0) {
       fetchReadings(activeGoals.map(g => g.id!).filter(Boolean));
     }
-  }, [activeGoals.length]);
+  }, [activeGoals.length, fetchReadings]);
 
   // Filter out dormant compounds from coverage calculations
   const activeCompounds = useMemo(() =>
