@@ -373,6 +373,7 @@ const Index = () => {
               onBiomarkerUpload={() => setShowBiomarkerUpload(true)}
               onSignOut={() => setShowSignOutConfirm(true)}
               displayName={profile?.display_name}
+              pendingInviteCount={household.pendingIncoming.length}
             />
           </div>
         </div>
@@ -456,7 +457,22 @@ const Index = () => {
               </TabsList>
               <div key={scheduleSubTab} className={scheduleSwipe.slideClass} onAnimationEnd={scheduleSwipe.onAnimationEnd} onTouchStart={scheduleSwipe.onTouchStart} onTouchEnd={scheduleSwipe.onTouchEnd}>
                 <TabsContent value="this-week" forceMount={scheduleSubTab === 'this-week' ? true : undefined}>
-                  {scheduleSubTab === 'this-week' && <WeeklyScheduleView compounds={viewCompounds} protocols={protocols} compoundAnalyses={compoundAnalyses} compoundLoading={compoundLoading} onAnalyzeCompound={analyzeCompound} customFields={customFields} customFieldValues={customFieldValues} checkedDoses={combinedCheckedDoses} onToggleChecked={householdViewId === 'self' ? toggleDoseCheck : () => {}} readOnly={!!selectedMemberUserId} memberInitialsDoses={memberInitialsDoses} />}
+                  {scheduleSubTab === 'this-week' && <WeeklyScheduleView
+                    compounds={viewCompounds}
+                    protocols={protocols}
+                    compoundAnalyses={compoundAnalyses}
+                    compoundLoading={compoundLoading}
+                    onAnalyzeCompound={analyzeCompound}
+                    customFields={customFields}
+                    customFieldValues={customFieldValues}
+                    checkedDoses={combinedCheckedDoses}
+                    onToggleChecked={householdViewId === 'self' ? toggleDoseCheck : () => {}}
+                    readOnly={!!selectedMemberUserId}
+                    readOnlyMemberName={selectedMemberUserId ? (household.acceptedMembers.find(m => m.userId === selectedMemberUserId)?.displayName || household.acceptedMembers.find(m => m.userId === selectedMemberUserId)?.email?.split('@')[0] || 'Member') : undefined}
+                    onExitReadOnly={() => setHouseholdViewId('self')}
+                    memberInitialsDoses={memberInitialsDoses}
+                    memberCompoundIds={householdViewId === 'combined' ? new Set(memberCompounds.map(c => c.id)) : undefined}
+                  />}
                 </TabsContent>
                 <TabsContent value="history" forceMount={scheduleSubTab === 'history' ? true : undefined}>
                   {scheduleSubTab === 'history' && <ScheduleHistoryView snapshots={scheduleSnapshots} loading={snapshotsLoading} checkedDosesMap={historicalCheckOffs} />}

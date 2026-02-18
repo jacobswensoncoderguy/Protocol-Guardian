@@ -22,6 +22,7 @@ interface ProfileDropdownProps {
   onBiomarkerUpload: () => void;
   onSignOut: () => void;
   displayName?: string | null;
+  pendingInviteCount?: number;
 }
 
 const ProfileDropdown = ({
@@ -33,6 +34,7 @@ const ProfileDropdown = ({
   onBiomarkerUpload,
   onSignOut,
   displayName,
+  pendingInviteCount = 0,
 }: ProfileDropdownProps) => {
   const { user } = useAuth();
   const initials = displayName
@@ -45,12 +47,17 @@ const ProfileDropdown = ({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+        <button className="relative rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
           <Avatar className="h-8 w-8 border border-border/50 hover:border-primary/50 transition-colors">
             <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
               {initials}
             </AvatarFallback>
           </Avatar>
+          {pendingInviteCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-3.5 px-0.5 rounded-full bg-accent text-[9px] font-bold flex items-center justify-center text-accent-foreground ring-2 ring-background">
+              {pendingInviteCount > 9 ? '9+' : pendingInviteCount}
+            </span>
+          )}
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52 bg-popover border-border z-50">
