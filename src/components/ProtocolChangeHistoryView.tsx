@@ -13,14 +13,14 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 
 // ── localStorage helpers ─────────────────────────────────────────────────────
 const LS_KEY = 'ai_changes_filters';
-type SavedFilters = { search: string; typeFilter: string; dateFrom?: string; dateTo?: string };
+type SavedFilters = { search: string; typeFilter: string; sourceFilter?: string; dateFrom?: string; dateTo?: string };
 
 function loadFilters(): SavedFilters {
   try {
     const raw = localStorage.getItem(LS_KEY);
     if (raw) return JSON.parse(raw);
   } catch {}
-  return { search: '', typeFilter: 'all' };
+  return { search: '', typeFilter: 'all', sourceFilter: 'all' };
 }
 
 function saveFilters(f: SavedFilters) {
@@ -59,15 +59,33 @@ const CHANGE_TYPES = [
   { value: 'remove_compound', label: 'Removed' },
 ];
 
+const SOURCE_FILTERS = [
+  { value: 'all', label: 'All Sources' },
+  { value: 'single', label: 'Single Accept' },
+  { value: 'accept_all', label: 'Accept All' },
+  { value: 'reverted', label: 'Reverted' },
+  { value: 'manual', label: 'Manual' },
+];
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Derive source key from description string */
+function parseSourceKey(description: string): string {
+  const lower = description.toLowerCase();
+  if (lower.includes('accept all')) return 'accept_all';
+  if (lower.includes('reverted') || lower.includes('undo')) return 'reverted';
+  if (lower.includes('manually')) return 'manual';
+  if (lower.includes('ai recommendation')) return 'single';
+  return 'other';
+}
 
 /** Derive a source badge from the description string written at insert time */
 function parseSourceBadge(description: string): { label: string; color: string } | null {
-  const lower = description.toLowerCase();
-  if (lower.includes('accept all')) return { label: 'Accept All', color: 'bg-status-good/15 text-status-good' };
-  if (lower.includes('reverted') || lower.includes('undo')) return { label: 'Reverted', color: 'bg-accent/15 text-status-warning' };
-  if (lower.includes('manually')) return { label: 'Manual', color: 'bg-secondary text-muted-foreground' };
-  if (lower.includes('ai recommendation')) return { label: 'Single Accept', color: 'bg-primary/10 text-primary' };
+  const key = parseSourceKey(description);
+  if (key === 'accept_all') return { label: 'Accept All', color: 'bg-status-good/15 text-status-good' };
+  if (key === 'reverted') return { label: 'Reverted', color: 'bg-accent/15 text-status-warning' };
+  if (key === 'manual') return { label: 'Manual', color: 'bg-secondary text-muted-foreground' };
+  if (key === 'single') return { label: 'Single Accept', color: 'bg-primary/10 text-primary' };
   return null;
 }
 
@@ -146,6 +164,7 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
   const savedFilters = useMemo(() => loadFilters(), []);
   const [search, setSearch] = useState(savedFilters.search ?? '');
   const [typeFilter, setTypeFilter] = useState(savedFilters.typeFilter ?? 'all');
+  const [sourceFilter, setSourceFilter] = useState(savedFilters.sourceFilter ?? 'all');
   const [dateFrom, setDateFrom] = useState<Date | undefined>(
     savedFilters.dateFrom ? new Date(savedFilters.dateFrom) : undefined
   );
@@ -160,10 +179,11 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
     saveFilters({
       search,
       typeFilter,
+      sourceFilter,
       dateFrom: dateFrom?.toISOString(),
       dateTo: dateTo?.toISOString(),
     });
-  }, [search, typeFilter, dateFrom, dateTo]);
+  }, [search, typeFilter, sourceFilter, dateFrom, dateTo]);
 
   const fetchChanges = useCallback(async () => {
     if (!userId) { setLoading(false); return; }
@@ -297,11 +317,12 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
   };
 
   // ── Filters ────────────────────────────────────────────────────────────────
-  const hasActiveFilters = search || typeFilter !== 'all' || dateFrom || dateTo;
+  const hasActiveFilters = search || typeFilter !== 'all' || sourceFilter !== 'all' || dateFrom || dateTo;
 
   const clearFilters = () => {
     setSearch('');
     setTypeFilter('all');
+    setSourceFilter('all');
     setDateFrom(undefined);
     setDateTo(undefined);
   };
@@ -311,6 +332,7 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
       const compoundName = c.description.split(':')[0].trim().toLowerCase();
       if (search && !compoundName.includes(search.toLowerCase())) return false;
       if (typeFilter !== 'all' && c.change_type !== typeFilter) return false;
+      if (sourceFilter !== 'all' && parseSourceKey(c.description) !== sourceFilter) return false;
       const changeDate = parseISO(c.created_at);
       if (dateFrom) {
         const from = new Date(dateFrom);
@@ -324,7 +346,7 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
       }
       return true;
     });
-  }, [changes, search, typeFilter, dateFrom, dateTo]);
+  }, [changes, search, typeFilter, sourceFilter, dateFrom, dateTo]);
 
   // ── Stats ──────────────────────────────────────────────────────────────────
   const stats = useMemo(() => {
@@ -474,6 +496,25 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
               )}
             >
               {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Source filter chips */}
+        <div className="flex gap-1.5 flex-wrap items-center">
+          <span className="text-[10px] text-muted-foreground flex-shrink-0 pl-0.5">Source</span>
+          {SOURCE_FILTERS.map(s => (
+            <button
+              key={s.value}
+              onClick={() => setSourceFilter(s.value)}
+              className={cn(
+                'text-[10px] font-medium px-2 py-0.5 rounded-full border transition-all',
+                sourceFilter === s.value
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-card/60 text-muted-foreground border-border/40 hover:border-primary/40 hover:text-foreground'
+              )}
+            >
+              {s.label}
             </button>
           ))}
         </div>
