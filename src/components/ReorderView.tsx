@@ -12,6 +12,8 @@ interface ReorderViewProps {
   onUpdateCompound: (id: string, updates: Partial<Compound>) => void;
   userId?: string;
   protocols?: UserProtocol[];
+  reorderHorizon?: 30 | 45 | 60;
+  onHorizonChange?: (h: 30 | 45 | 60) => void;
 }
 
 interface OrderItem {
@@ -47,7 +49,6 @@ const HORIZON_OPTIONS = [
   { value: 60, label: '60d' },
 ] as const;
 type Horizon = 30 | 45 | 60;
-const HORIZON_KEY = 'reorder_horizon';
 
 function buildNeededItems(compounds: Compound[], horizon: Horizon): (Omit<OrderItem, 'id' | 'ordered_at' | 'received_at'>)[] {
   const now = new Date();
@@ -108,19 +109,16 @@ function groupByProtocol<T extends { compound_id: string }>(
   return groups.length > 0 ? groups : [{ label: '', items }];
 }
 
-const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [] }: ReorderViewProps) => {
+const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reorderHorizon = 30, onHorizonChange }: ReorderViewProps) => {
   const [tab, setTab] = useState<Tab>('needed');
   const [orders, setOrders] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [detailsCompound, setDetailsCompound] = useState<Compound | null>(null);
-  const [horizon, setHorizon] = useState<Horizon>(() => {
-    const stored = localStorage.getItem(HORIZON_KEY);
-    return (stored === '45' ? 45 : stored === '60' ? 60 : 30) as Horizon;
-  });
+
+  const horizon: Horizon = reorderHorizon;
 
   const saveHorizon = (h: Horizon) => {
-    setHorizon(h);
-    localStorage.setItem(HORIZON_KEY, String(h));
+    onHorizonChange?.(h);
   };
 
   const compoundMap = new Map(compounds.map(c => [c.id, c]));

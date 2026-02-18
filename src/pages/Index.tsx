@@ -75,7 +75,7 @@ const LoadingSkeleton = () => (
 
 const Index = () => {
   const { user, signOut } = useAuth();
-  const { profile, currentTolerance, setTolerance, toleranceHistory, updateProfile, measurementSystem, doseUnitPreference, appFeatures, updateAppFeatures } = useProfile(user?.id);
+  const { profile, currentTolerance, setTolerance, toleranceHistory, updateProfile, measurementSystem, doseUnitPreference, appFeatures, updateAppFeatures, reorderHorizon, updateReorderHorizon } = useProfile(user?.id);
   const { compounds, loading, hasCompounds, updateCompound, addCompound, deleteCompound, refetch } = useCompounds(user?.id);
   const { isDark, toggle } = useTheme();
   const { createGoals, updateGoal, deleteGoal, goals: fullGoals, fetchGoals: fetchFullGoals } = useGoals(user?.id);
@@ -383,7 +383,7 @@ const Index = () => {
                   {inventorySubTab === 'costs' && <CostProjectionView compounds={compounds} protocols={protocols} customFields={customFields} customFieldValues={customFieldValues} userId={user?.id} />}
                 </TabsContent>
                 <TabsContent value="reorder" forceMount={inventorySubTab === 'reorder' ? true : undefined}>
-                  {inventorySubTab === 'reorder' && <ReorderView compounds={compounds} onUpdateCompound={handleUpdateCompound} userId={user?.id} protocols={protocols} />}
+                  {inventorySubTab === 'reorder' && <ReorderView compounds={compounds} onUpdateCompound={handleUpdateCompound} userId={user?.id} protocols={protocols} reorderHorizon={reorderHorizon} onHorizonChange={updateReorderHorizon} />}
                 </TabsContent>
               </div>
             </Tabs>
