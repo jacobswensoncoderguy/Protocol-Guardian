@@ -34,6 +34,7 @@ const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-prot
 export interface PendingConfirm {
   proposalId: string;
   changeIndex: number;
+  overrideCompoundName?: string;
 }
 
 export function useProtocolChat(
@@ -47,6 +48,7 @@ export function useProtocolChat(
   conversationId: string | null,
   onConversationUpdate?: (convId: string, content: string) => void,
   onAutoTitle?: (convId: string, title: string) => void,
+  onChangeAccepted?: () => void,
 ) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -321,27 +323,27 @@ export function useProtocolChat(
   }, [compounds]);
 
   // Step 1: Request confirmation before applying — sets pendingConfirm
-  const applyChange = useCallback((proposalId: string, changeIndex: number) => {
+  const applyChange = useCallback((proposalId: string, changeIndex: number, overrideCompoundName?: string) => {
     const proposal = proposals.find(p => p.id === proposalId);
     if (!proposal) return;
     const change = proposal.changes[changeIndex];
     if (!change || (change.status !== 'pending' && change.status !== 'undone')) return;
     // Show confirm sheet instead of applying immediately
-    setPendingConfirm({ proposalId, changeIndex });
+    setPendingConfirm({ proposalId, changeIndex, overrideCompoundName });
   }, [proposals]);
 
   // Step 2: Confirmed — actually write the change and cascade
   const confirmChange = useCallback(async () => {
     if (!pendingConfirm) return;
-    const { proposalId, changeIndex } = pendingConfirm;
+    const { proposalId, changeIndex, overrideCompoundName } = pendingConfirm;
     setPendingConfirm(null);
 
-    // Use refs to avoid stale closure issues
     const proposal = proposalsRef.current.find(p => p.id === proposalId);
     if (!proposal) return;
     const change = proposal.changes[changeIndex];
     if (!change) return;
-    const compound = findCompoundByName(change.compoundName);
+    const lookupName = overrideCompoundName ?? change.compoundName;
+    const compound = findCompoundByName(lookupName);
 
     if (change.type === 'remove_compound' && compound) {
       await deleteCompound(compound.id);
@@ -402,7 +404,9 @@ export function useProtocolChat(
 
     // Cascade: refetch compounds so all views (schedule, dashboard, costs) update
     await refetch();
-  }, [pendingConfirm, findCompoundByName, updateCompound, deleteCompound, updatePersistedMessage, refetch]);
+    // Notify parent so it can navigate to the AI Changes history tab
+    onChangeAccepted?.();
+  }, [pendingConfirm, findCompoundByName, updateCompound, deleteCompound, updatePersistedMessage, refetch, onChangeAccepted]);
 
   const undoChange = useCallback(async (proposalId: string, changeIndex: number) => {
     const proposal = proposalsRef.current.find(p => p.id === proposalId);

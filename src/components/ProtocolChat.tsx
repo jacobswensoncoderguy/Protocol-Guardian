@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Square, Trash2, Check, X, CheckCheck, Brain, ArrowRight, Mic, MicOff, Maximize2, Minimize2, PanelLeftOpen, PanelLeftClose, Copy, MessageCircle, Sparkles, TrendingUp, Shield, DollarSign, Clock, Undo2 } from 'lucide-react';
+import { Send, Square, Trash2, Check, X, CheckCheck, Brain, ArrowRight, Mic, MicOff, Maximize2, Minimize2, PanelLeftOpen, PanelLeftClose, Copy, MessageCircle, Sparkles, TrendingUp, Shield, DollarSign, Clock, Undo2, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import ChatMarkdown from '@/components/ChatMarkdown';
 import { ChatMessage, ChangeProposal, ProposedChange, PendingConfirm } from '@/hooks/useProtocolChat';
@@ -16,7 +16,7 @@ interface ProtocolChatProps {
   onSend: (message: string) => void;
   onCancel: () => void;
   onClear: () => void;
-  onApplyChange: (proposalId: string, changeIndex: number) => void;
+  onApplyChange: (proposalId: string, changeIndex: number, overrideCompoundName?: string) => void;
   onRejectChange: (proposalId: string, changeIndex: number) => void;
   onApplyAll: (proposalId: string) => void;
   onUndoChange?: (proposalId: string, changeIndex: number) => void;
@@ -58,7 +58,7 @@ const ProposalCard = ({
   compounds,
 }: {
   proposal: ChangeProposal;
-  onApply: (index: number) => void;
+  onApply: (index: number, overrideCompoundName?: string) => void;
   onReject: (index: number) => void;
   onApplyAll: () => void;
   onUndo?: (index: number) => void;
@@ -96,10 +96,11 @@ const ProposalCard = ({
             <ChangeRow
               key={i}
               change={change}
-              onApply={() => onApply(i)}
+              onApply={(overrideName) => onApply(i, overrideName)}
               onReject={() => onReject(i)}
               onUndo={onUndo ? () => onUndo(i) : undefined}
               compoundFound={compoundFound}
+              compounds={compounds}
             />
           );
         })}
@@ -114,84 +115,124 @@ const ChangeRow = ({
   onReject,
   onUndo,
   compoundFound,
+  compounds,
 }: {
   change: ProposedChange;
-  onApply: () => void;
+  onApply: (overrideCompoundName?: string) => void;
   onReject: () => void;
   onUndo?: () => void;
   compoundFound?: boolean;
-}) => (
-  <div className={`flex items-start gap-2 p-2 rounded-md border transition-all ${
-    compoundFound === false ? 'border-destructive/40 bg-destructive/5' :
-    change.status === 'accepted' ? 'border-status-good/30 bg-status-good/5' :
-    change.status === 'rejected' ? 'border-destructive/30 bg-destructive/5 opacity-60' :
-    change.status === 'undone' ? 'border-accent/30 bg-accent/5 opacity-70' :
-    'border-border/50 bg-card'
-  }`}>
-    <div className="flex-1 min-w-0">
-      <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
-        <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-full ${changeTypeColor(change.type)}`}>
-          {changeTypeLabel(change.type)}
-        </span>
-        <span className="text-xs font-semibold text-foreground truncate">{change.compoundName}</span>
-        {compoundFound === false && (
-          <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-destructive/15 text-status-critical flex items-center gap-0.5">
-            ⚠ Not in stack
-          </span>
+  compounds?: Compound[];
+}) => {
+  const [showPicker, setShowPicker] = useState(false);
+  const [pickedCompound, setPickedCompound] = useState<Compound | null>(null);
+
+  const isNotFound = compoundFound === false && !pickedCompound;
+  const displayName = pickedCompound?.name ?? change.compoundName;
+
+  return (
+    <div className={`flex flex-col gap-1.5 p-2 rounded-md border transition-all ${
+      isNotFound ? 'border-destructive/40 bg-destructive/5' :
+      pickedCompound ? 'border-status-warning/40 bg-status-warning/5' :
+      change.status === 'accepted' ? 'border-status-good/30 bg-status-good/5' :
+      change.status === 'rejected' ? 'border-destructive/30 bg-destructive/5 opacity-60' :
+      change.status === 'undone' ? 'border-accent/30 bg-accent/5 opacity-70' :
+      'border-border/50 bg-card'
+    }`}>
+      <div className="flex items-start gap-2">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+            <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-full ${changeTypeColor(change.type)}`}>
+              {changeTypeLabel(change.type)}
+            </span>
+            <span className="text-xs font-semibold text-foreground truncate">{displayName}</span>
+            {isNotFound && (
+              <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-destructive/15 text-status-critical flex items-center gap-0.5">
+                ⚠ Not in stack
+              </span>
+            )}
+            {pickedCompound && (
+              <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-status-warning/15 text-status-warning">
+                remapped
+              </span>
+            )}
+          </div>
+          {isNotFound && !showPicker && (
+            <p className="text-[10px] text-status-critical mb-0.5 leading-snug">
+              Compound not found in your stack —{' '}
+              <button onClick={() => setShowPicker(true)} className="underline hover:no-underline">
+                pick manually
+              </button>
+            </p>
+          )}
+          {change.oldValue && change.newValue && (
+            <div className="flex items-center gap-1.5 text-[11px] mb-0.5">
+              <span className="text-muted-foreground line-through">{change.oldValue}</span>
+              <ArrowRight className="w-3 h-3 text-primary flex-shrink-0" />
+              <span className="text-primary font-medium">{change.newValue}</span>
+            </div>
+          )}
+          <p className="text-[10px] text-muted-foreground leading-snug">{change.reasoning}</p>
+        </div>
+
+        {(change.status === 'pending' && !isNotFound) || pickedCompound ? (
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <button onClick={() => onApply(pickedCompound?.name)} className="p-1.5 rounded-md bg-status-good/15 text-status-good hover:bg-status-good/25 transition-colors" title="Apply this change">
+              <Check className="w-3.5 h-3.5" />
+            </button>
+            <button onClick={onReject} className="p-1.5 rounded-md bg-destructive/15 text-status-critical hover:bg-destructive/25 transition-colors" title="Reject this change">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ) : change.status === 'pending' && isNotFound ? (
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <button onClick={() => setShowPicker(!showPicker)} className="p-1.5 rounded-md bg-accent/15 text-status-warning hover:bg-accent/25 transition-colors" title="Pick compound">
+              <ChevronDown className="w-3.5 h-3.5" />
+            </button>
+            <button onClick={onReject} className="p-1.5 rounded-md bg-destructive/15 text-status-critical hover:bg-destructive/25 transition-colors" title="Reject">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ) : change.status === 'accepted' && onUndo ? (
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-status-good/15 text-status-good">accepted</span>
+            <button onClick={onUndo} className="p-1.5 rounded-md bg-accent/15 text-status-warning hover:bg-accent/25 transition-colors" title="Undo this change">
+              <Undo2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ) : change.status === 'undone' ? (
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-accent/15 text-status-warning">undone</span>
+            <button onClick={() => onApply()} className="p-1.5 rounded-md bg-status-good/15 text-status-good hover:bg-status-good/25 transition-colors" title="Re-accept this change">
+              <Check className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ) : (
+          <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-full flex-shrink-0 ${
+            change.status === 'accepted' ? 'bg-status-good/15 text-status-good' : 'bg-destructive/15 text-status-critical'
+          }`}>{change.status}</span>
         )}
       </div>
-      {compoundFound === false && (
-        <p className="text-[10px] text-status-critical mb-0.5 leading-snug">
-          Compound not found in your stack — this change cannot be applied.
-        </p>
-      )}
-      {change.oldValue && change.newValue && (
-        <div className="flex items-center gap-1.5 text-[11px] mb-0.5">
-          <span className="text-muted-foreground line-through">{change.oldValue}</span>
-          <ArrowRight className="w-3 h-3 text-primary flex-shrink-0" />
-          <span className="text-primary font-medium">{change.newValue}</span>
+
+      {/* Compound picker dropdown */}
+      {showPicker && compounds && compounds.length > 0 && (
+        <div className="mt-1 rounded-md border border-border bg-card shadow-lg z-50 max-h-40 overflow-y-auto">
+          <p className="text-[10px] text-muted-foreground px-2 py-1.5 border-b border-border/50 font-medium">Map to compound in your stack:</p>
+          {compounds.map(c => (
+            <button
+              key={c.id}
+              onClick={() => { setPickedCompound(c); setShowPicker(false); }}
+              className="w-full text-left px-2.5 py-1.5 text-xs text-foreground hover:bg-secondary/60 transition-colors flex items-center gap-2"
+            >
+              <span className="truncate">{c.name}</span>
+              <span className="text-[9px] text-muted-foreground ml-auto flex-shrink-0">{c.category}</span>
+            </button>
+          ))}
         </div>
       )}
-      <p className="text-[10px] text-muted-foreground leading-snug">{change.reasoning}</p>
     </div>
-
-    {change.status === 'pending' ? (
-      <div className="flex items-center gap-1 flex-shrink-0">
-        <button onClick={onApply} className="p-1.5 rounded-md bg-status-good/15 text-status-good hover:bg-status-good/25 transition-colors" title="Apply this change">
-          <Check className="w-3.5 h-3.5" />
-        </button>
-        <button onClick={onReject} className="p-1.5 rounded-md bg-destructive/15 text-status-critical hover:bg-destructive/25 transition-colors" title="Reject this change">
-          <X className="w-3.5 h-3.5" />
-        </button>
-      </div>
-    ) : change.status === 'accepted' && onUndo ? (
-      <div className="flex items-center gap-1 flex-shrink-0">
-        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-status-good/15 text-status-good">
-          accepted
-        </span>
-        <button onClick={onUndo} className="p-1.5 rounded-md bg-accent/15 text-status-warning hover:bg-accent/25 transition-colors" title="Undo this change">
-          <Undo2 className="w-3.5 h-3.5" />
-        </button>
-      </div>
-    ) : change.status === 'undone' ? (
-      <div className="flex items-center gap-1 flex-shrink-0">
-        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-accent/15 text-status-warning">
-          undone
-        </span>
-        <button onClick={onApply} className="p-1.5 rounded-md bg-status-good/15 text-status-good hover:bg-status-good/25 transition-colors" title="Re-accept this change">
-          <Check className="w-3.5 h-3.5" />
-        </button>
-      </div>
-    ) : (
-      <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-full flex-shrink-0 ${
-        change.status === 'accepted' ? 'bg-status-good/15 text-status-good' :
-        'bg-destructive/15 text-status-critical'
-      }`}>
-        {change.status}
-      </span>
-    )}
-  </div>
-);
+  );
+};
 
 const ProtocolChat = ({
   messages, isStreaming, onSend, onCancel, onClear,
@@ -508,7 +549,7 @@ const ProtocolChat = ({
                   {msg.proposal && (
                     <ProposalCard
                       proposal={msg.proposal}
-                      onApply={(i) => onApplyChange(msg.proposal!.id, i)}
+                      onApply={(i, overrideName) => onApplyChange(msg.proposal!.id, i, overrideName)}
                       onReject={(i) => onRejectChange(msg.proposal!.id, i)}
                       onApplyAll={() => onApplyAll(msg.proposal!.id)}
                       onUndo={onUndoChange ? (i) => onUndoChange(msg.proposal!.id, i) : undefined}

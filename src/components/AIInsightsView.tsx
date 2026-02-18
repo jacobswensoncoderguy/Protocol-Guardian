@@ -34,6 +34,7 @@ interface AIInsightsViewProps {
   pendingConfirm?: PendingConfirm | null;
   proposals?: ChangeProposal[];
   compounds?: Compound[];
+  onChangeAccepted?: () => void;
 }
 
 const severityBadge = (severity: string) => {
