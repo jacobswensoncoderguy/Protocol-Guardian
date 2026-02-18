@@ -7,34 +7,45 @@ import { CustomField } from '@/hooks/useCustomFields';
 import { UserProtocol } from '@/hooks/useProtocols';
 import { Sun, Moon, Dumbbell, Info, Syringe, Pause, Check, ArrowLeft } from 'lucide-react';
 
+const DAY_SHORT = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+function getScheduledDays(note: string, dpw: number): number[] {
+  const n = note.toLowerCase();
+  if (dpw === 7 || /\bdaily\b|\bnightly\b|\bevery\s*day\b/i.test(n)) return [0,1,2,3,4,5,6];
+  if (/\bm[\/-]f\b|mon[\s-]*fri/i.test(n)) return [1,2,3,4,5];
+  if (/\bm\/w\/f\b/i.test(n)) return [1,3,5];
+  if (/\bt\/th\b/i.test(n)) return [2,4];
+  if (/\bm\/f\b/i.test(n)) return [1,5];
+  // Extract individual day names
+  const dayMap: Record<string, number> = { su:0, sun:0, mo:1, mon:1, tu:2, tue:2, we:3, wed:3, th:4, thu:4, fr:5, fri:5, sa:6, sat:6 };
+  const matches = n.match(/\b(su(?:n)?|mo(?:n)?|tu(?:e)?|we(?:d)?|th(?:u)?|fr(?:i)?|sa(?:t)?)\b/gi);
+  if (matches && matches.length > 0) {
+    const days = new Set<number>();
+    matches.forEach(m => { const i = dayMap[m.toLowerCase()]; if (i !== undefined) days.add(i); });
+    if (days.size > 0) return Array.from(days).sort();
+  }
+  // Fall back to dpw count using standard patterns
+  switch (dpw) {
+    case 6: return [1,2,3,4,5,6];
+    case 5: return [1,2,3,4,5];
+    case 4: return [1,2,4,5];
+    case 3: return [1,3,5];
+    case 2: return [2,4];
+    case 1: return [1];
+    default: return [0,1,2,3,4,5,6];
+  }
+}
+
 function getFrequencyLabel(compound: Compound): string {
   const dpw = compound.daysPerWeek;
-  const note = (compound.timingNote || '').toLowerCase();
-
-  // PRIORITY: daysPerWeek=7 or "daily" keyword → always Daily, regardless of day names in the note
-  if (dpw === 7 || /\bdaily\b|\bnightly\b|\bevery\s*day\b/.test(note)) return 'Daily';
-
-  // Named patterns — use strict notation matching only (not loose day-name proximity)
-  if (/\bm[\/-]f\b|mon[\s-]*fri/i.test(note) || dpw === 5) return 'M-F';
-  if (/\bm\/w\/f\b/i.test(note) || dpw === 3) return 'M/W/F';
-  if (/\bt\/th\b/i.test(note) || dpw === 2) return 'T/Th';
-  if (/\bm\/f\b/i.test(note)) return 'M/F';
-
-  if (dpw === 6) return '6x/wk';
-  if (dpw === 4) return '4x/wk';
-  if (dpw === 1) {
-    const singleDay = note.match(/\b(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/i);
-    if (singleDay) return singleDay[1].charAt(0).toUpperCase() + singleDay[1].slice(1, 3);
-    return '1x/wk';
-  }
-
-  // Try to extract specific short day names from timingNote (only as fallback)
-  const dayPattern = /\b(sun|mon|tue|wed|thu|fri|sat)\b/gi;
-  const matches = note.match(dayPattern);
-  if (matches && matches.length > 0 && matches.length <= 4) {
-    return matches.map(d => d.charAt(0).toUpperCase() + d.slice(1, 3)).join('/');
-  }
-
+  const note = compound.timingNote || '';
+  const days = getScheduledDays(note, dpw);
+  if (days.length === 7) return 'Daily';
+  if (days.length === 5 && days.join(',') === '1,2,3,4,5') return 'M-F';
+  if (days.length === 3 && days.join(',') === '1,3,5') return 'M/W/F';
+  if (days.length === 2 && days.join(',') === '2,4') return 'T/Th';
+  if (days.length === 2 && days.join(',') === '1,5') return 'M/F';
+  if (days.length >= 1 && days.length <= 5) return days.map(d => DAY_SHORT[d]).join('/');
   return `${dpw}x/wk`;
 }
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -143,21 +154,35 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
         {/* Day Selector */}
         <div className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-thin">
           {weeklySchedule.map((day) => (
-            <button
-              key={day.dayIndex}
-              onClick={() => setSelectedDay(day.dayIndex)}
-              className={`flex-shrink-0 px-3 py-2.5 sm:py-2 rounded-lg text-xs font-medium transition-all touch-manipulation ${
-                selectedDay === day.dayIndex
-                  ? 'bg-primary text-primary-foreground glow-cyan'
-                  : day.dayIndex === today
-                    ? 'bg-secondary border border-primary/30 text-primary'
-                    : 'bg-secondary text-secondary-foreground active:bg-secondary/60'
-              }`}
-            >
-              {day.shortName}
-            </button>
+            <Tooltip key={day.dayIndex}>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setSelectedDay(day.dayIndex)}
+                  className={`flex-shrink-0 px-3 py-2.5 sm:py-2 rounded-lg text-xs font-medium transition-all touch-manipulation ${
+                    selectedDay === day.dayIndex
+                      ? 'bg-primary text-primary-foreground glow-cyan'
+                      : day.dayIndex === today
+                        ? 'bg-secondary border border-primary/30 text-primary'
+                        : 'bg-secondary text-secondary-foreground active:bg-secondary/60'
+                  }`}
+                >
+                  {day.shortName}
+                </button>
+              </TooltipTrigger>
+              {day.dayIndex === today && (
+                <TooltipContent side="bottom" className="text-xs">
+                  Today — dose checkmarks only apply here
+                </TooltipContent>
+              )}
+            </Tooltip>
           ))}
         </div>
+        {/* Non-today hint */}
+        {!isViewingToday && (
+          <p className="text-[10px] text-muted-foreground/60 text-center -mt-2">
+            Viewing {schedule.dayName} · Checkmarks only active on <button onClick={() => setSelectedDay(today)} className="text-primary underline-offset-2 underline">Today</button>
+          </p>
+        )}
 
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-bold text-foreground">{schedule.dayName}</h2>
