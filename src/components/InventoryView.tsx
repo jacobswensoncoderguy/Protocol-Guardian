@@ -1518,7 +1518,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                   </div>
                 )}
                 <div>
-                  <span className="text-muted-foreground">Reorder:</span>{' '}
+                  <span className="text-muted-foreground">Reorder by:</span>{' '}
                   <span className="font-mono text-accent">{reorderDate}</span>
                 </div>
               </div>
