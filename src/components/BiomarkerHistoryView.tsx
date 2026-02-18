@@ -1,10 +1,12 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   ChevronDown, ChevronUp, Calendar,
   X, Trash2, RefreshCw, Loader2, Upload, AlertTriangle, FlaskConical,
   AlertCircle, Droplets, Bone, Zap, Syringe, Heart, Bug, ClipboardList,
-  Link2, Pencil, Check, GitCompare, BookMarked, Info, Sparkles,
+  Link2, Pencil, Check, GitCompare, BookMarked, Info, Sparkles, Settings2,
+  ArrowRightLeft,
 } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
 import { supabase } from '@/integrations/supabase/client';
 import { format, differenceInDays } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -17,7 +19,8 @@ import { UserGoal } from '@/hooks/useGoals';
 import { toast } from 'sonner';
 
 // ── Constants ────────────────────────────────────────────────────
-const FLAG_RECENCY_DAYS = 90; // Flags only count if upload is ≤90 days old
+const DEFAULT_FLAG_RECENCY_DAYS = 90;
+const RECENCY_OPTIONS = [30, 60, 90, 180] as const;
 
 interface BiomarkerHistoryProps {
   userId?: string;
@@ -71,20 +74,26 @@ function parseRecordDate(upload: UploadRecord): Date {
   return isNaN(d.getTime()) ? new Date(0) : d;
 }
 
-function isUploadRecent(upload: UploadRecord): boolean {
-  const days = differenceInDays(new Date(), parseRecordDate(upload));
-  return days <= FLAG_RECENCY_DAYS;
+function makeIsUploadRecent(flagRecencyDays: number) {
+  return (upload: UploadRecord): boolean => {
+    const days = differenceInDays(new Date(), parseRecordDate(upload));
+    return days <= flagRecencyDays;
+  };
 }
 
 // ─── Flagged markers popover ─────────────────────────────────────
 function FlaggedBadgePopover({
   uploads,
+  flagRecencyDays,
+  onRecencyChange,
 }: {
   uploads: UploadRecord[];
+  flagRecencyDays: number;
+  onRecencyChange: (days: number) => void;
 }) {
-  // Build flagged marker info with recency awareness
+  const isUploadRecent = useMemo(() => makeIsUploadRecent(flagRecencyDays), [flagRecencyDays]);
+
   const { recentFlags, staleFlags, recentUploadDate } = useMemo(() => {
-    // Most-recent upload that is within threshold
     const recentUploads = uploads.filter(isUploadRecent);
     const staleUploads = uploads.filter(u => !isUploadRecent(u));
 
@@ -124,10 +133,14 @@ function FlaggedBadgePopover({
       staleFlags: Array.from(staleFlagMap.values()),
       recentUploadDate: newestDate,
     };
-  }, [uploads]);
+  }, [uploads, isUploadRecent]);
 
   const totalRecent = recentFlags.length;
   if (totalRecent === 0 && staleFlags.length === 0) return null;
+
+  // Map slider index → value
+  const sliderIndex = RECENCY_OPTIONS.indexOf(flagRecencyDays as typeof RECENCY_OPTIONS[number]);
+  const safeSliderIndex = sliderIndex === -1 ? 1 : sliderIndex; // default 90d = index 2
 
   return (
     <Popover>
@@ -138,18 +151,44 @@ function FlaggedBadgePopover({
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0 bg-card border-border shadow-xl z-[60]" align="start" side="bottom">
+        {/* Header */}
         <div className="px-3 pt-3 pb-2 border-b border-border/40">
           <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
             <AlertTriangle className="w-3.5 h-3.5 text-status-warning" />
             Current Flags
           </p>
           <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">
-            Flags are derived from uploads within the last {FLAG_RECENCY_DAYS} days. Older data is tracked as history only.
+            Flags from uploads within the last <strong>{flagRecencyDays} days</strong>. Older data tracked as history only.
             {recentUploadDate && ` Most recent: ${recentUploadDate}.`}
           </p>
         </div>
 
-        <div className="max-h-60 overflow-y-auto px-3 py-2 space-y-1">
+        {/* Recency threshold slider */}
+        <div className="px-3 py-2.5 border-b border-border/30 bg-secondary/10">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+              <Settings2 className="w-3 h-3" /> Recency Window
+            </span>
+            <span className="text-[10px] font-mono text-primary font-semibold">{flagRecencyDays}d</span>
+          </div>
+          <Slider
+            min={0}
+            max={RECENCY_OPTIONS.length - 1}
+            step={1}
+            value={[safeSliderIndex]}
+            onValueChange={([idx]) => onRecencyChange(RECENCY_OPTIONS[idx])}
+            className="w-full"
+          />
+          <div className="flex justify-between mt-1">
+            {RECENCY_OPTIONS.map(opt => (
+              <span key={opt} className={`text-[9px] tabular-nums ${opt === flagRecencyDays ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>
+                {opt}d
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="max-h-52 overflow-y-auto px-3 py-2 space-y-1">
           {totalRecent > 0 ? (
             <>
               {recentFlags.map((f, i) => (
@@ -179,7 +218,7 @@ function FlaggedBadgePopover({
         {staleFlags.length > 0 && (
           <div className="border-t border-border/40 px-3 py-2 bg-secondary/10 rounded-b-lg">
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
-              <Info className="w-3 h-3" /> Historical (older than {FLAG_RECENCY_DAYS}d)
+              <Info className="w-3 h-3" /> Historical (older than {flagRecencyDays}d)
             </p>
             <div className="space-y-1">
               {staleFlags.slice(0, 5).map((f, i) => (
@@ -457,15 +496,37 @@ function DetailSheet({
                           <div key={i} className="flex items-center justify-between text-xs px-2.5 py-2 rounded-lg bg-secondary/20">
                             <span className="text-foreground flex-1 min-w-0 truncate">{m.name}</span>
                             <div className="flex items-center gap-2 flex-shrink-0">
-                              {/* Sparkline if we have 2+ historical data points */}
-                              {trend && (
-                                <MiniSparkline
-                                  values={trend.values}
-                                  width={40}
-                                  height={14}
-                                  className="opacity-80"
-                                />
-                              )}
+                              {/* Sparkline with tooltip if 2+ historical data points */}
+                              {trend ? (
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <button className="focus:outline-none" title={`${m.name} trend — click for details`}>
+                                      <MiniSparkline
+                                        values={trend.values}
+                                        width={40}
+                                        height={14}
+                                        className="opacity-80 hover:opacity-100 transition-opacity cursor-pointer"
+                                      />
+                                    </button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-52 p-2.5 bg-card border-border shadow-xl z-[70]" side="top" align="end">
+                                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{m.name} trend</p>
+                                    <div className="space-y-1">
+                                      {trend.dates.map((d, di) => (
+                                        <div key={di} className="flex items-center justify-between text-[10px]">
+                                          <span className="text-muted-foreground">{d}</span>
+                                          <span className={`font-mono font-medium ${
+                                            di === trend.dates.length - 1 ? 'text-foreground' : 'text-muted-foreground'
+                                          }`}>
+                                            {trend.values[di]} {m.unit}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                    <p className="text-[9px] text-muted-foreground mt-1.5 italic">{trend.values.length} readings across uploads</p>
+                                  </PopoverContent>
+                                </Popover>
+                              ) : null}
                               <span className="font-mono text-foreground">{m.value} {m.unit}</span>
                               <span className={`text-[10px] ${STATUS_TEXT_COLORS[m.status] || 'text-muted-foreground'}`}>
                                 {m.status === 'normal' ? '✓' : m.status?.replace('_', ' ').toUpperCase()}
@@ -538,6 +599,29 @@ function ComparisonSheet({
   const [saveLabel, setSaveLabel] = useState('');
   const [showSaveForm, setShowSaveForm] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // Key Changes diff: markers that moved normal↔flagged between first and last upload
+  const keyChanges = useMemo(() => {
+    if (uploads.length < 2) return [];
+    const sorted = [...uploads].sort((a, b) => parseRecordDate(a).getTime() - parseRecordDate(b).getTime());
+    const earliest = sorted[0];
+    const latest = sorted[sorted.length - 1];
+    const oldMap = new Map<string, string>();
+    const newMap = new Map<string, { value: any; unit: string; status: string }>();
+    (earliest.ai_extracted_data?.biomarkers || []).forEach((b: any) => oldMap.set(b.name, b.status));
+    (latest.ai_extracted_data?.biomarkers || []).forEach((b: any) => newMap.set(b.name, { value: b.value, unit: b.unit, status: b.status }));
+
+    const changes: { name: string; from: string; to: string; value: any; unit: string; direction: 'improved' | 'worsened' | 'changed' }[] = [];
+    newMap.forEach((curr, name) => {
+      const prev = oldMap.get(name);
+      if (!prev || prev === curr.status) return;
+      const wasNormal = prev === 'normal';
+      const isNormal = curr.status === 'normal';
+      const direction = wasNormal && !isNormal ? 'worsened' : !wasNormal && isNormal ? 'improved' : 'changed';
+      changes.push({ name, from: prev, to: curr.status, value: curr.value, unit: curr.unit, direction });
+    });
+    return changes;
+  }, [uploads]);
 
   const generateComparison = useCallback(async () => {
     if (uploads.length < 2) {
@@ -705,6 +789,35 @@ function ComparisonSheet({
               >
                 <RefreshCw className="w-3 h-3" /> Re-analyze
               </button>
+            </div>
+          )}
+
+          {/* Key Changes diff table — shown after analysis if any markers changed status */}
+          {keyChanges.length > 0 && !loading && (
+            <div className="rounded-xl border border-border/50 bg-secondary/10 p-3 space-y-2">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <ArrowRightLeft className="w-3 h-3 text-primary" /> Key Changes
+              </p>
+              <p className="text-[10px] text-muted-foreground">Markers that moved between normal and flagged across selected uploads</p>
+              <div className="space-y-1">
+                {keyChanges.map((c, i) => (
+                  <div key={i} className="flex items-center justify-between text-xs px-2 py-1.5 rounded-lg bg-card border border-border/30">
+                    <span className="font-medium text-foreground min-w-0 truncate flex-1 mr-2">{c.name}</span>
+                    <div className="flex items-center gap-1.5 flex-shrink-0 text-[10px]">
+                      <span className={`px-1 py-0.5 rounded font-medium ${c.from === 'normal' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-status-warning/10 text-status-warning'}`}>
+                        {c.from.replace('_', ' ')}
+                      </span>
+                      <span className="text-muted-foreground">→</span>
+                      <span className={`px-1 py-0.5 rounded font-medium ${c.to === 'normal' ? 'bg-emerald-500/10 text-emerald-400' : c.to.startsWith('critical') ? 'bg-destructive/10 text-destructive' : 'bg-status-warning/10 text-status-warning'}`}>
+                        {c.to.replace('_', ' ')}
+                      </span>
+                      <span className={`ml-1 font-semibold ${c.direction === 'improved' ? 'text-emerald-400' : c.direction === 'worsened' ? 'text-destructive' : 'text-muted-foreground'}`}>
+                        {c.direction === 'improved' ? '↑' : c.direction === 'worsened' ? '↓' : '↔'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -969,6 +1082,9 @@ export default function BiomarkerHistoryView({
   // Saved comparisons
   const [savedComparisons, setSavedComparisons] = useState<SavedComparison[]>([]);
 
+  // Recency threshold for flags — persisted to profile
+  const [flagRecencyDays, setFlagRecencyDays] = useState<number>(DEFAULT_FLAG_RECENCY_DAYS);
+
   const fetchUploads = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
@@ -986,6 +1102,11 @@ export default function BiomarkerHistoryView({
     const { data } = await supabase.from('profiles').select('app_features').eq('user_id', userId).single();
     const comps: SavedComparison[] = (data?.app_features as any)?.lab_comparisons || [];
     setSavedComparisons(comps);
+    // Also restore persisted recency days
+    const savedRecency = (data?.app_features as any)?.flag_recency_days;
+    if (savedRecency && RECENCY_OPTIONS.includes(savedRecency)) {
+      setFlagRecencyDays(savedRecency);
+    }
   }, [userId]);
 
   useEffect(() => { fetchUploads(); fetchSavedComparisons(); }, [fetchUploads, fetchSavedComparisons]);
@@ -1055,9 +1176,10 @@ export default function BiomarkerHistoryView({
 
   const hasDateFilter = dateFrom || dateTo;
 
-  // Flagged count — recency-aware (only count uploads within FLAG_RECENCY_DAYS)
+  // Flagged count — recency-aware
   const recentFlaggedCount = useMemo(() => {
-    const recentUploads = uploads.filter(isUploadRecent);
+    const isRecent = makeIsUploadRecent(flagRecencyDays);
+    const recentUploads = uploads.filter(isRecent);
     const markerMap = new Map<string, string>();
     [...recentUploads].reverse().forEach(upload => {
       (upload.ai_extracted_data?.biomarkers || []).forEach((b: any) => {
@@ -1067,7 +1189,18 @@ export default function BiomarkerHistoryView({
     let count = 0;
     markerMap.forEach(status => { if (status !== 'normal') count++; });
     return count;
-  }, [uploads]);
+  }, [uploads, flagRecencyDays]);
+
+  const handleRecencyChange = useCallback(async (days: number) => {
+    setFlagRecencyDays(days);
+    if (!userId) return;
+    try {
+      const { data: profile } = await supabase.from('profiles').select('app_features').eq('user_id', userId).single();
+      await supabase.from('profiles').update({
+        app_features: { ...(profile?.app_features as any || {}), flag_recency_days: days },
+      }).eq('user_id', userId);
+    } catch { /* silent — UI already updated */ }
+  }, [userId]);
 
   const totalMarkersTracked = useMemo(() => {
     const names = new Set<string>();
@@ -1159,7 +1292,11 @@ export default function BiomarkerHistoryView({
                 {totalMarkersTracked} marker{totalMarkersTracked !== 1 ? 's' : ''} tracked
               </span>
               {/* Clickable flagged badge with popover */}
-              <FlaggedBadgePopover uploads={uploads} />
+              <FlaggedBadgePopover
+                uploads={uploads}
+                flagRecencyDays={flagRecencyDays}
+                onRecencyChange={handleRecencyChange}
+              />
             </div>
             <p className="text-[11px] text-muted-foreground mt-0.5">
               {uploads.length} upload{uploads.length !== 1 ? 's' : ''} · tap a tile to view full analysis
