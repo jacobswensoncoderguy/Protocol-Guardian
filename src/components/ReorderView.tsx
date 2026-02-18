@@ -46,7 +46,10 @@ function buildNeededItems(compounds: Compound[]): (Omit<OrderItem, 'id' | 'order
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const items: (Omit<OrderItem, 'id' | 'ordered_at' | 'received_at'>)[] = [];
 
-  compounds.forEach(compound => {
+  // Exclude dormant placeholders and zero-quantity entries with no purchase date
+  const activeCompounds = compounds.filter(c => !c.notes?.includes('[DORMANT]') && c.currentQuantity > 0);
+
+  activeCompounds.forEach(compound => {
     const daysLeft = getDaysRemainingWithCycling(compound);
     if (daysLeft > 60) return;
 
@@ -64,8 +67,8 @@ function buildNeededItems(compounds: Compound[]): (Omit<OrderItem, 'id' | 'order
   });
 
   return items.sort((a, b) => {
-    const compA = compounds.find(c => c.id === a.compound_id);
-    const compB = compounds.find(c => c.id === b.compound_id);
+    const compA = activeCompounds.find(c => c.id === a.compound_id);
+    const compB = activeCompounds.find(c => c.id === b.compound_id);
     return (compA ? getDaysRemainingWithCycling(compA) : 999) - (compB ? getDaysRemainingWithCycling(compB) : 999);
   });
 }
@@ -231,8 +234,9 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [] }: Re
   const orderedGroups = groupByProtocol(orderedItems, protocols, compoundMap);
   const receivedGroups = groupByProtocol(receivedItems, protocols, compoundMap);
 
-  const criticalCompounds = compounds.filter(c => getStatus(getDaysRemainingWithCycling(c)) === 'critical');
-  const warningCompounds = compounds.filter(c => getStatus(getDaysRemainingWithCycling(c)) === 'warning');
+  const activeCompounds = compounds.filter(c => !c.notes?.includes('[DORMANT]') && c.currentQuantity > 0);
+  const criticalCompounds = activeCompounds.filter(c => getStatus(getDaysRemainingWithCycling(c)) === 'critical');
+  const warningCompounds = activeCompounds.filter(c => getStatus(getDaysRemainingWithCycling(c)) === 'warning');
 
   return (
     <>
