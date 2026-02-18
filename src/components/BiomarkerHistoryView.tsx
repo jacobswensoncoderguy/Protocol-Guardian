@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Beaker, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus, Calendar, FileText, X } from 'lucide-react';
+import { Beaker, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus, Calendar, FileText, X, Trash2, RefreshCw, Loader2 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
@@ -8,6 +8,7 @@ import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import BiomarkerComparisonChart from './BiomarkerComparisonChart';
 import DexaScanView from './DexaScanView';
+import { toast } from 'sonner';
 
 interface BiomarkerHistoryProps {
   userId?: string;
@@ -74,6 +75,8 @@ export default function BiomarkerHistoryView({ userId, onUploadClick }: Biomarke
   const [expandedUpload, setExpandedUpload] = useState<string | null>(null);
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [reanalyzingId, setReanalyzingId] = useState<string | null>(null);
 
   const fetchUploads = useCallback(async () => {
     if (!userId) return;
@@ -91,6 +94,50 @@ export default function BiomarkerHistoryView({ userId, onUploadClick }: Biomarke
   }, [userId]);
 
   useEffect(() => { fetchUploads(); }, [fetchUploads]);
+
+  const handleDelete = useCallback(async (uploadId: string) => {
+    setDeletingId(uploadId);
+    try {
+      const { error } = await supabase.from('user_goal_uploads').delete().eq('id', uploadId);
+      if (error) throw error;
+      setUploads(prev => prev.filter(u => u.id !== uploadId));
+      toast.success('Upload deleted');
+    } catch (e: any) {
+      toast.error('Failed to delete upload');
+    } finally {
+      setDeletingId(null);
+    }
+  }, []);
+
+  const handleReanalyze = useCallback(async (upload: UploadRecord) => {
+    setReanalyzingId(upload.id);
+    try {
+      const existingData = upload.ai_extracted_data;
+      // Re-parse using stored summary/type context as the content
+      const content = JSON.stringify(existingData?.biomarkers || []);
+      const { data, error } = await supabase.functions.invoke('parse-biomarkers', {
+        body: {
+          fileContent: `Re-analyze these biomarkers and improve categorization, status, and recommendations:\n${content}`,
+          fileType: upload.upload_type || 'medical document',
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      const { error: updateError } = await supabase
+        .from('user_goal_uploads')
+        .update({ ai_extracted_data: data })
+        .eq('id', upload.id);
+      if (updateError) throw updateError;
+
+      setUploads(prev => prev.map(u => u.id === upload.id ? { ...u, ai_extracted_data: data } : u));
+      toast.success('Re-analysis complete');
+    } catch (e: any) {
+      toast.error(e.message || 'Re-analysis failed');
+    } finally {
+      setReanalyzingId(null);
+    }
+  }, []);
 
   // Filter uploads by date range
   const filteredUploads = useMemo(() => {
@@ -440,29 +487,53 @@ export default function BiomarkerHistoryView({ userId, onUploadClick }: Biomarke
 
           return (
             <div key={upload.id} className="border-b border-border/20 last:border-0">
-              <button
-                onClick={() => setExpandedUpload(isExpanded ? null : upload.id)}
-                className="w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-secondary/20 transition-colors"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <FileText className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-                  <div className="min-w-0">
-                    <span className="text-xs text-foreground capitalize">{docType.replace(/_/g, ' ')}</span>
-                    <span className="text-[10px] text-muted-foreground ml-2">
-                      {new Date(upload.reading_date || upload.created_at).toLocaleDateString()}
-                    </span>
+              <div className="flex items-center">
+                <button
+                  onClick={() => setExpandedUpload(isExpanded ? null : upload.id)}
+                  className="flex-1 flex items-center justify-between px-3 py-2.5 text-left hover:bg-secondary/20 transition-colors min-w-0"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FileText className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                    <div className="min-w-0">
+                      <span className="text-xs text-foreground capitalize">{docType.replace(/_/g, ' ')}</span>
+                      <span className="text-[10px] text-muted-foreground ml-2">
+                        {new Date(upload.reading_date || upload.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className="text-[10px] text-muted-foreground">{biomarkers.length} markers</span>
-                  {flagged > 0 && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                      {flagged} flagged
-                    </span>
-                  )}
-                  {isExpanded ? <ChevronUp className="w-3 h-3 text-muted-foreground" /> : <ChevronDown className="w-3 h-3 text-muted-foreground" />}
-                </div>
-              </button>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-[10px] text-muted-foreground">{biomarkers.length} markers</span>
+                    {flagged > 0 && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                        {flagged} flagged
+                      </span>
+                    )}
+                    {isExpanded ? <ChevronUp className="w-3 h-3 text-muted-foreground" /> : <ChevronDown className="w-3 h-3 text-muted-foreground" />}
+                  </div>
+                </button>
+                {/* Re-analyze button */}
+                <button
+                  onClick={() => handleReanalyze(upload)}
+                  disabled={reanalyzingId === upload.id || deletingId === upload.id}
+                  title="Re-analyze with AI"
+                  className="p-2 text-muted-foreground hover:text-primary transition-colors disabled:opacity-40"
+                >
+                  {reanalyzingId === upload.id
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <RefreshCw className="w-3.5 h-3.5" />}
+                </button>
+                {/* Delete button */}
+                <button
+                  onClick={() => handleDelete(upload.id)}
+                  disabled={deletingId === upload.id || reanalyzingId === upload.id}
+                  title="Delete upload"
+                  className="p-2 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40"
+                >
+                  {deletingId === upload.id
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <Trash2 className="w-3.5 h-3.5" />}
+                </button>
+              </div>
 
               {isExpanded && (
                 <div className="px-3 pb-3 space-y-2">
