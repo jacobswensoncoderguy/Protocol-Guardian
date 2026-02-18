@@ -270,7 +270,7 @@ const Index = () => {
             </TabsTrigger>
             <TabsTrigger value="tracking" className="flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
               <LineChart className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-              <span>Tracking</span>
+              <span>Logging</span>
             </TabsTrigger>
             <TabsTrigger value="schedule" className="flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
               <Calendar className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
