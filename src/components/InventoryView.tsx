@@ -805,64 +805,6 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
         </div>
       )}
 
-      {/* Burn-down progress bar: shows depletion from purchase date to projected empty date */}
-      {(() => {
-        const effectiveQty = getEffectiveQuantity(compound);
-        const totalQty = compound.currentQuantity;
-        // consumed fraction = how much has been used out of what was purchased
-        const consumedFraction = totalQty > 0 ? Math.min(1, Math.max(0, 1 - effectiveQty / totalQty)) : 1;
-        const consumedPct = consumedFraction * 100;
-        // remaining fraction for color coding
-        const remainingFraction = 1 - consumedFraction;
-
-        // Purchase date label
-        const purchaseLabel = compound.purchaseDate
-          ? new Date(compound.purchaseDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-          : 'Start';
-        // Projected empty date label
-        const emptyDate = days < 999 && days > 0
-          ? new Date(Date.now() + days * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-          : days === 0 ? 'Empty' : null;
-
-        return (
-          <div className="mb-2 space-y-1">
-            <div className="relative h-2 bg-secondary rounded-full overflow-hidden">
-              {/* consumed portion */}
-              <div
-                className={`h-full rounded-l-full transition-all duration-500 ${
-                  compoundIsPaused ? 'bg-muted-foreground/30' :
-                  status === 'critical' ? 'bg-status-critical/70' :
-                  status === 'warning' ? 'bg-status-warning/70' :
-                  'bg-status-good/60'
-                }`}
-                style={{ width: `${consumedPct}%` }}
-              />
-              {/* remaining portion — brighter, right side */}
-              <div
-                className={`absolute top-0 right-0 h-full rounded-r-full transition-all duration-500 ${
-                  compoundIsPaused ? 'bg-muted-foreground/15' :
-                  status === 'critical' ? 'bg-status-critical/20' :
-                  status === 'warning' ? 'bg-status-warning/20' :
-                  'bg-status-good/20'
-                }`}
-                style={{ width: `${(1 - consumedFraction) * 100}%` }}
-              />
-            </div>
-            <div className="flex items-center justify-between text-[9px] font-mono text-muted-foreground/60">
-              <span>{purchaseLabel}</span>
-              <span className={`font-semibold text-[9px] ${
-                compoundIsPaused ? 'text-status-warning' :
-                status === 'critical' ? 'text-status-critical' :
-                status === 'warning' ? 'text-status-warning' :
-                'text-status-good'
-              }`}>
-                {compoundIsPaused ? 'Paused' : remainingFraction <= 0 ? 'Empty' : `${Math.round(remainingFraction * 100)}% left`}
-              </span>
-              {emptyDate && <span>{emptyDate}</span>}
-            </div>
-          </div>
-        );
-      })()}
 
       {/* Peptide reconstitution math — inline helper for syringe fills */}
       {isPeptide && !editing && compound.bacstatPerVial && compound.reconVolume && (
