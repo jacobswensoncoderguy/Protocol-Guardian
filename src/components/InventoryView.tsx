@@ -293,6 +293,31 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
   const isOil = compound.category === 'injectable-oil';
   const reorderDate = getReorderDateString(compound);
 
+  /** Build a human-readable math breakdown for peptides and oils */
+  const getDaysMathTooltip = (): string => {
+    const qty = compound.currentQuantity;
+    const dosePerDay = compound.dosePerUse * compound.dosesPerDay;
+    if (dosePerDay === 0 || compound.daysPerWeek === 0) return `${days} days remaining`;
+
+    if (isPeptide && compound.bacstatPerVial) {
+      // (vials × IU/vial) / (dose IU × doses/day × days/week ÷ 7)
+      const totalIU = qty * compound.bacstatPerVial;
+      const dailyRate = dosePerDay * (compound.daysPerWeek / 7);
+      const dpw = compound.daysPerWeek === 7 ? 'daily' : `${compound.daysPerWeek}×/wk`;
+      return `${qty} vials × ${compound.bacstatPerVial} IU = ${totalIU} IU total\n÷ ${compound.dosePerUse} IU${compound.dosesPerDay > 1 ? ` × ${compound.dosesPerDay}/day` : '/day'} (${dpw})\n= ${days} days`;
+    }
+    if (isOil && compound.vialSizeMl) {
+      // (vials × conc mg/mL × mL/vial) / daily dose mg
+      const totalMg = qty * compound.unitSize * compound.vialSizeMl;
+      const dpw = compound.daysPerWeek === 7 ? 'daily' : `${compound.daysPerWeek}×/wk`;
+      return `${qty} vials × ${compound.unitSize}mg/mL × ${compound.vialSizeMl}mL = ${totalMg}mg total\n÷ ${compound.dosePerUse}mg/day (${dpw})\n= ${days} days`;
+    }
+    // Oral/powder fallback
+    const totalUnits = qty * compound.unitSize;
+    const dailyUnits = dosePerDay * (compound.daysPerWeek / 7);
+    return `${qty} units × ${compound.unitSize} = ${totalUnits} doses total\n÷ ${dailyUnits.toFixed(1)}/day = ${days} days`;
+  };
+
   const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
   const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 
@@ -626,11 +651,14 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
             </span>
           )}
           {!compoundIsPaused && (compound.purchaseDate || isPeptide || isOil) && (
-            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
-              status === 'critical' ? 'bg-destructive/20 text-status-critical' :
-              status === 'warning' ? 'bg-accent/20 text-status-warning' :
-              'bg-status-good/10 text-status-good'
-            }`} title={`${days} days of supply remaining`}>
+            <span
+              className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full cursor-help whitespace-pre ${
+                status === 'critical' ? 'bg-destructive/20 text-status-critical' :
+                status === 'warning' ? 'bg-accent/20 text-status-warning' :
+                'bg-status-good/10 text-status-good'
+              }`}
+              title={getDaysMathTooltip()}
+            >
               {days}d left
             </span>
           )}
