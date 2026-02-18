@@ -777,7 +777,7 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
       )}
 
       {/* Biomarker History */}
-      <BiomarkerHistoryView userId={userId} onUploadClick={onUploadClick || (() => {})} />
+      <BiomarkerHistoryView userId={userId} onUploadClick={onUploadClick || (() => {})} goals={goals} onCreateGoal={onCreateGoal} onRefreshGoals={onRefreshGoals} />
 
       {/* Add Goal Dialog */}
       <AddGoalDialog
