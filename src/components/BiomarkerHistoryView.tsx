@@ -1,18 +1,15 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  Beaker, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus, Calendar,
+  ChevronDown, ChevronUp, Calendar,
   X, Trash2, RefreshCw, Loader2, Upload, AlertTriangle, FlaskConical,
   AlertCircle, Droplets, Bone, Zap, Syringe, Heart, Bug, ClipboardList,
   Link2, Pencil, Check,
 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
-import BiomarkerComparisonChart from './BiomarkerComparisonChart';
-import DexaScanView from './DexaScanView';
 import AlignToGoalDialog from './AlignToGoalDialog';
 import ConfirmDialog from './ConfirmDialog';
 import { UserGoal } from '@/hooks/useGoals';
@@ -36,37 +33,6 @@ interface UploadRecord {
   created_at: string;
 }
 
-interface BiomarkerPoint {
-  name: string;
-  value: number;
-  unit: string;
-  status: string;
-  date: string;
-  category: string;
-  reference_low?: number;
-  reference_high?: number;
-}
-
-// ─── Design tokens ────────────────────────────────────────────
-const MARKER_COLORS: Record<string, string> = {
-  'Total Testosterone': 'hsl(var(--primary))',
-  'Free Testosterone': 'hsl(var(--chart-2))',
-  'hs-CRP': 'hsl(var(--destructive))',
-  'Vitamin D': 'hsl(var(--chart-5))',
-  'Total Cholesterol': 'hsl(var(--chart-4))',
-  'LDL': 'hsl(var(--chart-4))',
-  'HDL': 'hsl(var(--chart-2))',
-  'Cortisol': 'hsl(var(--chart-3))',
-  'IGF-1': 'hsl(var(--primary))',
-  'Hemoglobin': 'hsl(var(--destructive))',
-  'Glucose': 'hsl(var(--chart-5))',
-  'Estradiol': 'hsl(var(--chart-3))',
-};
-const DEFAULT_COLOR = 'hsl(var(--muted-foreground))';
-
-const STATUS_ICONS: Record<string, typeof TrendingUp> = {
-  normal: Minus, low: TrendingDown, high: TrendingUp, critical_low: TrendingDown, critical_high: TrendingUp,
-};
 const STATUS_TEXT_COLORS: Record<string, string> = {
   normal: 'text-emerald-400', low: 'text-amber-400', high: 'text-amber-400',
   critical_low: 'text-destructive', critical_high: 'text-destructive',
@@ -86,6 +52,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   thyroid_panel: 'Thyroid Panels',
   other: 'Lab Results',
 };
+
 
 // ─── Inline edit form ─────────────────────────────────────────
 function InlineEditForm({
@@ -504,14 +471,12 @@ export default function BiomarkerHistoryView({
 }: BiomarkerHistoryProps) {
   const [uploads, setUploads] = useState<UploadRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedMarker, setExpandedMarker] = useState<string | null>(null);
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [reanalyzingId, setReanalyzingId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [alignUpload, setAlignUpload] = useState<UploadRecord | null>(null);
-  const trendsRef = useRef<HTMLDivElement>(null);
 
   const fetchUploads = useCallback(async () => {
     if (!userId) return;
@@ -562,7 +527,6 @@ export default function BiomarkerHistoryView({
       if (updateError) throw updateError;
       setUploads(prev => prev.map(u => u.id === upload.id ? { ...u, ai_extracted_data: data } : u));
       toast.success('Re-analysis complete');
-      setTimeout(() => trendsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
     } catch (e: any) {
       toast.error(e.message || 'Re-analysis failed');
     } finally { setReanalyzingId(null); }
@@ -582,35 +546,26 @@ export default function BiomarkerHistoryView({
 
   const hasDateFilter = dateFrom || dateTo;
 
-  // Build cross-upload timelines for trend cards
-  const allPoints: BiomarkerPoint[] = [];
-  [...uploads].reverse().forEach(upload => {
-    (upload.ai_extracted_data?.biomarkers || []).forEach((b: any) => {
-      allPoints.push({
-        name: b.name, value: b.value, unit: b.unit, status: b.status,
-        date: upload.reading_date?.split('T')[0] || upload.created_at.split('T')[0],
-        category: b.category, reference_low: b.reference_low, reference_high: b.reference_high,
+  // Compute flagged count for badge
+  const totalFlagged = useMemo(() => {
+    const markerMap = new Map<string, string>();
+    [...uploads].reverse().forEach(upload => {
+      (upload.ai_extracted_data?.biomarkers || []).forEach((b: any) => {
+        markerMap.set(b.name, b.status);
       });
     });
-  });
-
-  const markerTimelines = new Map<string, BiomarkerPoint[]>();
-  allPoints.forEach(p => {
-    const arr = markerTimelines.get(p.name) || [];
-    arr.push(p);
-    markerTimelines.set(p.name, arr);
-  });
-  markerTimelines.forEach(pts => pts.sort((a, b) => a.date.localeCompare(b.date)));
-
-  const KEY_MARKERS = ['Total Testosterone', 'Free Testosterone', 'hs-CRP', 'Vitamin D', 'Total Cholesterol', 'LDL', 'HDL', 'Cortisol', 'IGF-1'];
-  const keyMarkers = KEY_MARKERS.filter(m => markerTimelines.has(m));
-
-  const totalMarkersTracked = markerTimelines.size;
-  const totalFlagged = useMemo(() => {
     let count = 0;
-    markerTimelines.forEach(pts => { if (pts[pts.length - 1].status !== 'normal') count++; });
+    markerMap.forEach(status => { if (status !== 'normal') count++; });
     return count;
-  }, [markerTimelines]);
+  }, [uploads]);
+
+  const totalMarkersTracked = useMemo(() => {
+    const names = new Set<string>();
+    uploads.forEach(upload => {
+      (upload.ai_extracted_data?.biomarkers || []).forEach((b: any) => names.add(b.name));
+    });
+    return names.size;
+  }, [uploads]);
 
   useEffect(() => { onFlaggedCountChange?.(totalFlagged); }, [totalFlagged, onFlaggedCountChange]);
 
@@ -731,72 +686,6 @@ export default function BiomarkerHistoryView({
           </button>
         )}
       </div>
-
-      {/* DEXA Body Composition */}
-      <DexaScanView uploads={filteredUploads} />
-
-      {/* Key Marker Trend Cards (multi-upload only) */}
-      {keyMarkers.length > 0 && uploads.length >= 2 && (
-        <div ref={trendsRef}>
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Trends Across Uploads</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {keyMarkers.map(markerName => {
-              const points = markerTimelines.get(markerName)!;
-              const latest = points[points.length - 1];
-              const previous = points.length > 1 ? points[points.length - 2] : null;
-              const change = previous ? latest.value - previous.value : null;
-              const changePercent = previous ? ((change! / previous.value) * 100) : null;
-              const color = MARKER_COLORS[markerName] || DEFAULT_COLOR;
-              const StatusIcon = STATUS_ICONS[latest.status] || Minus;
-              const isExpanded = expandedMarker === markerName;
-              const chartData = points.map(p => ({
-                date: new Date(p.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-                value: p.value,
-              }));
-              return (
-                <div key={markerName} className="bg-card rounded-xl border border-border/50 overflow-hidden">
-                  <button onClick={() => setExpandedMarker(isExpanded ? null : markerName)} className="w-full p-3 text-left hover:bg-secondary/20 transition-colors">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[10px] text-muted-foreground truncate">{markerName}</span>
-                      <StatusIcon className={`w-3 h-3 ${STATUS_TEXT_COLORS[latest.status]}`} />
-                    </div>
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="text-lg font-mono font-bold text-foreground">{latest.value}</span>
-                      <span className="text-[10px] text-muted-foreground">{latest.unit}</span>
-                    </div>
-                    {change !== null && (
-                      <div className={`text-[10px] font-mono mt-0.5 ${change > 0 ? 'text-emerald-400' : change < 0 ? 'text-amber-400' : 'text-muted-foreground'}`}>
-                        {change > 0 ? '+' : ''}{change.toFixed(1)} ({changePercent! > 0 ? '+' : ''}{changePercent!.toFixed(1)}%)
-                      </div>
-                    )}
-                  </button>
-                  {isExpanded && chartData.length >= 2 && (
-                    <div className="px-2 pb-3">
-                      <div className="h-28">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={chartData}>
-                            <XAxis dataKey="date" tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                            <YAxis tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={30} domain={['auto', 'auto']} />
-                            <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '11px' }} />
-                            {latest.reference_high && <ReferenceLine y={latest.reference_high} stroke="hsl(var(--destructive))" strokeDasharray="3 3" strokeWidth={1} />}
-                            {latest.reference_low && <ReferenceLine y={latest.reference_low} stroke="hsl(var(--chart-5))" strokeDasharray="3 3" strokeWidth={1} />}
-                            <Line type="monotone" dataKey="value" stroke={color} strokeWidth={2} dot={{ r: 3, fill: color, strokeWidth: 0 }} activeDot={{ r: 5, fill: color }} />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Comparison Chart */}
-      {markerTimelines.size >= 2 && uploads.length >= 2 && (
-        <BiomarkerComparisonChart markerTimelines={markerTimelines} markerColors={MARKER_COLORS} defaultColor={DEFAULT_COLOR} />
-      )}
 
       {/* ── Category-grouped tile grid ── */}
       <div className="space-y-6">
