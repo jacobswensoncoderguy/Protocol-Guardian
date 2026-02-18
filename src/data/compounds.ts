@@ -83,17 +83,25 @@ export function getConsumedSinceDate(compound: Compound, referenceDate: Date = n
   const daysSincePurchase = Math.floor((now.getTime() - purchaseDay.getTime()) / (24 * 60 * 60 * 1000));
   if (daysSincePurchase <= 0) return 0; // purchase is today or in the future
 
-  const dailyConsumption = getNormalizedDailyConsumption(compound);
-  if (dailyConsumption === 0) return 0;
+  // Per-dose-day consumption (amount consumed on each active day)
+  const dosePerActiveDay = compound.dosePerUse * compound.dosesPerDay;
+  if (dosePerActiveDay === 0) return 0;
 
-  // If there is no cycling, every day counts
+  // daysPerWeek: how many days/week this is taken (0–7)
+  const daysPerWeek = Math.min(7, Math.max(0, compound.daysPerWeek || 0));
+
+  // No cycling: scale by daysPerWeek fraction
   if (!compound.cycleOnDays || !compound.cycleOffDays || !compound.cycleStartDate) {
-    return dailyConsumption * daysSincePurchase;
+    // Accurate active days = total days × (daysPerWeek / 7)
+    const activeDays = daysSincePurchase * (daysPerWeek / 7);
+    return dosePerActiveDay * activeDays;
   }
 
-  // With cycling: walk each day since purchase and only count ON days
+  // With cycling: walk each day since purchase and only count ON days,
+  // further weighted by daysPerWeek / 7 for partial-week schedules.
   const cycleLength = compound.cycleOnDays + compound.cycleOffDays;
   const cycleStart = new Date(compound.cycleStartDate);
+  const onFraction = daysPerWeek / 7;
   let consumed = 0;
 
   for (let d = 0; d < daysSincePurchase; d++) {
@@ -101,7 +109,7 @@ export function getConsumedSinceDate(compound: Compound, referenceDate: Date = n
     const diffDays = Math.floor((dayDate.getTime() - cycleStart.getTime()) / (24 * 60 * 60 * 1000));
     const dayInCycle = ((diffDays % cycleLength) + cycleLength) % cycleLength;
     if (dayInCycle < compound.cycleOnDays) {
-      consumed += dailyConsumption;
+      consumed += dosePerActiveDay * onFraction;
     }
   }
 
@@ -112,6 +120,11 @@ export function getConsumedSinceDate(compound: Compound, referenceDate: Date = n
  * Convert a consumed-supply amount (in native dose units) back to container units
  * (vials, bottles, bags) so we can subtract from currentQuantity.
  */
+/**
+ * Convert consumed dose units back to container units (vials, bottles).
+ * For orals/powders the "consumed" value from getConsumedSinceDate is in
+ * raw dose units (caps, mg, etc.), so we divide by unitSize (units per container).
+ */
 export function consumedToContainerUnits(compound: Compound, consumed: number): number {
   if (compound.category === 'peptide' && compound.bacstatPerVial) {
     return consumed / compound.bacstatPerVial;
@@ -119,7 +132,11 @@ export function consumedToContainerUnits(compound: Compound, consumed: number): 
   if (compound.category === 'injectable-oil' && compound.vialSizeMl) {
     return consumed / (compound.unitSize * compound.vialSizeMl);
   }
-  return consumed / compound.unitSize;
+  // For orals/powders: consumed is in raw dose units; unitSize = doses per container
+  if (compound.unitSize > 0) {
+    return consumed / compound.unitSize;
+  }
+  return 0;
 }
 
 /**
@@ -133,19 +150,31 @@ export function getEffectiveQuantity(compound: Compound): number {
   return Math.max(0, compound.currentQuantity - consumedUnits);
 }
 
+/**
+ * Get total supply in raw dose units (IU, mg, caps) from effective quantity.
+ */
+function totalSupplyInDoseUnits(compound: Compound, effectiveQty: number): number {
+  if (compound.category === 'peptide' && compound.bacstatPerVial) {
+    return effectiveQty * compound.bacstatPerVial;
+  }
+  if (compound.category === 'injectable-oil' && compound.vialSizeMl) {
+    return effectiveQty * compound.unitSize * compound.vialSizeMl;
+  }
+  // orals/powders: effectiveQty is in containers, unitSize = units per container
+  return effectiveQty * compound.unitSize;
+}
+
 export function getDaysRemaining(compound: Compound): number {
-  const dailyConsumption = getNormalizedDailyConsumption(compound);
-  if (dailyConsumption === 0) return 999;
+  const dosePerActiveDay = compound.dosePerUse * compound.dosesPerDay;
+  if (dosePerActiveDay === 0) return 999;
+  const daysPerWeek = Math.min(7, Math.max(0, compound.daysPerWeek || 0));
+  if (daysPerWeek === 0) return 999;
 
   const effectiveQty = getEffectiveQuantity(compound);
-
-  const totalSupply = compound.category === 'peptide' && compound.bacstatPerVial
-    ? effectiveQty * compound.bacstatPerVial
-    : compound.category === 'injectable-oil' && compound.vialSizeMl
-      ? effectiveQty * compound.unitSize * compound.vialSizeMl
-      : effectiveQty * compound.unitSize;
-
-  return Math.max(0, Math.floor(totalSupply / dailyConsumption));
+  const totalSupply = totalSupplyInDoseUnits(compound, effectiveQty);
+  // totalSupply is in dose units; divide by per-day consumption × weekly fraction
+  const dailyRate = dosePerActiveDay * (daysPerWeek / 7);
+  return Math.max(0, Math.floor(totalSupply / dailyRate));
 }
 
 export function getStatus(daysRemaining: number): CompoundStatus {

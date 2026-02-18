@@ -94,12 +94,15 @@ export function getEffectiveDailyConsumption(compound: Compound): number {
 export function getDaysRemainingWithCycling(compound: Compound): number {
   if (isPaused(compound)) return 999;
 
-  const rawDaily = getNormalizedDailyConsumption(compound);
-  if (rawDaily === 0) return 999;
+  const dosePerActiveDay = compound.dosePerUse * compound.dosesPerDay;
+  if (dosePerActiveDay === 0) return 999;
+  const daysPerWeek = Math.min(7, Math.max(0, compound.daysPerWeek || 0));
+  if (daysPerWeek === 0) return 999;
 
   // Use effective quantity (adjusted for usage since purchaseDate)
   const effectiveQty = getEffectiveQuantity(compound);
 
+  // Total supply in raw dose units
   const totalSupply = compound.category === 'peptide' && compound.bacstatPerVial
     ? effectiveQty * compound.bacstatPerVial
     : compound.category === 'injectable-oil' && compound.vialSizeMl
@@ -107,11 +110,12 @@ export function getDaysRemainingWithCycling(compound: Compound): number {
       : effectiveQty * compound.unitSize;
 
   if (!compound.cycleOnDays || !compound.cycleOffDays || !compound.cycleStartDate) {
-    // No cycling — simple division
-    return Math.max(0, Math.floor(totalSupply / rawDaily));
+    // No cycling — apply daysPerWeek fraction
+    const dailyRate = dosePerActiveDay * (daysPerWeek / 7);
+    return Math.max(0, Math.floor(totalSupply / dailyRate));
   }
 
-  // Walk forward through cycle to account for OFF days
+  // With cycling: walk forward through cycle days, consuming only on ON + active days
   const cycleLength = compound.cycleOnDays + compound.cycleOffDays;
   const start = new Date(compound.cycleStartDate);
   const now = new Date();
@@ -120,6 +124,7 @@ export function getDaysRemainingWithCycling(compound: Compound): number {
   startDiffDays -= getPausedDays(compound, now);
   const startDayInCycle = ((startDiffDays % cycleLength) + cycleLength) % cycleLength;
 
+  const onFraction = daysPerWeek / 7;
   let remaining = totalSupply;
   let day = 0;
 
@@ -127,7 +132,7 @@ export function getDaysRemainingWithCycling(compound: Compound): number {
     const dayInCycle = (startDayInCycle + day) % cycleLength;
     const isOn = dayInCycle < compound.cycleOnDays;
     if (isOn) {
-      remaining -= rawDaily;
+      remaining -= dosePerActiveDay * onFraction;
     }
     day++;
   }
