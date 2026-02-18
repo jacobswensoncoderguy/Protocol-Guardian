@@ -13,6 +13,12 @@ function parseDays(compound: Compound): number[] {
   const note = (compound.timingNote || '').toLowerCase();
   const dpw = compound.daysPerWeek;
 
+  // PRIORITY: if daysPerWeek is 7 OR the note contains "daily"/"nightly", use all days
+  // This must be checked BEFORE scanning for specific day names in the note
+  if (dpw === 7 || /\bdaily\b|\bnightly\b|\bevery\s*day\b/i.test(note)) {
+    return [0, 1, 2, 3, 4, 5, 6];
+  }
+
   // Specific day patterns
   if (/\bm[\/-]f\b|mon[\s-]*fri/i.test(note)) return [1, 2, 3, 4, 5];
   if (/\bm\/w\/f\b/i.test(note)) return [1, 3, 5];
@@ -41,14 +47,8 @@ function parseDays(compound: Compound): number[] {
     if (days.size > 0) return Array.from(days).sort();
   }
 
-  // Check for "daily" or "nightly"
-  if (/\bdaily\b|\bnightly\b|\bevery\s*day\b/i.test(note) || dpw === 7) {
-    return [0, 1, 2, 3, 4, 5, 6];
-  }
-
   // Default based on daysPerWeek
   switch (dpw) {
-    case 7: return [0, 1, 2, 3, 4, 5, 6];
     case 6: return [1, 2, 3, 4, 5, 6]; // Mon-Sat
     case 5: return [1, 2, 3, 4, 5]; // Mon-Fri
     case 4: return [1, 2, 4, 5]; // M/T/Th/F
