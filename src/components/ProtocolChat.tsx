@@ -2,11 +2,13 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Square, Trash2, Check, X, CheckCheck, Brain, ArrowRight, Mic, MicOff, Maximize2, Minimize2, PanelLeftOpen, PanelLeftClose, Copy, MessageCircle, Sparkles, TrendingUp, Shield, DollarSign, Clock, Undo2 } from 'lucide-react';
 import { toast } from 'sonner';
 import ChatMarkdown from '@/components/ChatMarkdown';
-import { ChatMessage, ChangeProposal, ProposedChange } from '@/hooks/useProtocolChat';
+import { ChatMessage, ChangeProposal, ProposedChange, PendingConfirm } from '@/hooks/useProtocolChat';
 import { useConversations } from '@/hooks/useConversations';
 import ChatSidebar from '@/components/ChatSidebar';
 import GeminiBadge from '@/components/GeminiBadge';
 import { useIsMobile } from '@/hooks/use-mobile';
+import ProtocolChangeConfirmSheet from '@/components/ProtocolChangeConfirmSheet';
+import { Compound } from '@/data/compounds';
 
 interface ProtocolChatProps {
   messages: ChatMessage[];
@@ -18,6 +20,11 @@ interface ProtocolChatProps {
   onRejectChange: (proposalId: string, changeIndex: number) => void;
   onApplyAll: (proposalId: string) => void;
   onUndoChange?: (proposalId: string, changeIndex: number) => void;
+  onConfirmChange?: () => void;
+  onCancelConfirm?: () => void;
+  pendingConfirm?: PendingConfirm | null;
+  proposals?: ChangeProposal[];
+  compounds?: Compound[];
   conversationManager: ReturnType<typeof useConversations>;
 }
 
@@ -152,7 +159,9 @@ const ChangeRow = ({
 
 const ProtocolChat = ({
   messages, isStreaming, onSend, onCancel, onClear,
-  onApplyChange, onRejectChange, onApplyAll, onUndoChange, conversationManager,
+  onApplyChange, onRejectChange, onApplyAll, onUndoChange,
+  onConfirmChange, onCancelConfirm, pendingConfirm, proposals = [], compounds = [],
+  conversationManager,
 }: ProtocolChatProps) => {
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
@@ -324,6 +333,7 @@ const ProtocolChat = ({
 
   // Expanded full-screen state
   return (
+    <>
     <div className="fixed inset-0 z-50 bg-background flex animate-scale-in">
       {/* Sidebar - absolute overlay on mobile, inline on desktop */}
       {showSidebar && (
@@ -530,6 +540,22 @@ const ProtocolChat = ({
         )}
       </div>
     </div>
+
+    {pendingConfirm && onConfirmChange && onCancelConfirm && (() => {
+      const proposal = proposals.find(p => p.id === pendingConfirm.proposalId);
+      const change = proposal?.changes[pendingConfirm.changeIndex] ?? null;
+      const compound = change ? (compounds.find(c => c.name === change.compoundName) ?? null) : null;
+      return (
+        <ProtocolChangeConfirmSheet
+          open={true}
+          change={change}
+          compound={compound}
+          onConfirm={onConfirmChange}
+          onCancel={onCancelConfirm}
+        />
+      );
+    })()}
+    </>
   );
 };
 

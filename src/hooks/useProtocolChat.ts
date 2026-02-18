@@ -31,6 +31,11 @@ export interface ChatMessage {
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-protocol`;
 
+export interface PendingConfirm {
+  proposalId: string;
+  changeIndex: number;
+}
+
 export function useProtocolChat(
   compounds: Compound[],
   protocols: UserProtocol[],
@@ -47,6 +52,7 @@ export function useProtocolChat(
   const [isStreaming, setIsStreaming] = useState(false);
   const [proposals, setProposals] = useState<ChangeProposal[]>([]);
   const [loadedConvId, setLoadedConvId] = useState<string | null>(null);
+  const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   // Load chat history when conversationId changes
@@ -295,20 +301,59 @@ export function useProtocolChat(
     }
   }, [messages, compounds, protocols, toleranceLevel, analysis, persistMessage, updatePersistedMessage, conversationId, onConversationUpdate]);
 
-  const applyChange = useCallback(async (proposalId: string, changeIndex: number) => {
+  // Step 1: Request confirmation before applying — sets pendingConfirm
+  const applyChange = useCallback((proposalId: string, changeIndex: number) => {
     const proposal = proposals.find(p => p.id === proposalId);
     if (!proposal) return;
     const change = proposal.changes[changeIndex];
     if (!change || change.status !== 'pending') return;
+    // Show confirm sheet instead of applying immediately
+    setPendingConfirm({ proposalId, changeIndex });
+  }, [proposals]);
+
+  // Step 2: Confirmed — actually write the change and cascade
+  const confirmChange = useCallback(async () => {
+    if (!pendingConfirm) return;
+    const { proposalId, changeIndex } = pendingConfirm;
+    setPendingConfirm(null);
+
+    const proposal = proposals.find(p => p.id === proposalId);
+    if (!proposal) return;
+    const change = proposal.changes[changeIndex];
+    if (!change) return;
     const compound = compounds.find(c => c.name === change.compoundName);
 
     if (change.type === 'remove_compound' && compound) {
       await deleteCompound(compound.id);
+      // Log protocol change
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('protocol_changes').insert({
+          user_id: user.id,
+          change_type: 'remove_compound',
+          compound_id: compound.id,
+          description: `Removed ${change.compoundName} (AI recommendation)`,
+          previous_value: change.oldValue,
+          new_value: null,
+        });
+      }
       toast.success(`Removed ${change.compoundName}`);
     } else if (compound && change.field && change.newValue !== undefined) {
       const numericFields = ['dosePerUse', 'dosesPerDay', 'daysPerWeek', 'cycleOnDays', 'cycleOffDays'];
       const value = numericFields.includes(change.field) ? parseFloat(change.newValue) : change.newValue;
       updateCompound(compound.id, { [change.field]: value } as Partial<Compound>);
+      // Log protocol change
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('protocol_changes').insert({
+          user_id: user.id,
+          change_type: change.type,
+          compound_id: compound.id,
+          description: `${change.compoundName}: ${change.field} updated (AI recommendation)`,
+          previous_value: change.oldValue,
+          new_value: change.newValue,
+        });
+      }
       toast.success(`Updated ${change.compoundName}: ${change.field} → ${change.newValue}`);
     }
 
@@ -325,7 +370,7 @@ export function useProtocolChat(
 
     // Cascade: refetch compounds so all views (schedule, dashboard, costs) update
     await refetch();
-  }, [proposals, compounds, updateCompound, deleteCompound, messages, updatePersistedMessage, refetch]);
+  }, [pendingConfirm, proposals, compounds, updateCompound, deleteCompound, messages, updatePersistedMessage, refetch]);
 
   const undoChange = useCallback(async (proposalId: string, changeIndex: number) => {
     const proposal = proposals.find(p => p.id === proposalId);
@@ -367,11 +412,45 @@ export function useProtocolChat(
     if (msg) updatePersistedMessage(msg.id, { proposal: updateProposalStatus(msg.proposal!) });
   }, [messages, updatePersistedMessage]);
 
-  const applyAllPending = useCallback((proposalId: string) => {
+  // "Accept All" uses confirmChange directly for each pending item in sequence
+  const applyAllPending = useCallback(async (proposalId: string) => {
     const proposal = proposals.find(p => p.id === proposalId);
     if (!proposal) return;
-    proposal.changes.forEach((change, i) => { if (change.status === 'pending') applyChange(proposalId, i); });
-  }, [proposals, applyChange]);
+    for (let i = 0; i < proposal.changes.length; i++) {
+      if (proposal.changes[i].status === 'pending') {
+        setPendingConfirm({ proposalId, changeIndex: i });
+        // Small delay to allow state to settle; caller shows confirm for each
+        // For "Accept All", we bypass confirm and apply directly
+        await (async () => {
+          const change = proposal.changes[i];
+          const compound = compounds.find(c => c.name === change.compoundName);
+          if (change.type === 'remove_compound' && compound) {
+            await deleteCompound(compound.id);
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) await supabase.from('protocol_changes').insert({ user_id: user.id, change_type: 'remove_compound', compound_id: compound.id, description: `Removed ${change.compoundName} (AI Accept All)`, previous_value: change.oldValue });
+            toast.success(`Removed ${change.compoundName}`);
+          } else if (compound && change.field && change.newValue !== undefined) {
+            const numericFields = ['dosePerUse', 'dosesPerDay', 'daysPerWeek', 'cycleOnDays', 'cycleOffDays'];
+            const value = numericFields.includes(change.field) ? parseFloat(change.newValue) : change.newValue;
+            updateCompound(compound.id, { [change.field]: value } as Partial<Compound>);
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) await supabase.from('protocol_changes').insert({ user_id: user.id, change_type: change.type, compound_id: compound.id, description: `${change.compoundName}: ${change.field} updated (AI Accept All)`, previous_value: change.oldValue, new_value: change.newValue });
+            toast.success(`Updated ${change.compoundName}`);
+          }
+        })();
+        const updateProposalStatus = (p: ChangeProposal) => ({
+          ...p,
+          changes: p.changes.map((c, ci) => ci === i ? { ...c, status: 'accepted' as const } : c),
+        });
+        setProposals(prev => prev.map(p => p.id === proposalId ? updateProposalStatus(p) : p));
+        setMessages(prev => prev.map(m => m.proposal?.id === proposalId ? { ...m, proposal: updateProposalStatus(m.proposal!) } : m));
+        const msg = messages.find(m => m.proposal?.id === proposalId);
+        if (msg) updatePersistedMessage(msg.id, { proposal: updateProposalStatus(msg.proposal!) });
+      }
+    }
+    setPendingConfirm(null);
+    await refetch();
+  }, [proposals, compounds, updateCompound, deleteCompound, messages, updatePersistedMessage, refetch]);
 
   const cancelStream = useCallback(() => { abortRef.current?.abort(); }, []);
 
@@ -387,6 +466,7 @@ export function useProtocolChat(
 
   return {
     messages, isStreaming, proposals,
-    sendMessage, applyChange, rejectChange, applyAllPending, cancelStream, clearChat, undoChange,
+    pendingConfirm, setPendingConfirm,
+    sendMessage, applyChange, confirmChange, rejectChange, applyAllPending, cancelStream, clearChat, undoChange,
   };
 }

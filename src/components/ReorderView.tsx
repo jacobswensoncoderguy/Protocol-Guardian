@@ -3,8 +3,9 @@ import { Compound, getReorderCost, getStatus } from '@/data/compounds';
 import { getDaysRemainingWithCycling, getEffectiveDailyConsumption } from '@/lib/cycling';
 import { UserProtocol } from '@/hooks/useProtocols';
 import { supabase } from '@/integrations/supabase/client';
-import { Check, Package, PackageCheck, ShoppingCart, Undo2, Trash2, ChevronDown, AlertTriangle, TrendingUp } from 'lucide-react';
+import { Check, Package, PackageCheck, ShoppingCart, Undo2, Trash2, ChevronDown, AlertTriangle, TrendingUp, ExternalLink, ShoppingBag, Info } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
 interface ReorderViewProps {
   compounds: Compound[];
@@ -97,6 +98,7 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [] }: Re
   const [tab, setTab] = useState<Tab>('needed');
   const [orders, setOrders] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [detailsCompound, setDetailsCompound] = useState<Compound | null>(null);
 
   const compoundMap = new Map(compounds.map(c => [c.id, c]));
 
@@ -233,6 +235,7 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [] }: Re
   const warningCompounds = compounds.filter(c => getStatus(getDaysRemainingWithCycling(c)) === 'warning');
 
   return (
+    <>
     <div className="space-y-3">
       {/* Inventory Alert Banner */}
       {(criticalCompounds.length > 0 || warningCompounds.length > 0) && (
@@ -307,34 +310,73 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [] }: Re
                       const days = compound ? getDaysRemainingWithCycling(compound) : 999;
                       const status = days <= 7 ? 'critical' : days <= 30 ? 'warning' : 'good';
                       return (
-                        <div key={`${item.compound_id}-${i}`} className={`bg-card rounded-lg border p-3 flex items-center justify-between ${
+                        <div key={`${item.compound_id}-${i}`} className={`bg-card rounded-lg border p-3 ${
                           status === 'critical' ? 'border-destructive/40' :
                           status === 'warning' ? 'border-accent/30' :
                           'border-border/50'
                         }`}>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <h4 className="text-sm font-semibold text-foreground truncate">{compound?.name || item.compound_id}</h4>
-                              <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
-                                status === 'critical' ? 'bg-destructive/20 text-status-critical' :
-                                status === 'warning' ? 'bg-accent/20 text-status-warning' :
-                                'bg-status-good/10 text-status-good'
-                              }`}>
-                                {days}d
-                              </span>
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <h4 className="text-sm font-semibold text-foreground truncate">{compound?.name || item.compound_id}</h4>
+                                <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
+                                  status === 'critical' ? 'bg-destructive/20 text-status-critical' :
+                                  status === 'warning' ? 'bg-accent/20 text-status-warning' :
+                                  'bg-status-good/10 text-status-good'
+                                }`}>
+                                  {days}d
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-3 mt-0.5 text-[10px] text-muted-foreground">
+                                <span>{getDisplayQty(item.compound_id, item.quantity)}</span>
+                                <span className="font-mono">${item.cost}</span>
+                                <span>{item.month_label}</span>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground">
-                              <span>{getDisplayQty(item.compound_id, item.quantity)}</span>
-                              <span className="font-mono">${item.cost}</span>
-                              <span>{item.month_label}</span>
+                            <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                              {compound && (
+                                <button
+                                  onClick={() => setDetailsCompound(compound)}
+                                  className="p-1.5 rounded-md bg-secondary/60 text-muted-foreground border border-border/30 active:bg-secondary touch-manipulation"
+                                  title="View compound details"
+                                >
+                                  <Info className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleMarkOrdered(item.compound_id, item.quantity, item.cost, item.month_label)}
+                                className="px-3 py-1.5 rounded-md bg-primary/15 text-primary text-xs font-medium border border-primary/30 active:bg-primary/25 touch-manipulation"
+                              >
+                                Order
+                              </button>
                             </div>
                           </div>
-                          <button
-                            onClick={() => handleMarkOrdered(item.compound_id, item.quantity, item.cost, item.month_label)}
-                            className="ml-2 px-3 py-1.5 rounded-md bg-primary/15 text-primary text-xs font-medium border border-primary/30 active:bg-primary/25 touch-manipulation flex-shrink-0"
-                          >
-                            Order
-                          </button>
+                          {/* Search links */}
+                          {compound && (
+                            <div className="flex items-center gap-1.5 pt-2 border-t border-border/20">
+                              <span className="text-[9px] uppercase tracking-wider text-muted-foreground mr-0.5">Shop:</span>
+                              <a
+                                href={`https://www.amazon.com/s?k=${encodeURIComponent(compound.name + ' supplement')}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-accent/15 text-accent-foreground border border-accent/30 hover:bg-accent/25 transition-colors"
+                              >
+                                <ShoppingBag className="w-2.5 h-2.5" />
+                                Amazon
+                                <ExternalLink className="w-2 h-2 opacity-60" />
+                              </a>
+                              <a
+                                href={`https://www.google.com/search?q=${encodeURIComponent(compound.name + ' supplement buy')}&tbm=shop`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-secondary text-muted-foreground border border-border/40 hover:bg-secondary/80 transition-colors"
+                              >
+                                <ShoppingCart className="w-2.5 h-2.5" />
+                                Google
+                                <ExternalLink className="w-2 h-2 opacity-60" />
+                              </a>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -485,6 +527,89 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [] }: Re
         </div>
       )}
     </div>
+
+    {/* Compound details sheet for reorder reference */}
+    <Sheet open={!!detailsCompound} onOpenChange={(v) => { if (!v) setDetailsCompound(null); }}>
+      <SheetContent side="bottom" className="rounded-t-2xl max-h-[80vh] overflow-y-auto">
+        {detailsCompound && (
+          <>
+            <SheetHeader className="mb-4">
+              <SheetTitle className="flex items-center gap-2">
+                <Package className="w-4 h-4 text-primary" />
+                {detailsCompound.name}
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-primary/10 text-primary capitalize">{detailsCompound.category.replace(/-/g,' ')}</span>
+              </SheetTitle>
+            </SheetHeader>
+
+            {/* Full compound specs */}
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: 'Dose per Use', value: `${detailsCompound.dosePerUse} ${detailsCompound.doseLabel}` },
+                  { label: 'Doses / Day', value: `${detailsCompound.dosesPerDay}x` },
+                  { label: 'Days / Week', value: `${detailsCompound.daysPerWeek} days` },
+                  { label: 'Unit Size', value: `${detailsCompound.unitSize} ${detailsCompound.unitLabel}` },
+                  { label: 'Unit Price', value: `$${detailsCompound.unitPrice}` },
+                  { label: 'On Hand', value: `${detailsCompound.currentQuantity} ${detailsCompound.unitLabel}` },
+                  { label: 'Reorder Qty', value: getDisplayQty(detailsCompound.id, detailsCompound.reorderQuantity) },
+                  { label: 'Reorder Cost', value: `$${getReorderCost(detailsCompound)}` },
+                  ...(detailsCompound.vialSizeMl ? [{ label: 'Vial Size', value: `${detailsCompound.vialSizeMl} mL` }] : []),
+                  ...(detailsCompound.reconVolume ? [{ label: 'Recon Volume', value: `${detailsCompound.reconVolume} mL` }] : []),
+                  ...(detailsCompound.bacstatPerVial ? [{ label: 'Bac/Vial', value: `${detailsCompound.bacstatPerVial}` }] : []),
+                ].map(({ label, value }) => (
+                  <div key={label} className="bg-secondary/30 rounded-lg p-2.5 border border-border/20">
+                    <p className="text-[9px] uppercase tracking-wider text-muted-foreground mb-0.5">{label}</p>
+                    <p className="text-sm font-semibold text-foreground">{value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {detailsCompound.timingNote && (
+                <div className="bg-secondary/30 rounded-lg p-2.5 border border-border/20">
+                  <p className="text-[9px] uppercase tracking-wider text-muted-foreground mb-0.5">Timing</p>
+                  <p className="text-xs text-foreground">{detailsCompound.timingNote}</p>
+                </div>
+              )}
+
+              {detailsCompound.notes && (
+                <div className="bg-secondary/30 rounded-lg p-2.5 border border-border/20">
+                  <p className="text-[9px] uppercase tracking-wider text-muted-foreground mb-0.5">Notes</p>
+                  <p className="text-xs text-foreground">{detailsCompound.notes}</p>
+                </div>
+              )}
+
+              {/* Search links in details sheet */}
+              <div className="pt-2 border-t border-border/30">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Search to Purchase</p>
+                <div className="flex gap-2">
+                  <a
+                    href={`https://www.amazon.com/s?k=${encodeURIComponent(detailsCompound.name + ' supplement')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-accent/15 text-accent-foreground border border-accent/30 hover:bg-accent/25 transition-colors text-xs font-medium"
+                  >
+                    <ShoppingBag className="w-3.5 h-3.5" />
+                    Amazon
+                    <ExternalLink className="w-3 h-3 opacity-60" />
+                  </a>
+                  <a
+                    href={`https://www.google.com/search?q=${encodeURIComponent(detailsCompound.name + ' supplement buy')}&tbm=shop`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-secondary text-muted-foreground border border-border/40 hover:bg-secondary/80 transition-colors text-xs font-medium"
+                  >
+                    <ShoppingCart className="w-3.5 h-3.5" />
+                    Google Shop
+                    <ExternalLink className="w-3 h-3 opacity-60" />
+                  </a>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </SheetContent>
+    </Sheet>
+    </>
   );
 };
 
