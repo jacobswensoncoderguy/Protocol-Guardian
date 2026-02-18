@@ -185,8 +185,19 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
     setEditDosePerUse(String(compound?.dosePerUse || ''));
     setEditDoseLabel(compound?.doseLabel || '');
     setEditDosesPerDay(String(compound?.dosesPerDay || ''));
-    setEditWeightPerUnit(compound?.weightPerUnit != null ? String(compound.weightPerUnit) : '');
-    setEditWeightUnit(compound?.weightUnit || 'mg');
+    // Pre-populate weight in the display unit (convert from internal mg)
+    const weightUnit = compound?.weightUnit || 'mg';
+    const wpuMg = compound?.weightPerUnit;
+    let wpuDisplay = '';
+    if (wpuMg != null && wpuMg > 0) {
+      if (weightUnit === 'g') wpuDisplay = String(wpuMg / 1000);
+      else if (weightUnit === 'mcg') wpuDisplay = String(wpuMg * 1000);
+      else if (weightUnit === 'oz') wpuDisplay = String((wpuMg / 28349.5).toFixed(4).replace(/\.?0+$/, ''));
+      else if (weightUnit === 'lb') wpuDisplay = String((wpuMg / 453592).toFixed(6).replace(/\.?0+$/, ''));
+      else wpuDisplay = String(wpuMg); // mg
+    }
+    setEditWeightPerUnit(wpuDisplay);
+    setEditWeightUnit(weightUnit);
     setOrderDialog({ compoundId, quantity, cost, monthLabel });
   };
 
@@ -211,7 +222,16 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
       if (editDoseLabel.trim() && editDoseLabel.trim() !== compound.doseLabel) compoundUpdates.doseLabel = editDoseLabel.trim();
       const parsedDosesPerDay = parseFloat(editDosesPerDay);
       if (!isNaN(parsedDosesPerDay) && parsedDosesPerDay !== compound.dosesPerDay) compoundUpdates.dosesPerDay = parsedDosesPerDay;
-      const parsedWeightPerUnit = editWeightPerUnit.trim() !== '' ? parseFloat(editWeightPerUnit) : null;
+      // Convert display-unit weight back to internal mg storage
+      const parsedWpuDisplay = editWeightPerUnit.trim() !== '' ? parseFloat(editWeightPerUnit) : null;
+      let parsedWeightPerUnit: number | null = null;
+      if (parsedWpuDisplay != null && !isNaN(parsedWpuDisplay) && parsedWpuDisplay > 0) {
+        if (editWeightUnit === 'g') parsedWeightPerUnit = parsedWpuDisplay * 1000;
+        else if (editWeightUnit === 'mcg') parsedWeightPerUnit = parsedWpuDisplay / 1000;
+        else if (editWeightUnit === 'oz') parsedWeightPerUnit = parsedWpuDisplay * 28349.5;
+        else if (editWeightUnit === 'lb') parsedWeightPerUnit = parsedWpuDisplay * 453592;
+        else parsedWeightPerUnit = parsedWpuDisplay; // mg
+      }
       if (parsedWeightPerUnit !== (compound.weightPerUnit ?? null)) compoundUpdates.weightPerUnit = parsedWeightPerUnit ?? undefined;
       if (editWeightUnit !== (compound.weightUnit ?? 'mg')) compoundUpdates.weightUnit = editWeightUnit;
       if (Object.keys(compoundUpdates).length > 0) onUpdateCompound(compoundId, compoundUpdates);
@@ -247,8 +267,19 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
     setEditOrderDosePerUse(String(compound?.dosePerUse || ''));
     setEditOrderDoseLabel(compound?.doseLabel || '');
     setEditOrderDosesPerDay(String(compound?.dosesPerDay || ''));
-    setEditOrderWeightPerUnit(compound?.weightPerUnit != null ? String(compound.weightPerUnit) : '');
-    setEditOrderWeightUnit(compound?.weightUnit || 'mg');
+    // Pre-populate weight in the display unit (convert from internal mg)
+    const orderWeightUnit = compound?.weightUnit || 'mg';
+    const orderWpuMg = compound?.weightPerUnit;
+    let orderWpuDisplay = '';
+    if (orderWpuMg != null && orderWpuMg > 0) {
+      if (orderWeightUnit === 'g') orderWpuDisplay = String(orderWpuMg / 1000);
+      else if (orderWeightUnit === 'mcg') orderWpuDisplay = String(orderWpuMg * 1000);
+      else if (orderWeightUnit === 'oz') orderWpuDisplay = String((orderWpuMg / 28349.5).toFixed(4).replace(/\.?0+$/, ''));
+      else if (orderWeightUnit === 'lb') orderWpuDisplay = String((orderWpuMg / 453592).toFixed(6).replace(/\.?0+$/, ''));
+      else orderWpuDisplay = String(orderWpuMg); // mg
+    }
+    setEditOrderWeightPerUnit(orderWpuDisplay);
+    setEditOrderWeightUnit(orderWeightUnit);
     setEditOrderDialog(order);
   };
 
@@ -283,7 +314,16 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
       if (editOrderDoseLabel.trim() && editOrderDoseLabel.trim() !== compound.doseLabel) compoundUpdates.doseLabel = editOrderDoseLabel.trim();
       const parsedDosesPerDay = parseFloat(editOrderDosesPerDay);
       if (!isNaN(parsedDosesPerDay) && parsedDosesPerDay !== compound.dosesPerDay) compoundUpdates.dosesPerDay = parsedDosesPerDay;
-      const parsedWeight = editOrderWeightPerUnit.trim() !== '' ? parseFloat(editOrderWeightPerUnit) : null;
+      // Convert display-unit weight back to internal mg storage
+      const parsedOrderWpuDisplay = editOrderWeightPerUnit.trim() !== '' ? parseFloat(editOrderWeightPerUnit) : null;
+      let parsedWeight: number | null = null;
+      if (parsedOrderWpuDisplay != null && !isNaN(parsedOrderWpuDisplay) && parsedOrderWpuDisplay > 0) {
+        if (editOrderWeightUnit === 'g') parsedWeight = parsedOrderWpuDisplay * 1000;
+        else if (editOrderWeightUnit === 'mcg') parsedWeight = parsedOrderWpuDisplay / 1000;
+        else if (editOrderWeightUnit === 'oz') parsedWeight = parsedOrderWpuDisplay * 28349.5;
+        else if (editOrderWeightUnit === 'lb') parsedWeight = parsedOrderWpuDisplay * 453592;
+        else parsedWeight = parsedOrderWpuDisplay; // mg
+      }
       if (parsedWeight !== (compound.weightPerUnit ?? null)) compoundUpdates.weightPerUnit = parsedWeight ?? undefined;
       if (editOrderWeightUnit !== (compound.weightUnit ?? 'mg')) compoundUpdates.weightUnit = editOrderWeightUnit;
       if (Object.keys(compoundUpdates).length > 0) onUpdateCompound(editOrderDialog.compound_id, compoundUpdates);
@@ -1039,7 +1079,7 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
           </DialogTitle>
         </DialogHeader>
         {editOrderDialog && (
-          <div className="space-y-4 py-1 max-h-[70vh] overflow-y-auto">
+          <div className="space-y-4 py-1">
             {/* Compound name */}
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground uppercase tracking-wider">Compound Name</Label>
@@ -1172,7 +1212,15 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
                   ...(detailsCompound.vialSizeMl ? [{ label: 'Vial Size', value: `${detailsCompound.vialSizeMl} mL` }] : []),
                   ...(detailsCompound.reconVolume ? [{ label: 'Recon Volume', value: `${detailsCompound.reconVolume} mL` }] : []),
                   ...(detailsCompound.bacstatPerVial ? [{ label: 'Bac/Vial', value: `${detailsCompound.bacstatPerVial}` }] : []),
-                  ...(detailsCompound.weightPerUnit != null ? [{ label: 'Weight/Unit', value: `${detailsCompound.weightPerUnit} ${detailsCompound.weightUnit || 'mg'}` }] : []),
+                  ...(detailsCompound.weightPerUnit != null && detailsCompound.weightPerUnit > 0 ? [{ label: 'Weight/Unit', value: (() => {
+                    const wpu = detailsCompound.weightPerUnit!;
+                    const su = detailsCompound.weightUnit || 'mg';
+                    if (su === 'g') return `${(wpu / 1000).toFixed(wpu % 1000 === 0 ? 0 : 2).replace(/\.?0+$/, '')}g`;
+                    if (su === 'mcg') return `${Math.round(wpu * 1000)}mcg`;
+                    if (su === 'oz') return `${(wpu / 28349.5).toFixed(3).replace(/\.?0+$/, '')}oz`;
+                    if (su === 'lb') return `${(wpu / 453592).toFixed(4).replace(/\.?0+$/, '')}lb`;
+                    return `${wpu}mg`;
+                  })() }] : []),
                 ].map(({ label, value }) => (
                   <div key={label} className="bg-secondary/30 rounded-lg p-2.5 border border-border/20">
                     <p className="text-[9px] uppercase tracking-wider text-muted-foreground mb-0.5">{label}</p>
