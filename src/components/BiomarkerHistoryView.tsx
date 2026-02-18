@@ -3,17 +3,21 @@ import {
   ChevronDown, ChevronUp, Calendar,
   X, Trash2, RefreshCw, Loader2, Upload, AlertTriangle, FlaskConical,
   AlertCircle, Droplets, Bone, Zap, Syringe, Heart, Bug, ClipboardList,
-  Link2, Pencil, Check,
+  Link2, Pencil, Check, GitCompare, BookMarked, Info, Sparkles,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { format } from 'date-fns';
+import { format, differenceInDays } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import AlignToGoalDialog from './AlignToGoalDialog';
 import ConfirmDialog from './ConfirmDialog';
+import MiniSparkline from './MiniSparkline';
 import { UserGoal } from '@/hooks/useGoals';
 import { toast } from 'sonner';
+
+// ── Constants ────────────────────────────────────────────────────
+const FLAG_RECENCY_DAYS = 90; // Flags only count if upload is ≤90 days old
 
 interface BiomarkerHistoryProps {
   userId?: string;
@@ -31,6 +35,14 @@ interface UploadRecord {
   reading_date: string;
   ai_extracted_data: any;
   created_at: string;
+}
+
+interface SavedComparison {
+  id: string;
+  label: string;
+  uploadIds: string[];
+  aiSummary: string;
+  createdAt: string;
 }
 
 const STATUS_TEXT_COLORS: Record<string, string> = {
@@ -53,6 +65,142 @@ const CATEGORY_LABELS: Record<string, string> = {
   other: 'Lab Results',
 };
 
+function parseRecordDate(upload: UploadRecord): Date {
+  const raw = upload.reading_date || upload.created_at;
+  const d = new Date(raw);
+  return isNaN(d.getTime()) ? new Date(0) : d;
+}
+
+function isUploadRecent(upload: UploadRecord): boolean {
+  const days = differenceInDays(new Date(), parseRecordDate(upload));
+  return days <= FLAG_RECENCY_DAYS;
+}
+
+// ─── Flagged markers popover ─────────────────────────────────────
+function FlaggedBadgePopover({
+  uploads,
+}: {
+  uploads: UploadRecord[];
+}) {
+  // Build flagged marker info with recency awareness
+  const { recentFlags, staleFlags, recentUploadDate } = useMemo(() => {
+    // Most-recent upload that is within threshold
+    const recentUploads = uploads.filter(isUploadRecent);
+    const staleUploads = uploads.filter(u => !isUploadRecent(u));
+
+    const recentFlagMap = new Map<string, { name: string; value: any; unit: string; status: string; uploadLabel: string }>();
+    recentUploads.forEach(u => {
+      (u.ai_extracted_data?.biomarkers || []).forEach((b: any) => {
+        if (b.status !== 'normal') {
+          recentFlagMap.set(b.name, {
+            name: b.name, value: b.value, unit: b.unit, status: b.status,
+            uploadLabel: u.file_name || u.upload_type,
+          });
+        }
+      });
+    });
+
+    const staleFlagMap = new Map<string, { name: string; status: string; uploadLabel: string; daysAgo: number }>();
+    staleUploads.forEach(u => {
+      const daysAgo = differenceInDays(new Date(), parseRecordDate(u));
+      (u.ai_extracted_data?.biomarkers || []).forEach((b: any) => {
+        if (b.status !== 'normal' && !recentFlagMap.has(b.name)) {
+          staleFlagMap.set(b.name, {
+            name: b.name, status: b.status,
+            uploadLabel: u.file_name || u.upload_type,
+            daysAgo,
+          });
+        }
+      });
+    });
+
+    const newestRecent = recentUploads[0];
+    const newestDate = newestRecent
+      ? parseRecordDate(newestRecent).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      : null;
+
+    return {
+      recentFlags: Array.from(recentFlagMap.values()),
+      staleFlags: Array.from(staleFlagMap.values()),
+      recentUploadDate: newestDate,
+    };
+  }, [uploads]);
+
+  const totalRecent = recentFlags.length;
+  if (totalRecent === 0 && staleFlags.length === 0) return null;
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-status-warning/10 text-status-warning border border-status-warning/20 font-medium hover:bg-status-warning/20 transition-colors cursor-pointer">
+          <AlertTriangle className="w-2.5 h-2.5" />
+          {totalRecent > 0 ? `${totalRecent} flagged` : `${staleFlags.length} stale flags`}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80 p-0 bg-card border-border shadow-xl z-[60]" align="start" side="bottom">
+        <div className="px-3 pt-3 pb-2 border-b border-border/40">
+          <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+            <AlertTriangle className="w-3.5 h-3.5 text-status-warning" />
+            Current Flags
+          </p>
+          <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">
+            Flags are derived from uploads within the last {FLAG_RECENCY_DAYS} days. Older data is tracked as history only.
+            {recentUploadDate && ` Most recent: ${recentUploadDate}.`}
+          </p>
+        </div>
+
+        <div className="max-h-60 overflow-y-auto px-3 py-2 space-y-1">
+          {totalRecent > 0 ? (
+            <>
+              {recentFlags.map((f, i) => (
+                <div key={i} className="flex items-center justify-between text-xs py-1.5 border-b border-border/20 last:border-0">
+                  <div className="min-w-0">
+                    <p className="font-medium text-foreground truncate">{f.name}</p>
+                    <p className="text-[10px] text-muted-foreground truncate">{f.uploadLabel}</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                    <span className="font-mono text-[10px] text-foreground">{f.value} {f.unit}</span>
+                    <span className={`text-[9px] font-semibold uppercase px-1 py-0.5 rounded ${
+                      f.status.startsWith('critical')
+                        ? 'bg-destructive/10 text-destructive'
+                        : 'bg-status-warning/10 text-status-warning'
+                    }`}>
+                      {f.status.replace('_', ' ')}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </>
+          ) : (
+            <p className="text-[11px] text-muted-foreground py-2 text-center">No recent flags — your latest results look good.</p>
+          )}
+        </div>
+
+        {staleFlags.length > 0 && (
+          <div className="border-t border-border/40 px-3 py-2 bg-secondary/10 rounded-b-lg">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+              <Info className="w-3 h-3" /> Historical (older than {FLAG_RECENCY_DAYS}d)
+            </p>
+            <div className="space-y-1">
+              {staleFlags.slice(0, 5).map((f, i) => (
+                <div key={i} className="flex items-center justify-between text-[10px] text-muted-foreground">
+                  <span className="truncate max-w-[140px]">{f.name}</span>
+                  <span className="text-[9px] opacity-60">{f.daysAgo}d ago · {f.uploadLabel}</span>
+                </div>
+              ))}
+              {staleFlags.length > 5 && (
+                <p className="text-[10px] text-muted-foreground text-center opacity-60">+{staleFlags.length - 5} more historical</p>
+              )}
+            </div>
+            <p className="text-[9px] text-muted-foreground mt-1.5 italic leading-relaxed">
+              These markers were flagged in older uploads. They appear as trend data points only, not current flags.
+            </p>
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 // ─── Inline edit form ─────────────────────────────────────────
 function InlineEditForm({
@@ -104,9 +252,10 @@ function InlineEditForm({
   );
 }
 
-// ─── Detail sheet (full AI analysis) ─────────────────────────
+// ─── Detail sheet (full AI analysis + sparklines) ─────────────
 function DetailSheet({
   upload,
+  allUploads,
   onClose,
   onDelete,
   onReanalyze,
@@ -115,6 +264,7 @@ function DetailSheet({
   isReanalyzing,
 }: {
   upload: UploadRecord;
+  allUploads: UploadRecord[];
   onClose: () => void;
   onDelete: (id: string) => void;
   onReanalyze: (u: UploadRecord) => void;
@@ -137,6 +287,31 @@ function DetailSheet({
     (acc[cat] = acc[cat] || []).push(b);
     return acc;
   }, {} as Record<string, any[]>);
+
+  // Build cross-upload sparkline data per marker name
+  // Collect all uploads of the same category sorted by date ascending
+  const sparklineData = useMemo(() => {
+    const sameTypeSorted = [...allUploads]
+      .filter(u => u.upload_type === upload.upload_type)
+      .sort((a, b) => parseRecordDate(a).getTime() - parseRecordDate(b).getTime());
+
+    const markerTrends: Record<string, { values: number[]; dates: string[] }> = {};
+    sameTypeSorted.forEach(u => {
+      const dateLabel = parseRecordDate(u).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+      (u.ai_extracted_data?.biomarkers || []).forEach((b: any) => {
+        if (typeof b.value === 'number') {
+          if (!markerTrends[b.name]) markerTrends[b.name] = { values: [], dates: [] };
+          markerTrends[b.name].values.push(b.value);
+          markerTrends[b.name].dates.push(dateLabel);
+        }
+      });
+    });
+
+    // Only return markers with 2+ data points (trend meaningful)
+    return Object.fromEntries(
+      Object.entries(markerTrends).filter(([, v]) => v.values.length >= 2)
+    );
+  }, [allUploads, upload.upload_type]);
 
   const rawDate = upload.reading_date || upload.created_at;
   const parsedDate = new Date(rawDate);
@@ -252,7 +427,7 @@ function DetailSheet({
             </div>
           )}
 
-          {/* All markers by category */}
+          {/* All markers by category — with sparklines when 2+ data points exist */}
           <div className="space-y-1.5">
             {Object.entries(groupedByCategory).map(([cat, markers]: [string, any[]]) => {
               const isCatExpanded = expandedCategory === cat;
@@ -276,23 +451,42 @@ function DetailSheet({
                   </button>
                   {isCatExpanded && (
                     <div className="px-3 pb-2.5 space-y-1">
-                      {markers.map((m: any, i: number) => (
-                        <div key={i} className="flex items-center justify-between text-xs px-2.5 py-2 rounded-lg bg-secondary/20">
-                          <span className="text-foreground">{m.name}</span>
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-foreground">{m.value} {m.unit}</span>
-                            <span className={`text-[10px] ${STATUS_TEXT_COLORS[m.status] || 'text-muted-foreground'}`}>
-                              {m.status === 'normal' ? '✓' : m.status?.replace('_', ' ').toUpperCase()}
-                            </span>
+                      {markers.map((m: any, i: number) => {
+                        const trend = sparklineData[m.name];
+                        return (
+                          <div key={i} className="flex items-center justify-between text-xs px-2.5 py-2 rounded-lg bg-secondary/20">
+                            <span className="text-foreground flex-1 min-w-0 truncate">{m.name}</span>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              {/* Sparkline if we have 2+ historical data points */}
+                              {trend && (
+                                <MiniSparkline
+                                  values={trend.values}
+                                  width={40}
+                                  height={14}
+                                  className="opacity-80"
+                                />
+                              )}
+                              <span className="font-mono text-foreground">{m.value} {m.unit}</span>
+                              <span className={`text-[10px] ${STATUS_TEXT_COLORS[m.status] || 'text-muted-foreground'}`}>
+                                {m.status === 'normal' ? '✓' : m.status?.replace('_', ' ').toUpperCase()}
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
               );
             })}
           </div>
+
+          {/* Sparkline legend — only shown if any sparklines exist */}
+          {Object.keys(sparklineData).length > 0 && (
+            <p className="text-[9px] text-muted-foreground text-center opacity-60">
+              ∿ Trend lines show values across multiple uploads of the same type
+            </p>
+          )}
 
           {/* AI Recommendations */}
           {recommendations.length > 0 && (
@@ -326,23 +520,293 @@ function DetailSheet({
   );
 }
 
+// ─── AI Comparison Sheet ────────────────────────────────────────
+function ComparisonSheet({
+  uploads,
+  allUploads,
+  onClose,
+  userId,
+}: {
+  uploads: UploadRecord[];
+  allUploads: UploadRecord[];
+  onClose: () => void;
+  userId?: string;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [aiResult, setAiResult] = useState<string>('');
+  const [saving, setSaving] = useState(false);
+  const [saveLabel, setSaveLabel] = useState('');
+  const [showSaveForm, setShowSaveForm] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const generateComparison = useCallback(async () => {
+    if (uploads.length < 2) {
+      toast.error('Select at least 2 uploads to compare');
+      return;
+    }
+    setLoading(true);
+    setAiResult('');
+    try {
+      const summaries = uploads.map((u, i) => {
+        const bm = u.ai_extracted_data?.biomarkers || [];
+        const flagged = bm.filter((b: any) => b.status !== 'normal');
+        const d = parseRecordDate(u).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        return `Upload ${i + 1}: "${u.file_name || u.upload_type}" (${d})\n` +
+          `  Total markers: ${bm.length}, Flagged: ${flagged.length}\n` +
+          `  Markers: ${bm.map((b: any) => `${b.name}=${b.value}${b.unit}(${b.status})`).join(', ')}`;
+      }).join('\n\n');
+
+      const prompt = `You are a health data analyst. Compare and contrast the following lab uploads for the same user, highlighting key changes, improvements, regressions, and trends across the time period. Keep it concise and actionable (200-300 words):\n\n${summaries}`;
+
+      const { data, error } = await supabase.functions.invoke('analyze-protocol', {
+        body: { prompt, context: 'lab_comparison' },
+      });
+      if (error) throw error;
+      setAiResult(data?.analysis || data?.response || 'Analysis complete.');
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to generate comparison');
+    } finally {
+      setLoading(false);
+    }
+  }, [uploads]);
+
+  useEffect(() => {
+    if (uploads.length >= 2) generateComparison();
+  }, []);
+
+  const handleSave = async () => {
+    if (!userId || !saveLabel.trim() || !aiResult) return;
+    setSaving(true);
+    try {
+      const comparison: SavedComparison = {
+        id: crypto.randomUUID(),
+        label: saveLabel.trim(),
+        uploadIds: uploads.map(u => u.id),
+        aiSummary: aiResult,
+        createdAt: new Date().toISOString(),
+      };
+      // Store in user profile's app_features JSON blob under 'lab_comparisons'
+      const { data: profile } = await supabase.from('profiles').select('app_features').eq('user_id', userId).single();
+      const existing: SavedComparison[] = (profile?.app_features as any)?.lab_comparisons || [];
+      await supabase.from('profiles').update({
+        app_features: { ...(profile?.app_features as any || {}), lab_comparisons: [comparison, ...existing] },
+      }).eq('user_id', userId);
+
+      setSaved(true);
+      setShowSaveForm(false);
+      toast.success(`Comparison "${comparison.label}" saved to Library`);
+    } catch {
+      toast.error('Failed to save comparison');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm px-2 pb-2 sm:pb-0"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-lg max-h-[88vh] overflow-y-auto rounded-2xl bg-card border border-border shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 pt-4 pb-3 sticky top-0 bg-card border-b border-border/30 z-10">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <GitCompare className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">AI Lab Comparison</p>
+              <p className="text-[10px] text-muted-foreground">{uploads.length} uploads selected</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            {aiResult && !saved && (
+              <button
+                onClick={() => { setShowSaveForm(v => !v); setSaveLabel(`Comparison ${new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`); }}
+                title="Save to library"
+                className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              >
+                <BookMarked className="w-4 h-4" />
+              </button>
+            )}
+            {saved && (
+              <span className="text-[10px] text-emerald-400 flex items-center gap-1 px-2">
+                <Check className="w-3 h-3" /> Saved
+              </span>
+            )}
+            <button onClick={onClose} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="px-4 py-4 space-y-3">
+          {/* Selected uploads list */}
+          <div className="space-y-1.5">
+            {uploads.map((u, i) => {
+              const DocIcon = DOC_TYPE_ICONS[u.upload_type] || ClipboardList;
+              const d = parseRecordDate(u).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+              return (
+                <div key={u.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-secondary/20 text-xs">
+                  <span className="text-[10px] text-muted-foreground w-4">{i + 1}.</span>
+                  <DocIcon className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                  <span className="text-foreground font-medium flex-1 truncate">{u.file_name || u.upload_type}</span>
+                  <span className="text-muted-foreground text-[10px]">{d}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Save form */}
+          {showSaveForm && (
+            <div className="bg-secondary/20 rounded-xl p-3 border border-primary/20 space-y-2">
+              <p className="text-[10px] font-semibold text-primary uppercase tracking-wider">Save to Library</p>
+              <input
+                type="text"
+                value={saveLabel}
+                onChange={e => setSaveLabel(e.target.value)}
+                placeholder="Name this comparison…"
+                className="w-full px-2.5 py-1.5 rounded-lg border border-border/50 bg-card text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50"
+              />
+              <button
+                onClick={handleSave}
+                disabled={saving || !saveLabel.trim()}
+                className="w-full py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors disabled:opacity-40 flex items-center justify-center gap-1.5"
+              >
+                {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <BookMarked className="w-3 h-3" />}
+                Save Comparison
+              </button>
+            </div>
+          )}
+
+          {/* AI Result */}
+          {loading && (
+            <div className="py-8 text-center space-y-3">
+              <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
+              <div>
+                <p className="text-sm font-medium text-foreground">Analyzing your labs…</p>
+                <p className="text-xs text-muted-foreground mt-1">Comparing biomarkers across {uploads.length} uploads</p>
+              </div>
+            </div>
+          )}
+
+          {aiResult && !loading && (
+            <div className="bg-secondary/20 rounded-xl p-3.5 border border-border/30 space-y-2">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <Sparkles className="w-3 h-3 text-primary" /> AI Analysis
+              </p>
+              <p className="text-xs text-foreground leading-relaxed whitespace-pre-line">{aiResult}</p>
+              <button
+                onClick={generateComparison}
+                className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-colors"
+              >
+                <RefreshCw className="w-3 h-3" /> Re-analyze
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Saved Comparisons Library ────────────────────────────────
+function SavedComparisonsLibrary({
+  comparisons,
+  allUploads,
+  onDelete,
+}: {
+  comparisons: SavedComparison[];
+  allUploads: UploadRecord[];
+  onDelete: (id: string) => void;
+}) {
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  if (comparisons.length === 0) return null;
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-2 mb-1">
+        <BookMarked className="w-3 h-3 text-muted-foreground" />
+        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Saved Comparisons</span>
+        <span className="text-[9px] text-muted-foreground">({comparisons.length})</span>
+      </div>
+      {comparisons.map(comp => {
+        const isExp = expanded === comp.id;
+        const d = new Date(comp.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        const linkedUploads = allUploads.filter(u => comp.uploadIds.includes(u.id));
+        return (
+          <div key={comp.id} className="border border-border/40 rounded-xl overflow-hidden bg-card">
+            <button
+              onClick={() => setExpanded(isExp ? null : comp.id)}
+              className="w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-secondary/20 transition-colors"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <BookMarked className="w-3 h-3 text-primary flex-shrink-0" />
+                <span className="text-xs font-medium text-foreground truncate">{comp.label}</span>
+                <span className="text-[10px] text-muted-foreground flex-shrink-0">{d}</span>
+              </div>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <span className="text-[10px] text-muted-foreground">{linkedUploads.length}↔</span>
+                {isExp ? <ChevronUp className="w-3 h-3 text-muted-foreground" /> : <ChevronDown className="w-3 h-3 text-muted-foreground" />}
+              </div>
+            </button>
+            {isExp && (
+              <div className="px-3 pb-3 space-y-2 border-t border-border/30">
+                {linkedUploads.length > 0 && (
+                  <div className="space-y-1 pt-2">
+                    {linkedUploads.map(u => (
+                      <div key={u.id} className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary/40 flex-shrink-0" />
+                        {u.file_name || u.upload_type}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p className="text-[11px] text-foreground leading-relaxed whitespace-pre-line">{comp.aiSummary}</p>
+                <button
+                  onClick={() => onDelete(comp.id)}
+                  className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-destructive transition-colors"
+                >
+                  <Trash2 className="w-3 h-3" /> Remove from library
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Clean tile card ──────────────────────────────────────────
 function UploadTile({
   upload,
+  allUploads,
   onDelete,
   onReanalyze,
   onAlignToGoal,
   onEditSaved,
   isDeleting,
   isReanalyzing,
+  selected,
+  onToggleSelect,
+  compareMode,
 }: {
   upload: UploadRecord;
+  allUploads: UploadRecord[];
   onDelete: (id: string) => void;
   onReanalyze: (u: UploadRecord) => void;
   onAlignToGoal: (u: UploadRecord) => void;
   onEditSaved: (id: string, label: string, date: string) => void;
   isDeleting: boolean;
   isReanalyzing: boolean;
+  selected: boolean;
+  onToggleSelect: (id: string) => void;
+  compareMode: boolean;
 }) {
   const [detailOpen, setDetailOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -385,13 +849,29 @@ function UploadTile({
       <div
         className={cn(
           'relative bg-card rounded-xl border cursor-pointer hover:border-primary/40 hover:shadow-sm transition-all overflow-hidden',
-          critical.length > 0 ? 'border-destructive/30' : flagged.length > 0 ? 'border-status-warning/30' : 'border-border/50'
+          critical.length > 0 ? 'border-destructive/30' : flagged.length > 0 ? 'border-status-warning/30' : 'border-border/50',
+          compareMode && selected && 'border-primary ring-2 ring-primary/30',
+          compareMode && !selected && 'opacity-80',
         )}
-        onClick={() => !editing && setDetailOpen(true)}
+        onClick={() => {
+          if (editing) return;
+          if (compareMode) { onToggleSelect(upload.id); return; }
+          setDetailOpen(true);
+        }}
       >
         {/* Status stripe */}
         {(critical.length > 0 || flagged.length > 0) && (
           <div className={`h-0.5 w-full ${critical.length > 0 ? 'bg-destructive' : 'bg-status-warning'}`} />
+        )}
+
+        {/* Compare mode checkmark */}
+        {compareMode && (
+          <div className={cn(
+            'absolute top-1.5 right-1.5 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all z-10',
+            selected ? 'bg-primary border-primary' : 'border-border/60 bg-card'
+          )}>
+            {selected && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
+          </div>
         )}
 
         {/* Inline edit form overlay */}
@@ -409,13 +889,15 @@ function UploadTile({
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
               <DocIcon className="w-4 h-4 text-primary" />
             </div>
-            <button
-              onClick={e => { e.stopPropagation(); setEditing(true); }}
-              title="Edit label & date"
-              className="p-1 rounded-md text-muted-foreground/40 hover:text-muted-foreground hover:bg-secondary/40 transition-colors"
-            >
-              <Pencil className="w-3 h-3" />
-            </button>
+            {!compareMode && (
+              <button
+                onClick={e => { e.stopPropagation(); setEditing(true); }}
+                title="Edit label & date"
+                className="p-1 rounded-md text-muted-foreground/40 hover:text-muted-foreground hover:bg-secondary/40 transition-colors"
+              >
+                <Pencil className="w-3 h-3" />
+              </button>
+            )}
           </div>
 
           {/* Name */}
@@ -448,6 +930,7 @@ function UploadTile({
       {detailOpen && (
         <DetailSheet
           upload={upload}
+          allUploads={allUploads}
           onClose={() => setDetailOpen(false)}
           onDelete={onDelete}
           onReanalyze={onReanalyze}
@@ -478,6 +961,14 @@ export default function BiomarkerHistoryView({
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [alignUpload, setAlignUpload] = useState<UploadRecord | null>(null);
 
+  // Compare mode state
+  const [compareModeCategory, setCompareModeCategory] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showComparisonSheet, setShowComparisonSheet] = useState(false);
+
+  // Saved comparisons
+  const [savedComparisons, setSavedComparisons] = useState<SavedComparison[]>([]);
+
   const fetchUploads = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
@@ -490,7 +981,14 @@ export default function BiomarkerHistoryView({
     setLoading(false);
   }, [userId]);
 
-  useEffect(() => { fetchUploads(); }, [fetchUploads]);
+  const fetchSavedComparisons = useCallback(async () => {
+    if (!userId) return;
+    const { data } = await supabase.from('profiles').select('app_features').eq('user_id', userId).single();
+    const comps: SavedComparison[] = (data?.app_features as any)?.lab_comparisons || [];
+    setSavedComparisons(comps);
+  }, [userId]);
+
+  useEffect(() => { fetchUploads(); fetchSavedComparisons(); }, [fetchUploads, fetchSavedComparisons]);
 
   const handleDelete = useCallback((id: string) => setDeleteConfirmId(id), []);
 
@@ -536,6 +1034,17 @@ export default function BiomarkerHistoryView({
     setUploads(prev => prev.map(u => u.id === id ? { ...u, file_name: label, reading_date: date } : u));
   }, []);
 
+  const handleDeleteComparison = useCallback(async (compId: string) => {
+    if (!userId) return;
+    const updated = savedComparisons.filter(c => c.id !== compId);
+    setSavedComparisons(updated);
+    const { data: profile } = await supabase.from('profiles').select('app_features').eq('user_id', userId).single();
+    await supabase.from('profiles').update({
+      app_features: { ...(profile?.app_features as any || {}), lab_comparisons: updated },
+    }).eq('user_id', userId);
+    toast.success('Comparison removed');
+  }, [userId, savedComparisons]);
+
   // Date filter
   const filteredUploads = useMemo(() => uploads.filter(u => {
     const d = new Date(u.reading_date || u.created_at);
@@ -546,10 +1055,11 @@ export default function BiomarkerHistoryView({
 
   const hasDateFilter = dateFrom || dateTo;
 
-  // Compute flagged count for badge
-  const totalFlagged = useMemo(() => {
+  // Flagged count — recency-aware (only count uploads within FLAG_RECENCY_DAYS)
+  const recentFlaggedCount = useMemo(() => {
+    const recentUploads = uploads.filter(isUploadRecent);
     const markerMap = new Map<string, string>();
-    [...uploads].reverse().forEach(upload => {
+    [...recentUploads].reverse().forEach(upload => {
       (upload.ai_extracted_data?.biomarkers || []).forEach((b: any) => {
         markerMap.set(b.name, b.status);
       });
@@ -567,7 +1077,41 @@ export default function BiomarkerHistoryView({
     return names.size;
   }, [uploads]);
 
-  useEffect(() => { onFlaggedCountChange?.(totalFlagged); }, [totalFlagged, onFlaggedCountChange]);
+  useEffect(() => { onFlaggedCountChange?.(recentFlaggedCount); }, [recentFlaggedCount, onFlaggedCountChange]);
+
+  // Category grouping
+  const { categoryOrder, categoryMap } = useMemo(() => {
+    const order: string[] = [];
+    const map: Record<string, UploadRecord[]> = {};
+    [...filteredUploads]
+      .sort((a, b) => parseRecordDate(a).getTime() - parseRecordDate(b).getTime())
+      .forEach(upload => {
+        const cat = upload.upload_type || 'other';
+        if (!map[cat]) { map[cat] = []; order.push(cat); }
+        map[cat].push(upload);
+      });
+    return { categoryOrder: order, categoryMap: map };
+  }, [filteredUploads]);
+
+  const handleToggleCompareMode = (cat: string) => {
+    if (compareModeCategory === cat) {
+      setCompareModeCategory(null);
+      setSelectedIds(new Set());
+    } else {
+      setCompareModeCategory(cat);
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleToggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const selectedUploads = uploads.filter(u => selectedIds.has(u.id));
 
   if (loading) {
     return (
@@ -601,17 +1145,6 @@ export default function BiomarkerHistoryView({
     );
   }
 
-  // Group filtered uploads by category for tile grid
-  const categoryOrder: string[] = [];
-  const categoryMap: Record<string, UploadRecord[]> = {};
-  [...filteredUploads]
-    .sort((a, b) => new Date(a.reading_date || a.created_at).getTime() - new Date(b.reading_date || b.created_at).getTime())
-    .forEach(upload => {
-      const cat = upload.upload_type || 'other';
-      if (!categoryMap[cat]) { categoryMap[cat] = []; categoryOrder.push(cat); }
-      categoryMap[cat].push(upload);
-    });
-
   return (
     <div className="space-y-4">
       {/* Summary header + Upload button */}
@@ -625,11 +1158,8 @@ export default function BiomarkerHistoryView({
               <span className="text-sm font-semibold text-foreground">
                 {totalMarkersTracked} marker{totalMarkersTracked !== 1 ? 's' : ''} tracked
               </span>
-              {totalFlagged > 0 && (
-                <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-status-warning/10 text-status-warning border border-status-warning/20 font-medium">
-                  <AlertTriangle className="w-2.5 h-2.5" /> {totalFlagged} flagged
-                </span>
-              )}
+              {/* Clickable flagged badge with popover */}
+              <FlaggedBadgePopover uploads={uploads} />
             </div>
             <p className="text-[11px] text-muted-foreground mt-0.5">
               {uploads.length} upload{uploads.length !== 1 ? 's' : ''} · tap a tile to view full analysis
@@ -692,29 +1222,73 @@ export default function BiomarkerHistoryView({
         {categoryOrder.map(cat => {
           const catUploads = categoryMap[cat];
           const label = CATEGORY_LABELS[cat] || cat.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+          const inCompareMode = compareModeCategory === cat;
+          const canCompare = selectedIds.size >= 2;
+
           return (
             <div key={cat}>
-              {/* Category header + horizontal separator */}
+              {/* Category header — tappable to enter compare mode */}
               <div className="flex items-center gap-3 mb-3">
-                <span className="text-[11px] font-bold text-foreground uppercase tracking-widest whitespace-nowrap">
+                <button
+                  onClick={() => handleToggleCompareMode(cat)}
+                  className={cn(
+                    'text-[11px] font-bold uppercase tracking-widest whitespace-nowrap transition-colors flex items-center gap-1.5 rounded px-1 -mx-1 py-0.5',
+                    inCompareMode
+                      ? 'text-primary bg-primary/5'
+                      : 'text-foreground hover:text-primary'
+                  )}
+                  title={inCompareMode ? 'Exit compare mode' : 'Tap to compare uploads in this category'}
+                >
                   {label}
-                </span>
+                  <GitCompare className={cn('w-3 h-3', inCompareMode ? 'text-primary' : 'text-muted-foreground/40')} />
+                </button>
                 <div className="flex-1 h-px bg-border/50" />
                 <span className="text-[10px] text-muted-foreground tabular-nums">{catUploads.length}</span>
               </div>
 
-              {/* Tiles — horizontal first, 2 per row mobile → 3 on sm */}
+              {/* Compare mode toolbar */}
+              {inCompareMode && (
+                <div className="flex items-center justify-between mb-2 px-2 py-1.5 rounded-lg bg-primary/5 border border-primary/20">
+                  <p className="text-[10px] text-primary font-medium">
+                    {selectedIds.size === 0
+                      ? 'Tap tiles to select for comparison'
+                      : `${selectedIds.size} selected`}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    {canCompare && (
+                      <button
+                        onClick={() => setShowComparisonSheet(true)}
+                        className="flex items-center gap-1 text-[10px] font-semibold text-primary-foreground bg-primary px-2 py-1 rounded-lg hover:bg-primary/90 transition-colors"
+                      >
+                        <Sparkles className="w-3 h-3" /> Compare
+                      </button>
+                    )}
+                    <button
+                      onClick={() => { setCompareModeCategory(null); setSelectedIds(new Set()); }}
+                      className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Tiles */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {catUploads.map(upload => (
                   <UploadTile
                     key={upload.id}
                     upload={upload}
+                    allUploads={uploads}
                     onDelete={handleDelete}
                     onReanalyze={handleReanalyze}
                     onAlignToGoal={setAlignUpload}
                     onEditSaved={handleEditSaved}
                     isDeleting={deletingId === upload.id}
                     isReanalyzing={reanalyzingId === upload.id}
+                    selected={selectedIds.has(upload.id)}
+                    onToggleSelect={handleToggleSelect}
+                    compareMode={inCompareMode}
                   />
                 ))}
               </div>
@@ -722,6 +1296,15 @@ export default function BiomarkerHistoryView({
           );
         })}
       </div>
+
+      {/* Saved Comparisons Library */}
+      {savedComparisons.length > 0 && (
+        <SavedComparisonsLibrary
+          comparisons={savedComparisons}
+          allUploads={uploads}
+          onDelete={handleDeleteComparison}
+        />
+      )}
 
       {/* Delete confirmation */}
       <ConfirmDialog
@@ -747,6 +1330,16 @@ export default function BiomarkerHistoryView({
           goals={goals}
           onCreateGoal={onCreateGoal}
           onGoalAligned={() => { onRefreshGoals?.(); fetchUploads(); }}
+        />
+      )}
+
+      {/* AI Comparison Sheet */}
+      {showComparisonSheet && (
+        <ComparisonSheet
+          uploads={selectedUploads}
+          allUploads={uploads}
+          onClose={() => { setShowComparisonSheet(false); setCompareModeCategory(null); setSelectedIds(new Set()); }}
+          userId={userId}
         />
       )}
     </div>
