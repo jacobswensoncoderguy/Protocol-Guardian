@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Beaker, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus, Calendar, FileText, X, Trash2, RefreshCw, Loader2 } from 'lucide-react';
+import { Beaker, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus, Calendar, FileText, X, Trash2, RefreshCw, Loader2, Upload, AlertTriangle, FlaskConical } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 interface BiomarkerHistoryProps {
   userId?: string;
   onUploadClick: () => void;
+  onFlaggedCountChange?: (count: number) => void;
 }
 
 interface UploadRecord {
@@ -68,7 +69,7 @@ const STATUS_TEXT_COLORS: Record<string, string> = {
   critical_high: 'text-destructive',
 };
 
-export default function BiomarkerHistoryView({ userId, onUploadClick }: BiomarkerHistoryProps) {
+export default function BiomarkerHistoryView({ userId, onUploadClick, onFlaggedCountChange }: BiomarkerHistoryProps) {
   const [uploads, setUploads] = useState<UploadRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedMarker, setExpandedMarker] = useState<string | null>(null);
@@ -113,7 +114,6 @@ export default function BiomarkerHistoryView({ userId, onUploadClick }: Biomarke
     setReanalyzingId(upload.id);
     try {
       const existingData = upload.ai_extracted_data;
-      // Re-parse using stored summary/type context as the content
       const content = JSON.stringify(existingData?.biomarkers || []);
       const { data, error } = await supabase.functions.invoke('parse-biomarkers', {
         body: {
@@ -198,6 +198,23 @@ export default function BiomarkerHistoryView({ userId, onUploadClick }: Biomarke
     categoryGroups.set(cat, arr);
   });
 
+  // Summary stats — all computed before early returns to keep hook order stable
+  const mostRecentUpload = uploads.length > 0 ? uploads[uploads.length - 1] : null;
+  const totalMarkersTracked = markerTimelines.size;
+  const totalFlagged = useMemo(() => {
+    let count = 0;
+    markerTimelines.forEach(points => {
+      const latest = points[points.length - 1];
+      if (latest.status !== 'normal') count++;
+    });
+    return count;
+  }, [markerTimelines]);
+
+  // Notify parent about flagged count for badge
+  useEffect(() => {
+    onFlaggedCountChange?.(totalFlagged);
+  }, [totalFlagged, onFlaggedCountChange]);
+
   if (loading) {
     return (
       <div className="bg-card rounded-xl border border-border/50 p-4 text-center">
@@ -228,23 +245,38 @@ export default function BiomarkerHistoryView({ userId, onUploadClick }: Biomarke
 
   return (
     <div className="space-y-3">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-          <Beaker className="w-3.5 h-3.5" />
-          Biomarker History
-        </h3>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-muted-foreground">
-            {filteredUploads.length} upload{filteredUploads.length !== 1 ? 's' : ''} · {markerTimelines.size} markers tracked
-          </span>
-          <button
-            onClick={onUploadClick}
-            className="text-[10px] px-2.5 py-1 rounded-lg bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors font-medium"
-          >
-            + Upload
-          </button>
+      {/* Summary Card + Upload Button */}
+      <div className="bg-card rounded-xl border border-border/50 p-3.5 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+            <FlaskConical className="w-4 h-4 text-primary" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-semibold text-foreground">
+                {totalMarkersTracked} marker{totalMarkersTracked !== 1 ? 's' : ''} tracked
+              </span>
+              {totalFlagged > 0 && (
+                <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-status-warning/10 text-status-warning border border-status-warning/20 font-medium">
+                  <AlertTriangle className="w-2.5 h-2.5" />
+                  {totalFlagged} flagged
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              {mostRecentUpload
+                ? `Last upload ${new Date(mostRecentUpload.reading_date || mostRecentUpload.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · ${uploads.length} upload${uploads.length !== 1 ? 's' : ''} total`
+                : 'No uploads yet'}
+            </p>
+          </div>
         </div>
+        <button
+          onClick={onUploadClick}
+          className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm"
+        >
+          <Upload className="w-3.5 h-3.5" />
+          Upload
+        </button>
       </div>
 
       {/* Date Range Filter */}
@@ -504,7 +536,7 @@ export default function BiomarkerHistoryView({ userId, onUploadClick }: Biomarke
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <span className="text-[10px] text-muted-foreground">{biomarkers.length} markers</span>
                     {flagged > 0 && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-status-warning/10 text-status-warning border border-status-warning/20">
                         {flagged} flagged
                       </span>
                     )}
