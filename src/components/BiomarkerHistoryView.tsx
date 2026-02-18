@@ -1074,7 +1074,8 @@ export default function BiomarkerHistoryView({
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [alignUpload, setAlignUpload] = useState<UploadRecord | null>(null);
 
-  // Compare mode state
+  // Compare mode state — global (cross-category)
+  const [compareMode, setCompareMode] = useState(false);
   const [compareModeCategory, setCompareModeCategory] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showComparisonSheet, setShowComparisonSheet] = useState(false);
@@ -1226,12 +1227,14 @@ export default function BiomarkerHistoryView({
     return { categoryOrder: order, categoryMap: map };
   }, [filteredUploads]);
 
-  const handleToggleCompareMode = (cat: string) => {
-    if (compareModeCategory === cat) {
+  const handleToggleCompareMode = (_cat?: string) => {
+    if (compareMode) {
+      setCompareMode(false);
       setCompareModeCategory(null);
       setSelectedIds(new Set());
     } else {
-      setCompareModeCategory(cat);
+      setCompareMode(true);
+      setCompareModeCategory(_cat || null);
       setSelectedIds(new Set());
     }
   };
@@ -1354,13 +1357,38 @@ export default function BiomarkerHistoryView({
         )}
       </div>
 
+      {/* ── Global Compare Mode Toolbar ── */}
+      {compareMode && (
+        <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-primary/5 border border-primary/20 sticky top-0 z-20">
+          <p className="text-[10px] text-primary font-medium">
+            {selectedIds.size === 0
+              ? 'Tap any tile to select for comparison'
+              : `${selectedIds.size} tile${selectedIds.size !== 1 ? 's' : ''} selected`}
+          </p>
+          <div className="flex items-center gap-2">
+            {selectedIds.size >= 2 && (
+              <button
+                onClick={() => setShowComparisonSheet(true)}
+                className="flex items-center gap-1 text-[10px] font-semibold text-primary-foreground bg-primary px-2.5 py-1 rounded-lg hover:bg-primary/90 transition-colors"
+              >
+                <Sparkles className="w-3 h-3" /> Compare ({selectedIds.size})
+              </button>
+            )}
+            <button
+              onClick={() => handleToggleCompareMode()}
+              className="text-[10px] text-muted-foreground hover:text-foreground transition-colors px-1"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Category-grouped tile grid ── */}
       <div className="space-y-6">
         {categoryOrder.map(cat => {
           const catUploads = categoryMap[cat];
           const label = CATEGORY_LABELS[cat] || cat.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-          const inCompareMode = compareModeCategory === cat;
-          const canCompare = selectedIds.size >= 2;
 
           return (
             <div key={cat}>
@@ -1370,45 +1398,18 @@ export default function BiomarkerHistoryView({
                   onClick={() => handleToggleCompareMode(cat)}
                   className={cn(
                     'text-[11px] font-bold uppercase tracking-widest whitespace-nowrap transition-colors flex items-center gap-1.5 rounded px-1 -mx-1 py-0.5',
-                    inCompareMode
+                    compareMode
                       ? 'text-primary bg-primary/5'
                       : 'text-foreground hover:text-primary'
                   )}
-                  title={inCompareMode ? 'Exit compare mode' : 'Tap to compare uploads in this category'}
+                  title={compareMode ? 'Exit compare mode' : 'Tap to enter compare mode'}
                 >
                   {label}
-                  <GitCompare className={cn('w-3 h-3', inCompareMode ? 'text-primary' : 'text-muted-foreground/40')} />
+                  <GitCompare className={cn('w-3 h-3', compareMode ? 'text-primary' : 'text-muted-foreground/40')} />
                 </button>
                 <div className="flex-1 h-px bg-border/50" />
                 <span className="text-[10px] text-muted-foreground tabular-nums">{catUploads.length}</span>
               </div>
-
-              {/* Compare mode toolbar */}
-              {inCompareMode && (
-                <div className="flex items-center justify-between mb-2 px-2 py-1.5 rounded-lg bg-primary/5 border border-primary/20">
-                  <p className="text-[10px] text-primary font-medium">
-                    {selectedIds.size === 0
-                      ? 'Tap tiles to select for comparison'
-                      : `${selectedIds.size} selected`}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    {canCompare && (
-                      <button
-                        onClick={() => setShowComparisonSheet(true)}
-                        className="flex items-center gap-1 text-[10px] font-semibold text-primary-foreground bg-primary px-2 py-1 rounded-lg hover:bg-primary/90 transition-colors"
-                      >
-                        <Sparkles className="w-3 h-3" /> Compare
-                      </button>
-                    )}
-                    <button
-                      onClick={() => { setCompareModeCategory(null); setSelectedIds(new Set()); }}
-                      className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
 
               {/* Tiles */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -1425,7 +1426,7 @@ export default function BiomarkerHistoryView({
                     isReanalyzing={reanalyzingId === upload.id}
                     selected={selectedIds.has(upload.id)}
                     onToggleSelect={handleToggleSelect}
-                    compareMode={inCompareMode}
+                    compareMode={compareMode}
                   />
                 ))}
               </div>
@@ -1475,7 +1476,7 @@ export default function BiomarkerHistoryView({
         <ComparisonSheet
           uploads={selectedUploads}
           allUploads={uploads}
-          onClose={() => { setShowComparisonSheet(false); setCompareModeCategory(null); setSelectedIds(new Set()); }}
+          onClose={() => { setShowComparisonSheet(false); setCompareMode(false); setCompareModeCategory(null); setSelectedIds(new Set()); }}
           userId={userId}
         />
       )}

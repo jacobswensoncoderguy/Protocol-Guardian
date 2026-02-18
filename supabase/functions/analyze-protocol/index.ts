@@ -191,9 +191,42 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { compounds, protocols, toleranceLevel, analysisType, messages, analysis } = body;
+    const { compounds, protocols, toleranceLevel, analysisType, messages, analysis, prompt, context } = body;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+
+    // ── LAB COMPARISON MODE: direct prompt pass-through ──
+    if (context === 'lab_comparison' && prompt) {
+      const response = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: "You are a health data analyst specializing in lab biomarker interpretation. Provide clear, actionable analysis of health data changes over time. Do not add medical disclaimers." },
+            { role: "user", content: prompt },
+          ],
+          max_tokens: 1024,
+        }),
+      });
+
+      if (!response.ok) {
+        const t = await response.text();
+        console.error("Lab comparison AI error:", response.status, t);
+        return new Response(JSON.stringify({ error: "AI comparison failed" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const data = await response.json();
+      const result = data.choices?.[0]?.message?.content || "Analysis complete.";
+      return new Response(JSON.stringify({ analysis: result, response: result }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // ── CHAT MODE: streaming conversation ──
     if (analysisType === 'chat') {
