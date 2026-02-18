@@ -864,6 +864,32 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
         );
       })()}
 
+      {/* Peptide reconstitution math — inline helper for syringe fills */}
+      {isPeptide && !editing && compound.bacstatPerVial && compound.reconVolume && (
+        <div className="mb-2 flex flex-wrap items-center gap-1.5 bg-primary/5 border border-primary/15 rounded-lg px-2.5 py-1.5">
+          <Syringe className="w-3 h-3 text-primary/60 flex-shrink-0" />
+          <span className="text-[10px] text-muted-foreground">
+            {compound.reconVolume}mL BacWat
+          </span>
+          <span className="text-[10px] text-muted-foreground/50">→</span>
+          <span className="text-[10px] font-mono text-foreground/80">
+            {compound.bacstatPerVial / compound.reconVolume} IU/mL
+          </span>
+          <span className="text-[10px] text-muted-foreground/50">·</span>
+          <span className="text-[10px] font-mono text-foreground/80">
+            {compound.dosePerUse > 0 ? Math.round(compound.bacstatPerVial / compound.dosePerUse) : '—'} doses/vial
+          </span>
+          {compound.dosePerUse > 0 && (
+            <>
+              <span className="text-[10px] text-muted-foreground/50">·</span>
+              <span className="text-[10px] font-mono text-foreground/80">
+                {(compound.dosePerUse / (compound.bacstatPerVial / compound.reconVolume)).toFixed(2)} mL/dose
+              </span>
+            </>
+          )}
+        </div>
+      )}
+
       {editing ? (
         <div className="space-y-1.5">
           <EditRow label="Name" value={editState.name || compound.name}
