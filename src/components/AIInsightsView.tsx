@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Brain, RefreshCw, ShieldAlert, Beaker, BarChart3, DollarSign, Lightbulb, ChevronDown, GitCompare, AlertTriangle, Zap, MessageSquare, Send, X, ThumbsDown, TrendingUp, Shield, Scale, Rocket } from 'lucide-react';
 import { StackAnalysis, ToleranceComparison } from '@/hooks/useProtocolAnalysis';
 import { ToleranceLevel } from '@/hooks/useProtocolAnalysis';
@@ -339,6 +339,15 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
   const sectionScores = analysis ? computeSectionScores(analysis) : [];
   const [dismissedFindings, setDismissedFindings] = useState<Set<string>>(new Set());
 
+  // Wrap onChatSend so InlineReply always has an active conversation to send into
+  const handleInlineReply = useCallback(async (message: string) => {
+    if (!conversationManager.activeConversationId) {
+      const conv = await conversationManager.createConversation('Protocol Discussion');
+      if (!conv) return;
+    }
+    onChatSend(message);
+  }, [conversationManager, onChatSend]);
+
   const dismiss = (key: string) => {
     setDismissedFindings(prev => new Set(prev).add(key));
   };
@@ -386,7 +395,7 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
                         <Lightbulb className="w-3 h-3 inline mr-1 -mt-0.5" />
                         {c.recommendation}
                       </p>
-                      <InlineReply context={c.description} onSend={onChatSend} />
+                      <InlineReply context={c.description} onSend={handleInlineReply} />
                     </div>
                   );
                 })}
@@ -425,7 +434,7 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
                         <RefreshCw className="w-3 h-3 inline mr-1 -mt-0.5" />
                         {b.suggestion} ({b.improvementEstimate})
                       </p>
-                      <InlineReply context={`${b.compound}: ${b.issue}`} onSend={onChatSend} />
+                      <InlineReply context={`${b.compound}: ${b.issue}`} onSend={handleInlineReply} />
                     </div>
                   );
                 })}
@@ -469,7 +478,7 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
                       <span className="text-[11px] text-foreground/70">{p.gaps.join(' • ')}</span>
                     </div>
                   )}
-                  <InlineReply context={`${p.protocolName} protocol graded ${p.grade}`} onSend={onChatSend} />
+                  <InlineReply context={`${p.protocolName} protocol graded ${p.grade}`} onSend={handleInlineReply} />
                 </div>
               ))}
             </div>
@@ -503,7 +512,7 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
                       {c.alternative && c.alternative !== 'N/A' && (
                         <p className="text-[11px] text-primary mt-0.5">→ {c.alternative}</p>
                       )}
-                      <InlineReply context={`${c.compound} cost: ${c.reasoning}`} onSend={onChatSend} />
+                      <InlineReply context={`${c.compound} cost: ${c.reasoning}`} onSend={handleInlineReply} />
                     </div>
                   </div>
                 );
@@ -533,7 +542,7 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
                       <DismissButton onDismiss={() => dismiss(key)} />
                     </div>
                     <div className="pl-5">
-                      <InlineReply context={r} onSend={onChatSend} />
+                      <InlineReply context={r} onSend={handleInlineReply} />
                     </div>
                   </div>
                 );

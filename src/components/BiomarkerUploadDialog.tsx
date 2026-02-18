@@ -334,6 +334,7 @@ export default function BiomarkerUploadDialog({
                 ref={fileInputRef}
                 type="file"
                 accept=".pdf,.txt,.csv,.tsv,.text,.md"
+                multiple
                 className="hidden"
                 onChange={e => {
                   const file = e.target.files?.[0];

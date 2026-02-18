@@ -130,6 +130,7 @@ export function useProtocolChat(
 
   const sendMessage = useCallback(async (userInput: string) => {
     if (!conversationId) return;
+    const currentMessages = messagesRef.current;
     const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
       role: 'user',
@@ -144,7 +145,8 @@ export function useProtocolChat(
     const controller = new AbortController();
     abortRef.current = controller;
 
-    const apiMessages = [...messages, userMsg].map(m => ({ role: m.role, content: m.content }));
+    // Use ref-based messages to avoid stale closure
+    const apiMessages = [...currentMessages, userMsg].map(m => ({ role: m.role, content: m.content }));
 
     const compoundData = compounds.map(c => ({
       name: c.name, category: c.category, dosePerUse: c.dosePerUse,
@@ -304,7 +306,7 @@ export function useProtocolChat(
       setIsStreaming(false);
       abortRef.current = null;
     }
-  }, [messages, compounds, protocols, toleranceLevel, analysis, persistMessage, updatePersistedMessage, conversationId, onConversationUpdate]);
+  }, [compounds, protocols, toleranceLevel, analysis, persistMessage, updatePersistedMessage, conversationId, onConversationUpdate]);
 
   // Step 1: Request confirmation before applying — sets pendingConfirm
   const applyChange = useCallback((proposalId: string, changeIndex: number) => {
