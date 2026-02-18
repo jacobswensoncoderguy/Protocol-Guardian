@@ -69,6 +69,7 @@ function getResumeDate(daysLeft: number): string {
 const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compoundLoading, onAnalyzeCompound, customFields, customFieldValues, checkedDoses: externalChecked, onToggleChecked: externalToggle, readOnly = false, readOnlyMemberName, onExitReadOnly, memberInitialsDoses, memberCompoundIds }: WeeklyScheduleViewProps) => {
   const today = new Date().getDay();
   const [selectedDay, setSelectedDay] = useState(today);
+  const isViewingToday = selectedDay === today;
   const [selectedCompound, setSelectedCompound] = useState<Compound | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [doseUnit, setDoseUnit] = useState<'mg' | 'ml'>('mg');
@@ -207,10 +208,10 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
           onCompoundClick={handleCompoundClick}
           protocols={protocols}
           doseUnit={doseUnit}
-          checkedDoses={checkedDoses}
+          checkedDoses={isViewingToday ? checkedDoses : new Set()}
           onToggleChecked={toggleChecked}
-          readOnly={readOnly}
-          memberInitialsDoses={memberInitialsDoses}
+          readOnly={readOnly || !isViewingToday}
+          memberInitialsDoses={isViewingToday ? memberInitialsDoses : undefined}
           memberCompoundIds={memberCompoundIds}
         />
 
@@ -228,10 +229,10 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
             onCompoundClick={handleCompoundClick}
             protocols={protocols}
             doseUnit={doseUnit}
-            checkedDoses={checkedDoses}
+            checkedDoses={isViewingToday ? checkedDoses : new Set()}
             onToggleChecked={toggleChecked}
-            readOnly={readOnly}
-            memberInitialsDoses={memberInitialsDoses}
+            readOnly={readOnly || !isViewingToday}
+            memberInitialsDoses={isViewingToday ? memberInitialsDoses : undefined}
             memberCompoundIds={memberCompoundIds}
           />
         )}
@@ -249,10 +250,10 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
           onCompoundClick={handleCompoundClick}
           protocols={protocols}
           doseUnit={doseUnit}
-          checkedDoses={checkedDoses}
+          checkedDoses={isViewingToday ? checkedDoses : new Set()}
           onToggleChecked={toggleChecked}
-          readOnly={readOnly}
-          memberInitialsDoses={memberInitialsDoses}
+          readOnly={readOnly || !isViewingToday}
+          memberInitialsDoses={isViewingToday ? memberInitialsDoses : undefined}
           memberCompoundIds={memberCompoundIds}
         />
 
