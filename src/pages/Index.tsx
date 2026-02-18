@@ -234,8 +234,8 @@ const Index = () => {
         <div className="container mx-auto flex items-center justify-between">
           <div className="min-w-0">
             <h1 className="text-base sm:text-xl font-bold tracking-tight truncate">
-              <span className="text-gradient-cyan">SUPERHUMAN</span>
-              <span className="text-muted-foreground font-medium ml-1.5 sm:ml-2 text-sm sm:text-xl">Tracker</span>
+              <span className="text-gradient-cyan">PROTOCOL</span>
+              <span className="text-muted-foreground font-medium ml-1.5 sm:ml-2 text-sm sm:text-xl">Guardian</span>
             </h1>
           </div>
           <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
