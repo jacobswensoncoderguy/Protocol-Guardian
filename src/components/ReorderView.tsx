@@ -1,14 +1,23 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Compound, getReorderCost, getStatus } from '@/data/compounds';
+import { format } from 'date-fns';
+import { Compound, getReorderCost } from '@/data/compounds';
 import { getDaysRemainingWithCycling, getEffectiveDailyConsumption } from '@/lib/cycling';
 import { UserProtocol } from '@/hooks/useProtocols';
 import { supabase } from '@/integrations/supabase/client';
-import { Check, Package, PackageCheck, ShoppingCart, Undo2, Trash2, ChevronDown, AlertTriangle, TrendingUp, ExternalLink, ShoppingBag, Info, Calendar, Clock, Truck } from 'lucide-react';
+import {
+  Check, Package, PackageCheck, ShoppingCart, Undo2, Trash2, ChevronDown,
+  AlertTriangle, TrendingUp, ExternalLink, ShoppingBag, Info, Calendar,
+  Clock, Truck, CalendarIcon, Store,
+} from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Calendar as CalendarUI } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 interface ReorderViewProps {
   compounds: Compound[];
@@ -28,23 +37,10 @@ interface OrderItem {
   month_label: string;
   ordered_at: string | null;
   received_at: string | null;
+  notes: string | null;
 }
 
 type Tab = 'needed' | 'ordered' | 'received';
-
-function getReorderSupplyDays(compound: Compound): number {
-  const effectiveDaily = getEffectiveDailyConsumption(compound);
-  if (effectiveDaily === 0) return 9999;
-  const reorderUnits = compound.category === 'peptide'
-    ? (compound.reorderType === 'single' ? compound.reorderQuantity : compound.reorderQuantity * 10)
-    : compound.reorderQuantity;
-  const unitsPerUnit = compound.category === 'peptide' && compound.bacstatPerVial
-    ? compound.bacstatPerVial
-    : compound.category === 'injectable-oil' && compound.vialSizeMl
-      ? compound.unitSize * compound.vialSizeMl
-      : compound.unitSize;
-  return (reorderUnits * unitsPerUnit) / effectiveDaily;
-}
 
 const HORIZON_OPTIONS = [
   { value: 30, label: '30d' },
@@ -53,10 +49,10 @@ const HORIZON_OPTIONS = [
 ] as const;
 type Horizon = 30 | 45 | 60;
 
-function buildNeededItems(compounds: Compound[], horizon: Horizon): (Omit<OrderItem, 'id' | 'ordered_at' | 'received_at'>)[] {
+function buildNeededItems(compounds: Compound[], horizon: Horizon): (Omit<OrderItem, 'id' | 'ordered_at' | 'received_at' | 'notes'>)[] {
   const now = new Date();
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const items: (Omit<OrderItem, 'id' | 'ordered_at' | 'received_at'>)[] = [];
+  const items: (Omit<OrderItem, 'id' | 'ordered_at' | 'received_at' | 'notes'>)[] = [];
 
   const activeCompounds = compounds.filter(c =>
     !c.notes?.includes('[DORMANT]') &&
@@ -67,18 +63,10 @@ function buildNeededItems(compounds: Compound[], horizon: Horizon): (Omit<OrderI
   activeCompounds.forEach(compound => {
     const daysLeft = getDaysRemainingWithCycling(compound);
     if (daysLeft > horizon) return;
-
     const cost = getReorderCost(compound);
     const reorderDate = new Date(now.getTime() + daysLeft * 24 * 60 * 60 * 1000);
     const monthLabel = `${MONTHS[reorderDate.getMonth()]} ${reorderDate.getFullYear()}`;
-
-    items.push({
-      compound_id: compound.id,
-      quantity: compound.reorderQuantity,
-      cost,
-      status: 'needed',
-      month_label: monthLabel,
-    });
+    items.push({ compound_id: compound.id, quantity: compound.reorderQuantity, cost, status: 'needed', month_label: monthLabel });
   });
 
   return items.sort((a, b) => {
@@ -95,7 +83,6 @@ function groupByProtocol<T extends { compound_id: string }>(
 ): { label: string; items: T[] }[] {
   const groups: { label: string; items: T[] }[] = [];
   const protocolIds = new Set<string>();
-
   protocols.forEach(p => {
     const pItems = items.filter(item => p.compoundIds.includes(item.compound_id));
     if (pItems.length > 0) {
@@ -103,13 +90,23 @@ function groupByProtocol<T extends { compound_id: string }>(
       pItems.forEach(item => protocolIds.add(item.compound_id));
     }
   });
-
   const ungrouped = items.filter(item => !protocolIds.has(item.compound_id));
-  if (ungrouped.length > 0) {
-    groups.push({ label: 'Other Compounds', items: ungrouped });
-  }
-
+  if (ungrouped.length > 0) groups.push({ label: 'Other Compounds', items: ungrouped });
   return groups.length > 0 ? groups : [{ label: '', items }];
+}
+
+/** Returns avg shipping days for a compound from received orders, or null if no history */
+function getAvgShippingDays(compoundId: string, receivedOrders: OrderItem[]): number | null {
+  const completed = receivedOrders.filter(
+    o => o.compound_id === compoundId && o.ordered_at && o.received_at
+  );
+  if (completed.length === 0) return null;
+  const total = completed.reduce((sum, o) => {
+    return sum + Math.floor(
+      (new Date(o.received_at!).getTime() - new Date(o.ordered_at!).getTime()) / 86400000
+    );
+  }, 0);
+  return Math.round(total / completed.length);
 }
 
 const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reorderHorizon = 30, onHorizonChange }: ReorderViewProps) => {
@@ -118,21 +115,14 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
   const [loading, setLoading] = useState(true);
   const [detailsCompound, setDetailsCompound] = useState<Compound | null>(null);
 
-  // Order date dialog state
+  // Order dialog state
   const [orderDialog, setOrderDialog] = useState<{
-    compoundId: string;
-    quantity: number;
-    cost: number;
-    monthLabel: string;
+    compoundId: string; quantity: number; cost: number; monthLabel: string;
   } | null>(null);
-  const [orderDateInput, setOrderDateInput] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [orderDate, setOrderDate] = useState<Date>(new Date());
+  const [orderNotes, setOrderNotes] = useState('');
 
   const horizon: Horizon = reorderHorizon;
-
-  const saveHorizon = (h: Horizon) => {
-    onHorizonChange?.(h);
-  };
-
   const compoundMap = new Map(compounds.map(c => [c.id, c]));
 
   const fetchOrders = useCallback(async () => {
@@ -140,33 +130,26 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
       .from('orders')
       .select('*')
       .order('created_at', { ascending: false });
-
-    if (!error && data) {
-      setOrders(data as OrderItem[]);
-    }
+    if (!error && data) setOrders(data as OrderItem[]);
     setLoading(false);
   }, []);
 
-  useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+  useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
   const neededItems = buildNeededItems(compounds, horizon);
   const orderedItems = orders.filter(o => o.status === 'ordered');
   const receivedItems = orders.filter(o => o.status === 'received');
-
   const activeOrderIds = new Set(orderedItems.map(o => o.compound_id));
 
   const handleMarkOrdered = (compoundId: string, quantity: number, cost: number, monthLabel: string) => {
-    setOrderDateInput(new Date().toISOString().split('T')[0]);
+    setOrderDate(new Date());
+    setOrderNotes('');
     setOrderDialog({ compoundId, quantity, cost, monthLabel });
   };
 
   const confirmMarkOrdered = async () => {
     if (!orderDialog) return;
     const { compoundId, quantity, cost, monthLabel } = orderDialog;
-    const orderedAt = orderDateInput ? new Date(orderDateInput).toISOString() : new Date().toISOString();
-
     const { data, error } = await supabase
       .from('orders')
       .insert([{
@@ -175,74 +158,42 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
         cost,
         status: 'ordered',
         month_label: monthLabel,
-        ordered_at: orderedAt,
+        ordered_at: orderDate.toISOString(),
+        notes: orderNotes.trim() || null,
         user_id: userId,
       }])
       .select()
       .single();
-
-    if (!error && data) {
-      setOrders(prev => [data as OrderItem, ...prev]);
-    }
+    if (!error && data) setOrders(prev => [data as OrderItem, ...prev]);
     setOrderDialog(null);
   };
 
   const handleMarkReceived = async (order: OrderItem) => {
+    const now = new Date().toISOString();
     const { error } = await supabase
       .from('orders')
-      .update({ status: 'received', received_at: new Date().toISOString() })
+      .update({ status: 'received', received_at: now })
       .eq('id', order.id);
-
     if (error) return;
-
     const compound = compoundMap.get(order.compound_id);
-    if (compound) {
-      const addQty = order.quantity;
-      onUpdateCompound(compound.id, {
-        currentQuantity: compound.currentQuantity + addQty,
-      });
-    }
-
-    setOrders(prev => prev.map(o =>
-      o.id === order.id ? { ...o, status: 'received', received_at: new Date().toISOString() } : o
-    ));
+    if (compound) onUpdateCompound(compound.id, { currentQuantity: compound.currentQuantity + order.quantity });
+    setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'received', received_at: now } : o));
   };
 
   const handleReceiveAll = async () => {
-    for (const order of orderedItems) {
-      await handleMarkReceived(order);
-    }
+    for (const order of orderedItems) await handleMarkReceived(order);
   };
 
   const handleUndoReceived = async (order: OrderItem) => {
     const compound = compoundMap.get(order.compound_id);
-    if (compound) {
-      onUpdateCompound(compound.id, {
-        currentQuantity: Math.max(0, compound.currentQuantity - order.quantity),
-      });
-    }
-
-    const { error } = await supabase
-      .from('orders')
-      .update({ status: 'ordered', received_at: null })
-      .eq('id', order.id);
-
-    if (!error) {
-      setOrders(prev => prev.map(o =>
-        o.id === order.id ? { ...o, status: 'ordered', received_at: null } : o
-      ));
-    }
+    if (compound) onUpdateCompound(compound.id, { currentQuantity: Math.max(0, compound.currentQuantity - order.quantity) });
+    const { error } = await supabase.from('orders').update({ status: 'ordered', received_at: null }).eq('id', order.id);
+    if (!error) setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'ordered', received_at: null } : o));
   };
 
   const handleDeleteOrder = async (order: OrderItem) => {
-    const { error } = await supabase
-      .from('orders')
-      .delete()
-      .eq('id', order.id);
-
-    if (!error) {
-      setOrders(prev => prev.filter(o => o.id !== order.id));
-    }
+    const { error } = await supabase.from('orders').delete().eq('id', order.id);
+    if (!error) setOrders(prev => prev.filter(o => o.id !== order.id));
   };
 
   const getDisplayQty = (compoundId: string, qty: number) => {
@@ -252,10 +203,7 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
       if (compound.reorderType === 'single') return `Reorder Qty: ${qty} vial${qty !== 1 ? 's' : ''}`;
       return `Reorder Qty: ${qty} kit${qty !== 1 ? 's' : ''} (${qty * 10} vials)`;
     }
-    if (compound.category === 'injectable-oil') {
-      return `Reorder Qty: ${qty} vial${qty !== 1 ? 's' : ''}`;
-    }
-    // Use the compound's unitLabel to determine the container type
+    if (compound.category === 'injectable-oil') return `Reorder Qty: ${qty} vial${qty !== 1 ? 's' : ''}`;
     const ul = (compound.unitLabel || '').toLowerCase();
     let containerLabel = 'bottle';
     if (ul.includes('scoop') || ul.includes('serving') || ul.includes('g') || ul === 'oz') containerLabel = 'bag';
@@ -274,9 +222,6 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
   const orderedGroups = groupByProtocol(orderedItems, protocols, compoundMap);
   const receivedGroups = groupByProtocol(receivedItems, protocols, compoundMap);
 
-  // Tile counts derived directly from filteredNeeded (same set as the list) using horizon-aware thresholds.
-  // critical = ≤7d always; warning = 8d..horizon (everything else in the list).
-  // This guarantees tiles + list always match.
   const criticalCompounds = filteredNeeded
     .map(n => compoundMap.get(n.compound_id))
     .filter((c): c is Compound => !!c && getDaysRemainingWithCycling(c) <= 7);
@@ -287,6 +232,14 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
       const d = getDaysRemainingWithCycling(c);
       return d > 7 && d <= horizon;
     });
+
+  // Shipping analytics per compound from received orders
+  const shippingByCompound = new Map<string, number>();
+  const compoundIdsWithHistory = new Set(receivedItems.filter(o => o.ordered_at && o.received_at).map(o => o.compound_id));
+  compoundIdsWithHistory.forEach(id => {
+    const avg = getAvgShippingDays(id, receivedItems);
+    if (avg !== null) shippingByCompound.set(id, avg);
+  });
 
   return (
     <>
@@ -314,6 +267,7 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
           )}
         </div>
       )}
+
       {/* Tab Selector */}
       <div className="flex gap-1 bg-secondary/50 rounded-lg p-1 border border-border/50">
         {tabs.map(t => (
@@ -339,10 +293,9 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
         ))}
       </div>
 
-      {/* Needed Tab */}
+      {/* ── Needed Tab ── */}
       {tab === 'needed' && (
         <div className="space-y-3">
-          {/* Horizon picker */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
               <Calendar className="w-3 h-3" />
@@ -352,7 +305,7 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
               {HORIZON_OPTIONS.map(opt => (
                 <button
                   key={opt.value}
-                  onClick={() => saveHorizon(opt.value)}
+                  onClick={() => onHorizonChange?.(opt.value)}
                   className={`px-2.5 py-1 rounded text-[10px] font-medium transition-all touch-manipulation ${
                     horizon === opt.value
                       ? 'bg-primary/15 text-primary border border-primary/30'
@@ -386,15 +339,15 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
                       const compound = compoundMap.get(item.compound_id);
                       const days = compound ? getDaysRemainingWithCycling(compound) : 999;
                       const status = days <= 7 ? 'critical' : days <= 30 ? 'warning' : 'good';
+                      const avgShip = shippingByCompound.get(item.compound_id) ?? null;
                       return (
                         <div key={`${item.compound_id}-${i}`} className={`bg-card rounded-lg border p-3 ${
                           status === 'critical' ? 'border-destructive/40' :
-                          status === 'warning' ? 'border-accent/30' :
-                          'border-border/50'
+                          status === 'warning' ? 'border-accent/30' : 'border-border/50'
                         }`}>
                           <div className="flex items-center justify-between mb-2">
                             <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <h4 className="text-sm font-semibold text-foreground truncate">{compound?.name || item.compound_id}</h4>
                                 <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
                                   status === 'critical' ? 'bg-destructive/20 text-status-critical' :
@@ -403,8 +356,14 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
                                 }`}>
                                   {days}d
                                 </span>
+                                {avgShip !== null && (
+                                  <span className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground border border-border/30">
+                                    <Truck className="w-2.5 h-2.5" />
+                                    ~{avgShip}d to arrive
+                                  </span>
+                                )}
                               </div>
-                              <div className="flex items-center gap-3 mt-0.5 text-[10px] text-muted-foreground">
+                              <div className="flex items-center gap-3 mt-0.5 text-[10px] text-muted-foreground flex-wrap">
                                 <span>{getDisplayQty(item.compound_id, item.quantity)}</span>
                                 <span className="font-mono">${item.cost}</span>
                                 <span>{item.month_label}</span>
@@ -434,23 +393,17 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
                               <span className="text-[9px] uppercase tracking-wider text-muted-foreground mr-0.5">Shop:</span>
                               <a
                                 href={`https://www.amazon.com/s?k=${encodeURIComponent(compound.name + ' supplement')}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                                target="_blank" rel="noopener noreferrer"
                                 className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-accent/15 text-accent-foreground border border-accent/30 hover:bg-accent/25 transition-colors"
                               >
-                                <ShoppingBag className="w-2.5 h-2.5" />
-                                Amazon
-                                <ExternalLink className="w-2 h-2 opacity-60" />
+                                <ShoppingBag className="w-2.5 h-2.5" />Amazon<ExternalLink className="w-2 h-2 opacity-60" />
                               </a>
                               <a
                                 href={`https://www.google.com/search?q=${encodeURIComponent(compound.name + ' supplement buy')}&tbm=shop`}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                                target="_blank" rel="noopener noreferrer"
                                 className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-secondary text-muted-foreground border border-border/40 hover:bg-secondary/80 transition-colors"
                               >
-                                <ShoppingCart className="w-2.5 h-2.5" />
-                                Google
-                                <ExternalLink className="w-2 h-2 opacity-60" />
+                                <ShoppingCart className="w-2.5 h-2.5" />Google<ExternalLink className="w-2 h-2 opacity-60" />
                               </a>
                             </div>
                           )}
@@ -465,7 +418,7 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
         </div>
       )}
 
-      {/* Ordered Tab */}
+      {/* ── Ordered Tab ── */}
       {tab === 'ordered' && (
         <div className="space-y-3">
           {orderedItems.length === 0 ? (
@@ -488,42 +441,53 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
                     <div className="space-y-1.5">
                       {group.items.map(order => {
                         const compound = compoundMap.get(order.compound_id);
+                        const transitDays = order.ordered_at
+                          ? Math.floor((Date.now() - new Date(order.ordered_at).getTime()) / 86400000)
+                          : null;
                         return (
-                          <div key={order.id} className="bg-card rounded-lg border border-primary/20 p-3 flex items-center justify-between">
-                          <div className="min-w-0 flex-1">
-                              <h4 className="text-sm font-semibold text-foreground truncate">{compound?.name || order.compound_id}</h4>
-                              <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground flex-wrap">
-                                <span>{getDisplayQty(order.compound_id, order.quantity)}</span>
-                                <span className="font-mono">${order.cost}</span>
-                                {order.ordered_at && (
-                                  <span className="flex items-center gap-0.5">
-                                    <Calendar className="w-2.5 h-2.5" />
-                                    {new Date(order.ordered_at).toLocaleDateString()}
-                                  </span>
-                                )}
-                                {order.ordered_at && (
-                                  <span className="flex items-center gap-0.5 text-accent font-medium">
-                                    <Clock className="w-2.5 h-2.5" />
-                                    {Math.floor((Date.now() - new Date(order.ordered_at).getTime()) / 86400000)}d in transit
-                                  </span>
+                          <div key={order.id} className="bg-card rounded-lg border border-primary/20 p-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 flex-1">
+                                <h4 className="text-sm font-semibold text-foreground truncate">{compound?.name || order.compound_id}</h4>
+                                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                  <span className="text-[10px] text-muted-foreground">{getDisplayQty(order.compound_id, order.quantity)}</span>
+                                  <span className="text-[10px] font-mono text-muted-foreground">${order.cost}</span>
+                                  {order.ordered_at && (
+                                    <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                                      <Calendar className="w-2.5 h-2.5" />
+                                      {new Date(order.ordered_at).toLocaleDateString()}
+                                    </span>
+                                  )}
+                                  {transitDays !== null && (
+                                    <span className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-accent/15 text-accent border border-accent/20 font-medium">
+                                      <Clock className="w-2.5 h-2.5" />
+                                      {transitDays}d in transit
+                                    </span>
+                                  )}
+                                </div>
+                                {order.notes && (
+                                  <div className="flex items-center gap-1 mt-1.5">
+                                    <Store className="w-2.5 h-2.5 text-muted-foreground flex-shrink-0" />
+                                    <p className="text-[10px] text-muted-foreground italic truncate">{order.notes}</p>
+                                  </div>
                                 )}
                               </div>
-                            </div>
-                            <div className="flex items-center gap-1 ml-2 flex-shrink-0">
-                              <button
-                                onClick={() => handleDeleteOrder(order)}
-                                className="p-1.5 rounded-md bg-destructive/10 text-status-critical border border-destructive/20 active:bg-destructive/20 touch-manipulation"
-                                title="Cancel order"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => handleMarkReceived(order)}
-                                className="px-3 py-1.5 rounded-md bg-status-good/15 text-status-good text-xs font-medium border border-status-good/30 active:bg-status-good/25 touch-manipulation flex items-center gap-1"
-                              >
-                                <Check className="w-3 h-3" />
-                                Received
-                              </button>
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                <button
+                                  onClick={() => handleDeleteOrder(order)}
+                                  className="p-1.5 rounded-md bg-destructive/10 text-status-critical border border-destructive/20 active:bg-destructive/20 touch-manipulation"
+                                  title="Cancel order"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => handleMarkReceived(order)}
+                                  className="px-3 py-1.5 rounded-md bg-status-good/15 text-status-good text-xs font-medium border border-status-good/30 active:bg-status-good/25 touch-manipulation flex items-center gap-1"
+                                >
+                                  <Check className="w-3 h-3" />
+                                  Received
+                                </button>
+                              </div>
                             </div>
                           </div>
                         );
@@ -552,9 +516,41 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
         </div>
       )}
 
-      {/* Received Tab */}
+      {/* ── Received Tab ── */}
       {tab === 'received' && (
         <div className="space-y-3">
+          {/* Shipping analytics summary */}
+          {shippingByCompound.size > 0 && (
+            <div className="bg-secondary/30 rounded-lg border border-border/40 p-3">
+              <div className="flex items-center gap-1.5 mb-2">
+                <Truck className="w-3.5 h-3.5 text-primary" />
+                <p className="text-xs font-semibold text-foreground">Shipping Analytics</p>
+              </div>
+              <div className="space-y-1">
+                {Array.from(shippingByCompound.entries()).map(([cid, avgDays]) => {
+                  const compound = compoundMap.get(cid);
+                  const orderCount = receivedItems.filter(o => o.compound_id === cid && o.ordered_at && o.received_at).length;
+                  return (
+                    <div key={cid} className="flex items-center justify-between text-[10px]">
+                      <span className="text-muted-foreground truncate flex-1">{compound?.name || cid}</span>
+                      <div className="flex items-center gap-2 ml-2">
+                        <span className="text-muted-foreground font-mono">{orderCount} order{orderCount !== 1 ? 's' : ''}</span>
+                        <span className={`flex items-center gap-0.5 font-semibold px-1.5 py-0.5 rounded-full ${
+                          avgDays <= 3 ? 'bg-status-good/15 text-status-good' :
+                          avgDays <= 7 ? 'bg-accent/15 text-status-warning' :
+                          'bg-destructive/15 text-status-critical'
+                        }`}>
+                          <Clock className="w-2.5 h-2.5" />
+                          avg {avgDays}d
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {receivedItems.length === 0 ? (
             <div className="bg-card rounded-lg border border-border/50 p-6 text-center">
               <PackageCheck className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
@@ -574,48 +570,63 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
                   <div className="space-y-1.5">
                     {group.items.map(order => {
                       const compound = compoundMap.get(order.compound_id);
+                      const shipDays = (order.ordered_at && order.received_at)
+                        ? Math.floor((new Date(order.received_at).getTime() - new Date(order.ordered_at).getTime()) / 86400000)
+                        : null;
                       return (
-                        <div key={order.id} className="bg-card rounded-lg border border-status-good/20 p-3 flex items-center justify-between">
-                          <div className="min-w-0 flex-1">
-                            <h4 className="text-sm font-semibold text-foreground truncate">{compound?.name || order.compound_id}</h4>
-                             <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground flex-wrap">
-                               <span>{getDisplayQty(order.compound_id, order.quantity)}</span>
-                               <span className="font-mono">${order.cost}</span>
-                               {order.ordered_at && (
-                                 <span className="flex items-center gap-0.5">
-                                   <Calendar className="w-2.5 h-2.5" />
-                                   Ordered {new Date(order.ordered_at).toLocaleDateString()}
-                                 </span>
-                               )}
-                               {order.received_at && (
-                                 <span className="flex items-center gap-0.5">
-                                   <PackageCheck className="w-2.5 h-2.5" />
-                                   Received {new Date(order.received_at).toLocaleDateString()}
-                                 </span>
-                               )}
-                               {order.ordered_at && order.received_at && (
-                                 <span className="flex items-center gap-0.5 text-status-good font-semibold">
-                                   <Truck className="w-2.5 h-2.5" />
-                                   {Math.floor((new Date(order.received_at).getTime() - new Date(order.ordered_at).getTime()) / 86400000)}d shipping
-                                 </span>
-                               )}
-                             </div>
-                          </div>
-                          <div className="flex items-center gap-1 ml-2 flex-shrink-0">
-                            <button
-                              onClick={() => handleUndoReceived(order)}
-                              className="p-1.5 rounded-md bg-accent/10 text-accent border border-accent/20 active:bg-accent/20 touch-manipulation"
-                              title="Undo — move back to ordered and subtract from inventory"
-                            >
-                              <Undo2 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteOrder(order)}
-                              className="p-1.5 rounded-md bg-destructive/10 text-status-critical border border-destructive/20 active:bg-destructive/20 touch-manipulation"
-                              title="Delete order record"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                        <div key={order.id} className="bg-card rounded-lg border border-status-good/20 p-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <h4 className="text-sm font-semibold text-foreground truncate">{compound?.name || order.compound_id}</h4>
+                              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                <span className="text-[10px] text-muted-foreground">{getDisplayQty(order.compound_id, order.quantity)}</span>
+                                <span className="text-[10px] font-mono text-muted-foreground">${order.cost}</span>
+                                {order.ordered_at && (
+                                  <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                                    <Calendar className="w-2.5 h-2.5" />
+                                    {new Date(order.ordered_at).toLocaleDateString()}
+                                  </span>
+                                )}
+                                {order.received_at && (
+                                  <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                                    <PackageCheck className="w-2.5 h-2.5" />
+                                    {new Date(order.received_at).toLocaleDateString()}
+                                  </span>
+                                )}
+                                {shipDays !== null && (
+                                  <span className={`flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
+                                    shipDays <= 3 ? 'bg-status-good/15 text-status-good' :
+                                    shipDays <= 7 ? 'bg-accent/15 text-status-warning' :
+                                    'bg-destructive/15 text-status-critical'
+                                  }`}>
+                                    <Truck className="w-2.5 h-2.5" />
+                                    {shipDays}d shipping
+                                  </span>
+                                )}
+                              </div>
+                              {order.notes && (
+                                <div className="flex items-center gap-1 mt-1.5">
+                                  <Store className="w-2.5 h-2.5 text-muted-foreground flex-shrink-0" />
+                                  <p className="text-[10px] text-muted-foreground italic truncate">{order.notes}</p>
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <button
+                                onClick={() => handleUndoReceived(order)}
+                                className="p-1.5 rounded-md bg-accent/10 text-accent border border-accent/20 active:bg-accent/20 touch-manipulation"
+                                title="Undo — move back to ordered and subtract from inventory"
+                              >
+                                <Undo2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteOrder(order)}
+                                className="p-1.5 rounded-md bg-destructive/10 text-status-critical border border-destructive/20 active:bg-destructive/20 touch-manipulation"
+                                title="Delete order record"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       );
@@ -629,31 +640,61 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
       )}
     </div>
 
-    {/* Order date dialog */}
+    {/* ── Order Date + Notes Dialog ── */}
     <Dialog open={!!orderDialog} onOpenChange={(v) => { if (!v) setOrderDialog(null); }}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
-            <Calendar className="w-4 h-4 text-primary" />
-            Confirm Order Date
+            <CalendarIcon className="w-4 h-4 text-primary" />
+            Log Order
           </DialogTitle>
         </DialogHeader>
         {orderDialog && (
           <div className="space-y-4 py-1">
             <p className="text-sm text-muted-foreground">
-              When did you place this order for <span className="font-semibold text-foreground">{compoundMap.get(orderDialog.compoundId)?.name}</span>?
+              Record the order details for{' '}
+              <span className="font-semibold text-foreground">{compoundMap.get(orderDialog.compoundId)?.name}</span>.
             </p>
+
+            {/* Date picker */}
             <div className="space-y-1.5">
-              <Label htmlFor="order-date" className="text-xs text-muted-foreground uppercase tracking-wider">Order / Refill Date</Label>
-              <Input
-                id="order-date"
-                type="date"
-                value={orderDateInput}
-                onChange={e => setOrderDateInput(e.target.value)}
-                max={new Date().toISOString().split('T')[0]}
-                className="text-sm"
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider">Order / Refill Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn('w-full justify-start text-left font-normal', !orderDate && 'text-muted-foreground')}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {orderDate ? format(orderDate, 'PPP') : 'Pick a date'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarUI
+                    mode="single"
+                    selected={orderDate}
+                    onSelect={(d) => d && setOrderDate(d)}
+                    disabled={(d) => d > new Date()}
+                    initialFocus
+                    className={cn('p-3 pointer-events-auto')}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Supplier / notes */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider">Supplier / Notes (optional)</Label>
+              <Textarea
+                placeholder="e.g. Empower Pharmacy, peptide supplier…"
+                value={orderNotes}
+                onChange={e => setOrderNotes(e.target.value)}
+                rows={2}
+                className="text-sm resize-none"
               />
             </div>
+
+            {/* Summary */}
             <div className="grid grid-cols-2 gap-2 text-[10px] text-muted-foreground bg-secondary/40 rounded-lg p-2.5 border border-border/30">
               <div>
                 <p className="uppercase tracking-wider mb-0.5">Cost</p>
@@ -683,7 +724,7 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
       </DialogContent>
     </Dialog>
 
-    {/* Compound details sheet for reorder reference */}
+    {/* ── Compound Details Sheet ── */}
     <Sheet open={!!detailsCompound} onOpenChange={(v) => { if (!v) setDetailsCompound(null); }}>
       <SheetContent side="bottom" className="rounded-t-2xl max-h-[80vh] overflow-y-auto">
         {detailsCompound && (
@@ -695,8 +736,6 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-primary/10 text-primary capitalize">{detailsCompound.category.replace(/-/g,' ')}</span>
               </SheetTitle>
             </SheetHeader>
-
-            {/* Full compound specs */}
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-2">
                 {[
@@ -718,44 +757,34 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
                   </div>
                 ))}
               </div>
-
               {detailsCompound.timingNote && (
                 <div className="bg-secondary/30 rounded-lg p-2.5 border border-border/20">
                   <p className="text-[9px] uppercase tracking-wider text-muted-foreground mb-0.5">Timing</p>
                   <p className="text-xs text-foreground">{detailsCompound.timingNote}</p>
                 </div>
               )}
-
               {detailsCompound.notes && (
                 <div className="bg-secondary/30 rounded-lg p-2.5 border border-border/20">
                   <p className="text-[9px] uppercase tracking-wider text-muted-foreground mb-0.5">Notes</p>
                   <p className="text-xs text-foreground">{detailsCompound.notes}</p>
                 </div>
               )}
-
-              {/* Search links in details sheet */}
               <div className="pt-2 border-t border-border/30">
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Search to Purchase</p>
                 <div className="flex gap-2">
                   <a
                     href={`https://www.amazon.com/s?k=${encodeURIComponent(detailsCompound.name + ' supplement')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    target="_blank" rel="noopener noreferrer"
                     className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-accent/15 text-accent-foreground border border-accent/30 hover:bg-accent/25 transition-colors text-xs font-medium"
                   >
-                    <ShoppingBag className="w-3.5 h-3.5" />
-                    Amazon
-                    <ExternalLink className="w-3 h-3 opacity-60" />
+                    <ShoppingBag className="w-3.5 h-3.5" />Amazon<ExternalLink className="w-3 h-3 opacity-60" />
                   </a>
                   <a
                     href={`https://www.google.com/search?q=${encodeURIComponent(detailsCompound.name + ' supplement buy')}&tbm=shop`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    target="_blank" rel="noopener noreferrer"
                     className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-secondary text-muted-foreground border border-border/40 hover:bg-secondary/80 transition-colors text-xs font-medium"
                   >
-                    <ShoppingCart className="w-3.5 h-3.5" />
-                    Google Shop
-                    <ExternalLink className="w-3 h-3 opacity-60" />
+                    <ShoppingCart className="w-3.5 h-3.5" />Google Shop<ExternalLink className="w-3 h-3 opacity-60" />
                   </a>
                 </div>
               </div>

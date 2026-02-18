@@ -526,6 +526,7 @@ export type Database = {
           created_at: string
           id: string
           month_label: string
+          notes: string | null
           ordered_at: string | null
           quantity: number
           received_at: string | null
@@ -538,6 +539,7 @@ export type Database = {
           created_at?: string
           id?: string
           month_label: string
+          notes?: string | null
           ordered_at?: string | null
           quantity: number
           received_at?: string | null
@@ -550,6 +552,7 @@ export type Database = {
           created_at?: string
           id?: string
           month_label?: string
+          notes?: string | null
           ordered_at?: string | null
           quantity?: number
           received_at?: string | null
