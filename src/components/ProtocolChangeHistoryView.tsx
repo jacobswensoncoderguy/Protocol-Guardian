@@ -60,6 +60,17 @@ const CHANGE_TYPES = [
 ];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Derive a source badge from the description string written at insert time */
+function parseSourceBadge(description: string): { label: string; color: string } | null {
+  const lower = description.toLowerCase();
+  if (lower.includes('accept all')) return { label: 'Accept All', color: 'bg-status-good/15 text-status-good' };
+  if (lower.includes('reverted') || lower.includes('undo')) return { label: 'Reverted', color: 'bg-accent/15 text-status-warning' };
+  if (lower.includes('manually')) return { label: 'Manual', color: 'bg-secondary text-muted-foreground' };
+  if (lower.includes('ai recommendation')) return { label: 'Single Accept', color: 'bg-primary/10 text-primary' };
+  return null;
+}
+
 const changeTypeLabel = (type: string) => {
   switch (type) {
     case 'adjust_dose': return 'Dose';
@@ -558,6 +569,7 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
             const isExpanded = expanded === change.id;
             const isEditing = editingId === change.id;
             const weeklyDiff = getWeeklyDoseDiff(change);
+            const sourceBadge = parseSourceBadge(change.description);
 
             return (
               <div key={change.id} className="rounded-xl border border-border/40 bg-card/60 overflow-hidden">
@@ -570,6 +582,11 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
                       <span className="text-xs font-semibold text-foreground">{compoundName}</span>
                       {field && <span className="text-[10px] text-muted-foreground">· {fieldLabel(field)}</span>}
                       {recent && <span className="text-[9px] font-mono px-1 py-0.5 rounded-full bg-primary/10 text-primary">recent</span>}
+                      {sourceBadge && (
+                        <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full ${sourceBadge.color}`}>
+                          {sourceBadge.label}
+                        </span>
+                      )}
                     </div>
 
                     {/* Before/after value visual — always prominent */}
