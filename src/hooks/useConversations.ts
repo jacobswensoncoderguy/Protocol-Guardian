@@ -41,24 +41,36 @@ export function useConversations(userId: string | undefined) {
 
       if (projRes.data) setProjects(projRes.data as unknown as ChatProject[]);
       if (convRes.data) {
-        // Enrich with message counts
         const convs = convRes.data as unknown as ChatConversation[];
-        const enriched = await Promise.all(convs.map(async (c) => {
-          const { count } = await supabase
-            .from('protocol_chat_messages')
-            .select('*', { count: 'exact', head: true })
-            .eq('conversation_id', c.id);
-          const { data: lastMsg } = await supabase
-            .from('protocol_chat_messages')
-            .select('content, role')
-            .eq('conversation_id', c.id)
-            .order('created_at', { ascending: false })
-            .limit(1);
-          return {
-            ...c,
-            message_count: count || 0,
-            last_message_preview: lastMsg?.[0]?.content?.slice(0, 80) || '',
-          };
+        const convIds = convs.map(c => c.id);
+
+        // Single bulk query for all messages across all conversations
+        const { data: allMessages } = convIds.length > 0
+          ? await supabase
+              .from('protocol_chat_messages')
+              .select('conversation_id, content, role, created_at')
+              .in('conversation_id', convIds)
+              .order('created_at', { ascending: false })
+          : { data: [] };
+
+        // Build lookup maps from the single result set
+        const countMap = new Map<string, number>();
+        const previewMap = new Map<string, string>();
+
+        for (const msg of allMessages ?? []) {
+          const cid = msg.conversation_id ?? '';
+          if (!cid) continue;
+          countMap.set(cid, (countMap.get(cid) ?? 0) + 1);
+          // First occurrence per conversation_id is the latest (ordered desc)
+          if (!previewMap.has(cid)) {
+            previewMap.set(cid, msg.content?.slice(0, 80) ?? '');
+          }
+        }
+
+        const enriched = convs.map(c => ({
+          ...c,
+          message_count: countMap.get(c.id) ?? 0,
+          last_message_preview: previewMap.get(c.id) ?? '',
         }));
         setConversations(enriched);
 
