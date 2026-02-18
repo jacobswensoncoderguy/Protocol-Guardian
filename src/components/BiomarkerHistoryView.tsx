@@ -171,9 +171,9 @@ function DetailSheet({
     return acc;
   }, {} as Record<string, any[]>);
 
-  const labelDate = upload.reading_date
-    ? new Date(upload.reading_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-    : new Date(upload.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const rawDate = upload.reading_date || upload.created_at;
+  const parsedDate = new Date(rawDate);
+  const labelDate = isNaN(parsedDate.getTime()) ? '' : parsedDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
   return (
     <div
@@ -386,9 +386,11 @@ function UploadTile({
   const flagged = biomarkers.filter(b => b.status !== 'normal');
   const DocIcon = DOC_TYPE_ICONS[upload.upload_type] || ClipboardList;
 
-  const labelDate = upload.reading_date
-    ? new Date(upload.reading_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-    : new Date(upload.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  const labelDate = (() => {
+    const raw = upload.reading_date || upload.created_at;
+    const d = new Date(raw);
+    return isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  })();
 
   const tileName = upload.file_name || upload.upload_type.replace(/_/g, ' ');
 

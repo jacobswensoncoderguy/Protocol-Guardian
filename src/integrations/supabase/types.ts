@@ -1082,7 +1082,7 @@ export type Database = {
           notes: string | null
           reading_date: string | null
           upload_type: string
-          user_goal_id: string
+          user_goal_id: string | null
           user_id: string
         }
         Insert: {
@@ -1095,7 +1095,7 @@ export type Database = {
           notes?: string | null
           reading_date?: string | null
           upload_type: string
-          user_goal_id: string
+          user_goal_id?: string | null
           user_id: string
         }
         Update: {
@@ -1108,7 +1108,7 @@ export type Database = {
           notes?: string | null
           reading_date?: string | null
           upload_type?: string
-          user_goal_id?: string
+          user_goal_id?: string | null
           user_id?: string
         }
         Relationships: [
