@@ -45,6 +45,7 @@ import AIInsightsView from '@/components/AIInsightsView';
 import OutcomesView from '@/components/OutcomesView';
 import FoodTrackerView from '@/components/FoodTrackerView';
 import SymptomsTrackerView from '@/components/SymptomsTrackerView';
+import BiomarkerHistoryView from '@/components/BiomarkerHistoryView';
 import { useScheduleSnapshots } from '@/hooks/useScheduleSnapshots';
 import { useHistoricalCheckOffs } from '@/hooks/useHistoricalCheckOffs';
 import { useSwipeTabs } from '@/hooks/useSwipeTabs';
@@ -198,7 +199,7 @@ const Index = () => {
 
   const scheduleSwipe = useSwipeTabs({ tabs: ['this-week', 'history', 'ai-changes'], currentTab: scheduleSubTab, onTabChange: setScheduleSubTab });
   const inventorySwipe = useSwipeTabs({ tabs: ['stock', 'costs', 'reorder'], currentTab: inventorySubTab, onTabChange: setInventorySubTab });
-  const trackingSwipe = useSwipeTabs({ tabs: ['food', 'symptoms'], currentTab: trackingSubTab, onTabChange: setTrackingSubTab });
+  const trackingSwipe = useSwipeTabs({ tabs: ['food', 'symptoms', 'labs'], currentTab: trackingSubTab, onTabChange: setTrackingSubTab });
 
   // Badge counts for low-stock alerts.
   // Must match ReorderView logic: only count compounds with a purchase date set
@@ -555,6 +556,7 @@ const Index = () => {
               <TabsList className="w-full bg-card/80 border border-border/60 mb-3 h-10 p-1 gap-1">
                 <TabsTrigger value="food" className="flex-1 text-xs font-semibold rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">Food</TabsTrigger>
                 <TabsTrigger value="symptoms" className="flex-1 text-xs font-semibold rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">Symptoms</TabsTrigger>
+                <TabsTrigger value="labs" className="flex-1 text-xs font-semibold rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">Labs</TabsTrigger>
               </TabsList>
               <div key={trackingSubTab} className={trackingSwipe.slideClass} onAnimationEnd={trackingSwipe.onAnimationEnd} onTouchStart={trackingSwipe.onTouchStart} onTouchEnd={trackingSwipe.onTouchEnd}>
                 <TabsContent value="food" forceMount={trackingSubTab === 'food' ? true : undefined}>
@@ -562,6 +564,14 @@ const Index = () => {
                 </TabsContent>
                 <TabsContent value="symptoms" forceMount={trackingSubTab === 'symptoms' ? true : undefined}>
                   {trackingSubTab === 'symptoms' && <SymptomsTrackerView />}
+                </TabsContent>
+                <TabsContent value="labs" forceMount={trackingSubTab === 'labs' ? true : undefined}>
+                  {trackingSubTab === 'labs' && (
+                    <BiomarkerHistoryView
+                      userId={user?.id}
+                      onUploadClick={() => setShowBiomarkerUpload(true)}
+                    />
+                  )}
                 </TabsContent>
               </div>
             </Tabs>
