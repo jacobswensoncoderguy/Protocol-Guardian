@@ -18,15 +18,15 @@ const FloatingShareButton = () => {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" side="top" className="w-48 mb-2">
           <DropdownMenuItem onClick={() => {
-            const body = `Check out SUPERHUMAN Tracker — track your protocol and optimize your performance. Create your account here: ${inviteUrl}`;
-            window.open(`sms:?&body=${encodeURIComponent(body)}`);
+            const body = `Check out PROTOCOL Guardian — track your protocol and optimize your performance. Create your account here: ${inviteUrl}`;
+              window.open(`sms:?&body=${encodeURIComponent(body)}`);
           }}>
             <MessageSquare className="w-4 h-4 mr-2" />
             Share via Text
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => {
-            const subject = 'Try SUPERHUMAN Tracker';
-            const body = `Check out SUPERHUMAN Tracker — track your protocol and optimize your performance.\n\nCreate your account here: ${inviteUrl}`;
+            const subject = 'Try PROTOCOL Guardian';
+            const body = `Check out PROTOCOL Guardian — track your protocol and optimize your performance.\n\nCreate your account here: ${inviteUrl}`;
             window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
           }}>
             <Mail className="w-4 h-4 mr-2" />
