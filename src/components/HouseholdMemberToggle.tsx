@@ -14,6 +14,16 @@ interface HouseholdMemberToggleProps {
   onSelect: (option: HouseholdViewOption) => void;
 }
 
+/** Returns the best display label for a household member */
+function getMemberLabel(m: HouseholdMember): string {
+  if (m.displayName) return m.displayName;
+  if (m.email) {
+    const atIdx = m.email.indexOf('@');
+    return atIdx > 0 ? m.email.slice(0, atIdx) : m.email;
+  }
+  return 'Member';
+}
+
 /**
  * Renders pill-style toggles for switching between individual and combined household views.
  * Only shown when there are accepted household members.
@@ -26,12 +36,12 @@ const HouseholdMemberToggle = ({ selfName, members, selectedIds, onSelect }: Hou
   const selfOption: HouseholdViewOption = { id: 'self', label: selfLabel, type: 'self' };
   const memberOptions: HouseholdViewOption[] = members.map(m => ({
     id: m.userId,
-    label: m.displayName || 'Member',
+    label: getMemberLabel(m),
     type: 'member',
   }));
 
-  // Build combined label: "Jake + Abbie + ..." 
-  const allNames = [selfLabel, ...members.map(m => m.displayName || 'Member')];
+  // Build combined label: "Jake + Abbie + ..."
+  const allNames = [selfLabel, ...members.map(m => getMemberLabel(m))];
   const combinedLabel = allNames.join(' + ');
   const combinedOption: HouseholdViewOption = { id: 'combined', label: combinedLabel, type: 'combined' };
 
@@ -93,3 +103,4 @@ const HouseholdMemberToggle = ({ selfName, members, selectedIds, onSelect }: Hou
 };
 
 export default HouseholdMemberToggle;
+

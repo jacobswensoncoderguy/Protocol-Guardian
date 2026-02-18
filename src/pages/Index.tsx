@@ -136,6 +136,24 @@ const Index = () => {
     return merged;
   }, [householdViewId, checkedDoses, memberCheckedDoses]);
 
+  // Build memberInitialsDoses for combined view initials badges
+  // Maps first-initial of each member's display label -> their checked dose keys
+  const memberInitialsDoses = useMemo(() => {
+    if (householdViewId !== 'combined' || memberCheckedDoses.size === 0) return undefined;
+    const result = new Map<string, Set<string>>();
+    household.acceptedMembers.forEach(m => {
+      const memberDoses = memberCheckedDoses.get(m.userId);
+      if (!memberDoses) return;
+      // Compute initials from display name or email
+      const label = m.displayName || (m.email ? m.email.slice(0, m.email.indexOf('@') > 0 ? m.email.indexOf('@') : m.email.length) : 'M');
+      const initial = label.charAt(0).toUpperCase();
+      // If collision, use first two chars
+      const key = result.has(initial) ? label.slice(0, 2).toUpperCase() : initial;
+      result.set(key, memberDoses);
+    });
+    return result;
+  }, [householdViewId, memberCheckedDoses, household.acceptedMembers]);
+
 
   const {
     stackAnalysis, compoundAnalyses, loading: aiLoading, compoundLoading,
@@ -438,7 +456,7 @@ const Index = () => {
               </TabsList>
               <div key={scheduleSubTab} className={scheduleSwipe.slideClass} onAnimationEnd={scheduleSwipe.onAnimationEnd} onTouchStart={scheduleSwipe.onTouchStart} onTouchEnd={scheduleSwipe.onTouchEnd}>
                 <TabsContent value="this-week" forceMount={scheduleSubTab === 'this-week' ? true : undefined}>
-                  {scheduleSubTab === 'this-week' && <WeeklyScheduleView compounds={viewCompounds} protocols={protocols} compoundAnalyses={compoundAnalyses} compoundLoading={compoundLoading} onAnalyzeCompound={analyzeCompound} customFields={customFields} customFieldValues={customFieldValues} checkedDoses={combinedCheckedDoses} onToggleChecked={householdViewId === 'self' ? toggleDoseCheck : () => {}} />}
+                  {scheduleSubTab === 'this-week' && <WeeklyScheduleView compounds={viewCompounds} protocols={protocols} compoundAnalyses={compoundAnalyses} compoundLoading={compoundLoading} onAnalyzeCompound={analyzeCompound} customFields={customFields} customFieldValues={customFieldValues} checkedDoses={combinedCheckedDoses} onToggleChecked={householdViewId === 'self' ? toggleDoseCheck : () => {}} readOnly={!!selectedMemberUserId} memberInitialsDoses={memberInitialsDoses} />}
                 </TabsContent>
                 <TabsContent value="history" forceMount={scheduleSubTab === 'history' ? true : undefined}>
                   {scheduleSubTab === 'history' && <ScheduleHistoryView snapshots={scheduleSnapshots} loading={snapshotsLoading} checkedDosesMap={historicalCheckOffs} />}

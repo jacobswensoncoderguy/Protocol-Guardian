@@ -1274,8 +1274,13 @@ export type Database = {
         Args: { lookup_email: string }
         Returns: {
           display_name: string
+          email: string
           user_id: string
         }[]
+      }
+      is_household_linked: {
+        Args: { user_a: string; user_b: string }
+        Returns: boolean
       }
     }
     Enums: {
