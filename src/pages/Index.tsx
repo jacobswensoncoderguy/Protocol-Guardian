@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Package, LayoutDashboard, RefreshCw, Brain, Gauge, LineChart } from 'lucide-react';
+import { CalendarDays, Package, LayoutDashboard, RefreshCw, Brain, Gauge, LineChart } from 'lucide-react';
 import { getDaysRemainingWithCycling } from '@/lib/cycling';
 import { getStatus } from '@/data/compounds';
 import { Compound } from '@/data/compounds';
@@ -154,6 +154,19 @@ const Index = () => {
     });
     return { inventory: inventoryWarnings, reorder: reorderNeeded };
   }, [compounds]);
+
+  // Badge count: AI protocol changes in last 24h
+  const [aiChanges24h, setAiChanges24h] = useState(0);
+  useEffect(() => {
+    if (!user?.id) return;
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    supabase
+      .from('protocol_changes')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .gte('created_at', since)
+      .then(({ count }) => setAiChanges24h(count ?? 0));
+  }, [user?.id]);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [showAccountSettings, setShowAccountSettings] = useState(false);
   const [showGuidedTour, setShowGuidedTour] = useState(false);
@@ -275,9 +288,14 @@ const Index = () => {
               <LineChart className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
               <span>Logging</span>
             </TabsTrigger>
-            <TabsTrigger value="schedule" className="flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
-              <Calendar className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-              <span>Schedule</span>
+            <TabsTrigger value="schedule" className="relative flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
+              <CalendarDays className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+              <span>Protocol</span>
+              {aiChanges24h > 0 && (
+                <span className="absolute -top-1 -right-1 sm:top-0 sm:right-0 min-w-[16px] h-4 px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+                  {aiChanges24h}
+                </span>
+              )}
             </TabsTrigger>
             <TabsTrigger value="inventory" className="relative flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
               <Package className="w-4 h-4 sm:w-3.5 sm:h-3.5" />

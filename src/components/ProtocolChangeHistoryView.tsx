@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Compound } from '@/data/compounds';
-import { formatDistanceToNow, parseISO, isAfter, subHours, format } from 'date-fns';
-import { History, ArrowRight, Undo2, Loader2, Brain, Trash2, ChevronDown, ChevronUp, Search, X, Filter } from 'lucide-react';
+import { formatDistanceToNow, parseISO, isAfter, subHours, format, startOfMonth } from 'date-fns';
+import { History, ArrowRight, Undo2, Loader2, Brain, Trash2, ChevronDown, ChevronUp, Search, X, Filter, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -189,6 +189,32 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
     setDateTo(undefined);
   };
 
+  // --- Stats computations (must be before early returns) ---
+  const stats = useMemo(() => {
+    const monthStart = startOfMonth(new Date());
+    const thisMonth = changes.filter(c => parseISO(c.created_at) >= monthStart);
+
+    const freq: Record<string, number> = {};
+    changes.forEach(c => {
+      const name = c.description.split(':')[0].trim();
+      freq[name] = (freq[name] ?? 0) + 1;
+    });
+    const topCompound = Object.entries(freq).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+
+    let up = 0, down = 0;
+    changes.forEach(c => {
+      if (c.change_type !== 'adjust_dose') return;
+      const prev = parseFloat(c.previous_value ?? '');
+      const next = parseFloat(c.new_value ?? '');
+      if (isNaN(prev) || isNaN(next)) return;
+      if (next > prev) up++;
+      else if (next < prev) down++;
+    });
+
+    const netDir = up > down ? 'up' : down > up ? 'down' : 'neutral';
+    return { thisMonth: thisMonth.length, topCompound, netDir, up, down };
+  }, [changes]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -218,6 +244,7 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
     return acc;
   }, {});
 
+
   return (
     <div className="space-y-3 pb-6">
       {/* Header */}
@@ -227,6 +254,37 @@ export default function ProtocolChangeHistoryView({ compounds, updateCompound, r
         <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
           {filtered.length}{filtered.length !== changes.length ? `/${changes.length}` : ''}
         </span>
+      </div>
+
+      {/* Stats row */}
+      <div className="grid grid-cols-3 gap-2">
+        <div className="rounded-xl border border-border/40 bg-card/60 px-3 py-2.5 flex flex-col gap-0.5">
+          <span className="text-[10px] text-muted-foreground">This month</span>
+          <span className="text-lg font-bold text-foreground leading-none">{stats.thisMonth}</span>
+          <span className="text-[9px] text-muted-foreground">changes</span>
+        </div>
+        <div className="rounded-xl border border-border/40 bg-card/60 px-3 py-2.5 flex flex-col gap-0.5 min-w-0">
+          <span className="text-[10px] text-muted-foreground">Top compound</span>
+          <span className="text-[11px] font-semibold text-foreground leading-tight truncate">
+            {stats.topCompound ?? '—'}
+          </span>
+          <span className="text-[9px] text-muted-foreground">most modified</span>
+        </div>
+        <div className="rounded-xl border border-border/40 bg-card/60 px-3 py-2.5 flex flex-col gap-0.5">
+          <span className="text-[10px] text-muted-foreground">Net dose</span>
+          <div className="flex items-center gap-1 mt-0.5">
+            {stats.netDir === 'up' && <TrendingUp className="w-4 h-4 text-status-good" />}
+            {stats.netDir === 'down' && <TrendingDown className="w-4 h-4 text-status-critical" />}
+            {stats.netDir === 'neutral' && <Minus className="w-4 h-4 text-muted-foreground" />}
+            <span className={cn(
+              'text-sm font-bold leading-none',
+              stats.netDir === 'up' ? 'text-status-good' : stats.netDir === 'down' ? 'text-status-critical' : 'text-muted-foreground'
+            )}>
+              {stats.netDir === 'up' ? '↑' : stats.netDir === 'down' ? '↓' : '—'}
+            </span>
+          </div>
+          <span className="text-[9px] text-muted-foreground">{stats.up}↑ {stats.down}↓</span>
+        </div>
       </div>
 
       {/* Filters */}
