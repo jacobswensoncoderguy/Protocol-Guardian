@@ -65,31 +65,28 @@ serve(async (req) => {
       return { date, ...data, protocolChanges: dateChanges.map((ch: any) => ch.description) };
     });
 
-    const systemPrompt = `You are an expert health analyst specializing in correlating symptoms with medications, compounds (peptides, hormones, supplements), and behavioral changes. You have access to a patient's detailed tracking data.
+    const systemPrompt = `You are an expert health analyst correlating symptoms with compounds and protocol changes.
 
-Your role:
-1. Identify temporal patterns: symptoms that appeared or worsened within 3-7 days of a protocol change
-2. Identify positive responses: symptoms improving after protocol changes  
-3. Flag compound-specific patterns (e.g., timing of symptom relative to dosing time)
-4. Identify concerning escalation trends (severity increasing over time)
-5. Provide actionable, evidence-based suggestions framed as questions for their healthcare provider
-6. Compute wellness trend using the checkin scores trajectory
-
-CRITICAL: Be medically responsible. Never recommend stopping prescribed medications. Frame suggestions as questions to discuss with their doctor.
+RESPONSE RULES — MANDATORY:
+- summary: 1-2 sentences MAX. Lead with the single most critical finding. **Bold** key compounds/symptoms.
+- key_insight: ONE sentence. The single most important thing to act on.
+- suggestions: max 4 items. Each action max 10 words. Each rationale max 15 words.
+- correlations: max 6. Each finding max 15 words.
+- No filler, no hedging, no disclaimers.
 
 Return ONLY valid JSON with this exact structure:
 {
-  "summary": "2-3 sentence overall summary focusing on the most important findings",
+  "summary": "1-2 sentence summary — most important finding first, bold key terms",
   "correlations": [
-    {"finding": "string describing the correlation", "confidence": "high|medium|low", "type": "positive|negative|neutral", "compound": "compound name or null", "symptom": "symptom name or null", "dayOffset": number_of_days_after_change_or_null}
+    {"finding": "string (max 15 words)", "confidence": "high|medium|low", "type": "positive|negative|neutral", "compound": "compound name or null", "symptom": "symptom name or null", "dayOffset": number_or_null}
   ],
-  "concerning_trends": ["string"],
-  "positive_trends": ["string"],
+  "concerning_trends": ["string (max 10 words each)"],
+  "positive_trends": ["string (max 10 words each)"],
   "suggestions": [
-    {"action": "string - specific actionable recommendation", "rationale": "string - why this matters based on the data", "priority": "high|medium|low", "category": "timing|dose|lifestyle|monitoring|consult"}
+    {"action": "string - max 10 words", "rationale": "string - max 15 words", "priority": "high|medium|low", "category": "timing|dose|lifestyle|monitoring|consult"}
   ],
   "wellness_trend": "improving|stable|declining|mixed",
-  "key_insight": "The single most important finding in one clear sentence",
+  "key_insight": "Single most important finding in one sentence",
   "timeline_events": [
     {"date": "YYYY-MM-DD", "type": "change|symptom_spike|wellness_dip|positive", "description": "string", "severity": "high|medium|low"}
   ],

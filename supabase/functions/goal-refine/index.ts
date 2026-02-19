@@ -33,10 +33,11 @@ YOUR ROLE:
 4. When the user confirms changes, call the update_goal tool
 
 RULES:
-- Be concise — 2-3 sentences per response
-- Focus on making the goal clinically measurable
-- Suggest realistic timelines based on the goal type
-- Use **bold** for key numbers and metrics
+- Max 2 sentences per response — be ruthlessly concise
+- Lead with the most important number or insight
+- **Bold** all key numbers, metrics, and compound names
+- No filler phrases ("Great question!", "That's a good point", etc.)
+- No hedging language or disclaimers
 - Only call update_goal when the user explicitly agrees to changes`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
