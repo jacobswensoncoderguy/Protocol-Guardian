@@ -175,12 +175,14 @@ const CartoonBody = ({
   const imgSrc = gender === 'female' ? bodyFemaleImg : bodyMaleImg;
 
   return (
-    <div className="relative w-full h-full">
+    <div className="relative w-full h-full bg-transparent">
+      {/* Use multiply blend to make the white PNG background disappear against any card color.
+          In dark mode, use screen blend instead to keep the image visible */}
       <img
         src={imgSrc}
         alt="Body coverage map"
-        className="w-full h-full object-contain object-top mix-blend-multiply dark:mix-blend-screen"
-        style={{ background: 'transparent' }}
+        className="w-full h-full object-contain object-top dark:mix-blend-screen"
+        style={{ mixBlendMode: 'multiply' }}
         draggable={false}
       />
     </div>

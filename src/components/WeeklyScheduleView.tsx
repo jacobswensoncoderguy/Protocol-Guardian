@@ -95,6 +95,8 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
   };
 
   const isViewingToday = selectedDay === today;
+  // Future days (in the current week, after today) are read-only — can't pre-check future doses
+  const isViewingFuture = selectedDay > today;
   const [selectedCompound, setSelectedCompound] = useState<Compound | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [doseUnit, setDoseUnit] = useState<'mg' | 'ml'>('mg');
@@ -191,9 +193,9 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
                   {day.shortName}
                 </button>
               </TooltipTrigger>
-              {day.dayIndex === today && (
+          {day.dayIndex === today && (
                 <TooltipContent side="bottom" className="text-xs">
-                  Today — dose checkmarks only apply here
+                  Today
                 </TooltipContent>
               )}
             </Tooltip>
@@ -202,7 +204,10 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
         {/* Non-today hint */}
         {!isViewingToday && (
           <p className="text-[10px] text-muted-foreground/60 text-center -mt-2">
-            Viewing {schedule.dayName} · <button onClick={() => setSelectedDay(today)} className="text-primary underline-offset-2 underline">Back to Today</button>
+            {isViewingFuture
+              ? <>Viewing {schedule.dayName} <span className="text-muted-foreground/40">(future · read only)</span> · <button onClick={() => setSelectedDay(today)} className="text-primary underline-offset-2 underline">Back to Today</button></>
+              : <>Viewing {schedule.dayName} <span className="text-muted-foreground/40">(past · checkmarks saved)</span> · <button onClick={() => setSelectedDay(today)} className="text-primary underline-offset-2 underline">Back to Today</button></>
+            }
           </p>
         )}
 
@@ -280,7 +285,7 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
           doseUnit={doseUnit}
           checkedDoses={checkedDoses}
           onToggleChecked={toggleChecked}
-          readOnly={readOnly}
+          readOnly={readOnly || isViewingFuture}
           memberInitialsDoses={isViewingToday ? memberInitialsDoses : undefined}
           memberCompoundIds={memberCompoundIds}
         />
@@ -301,7 +306,7 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
             doseUnit={doseUnit}
             checkedDoses={checkedDoses}
             onToggleChecked={toggleChecked}
-            readOnly={readOnly}
+            readOnly={readOnly || isViewingFuture}
             memberInitialsDoses={isViewingToday ? memberInitialsDoses : undefined}
             memberCompoundIds={memberCompoundIds}
           />
@@ -322,7 +327,7 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
           doseUnit={doseUnit}
           checkedDoses={checkedDoses}
           onToggleChecked={toggleChecked}
-          readOnly={readOnly}
+          readOnly={readOnly || isViewingFuture}
           memberInitialsDoses={isViewingToday ? memberInitialsDoses : undefined}
           memberCompoundIds={memberCompoundIds}
         />

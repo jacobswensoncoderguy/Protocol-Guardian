@@ -1573,7 +1573,7 @@ export default function BiomarkerHistoryView({
               {totalMarkersTracked} marker{totalMarkersTracked !== 1 ? 's' : ''} tracked
             </span>
           </div>
-          <p className="text-[11px] text-muted-foreground mt-0.5">across all uploads · flagged alerts below</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">across all uploads · tap the badge to view flags</p>
         </div>
         {/* Flagged badge — now lives here in the summary card */}
         <FlaggedBadgePopover
