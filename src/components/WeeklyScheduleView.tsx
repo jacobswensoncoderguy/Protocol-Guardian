@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { DayDose } from '@/data/schedule';
 import { Compound } from '@/data/compounds';
 import { getCycleStatus, isPaused } from '@/lib/cycling';
@@ -95,8 +95,6 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
   };
 
   const isViewingToday = selectedDay === today;
-  // Compare actual calendar dates (not just day-of-week indices) to determine future/past
-  // e.g. if today is Sunday (0), Monday (1) is still a future day this week
   const todayDate = new Date();
   const getDateForDayIndex = (dayIdx: number): Date => {
     const d = new Date(todayDate);
@@ -111,6 +109,28 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [doseUnit, setDoseUnit] = useState<'mg' | 'ml'>('mg');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Track which compound IDs changed so we can flash their rows
+  const [flashedIds, setFlashedIds] = useState<Set<string>>(new Set());
+  const prevCompoundsRef = useRef<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    const prev = prevCompoundsRef.current;
+    const changed = new Set<string>();
+    compounds.forEach(c => {
+      // Fingerprint the fields that affect schedule rendering
+      const fingerprint = `${c.cycleStartDate}|${c.cycleOnDays}|${c.cycleOffDays}|${c.pausedAt}|${c.daysPerWeek}|${c.timingNote}|${c.dosesPerDay}|${c.dosePerUse}`;
+      if (prev.has(c.id) && prev.get(c.id) !== fingerprint) {
+        changed.add(c.id);
+      }
+      prev.set(c.id, fingerprint);
+    });
+    if (changed.size > 0) {
+      setFlashedIds(changed);
+      const t = setTimeout(() => setFlashedIds(new Set()), 1300);
+      return () => clearTimeout(t);
+    }
+  }, [compounds]);
 
   // Use external (persisted) state if provided, otherwise local fallback
   const [localChecked, setLocalChecked] = useState<Set<string>>(new Set());
@@ -298,6 +318,7 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
           readOnly={readOnly || isViewingFuture}
           memberInitialsDoses={isViewingToday ? memberInitialsDoses : undefined}
           memberCompoundIds={memberCompoundIds}
+          flashedIds={flashedIds}
         />
 
         {/* Afternoon */}
@@ -319,6 +340,7 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
             readOnly={readOnly || isViewingFuture}
             memberInitialsDoses={isViewingToday ? memberInitialsDoses : undefined}
             memberCompoundIds={memberCompoundIds}
+            flashedIds={flashedIds}
           />
         )}
 
@@ -340,6 +362,7 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
           readOnly={readOnly || isViewingFuture}
           memberInitialsDoses={isViewingToday ? memberInitialsDoses : undefined}
           memberCompoundIds={memberCompoundIds}
+          flashedIds={flashedIds}
         />
 
         <CompoundInfoDrawer
@@ -373,6 +396,7 @@ const DoseSection = ({
   readOnly = false,
   memberInitialsDoses,
   memberCompoundIds,
+  flashedIds = new Set(),
 }: {
   icon: React.ReactNode;
   title: string;
@@ -390,6 +414,7 @@ const DoseSection = ({
   readOnly?: boolean;
   memberInitialsDoses?: Map<string, Set<string>>;
   memberCompoundIds?: Set<string>;
+  flashedIds?: Set<string>;
 }) => {
   const allPeptides = doses.filter(d => d.category === 'peptide' || d.category === 'injectable-oil');
   const allOrals = doses.filter(d => d.category === 'oral' || d.category === 'prescription' || d.category === 'vitamin' || d.category === 'adaptogen' || d.category === 'nootropic' || d.category === 'holistic' || d.category === 'probiotic' || d.category === 'alternative-medicine');
@@ -423,19 +448,19 @@ const DoseSection = ({
 
       <div className="space-y-3">
         {allPeptides.length > 0 && (
-          <DoseGroup label="Injectables" doses={allPeptides} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} />
+          <DoseGroup label="Injectables" doses={allPeptides} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} />
         )}
         {protocolGroups.map(pg => (
-          <DoseGroup key={pg.label} label={pg.label} doses={pg.doses} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} />
+          <DoseGroup key={pg.label} label={pg.label} doses={pg.doses} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} />
         ))}
         {ungroupedOrals.length > 0 && (
-          <DoseGroup label="Oral Supplements" doses={ungroupedOrals} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} />
+          <DoseGroup label="Oral Supplements" doses={ungroupedOrals} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} />
         )}
         {ungroupedPowders.length > 0 && (
-          <DoseGroup label="Powders" doses={ungroupedPowders} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} />
+          <DoseGroup label="Powders" doses={ungroupedPowders} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} />
         )}
         {ungroupedTopicals.length > 0 && (
-          <DoseGroup label="Topicals" doses={ungroupedTopicals} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} />
+          <DoseGroup label="Topicals" doses={ungroupedTopicals} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} />
         )}
       </div>
     </div>
@@ -455,6 +480,7 @@ const DoseGroup = ({
   readOnly = false,
   memberInitialsDoses,
   memberCompoundIds,
+  flashedIds = new Set(),
 }: {
   label: string;
   doses: DayDose[];
@@ -468,6 +494,7 @@ const DoseGroup = ({
   readOnly?: boolean;
   memberInitialsDoses?: Map<string, Set<string>>;
   memberCompoundIds?: Set<string>;
+  flashedIds?: Set<string>;
 }) => {
   const seenOff = new Set<string>();
   const filteredDoses = doses.filter(d => {
@@ -575,10 +602,12 @@ const DoseGroup = ({
             });
           }
 
+          const isFlashing = flashedIds.has(dose.compoundId);
+
           return (
             <div
-              key={`${dose.compoundId}-${i}`}
-              className={`flex items-center gap-2 rounded px-2.5 py-1.5 transition-colors hover:bg-card/80 active:bg-card ${isInactive ? 'bg-card/20 opacity-50' : 'bg-card/50'}`}
+              key={`${dose.compoundId}-${i}-${isFlashing ? 'flash' : 'still'}`}
+              className={`flex items-center gap-2 rounded px-2.5 py-1.5 transition-colors hover:bg-card/80 active:bg-card ${isInactive ? 'bg-card/20 opacity-50' : 'bg-card/50'} ${isFlashing ? 'animate-row-flash' : ''}`}
             >
               {!isInactive && !readOnly && (
                 <button

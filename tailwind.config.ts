@@ -100,6 +100,11 @@ export default {
           from: { opacity: "0", transform: "translateX(-30px)" },
           to: { opacity: "1", transform: "translateX(0)" },
         },
+        "row-flash": {
+          "0%": { backgroundColor: "hsl(var(--primary) / 0.0)" },
+          "20%": { backgroundColor: "hsl(var(--primary) / 0.18)" },
+          "100%": { backgroundColor: "hsl(var(--primary) / 0.0)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -108,6 +113,7 @@ export default {
         "slide-up": "slide-up 0.3s ease-out",
         "slide-in-from-right": "slide-in-from-right 0.2s ease-out",
         "slide-in-from-left": "slide-in-from-left 0.2s ease-out",
+        "row-flash": "row-flash 1.2s ease-out forwards",
       },
     },
   },
