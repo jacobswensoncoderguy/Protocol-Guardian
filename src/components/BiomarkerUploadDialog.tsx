@@ -99,9 +99,8 @@ export default function BiomarkerUploadDialog({
   const [parseProgress, setParseProgress] = useState<{ current: number; total: number } | null>(null);
   const [uploadLabel, setUploadLabel] = useState('');
   const [uploadDate, setUploadDate] = useState('');
-  // Store the first image file as a data URL for inline preview, and the raw file for storage upload
-  const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
-  const [rawFileForStorage, setRawFileForStorage] = useState<File | null>(null);
+  // Store the first file as a data URL for inline preview / PDF open link
+  const [fileDataUrl, setFileDataUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -122,8 +121,7 @@ export default function BiomarkerUploadDialog({
     setParseProgress(null);
     setUploadLabel('');
     setUploadDate('');
-    setImageDataUrl(null);
-    setRawFileForStorage(null);
+    setFileDataUrl(null);
   };
 
   const handleClose = (open: boolean) => {
@@ -183,8 +181,7 @@ export default function BiomarkerUploadDialog({
 
     const mergedBiomarkers: Biomarker[] = [];
     let mergedResult: ParsedResult | null = null;
-    let capturedImageDataUrl: string | null = null;
-    let capturedRawFile: File | null = null;
+    let capturedFileDataUrl: string | null = null;
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
@@ -198,20 +195,16 @@ export default function BiomarkerUploadDialog({
       try {
         const ext = file.name.split('.').pop()?.toLowerCase();
         const isImg = ['jpg','jpeg','png','gif','webp'].includes(ext || '');
+        const isPdf = ext === 'pdf';
         let fileType = 'medical document';
         if (file.name.toLowerCase().includes('dexa')) fileType = 'DEXA scan';
         else if (file.name.toLowerCase().includes('blood')) fileType = 'bloodwork';
         else if (ext === 'csv') fileType = 'CSV lab data';
-        else if (ext === 'pdf') fileType = file.name.toLowerCase().includes('dexa') ? 'DEXA scan' : 'PDF lab report';
+        else if (isPdf) fileType = file.name.toLowerCase().includes('dexa') ? 'DEXA scan' : 'PDF lab report';
 
-        // Capture first file for storage upload (prefer PDF, then image)
-        if (!capturedRawFile) {
-          capturedRawFile = file;
-        }
-
-        // Capture the first image file for inline preview
-        if (isImg && !capturedImageDataUrl) {
-          capturedImageDataUrl = await new Promise<string>((resolve, reject) => {
+        // Capture first file (PDF or image) as a data URL so we can open it later
+        if (!capturedFileDataUrl && (isImg || isPdf)) {
+          capturedFileDataUrl = await new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => resolve(reader.result as string);
             reader.onerror = reject;
@@ -254,8 +247,7 @@ export default function BiomarkerUploadDialog({
         ? `Merged results from ${files.length} files · ${mergedBiomarkers.length} biomarkers found`
         : mergedResult.summary;
       setParsedResult(mergedResult);
-      if (capturedImageDataUrl) setImageDataUrl(capturedImageDataUrl);
-      if (capturedRawFile) setRawFileForStorage(capturedRawFile);
+      if (capturedFileDataUrl) setFileDataUrl(capturedFileDataUrl);
       setStep('results');
     } else {
       toast.error('No biomarkers could be extracted from the selected files.');
@@ -277,7 +269,7 @@ export default function BiomarkerUploadDialog({
     parseContent(text);
   };
 
-  /** Save the upload record — upload file to storage first if available */
+  /** Save the upload record — store data URL so users can open the original file */
   const saveAndClose = async () => {
     if (!parsedResult || !userId) return;
     setSavingReadings(true);
@@ -285,33 +277,8 @@ export default function BiomarkerUploadDialog({
       const label = uploadLabel.trim() || buildDefaultLabel(parsedResult.document_type, parsedResult.document_date);
       const date = uploadDate || parsedResult.document_date || new Date().toISOString().split('T')[0];
 
-      let fileUrl = imageDataUrl || 'parsed_text';
-
-      // Upload file to storage so users can open the original
-      if (rawFileForStorage) {
-        try {
-          // Ensure bucket exists (calls the create-lab-bucket edge function)
-          await supabase.functions.invoke('create-lab-bucket');
-
-          const ext = rawFileForStorage.name.split('.').pop()?.toLowerCase() || 'bin';
-          const storagePath = `${userId}/${Date.now()}-${label.replace(/[^a-zA-Z0-9]/g, '_')}.${ext}`;
-
-          const { error: uploadError } = await supabase.storage
-            .from('lab-uploads')
-            .upload(storagePath, rawFileForStorage, { upsert: true });
-
-          if (!uploadError) {
-            const { data: urlData } = supabase.storage
-              .from('lab-uploads')
-              .getPublicUrl(storagePath);
-            if (urlData?.publicUrl) {
-              fileUrl = urlData.publicUrl;
-            }
-          }
-        } catch {
-          // Storage upload failed — fall back to data URL or parsed_text
-        }
-      }
+      // Use the captured data URL (works for images and PDFs), fall back to parsed_text
+      const fileUrl = fileDataUrl || 'parsed_text';
 
       const { error } = await supabase.from('user_goal_uploads').insert({
         user_id: userId,
@@ -334,6 +301,7 @@ export default function BiomarkerUploadDialog({
       setSavingReadings(false);
     }
   };
+
 
 
   // Group biomarkers by category

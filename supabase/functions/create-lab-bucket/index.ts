@@ -1,35 +1,53 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
 Deno.serve(async (req) => {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  };
-
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-  // Create the bucket if it doesn't exist
-  const { data, error } = await supabase.storage.createBucket('lab-uploads', {
-    public: true,
-    fileSizeLimit: 20 * 1024 * 1024,
-    allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'text/plain', 'text/csv'],
-  });
+    // Use the Storage Management REST API to create the bucket
+    const response = await fetch(`${supabaseUrl}/storage/v1/bucket`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${serviceRoleKey}`,
+        'apikey': serviceRoleKey,
+      },
+      body: JSON.stringify({
+        id: 'lab-uploads',
+        name: 'lab-uploads',
+        public: true,
+        file_size_limit: 20971520,
+        allowed_mime_types: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'text/plain', 'text/csv'],
+      }),
+    });
 
-  if (error && !error.message.includes('already exists')) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    const responseText = await response.text();
+    let data: any = {};
+    try { data = JSON.parse(responseText); } catch { data = { raw: responseText }; }
+
+    // 409 = already exists — that's fine
+    if (response.ok || response.status === 409 || (data?.error === 'Bucket already exists')) {
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    return new Response(JSON.stringify({ error: data?.error || 'Failed to create bucket', status: response.status }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  } catch (err: any) {
+    return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-
-  return new Response(JSON.stringify({ success: true, data }), {
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
 });

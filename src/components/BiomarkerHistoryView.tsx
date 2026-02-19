@@ -371,14 +371,15 @@ function RangeChip({
   );
 }
 
-// ─── Inline file preview (avoids 404 from opening storage URLs in new tab) ─
+// ─── Inline file preview (handles images and PDF data URLs) ─
 function FilePreviewSection({ fileUrl, fileName }: { fileUrl: string; fileName?: string }) {
   const [modalOpen, setModalOpen] = useState(false);
-  // Detect data URLs (base64 images captured at upload time) or image file extensions
+  // Detect data URLs (base64 images or PDFs) or image file extensions
   const isImage = fileUrl.startsWith('data:image') || /\.(jpg|jpeg|png|gif|webp)$/i.test(fileUrl);
+  const isPdf = fileUrl.startsWith('data:application/pdf') || /\.pdf$/i.test(fileUrl);
   const isParsedText = fileUrl === 'parsed_text' || fileUrl === '';
 
-  // For PDF/text uploads that were parsed but not stored as files, show an info section
+  // For uploads where only text was extracted (no file captured)
   if (isParsedText) {
     return (
       <div className="rounded-xl overflow-hidden border border-border/40 bg-secondary/10">
@@ -394,6 +395,21 @@ function FilePreviewSection({ fileUrl, fileName }: { fileUrl: string; fileName?:
       </div>
     );
   }
+
+  // For PDFs stored as data URLs, open in new tab via Blob URL
+  const openPdf = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Convert data URL to Blob so browser opens it as PDF, not a download
+    const byteString = atob(fileUrl.split(',')[1]);
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+    for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+    const blob = new Blob([ab], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    // Cleanup after short delay
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  };
 
   return (
     <>
@@ -421,6 +437,15 @@ function FilePreviewSection({ fileUrl, fileName }: { fileUrl: string; fileName?:
               className="w-full max-h-56 object-contain bg-muted/20 cursor-zoom-in"
             />
           </button>
+        ) : isPdf ? (
+          <button
+            onClick={openPdf}
+            className="px-3 py-3 flex items-center gap-2 hover:bg-secondary/20 transition-colors cursor-pointer w-full text-left"
+          >
+            <ClipboardList className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+            <span className="text-xs text-foreground truncate flex-1">{fileName || 'Lab Report.pdf'}</span>
+            <span className="text-[10px] text-primary border border-primary/30 bg-primary/10 px-2 py-0.5 rounded-full font-medium flex-shrink-0">Open ↗</span>
+          </button>
         ) : (
           <a
             href={fileUrl}
@@ -436,7 +461,7 @@ function FilePreviewSection({ fileUrl, fileName }: { fileUrl: string; fileName?:
         )}
       </div>
 
-      {/* Full-size image modal — stays inside app, no new tab */}
+      {/* Full-size image modal */}
       {modalOpen && isImage && (
         <div
           className="fixed inset-0 z-[90] flex items-center justify-center bg-black/85 backdrop-blur-sm p-4"
@@ -446,7 +471,6 @@ function FilePreviewSection({ fileUrl, fileName }: { fileUrl: string; fileName?:
             className="relative max-w-2xl w-full max-h-[90vh] rounded-2xl overflow-hidden shadow-2xl bg-card border border-border"
             onClick={e => e.stopPropagation()}
           >
-            {/* Modal header */}
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40 bg-card">
               <div className="flex items-center gap-2">
                 <Upload className="w-3.5 h-3.5 text-muted-foreground" />
@@ -459,7 +483,6 @@ function FilePreviewSection({ fileUrl, fileName }: { fileUrl: string; fileName?:
                 <X className="w-4 h-4" />
               </button>
             </div>
-            {/* Full image */}
             <div className="overflow-auto max-h-[80vh] bg-black/5 flex items-center justify-center">
               <img
                 src={fileUrl}
@@ -565,18 +588,31 @@ function DetailSheet({
             </div>
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
-            {/* Open original file — only shown when a real URL is stored */}
+            {/* Open original file — only shown when a real file is stored */}
             {upload.file_url && upload.file_url !== 'parsed_text' && upload.file_url !== '' && (
-              <a
-                href={upload.file_url}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
                 title="Open original file"
                 className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                onClick={e => e.stopPropagation()}
+                onClick={e => {
+                  e.stopPropagation();
+                  const url = upload.file_url!;
+                  if (url.startsWith('data:application/pdf')) {
+                    // Convert PDF data URL to Blob URL so browser opens it natively
+                    const byteString = atob(url.split(',')[1]);
+                    const ab = new ArrayBuffer(byteString.length);
+                    const ia = new Uint8Array(ab);
+                    for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+                    const blob = new Blob([ab], { type: 'application/pdf' });
+                    const blobUrl = URL.createObjectURL(blob);
+                    window.open(blobUrl, '_blank');
+                    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+                  } else {
+                    window.open(url, '_blank');
+                  }
+                }}
               >
                 <ExternalLink className="w-4 h-4" />
-              </a>
+              </button>
             )}
             <button
               onClick={() => { onAlignToGoal(upload); onClose(); }}
