@@ -692,7 +692,8 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
       status === 'warning' ? 'border-accent/30' :
       'border-border/50'
     }`}>
-      <div className="flex items-start justify-between mb-2">
+      {/* Row 1: Name + action buttons */}
+      <div className="flex items-center justify-between mb-0.5">
         <div className="min-w-0 flex-1">
           <h4 className="text-sm font-semibold text-foreground truncate">{compound.name}</h4>
           <p className="text-[10px] text-muted-foreground truncate">
@@ -701,109 +702,109 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
               : compound.timingNote}
           </p>
         </div>
-        <div className="flex items-center gap-1 flex-shrink-0 ml-2">
-          {compound.weightPerUnit && compound.weightPerUnit > 0 && !isPeptide && !isOil && (
-            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground border border-border/40" title="Weight per unit">
-              {(() => {
-                const su = compound.weightUnit || 'mg';
-                    if (su === 'mcg') return `${Math.round(compound.weightPerUnit * 1000)}mcg`;
-                if (su === 'g') { const gv = compound.weightPerUnit / 1000; return `${gv % 1 === 0 ? gv : gv.toFixed(2).replace(/\.?0+$/, '')}g`; }
-                if (su === 'oz') return `${(compound.weightPerUnit / 28349.5).toFixed(3).replace(/\.?0+$/, '')}oz`;
-                if (su === 'lb') return `${(compound.weightPerUnit / 453592).toFixed(4).replace(/\.?0+$/, '')}lb`;
-                // mg — show as-is, never auto-convert to g
-                return `${compound.weightPerUnit}mg`;
-              })()}/unit
-            </span>
-          )}
-          {compoundIsPaused && (
-            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-accent/20 text-status-warning">
-              PAUSED
-            </span>
-          )}
-          {!compoundIsPaused && cycleStatus.hasCycle && compound.cycleOnDays && compound.cycleOnDays > 0 && compound.cycleOffDays && compound.cycleOffDays > 0 && (
-            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
-              cycleStatus.isOn
-                ? 'bg-status-good/15 text-status-good'
-                : 'bg-status-warning/15 text-status-warning'
-            }`} title={cycleStatus.isOn ? `${cycleStatus.daysLeftInPhase} days left in ON phase` : `${cycleStatus.daysLeftInPhase} days left in OFF phase`}>
-              {cycleStatus.isOn
-                ? `ON ${cycleStatus.daysLeftInPhase}d`
-                : (() => {
-                    const resume = new Date();
-                    resume.setDate(resume.getDate() + cycleStatus.daysLeftInPhase);
-                    const label = resume.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                    return `OFF ${cycleStatus.daysLeftInPhase}d → ${label}`;
-                  })()
-              }
-            </span>
-          )}
-          {/* "no date" badge — only for categories that need purchase date to count units */}
-          {!compoundIsPaused && !compound.purchaseDate && !isPeptide && !isOil && (
-            <span
-              className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border/50"
-              title="Set a purchase date to activate depletion tracking"
+        {!editing && (
+          <div className="flex items-center gap-0.5 flex-shrink-0 ml-1">
+            <button onClick={startEdit} className="p-1.5 rounded active:bg-secondary/80 transition-colors text-muted-foreground touch-manipulation">
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+            {/* Pause/Resume toggle */}
+            <button
+              onClick={() => {
+                if (compoundIsPaused) {
+                  onUpdate(compound.id, { pausedAt: undefined, pauseRestartDate: undefined });
+                  toast.success(`${compound.name} resumed`);
+                } else {
+                  setShowPauseDialog(true);
+                }
+              }}
+              className={`p-1.5 rounded active:bg-secondary/80 transition-colors touch-manipulation ${compoundIsPaused ? 'text-status-warning' : 'text-muted-foreground'}`}
+              title={compoundIsPaused ? 'Resume compound' : 'Pause compound'}
             >
-              no date
-            </span>
-          )}
-          {!compoundIsPaused && (compound.purchaseDate || isPeptide || isOil) && (
-            <span
-              className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full cursor-help whitespace-pre ${
-                status === 'critical' ? 'bg-destructive/20 text-status-critical' :
-                status === 'warning' ? 'bg-accent/20 text-status-warning' :
-                'bg-status-good/10 text-status-good'
-              }`}
-              title={getDaysMathTooltip()}
+              {compoundIsPaused ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
+            </button>
+            {/* Dormant toggle */}
+            <button
+              onClick={() => {
+                const isDormant = compound.notes?.includes('[DORMANT]');
+                if (isDormant) {
+                  const newNotes = (compound.notes || '').replace('[DORMANT]', '').trim();
+                  onUpdate(compound.id, { notes: newNotes });
+                } else {
+                  setConfirmDormant(true);
+                }
+              }}
+              className="p-1.5 rounded active:bg-secondary/80 transition-colors text-muted-foreground touch-manipulation"
+              title={compound.notes?.includes('[DORMANT]') ? 'Reactivate compound' : 'Set dormant'}
             >
-              {days}d left
-            </span>
-          )}
-          {!editing && (
-            <div className="flex items-center gap-1">
-              <button onClick={startEdit} className="p-1.5 rounded active:bg-secondary/80 transition-colors text-muted-foreground touch-manipulation">
-                <Pencil className="w-3.5 h-3.5" />
+              <MoonIcon className="w-3.5 h-3.5" />
+            </button>
+            {/* Delete — spaced away from other actions */}
+            {onDelete && !confirmDelete && (
+              <button onClick={() => setConfirmDelete(true)} className="p-1.5 rounded active:bg-secondary/80 transition-colors text-muted-foreground touch-manipulation ml-2">
+                <Trash2 className="w-3.5 h-3.5" />
               </button>
-              {/* Pause/Resume toggle */}
-              <button
-                onClick={() => {
-                  if (compoundIsPaused) {
-                    // Resume immediately
-                    onUpdate(compound.id, { pausedAt: undefined, pauseRestartDate: undefined });
-                    toast.success(`${compound.name} resumed`);
-                  } else {
-                    setShowPauseDialog(true);
-                  }
-                }}
-                className={`p-1.5 rounded active:bg-secondary/80 transition-colors touch-manipulation ${compoundIsPaused ? 'text-status-warning' : 'text-muted-foreground'}`}
-                title={compoundIsPaused ? 'Resume compound' : 'Pause compound'}
-              >
-                {compoundIsPaused ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
-              </button>
-              {/* Dormant toggle */}
-              <button
-                onClick={() => {
-                  const isDormant = compound.notes?.includes('[DORMANT]');
-                  if (isDormant) {
-                    const newNotes = (compound.notes || '').replace('[DORMANT]', '').trim();
-                    onUpdate(compound.id, { notes: newNotes });
-                  } else {
-                    setConfirmDormant(true);
-                  }
-                }}
-                className="p-1.5 rounded active:bg-secondary/80 transition-colors text-muted-foreground touch-manipulation"
-                title={compound.notes?.includes('[DORMANT]') ? 'Reactivate compound' : 'Set dormant'}
-              >
-                <MoonIcon className="w-3.5 h-3.5" />
-              </button>
-              {/* Delete — spaced away from other actions */}
-              {onDelete && !confirmDelete && (
-                <button onClick={() => setConfirmDelete(true)} className="p-1.5 rounded active:bg-secondary/80 transition-colors text-muted-foreground touch-manipulation ml-4">
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Row 2: Status badges */}
+      <div className="flex flex-wrap items-center gap-1 mb-2">
+        {compound.weightPerUnit && compound.weightPerUnit > 0 && !isPeptide && !isOil && (
+          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground border border-border/40" title="Weight per unit">
+            {(() => {
+              const su = compound.weightUnit || 'mg';
+              if (su === 'mcg') return `${Math.round(compound.weightPerUnit * 1000)}mcg`;
+              if (su === 'g') { const gv = compound.weightPerUnit / 1000; return `${gv % 1 === 0 ? gv : gv.toFixed(2).replace(/\.?0+$/, '')}g`; }
+              if (su === 'oz') return `${(compound.weightPerUnit / 28349.5).toFixed(3).replace(/\.?0+$/, '')}oz`;
+              if (su === 'lb') return `${(compound.weightPerUnit / 453592).toFixed(4).replace(/\.?0+$/, '')}lb`;
+              return `${compound.weightPerUnit}mg`;
+            })()}/unit
+          </span>
+        )}
+        {compoundIsPaused && (
+          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-accent/20 text-status-warning">
+            PAUSED
+          </span>
+        )}
+        {!compoundIsPaused && cycleStatus.hasCycle && compound.cycleOnDays && compound.cycleOnDays > 0 && compound.cycleOffDays && compound.cycleOffDays > 0 && (
+          <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
+            cycleStatus.isOn
+              ? 'bg-status-good/15 text-status-good'
+              : 'bg-status-warning/15 text-status-warning'
+          }`} title={cycleStatus.isOn ? `${cycleStatus.daysLeftInPhase} days left in ON phase` : `${cycleStatus.daysLeftInPhase} days left in OFF phase`}>
+            {cycleStatus.isOn
+              ? `ON ${cycleStatus.daysLeftInPhase}d`
+              : (() => {
+                  const resume = new Date();
+                  resume.setDate(resume.getDate() + cycleStatus.daysLeftInPhase);
+                  const label = resume.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                  return `OFF ${cycleStatus.daysLeftInPhase}d → ${label}`;
+                })()
+            }
+          </span>
+        )}
+        {/* "no date" badge */}
+        {!compoundIsPaused && !compound.purchaseDate && !isPeptide && !isOil && (
+          <span
+            className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border/50"
+            title="Set a purchase date to activate depletion tracking"
+          >
+            no date
+          </span>
+        )}
+        {!compoundIsPaused && (compound.purchaseDate || isPeptide || isOil) && (
+          <span
+            className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full cursor-help ${
+              status === 'critical' ? 'bg-destructive/20 text-status-critical' :
+              status === 'warning' ? 'bg-accent/20 text-status-warning' :
+              'bg-status-good/10 text-status-good'
+            }`}
+            title={getDaysMathTooltip()}
+          >
+            {days}d left
+          </span>
+        )}
       </div>
 
       {/* Delete confirmation */}
