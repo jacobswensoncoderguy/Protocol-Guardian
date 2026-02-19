@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback } from 'react';
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Compound, getStatus, getReorderDateString, CompoundCategory, getDaysRemaining, getEffectiveQuantity, getConsumedSinceDate, consumedToContainerUnits } from '@/data/compounds';
 import { getCycleStatus, getDaysRemainingWithCycling, isPaused } from '@/lib/cycling';
@@ -24,6 +24,10 @@ interface InventoryViewProps {
   onRemoveCustomField?: (fieldId: string) => Promise<void>;
   onReorderCustomField?: (fieldId: string, direction: 'up' | 'down') => Promise<void>;
   onSetCustomFieldValue?: (compoundId: string, fieldId: string, value: string) => Promise<void>;
+  /** If set, scroll to this compound ID as soon as the view mounts/changes */
+  scrollToCompoundId?: string | null;
+  /** Called after the scroll has been triggered so parent can clear the value */
+  onScrollToCompoundDone?: () => void;
 }
 
 const categoryLabels: Record<string, string> = {
@@ -44,7 +48,7 @@ const categoryLabels: Record<string, string> = {
 
 const categoryOrder: string[] = ['peptide', 'injectable-oil', 'prescription', 'oral', 'powder', 'vitamin', 'holistic', 'adaptogen', 'nootropic', 'essential-oil', 'alternative-medicine', 'probiotic', 'topical'];
 
-const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCompound, protocols = [], toleranceLevel, onToleranceChange, customFields = [], customFieldValues = new Map(), onAddCustomField, onRemoveCustomField, onReorderCustomField, onSetCustomFieldValue }: InventoryViewProps) => {
+const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCompound, protocols = [], toleranceLevel, onToleranceChange, customFields = [], customFieldValues = new Map(), onAddCustomField, onRemoveCustomField, onReorderCustomField, onSetCustomFieldValue, scrollToCompoundId, onScrollToCompoundDone }: InventoryViewProps) => {
   const [filter, setFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'name' | 'days'>('name');
   const [showToleranceConfirm, setShowToleranceConfirm] = useState(false);
@@ -68,6 +72,17 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
       }, 100);
     });
   }, []);
+
+  // Auto-scroll when parent requests a specific compound
+  useEffect(() => {
+    if (!scrollToCompoundId) return;
+    // Give the tab animation time to complete before scrolling
+    const timer = setTimeout(() => {
+      scrollToCompound(scrollToCompoundId);
+      onScrollToCompoundDone?.();
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [scrollToCompoundId, scrollToCompound, onScrollToCompoundDone]);
   const filtered = filter === 'all' ? activeCompounds : activeCompounds.filter(c => c.category === filter);
   const sorted = [...filtered].sort((a, b) => {
     if (sortBy === 'days') return getDaysRemainingWithCycling(a) - getDaysRemainingWithCycling(b);
