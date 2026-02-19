@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import ChatMarkdown from '@/components/ChatMarkdown';
 import { Compound } from '@/data/compounds';
 import { Target, Plus, Shield, Scale, Rocket, Ruler, Weight, Percent, Calendar as CalendarIcon, Check, ToggleLeft, ChevronRight, Sparkles, Package, AlertTriangle, TrendingUp, TrendingDown, Zap, Info, Brain, Heart, Dumbbell, Flame, Activity, History, LayoutGrid } from 'lucide-react';
 import bodyMaleImg from '@/assets/body-male.png';
@@ -430,7 +431,7 @@ const AIInsightPanel = ({ activeCompounds, goals }: { activeCompounds: Compound[
         ) : activeCompounds.length === 0 ? (
           <p className="text-[11px] text-muted-foreground/50">Add compounds to generate AI insights.</p>
         ) : currentInsight ? (
-          <p className="text-[12px] text-foreground leading-relaxed">{currentInsight}</p>
+          <div className="text-[12px] text-foreground leading-relaxed"><ChatMarkdown content={currentInsight} /></div>
         ) : (
           <p className="text-[11px] text-muted-foreground/40 italic">Tap a tab to load insight.</p>
         )}
