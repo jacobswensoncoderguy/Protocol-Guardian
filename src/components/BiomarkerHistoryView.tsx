@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   ChevronDown, ChevronUp, Calendar,
   X, Trash2, RefreshCw, Loader2, Upload, AlertTriangle, FlaskConical,
   AlertCircle, Droplets, Bone, Zap, Syringe, Heart, Bug, ClipboardList,
   Link2, Pencil, Check, GitCompare, BookMarked, Info, Sparkles,
-  ArrowRightLeft, TrendingUp, ExternalLink,
+  ArrowRightLeft, TrendingUp, ExternalLink, Paperclip,
 } from 'lucide-react';
 import { getReferenceRange, formatRange } from '@/lib/biomarkerReferenceRanges';
 import { LineChart, Line, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid, ReferenceArea } from 'recharts';
@@ -521,10 +521,52 @@ function DetailSheet({
   userAge?: number | null;
 }) {
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  const [attachingFile, setAttachingFile] = useState(false);
+  const [localFileUrl, setLocalFileUrl] = useState<string | undefined>(upload.file_url);
+  const attachInputRef = useRef<HTMLInputElement>(null);
   const biomarkers: any[] = upload.ai_extracted_data?.biomarkers || [];
   const recommendations: any[] = upload.ai_extracted_data?.recommendations || [];
   const summary: string = upload.ai_extracted_data?.summary || '';
   const DocIcon = DOC_TYPE_ICONS[upload.upload_type] || ClipboardList;
+
+  const hasFile = localFileUrl && localFileUrl !== 'parsed_text' && localFileUrl !== '';
+
+  const attachFile = async (file: File) => {
+    setAttachingFile(true);
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const { error } = await supabase
+        .from('user_goal_uploads')
+        .update({ file_url: dataUrl })
+        .eq('id', upload.id);
+      if (error) throw error;
+      setLocalFileUrl(dataUrl);
+    } catch {
+      // silent
+    } finally {
+      setAttachingFile(false);
+    }
+  };
+
+  const openFile = (url: string) => {
+    if (url.startsWith('data:application/pdf')) {
+      const byteString = atob(url.split(',')[1]);
+      const ab = new ArrayBuffer(byteString.length);
+      const ia = new Uint8Array(ab);
+      for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+      const blob = new Blob([ab], { type: 'application/pdf' });
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+    } else {
+      window.open(url, '_blank');
+    }
+  };
 
   const critical = biomarkers.filter(b => b.status?.startsWith('critical'));
   const flaggedOnly = biomarkers.filter(b => b.status !== 'normal' && !b.status?.startsWith('critical'));
@@ -588,30 +630,35 @@ function DetailSheet({
             </div>
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
-            {/* Open original file — only shown when a real file is stored */}
-            {upload.file_url && upload.file_url !== 'parsed_text' && upload.file_url !== '' && (
+            {/* Hidden file input for attaching a file to existing records */}
+            <input
+              ref={attachInputRef}
+              type="file"
+              accept=".pdf,.txt,.csv,image/*"
+              className="hidden"
+              onChange={async e => {
+                const file = e.target.files?.[0];
+                if (file) await attachFile(file);
+                e.target.value = '';
+              }}
+            />
+            {/* Open if file exists, Attach if not */}
+            {hasFile ? (
               <button
                 title="Open original file"
                 className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                onClick={e => {
-                  e.stopPropagation();
-                  const url = upload.file_url!;
-                  if (url.startsWith('data:application/pdf')) {
-                    // Convert PDF data URL to Blob URL so browser opens it natively
-                    const byteString = atob(url.split(',')[1]);
-                    const ab = new ArrayBuffer(byteString.length);
-                    const ia = new Uint8Array(ab);
-                    for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
-                    const blob = new Blob([ab], { type: 'application/pdf' });
-                    const blobUrl = URL.createObjectURL(blob);
-                    window.open(blobUrl, '_blank');
-                    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
-                  } else {
-                    window.open(url, '_blank');
-                  }
-                }}
+                onClick={e => { e.stopPropagation(); openFile(localFileUrl!); }}
               >
                 <ExternalLink className="w-4 h-4" />
+              </button>
+            ) : (
+              <button
+                title={attachingFile ? 'Attaching…' : 'Attach original file'}
+                disabled={attachingFile}
+                className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-40"
+                onClick={e => { e.stopPropagation(); attachInputRef.current?.click(); }}
+              >
+                {attachingFile ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
               </button>
             )}
             <button
@@ -647,8 +694,8 @@ function DetailSheet({
         {/* Body */}
         <div className="px-4 py-4 space-y-3">
 
-          {/* ── Original file image preview — inline modal ── */}
-          {upload.file_url && <FilePreviewSection fileUrl={upload.file_url} fileName={upload.file_name} />}
+          {/* ── Original file preview — uses localFileUrl so newly attached files show instantly ── */}
+          {localFileUrl && <FilePreviewSection fileUrl={localFileUrl} fileName={upload.file_name} />}
 
           {/* AI Summary */}
           {summary && (
