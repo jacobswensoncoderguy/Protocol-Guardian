@@ -72,6 +72,10 @@ interface WeeklyScheduleViewProps {
   memberInitialsDoses?: Map<string, Set<string>>;
   /** Set of compound IDs belonging to household member (for ownership dot in combined view) */
   memberCompoundIds?: Set<string>;
+  /** Controlled selected day index (0=Sun..6=Sat). If provided, parent manages state. */
+  selectedDay?: number;
+  /** Called when user changes selected day */
+  onSelectedDayChange?: (dayIndex: number) => void;
 }
 
 function getResumeDate(daysLeft: number): string {
@@ -81,9 +85,15 @@ function getResumeDate(daysLeft: number): string {
   return `${months[d.getMonth()]} ${d.getDate()}`;
 }
 
-const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compoundLoading, onAnalyzeCompound, customFields, customFieldValues, checkedDoses: externalChecked, onToggleChecked: externalToggle, readOnly = false, readOnlyMemberName, onExitReadOnly, memberInitialsDoses, memberCompoundIds }: WeeklyScheduleViewProps) => {
+const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compoundLoading, onAnalyzeCompound, customFields, customFieldValues, checkedDoses: externalChecked, onToggleChecked: externalToggle, readOnly = false, readOnlyMemberName, onExitReadOnly, memberInitialsDoses, memberCompoundIds, selectedDay: externalSelectedDay, onSelectedDayChange }: WeeklyScheduleViewProps) => {
   const today = new Date().getDay();
-  const [selectedDay, setSelectedDay] = useState(today);
+  const [internalSelectedDay, setInternalSelectedDay] = useState(today);
+  const selectedDay = externalSelectedDay ?? internalSelectedDay;
+  const setSelectedDay = (day: number) => {
+    setInternalSelectedDay(day);
+    onSelectedDayChange?.(day);
+  };
+
   const isViewingToday = selectedDay === today;
   const [selectedCompound, setSelectedCompound] = useState<Compound | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -192,7 +202,7 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
         {/* Non-today hint */}
         {!isViewingToday && (
           <p className="text-[10px] text-muted-foreground/60 text-center -mt-2">
-            Viewing {schedule.dayName} · Checkmarks only active on <button onClick={() => setSelectedDay(today)} className="text-primary underline-offset-2 underline">Today</button>
+            Viewing {schedule.dayName} · <button onClick={() => setSelectedDay(today)} className="text-primary underline-offset-2 underline">Back to Today</button>
           </p>
         )}
 
@@ -268,9 +278,9 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
           onCompoundClick={handleCompoundClick}
           protocols={protocols}
           doseUnit={doseUnit}
-          checkedDoses={isViewingToday ? checkedDoses : new Set()}
+          checkedDoses={checkedDoses}
           onToggleChecked={toggleChecked}
-          readOnly={readOnly || !isViewingToday}
+          readOnly={readOnly}
           memberInitialsDoses={isViewingToday ? memberInitialsDoses : undefined}
           memberCompoundIds={memberCompoundIds}
         />
@@ -289,9 +299,9 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
             onCompoundClick={handleCompoundClick}
             protocols={protocols}
             doseUnit={doseUnit}
-            checkedDoses={isViewingToday ? checkedDoses : new Set()}
+            checkedDoses={checkedDoses}
             onToggleChecked={toggleChecked}
-            readOnly={readOnly || !isViewingToday}
+            readOnly={readOnly}
             memberInitialsDoses={isViewingToday ? memberInitialsDoses : undefined}
             memberCompoundIds={memberCompoundIds}
           />
@@ -310,9 +320,9 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
           onCompoundClick={handleCompoundClick}
           protocols={protocols}
           doseUnit={doseUnit}
-          checkedDoses={isViewingToday ? checkedDoses : new Set()}
+          checkedDoses={checkedDoses}
           onToggleChecked={toggleChecked}
-          readOnly={readOnly || !isViewingToday}
+          readOnly={readOnly}
           memberInitialsDoses={isViewingToday ? memberInitialsDoses : undefined}
           memberCompoundIds={memberCompoundIds}
         />

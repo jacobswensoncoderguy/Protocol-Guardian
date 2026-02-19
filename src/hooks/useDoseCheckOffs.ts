@@ -12,28 +12,48 @@ function toKey(k: CheckOffKey): string {
   return `${k.compoundId}-${k.timing}-${k.doseIndex}`;
 }
 
-function todayStr(): string {
-  const d = new Date();
+function dateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export function useDoseCheckOffs() {
+function todayStr(): string {
+  return dateStr(new Date());
+}
+
+/** Returns a YYYY-MM-DD string for a given day-of-week index (0=Sun…6=Sat)
+ *  within the current week (Sun-Sat). */
+function weekDayToDateStr(dayIndex: number): string {
+  const now = new Date();
+  const todayDow = now.getDay();
+  const diff = dayIndex - todayDow;
+  const target = new Date(now);
+  target.setDate(now.getDate() + diff);
+  return dateStr(target);
+}
+
+export { weekDayToDateStr, todayStr };
+
+export function useDoseCheckOffs(selectedDayIndex?: number) {
   const { user } = useAuth();
   const [checkedDoses, setCheckedDoses] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
-  const today = todayStr();
+  // Compute the target date string based on selected day
+  const targetDate = selectedDayIndex !== undefined
+    ? weekDayToDateStr(selectedDayIndex)
+    : todayStr();
 
-  // Load today's check-offs
+  // Load check-offs for the target date
   useEffect(() => {
     if (!user) { setCheckedDoses(new Set()); setLoading(false); return; }
 
     const load = async () => {
+      setLoading(true);
       const { data } = await supabase
         .from('dose_check_offs')
         .select('compound_id, timing, dose_index')
         .eq('user_id', user.id)
-        .eq('check_date', today);
+        .eq('check_date', targetDate);
 
       if (data) {
         const keys = new Set(data.map(r => toKey({
@@ -46,7 +66,7 @@ export function useDoseCheckOffs() {
       setLoading(false);
     };
     load();
-  }, [user, today]);
+  }, [user, targetDate]);
 
   const toggleChecked = useCallback(async (key: string) => {
     if (!user) return;
@@ -74,7 +94,7 @@ export function useDoseCheckOffs() {
         .from('dose_check_offs')
         .delete()
         .eq('user_id', user.id)
-        .eq('check_date', today)
+        .eq('check_date', targetDate)
         .eq('compound_id', compoundId)
         .eq('timing', timing)
         .eq('dose_index', doseIndex);
@@ -83,13 +103,13 @@ export function useDoseCheckOffs() {
         .from('dose_check_offs')
         .insert({
           user_id: user.id,
-          check_date: today,
+          check_date: targetDate,
           compound_id: compoundId,
           timing,
           dose_index: doseIndex,
         });
     }
-  }, [user, today, checkedDoses]);
+  }, [user, targetDate, checkedDoses]);
 
   return { checkedDoses, toggleChecked, loading };
 }
