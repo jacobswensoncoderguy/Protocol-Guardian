@@ -163,81 +163,60 @@ const ZoneLegend = ({ zoneIntensities, onZoneTap }: { zoneIntensities: Record<Bo
   );
 };
 
-// ── Zone Heat Overlay (SVG mask over cartoon body image) ─────────────
+// ── Clean Body Image (no heatmap overlay) ─────────────────────────────
 
-// Approximate SVG zones mapped to the cartoon body image (viewBox 0 0 200 480)
-const CARTOON_ZONES: Array<{ zone: BodyZone; paths: string[] }> = [
-  { zone: 'brain', paths: ['M85,8 C72,8 62,18 62,30 C62,44 70,54 80,58 L120,58 C130,54 138,44 138,30 C138,18 128,8 115,8 Z'] },
-  { zone: 'heart', paths: ['M72,64 L128,64 L132,120 L68,120 Z'] },
-  { zone: 'immune', paths: ['M68,120 L132,120 L130,160 L70,160 Z'] },
-  { zone: 'hormonal', paths: ['M70,160 L130,160 L128,200 L72,200 Z'] },
-  { zone: 'core', paths: ['M72,200 L128,200 L126,248 L74,248 Z'] },
-  { zone: 'arms', paths: [
-    'M72,64 L56,70 L34,160 L50,164 L70,74 Z',
-    'M128,64 L144,70 L166,160 L150,164 L130,74 Z',
-    'M50,164 L34,160 L28,220 L44,216 Z',
-    'M150,164 L166,160 L172,220 L156,216 Z',
-    'M44,216 L28,220 L30,270 L46,266 Z',
-    'M156,216 L172,220 L170,270 L154,266 Z',
-  ]},
-  { zone: 'legs', paths: [
-    'M74,248 L96,252 L94,340 L72,336 Z',
-    'M96,252 L126,248 L128,336 L106,340 Z',
-    'M72,336 L94,340 L90,420 L68,416 Z',
-    'M106,340 L128,336 L132,416 L108,420 Z',
-    'M68,416 L90,420 L88,460 L64,456 Z',
-    'M108,420 L132,416 L136,456 L112,460 Z',
-  ]},
-];
-
-const CartoonBodyHeatmap = ({
-  zoneIntensities,
+const CartoonBody = ({
   gender,
   onZoneTap,
+  zoneIntensities,
 }: {
-  zoneIntensities: Record<BodyZone, number>;
   gender?: string | null;
   onZoneTap?: (zone: BodyZone) => void;
+  zoneIntensities: Record<BodyZone, number>;
 }) => {
   const imgSrc = gender === 'female' ? bodyFemaleImg : bodyMaleImg;
 
+  // Zone badges positioned around the body
+  const ZONE_BADGE_POSITIONS: Array<{ zone: BodyZone; style: React.CSSProperties; side: 'left' | 'right' }> = [
+    { zone: 'brain',    style: { top: '4%',  right: '4%'  }, side: 'right' },
+    { zone: 'heart',    style: { top: '22%', right: '4%'  }, side: 'right' },
+    { zone: 'arms',     style: { top: '38%', left:  '2%'  }, side: 'left'  },
+    { zone: 'immune',   style: { top: '46%', left:  '2%'  }, side: 'left'  },
+    { zone: 'hormonal', style: { top: '55%', right: '4%'  }, side: 'right' },
+    { zone: 'core',     style: { top: '65%', left:  '2%'  }, side: 'left'  },
+    { zone: 'legs',     style: { top: '78%', right: '4%'  }, side: 'right' },
+  ];
+
   return (
     <div className="relative w-full h-full">
-      {/* Cartoon body image */}
       <img
         src={imgSrc}
         alt="Body coverage map"
         className="w-full h-full object-contain object-top"
         draggable={false}
       />
-      {/* SVG heatmap overlay — positioned absolutely over the image */}
-      <svg
-        viewBox="0 0 200 480"
-        className="absolute inset-0 w-full h-full"
-        style={{ mixBlendMode: 'screen' }}
-      >
-        {CARTOON_ZONES.map(({ zone, paths }) => {
-          const intensity = zoneIntensities[zone] ?? 0;
-          if (intensity < 0.04) return null;
-          const info = BODY_ZONES[zone];
-          return paths.map((d, i) => (
-            <path
-              key={`${zone}-${i}`}
-              d={d}
-              fill={info.color}
-              fillOpacity={0.08 + intensity * 0.55}
-              stroke={info.color}
-              strokeWidth={intensity > 0.6 ? '1.5' : '0.5'}
-              strokeOpacity={0.2 + intensity * 0.7}
-              style={{
-                filter: intensity > 0.45 ? `drop-shadow(0 0 ${Math.round(intensity * 12)}px ${info.color})` : undefined,
-                cursor: onZoneTap ? 'pointer' : undefined,
-              }}
-              onClick={() => onZoneTap?.(zone)}
-            />
-          ));
-        })}
-      </svg>
+      {/* Zone badges */}
+      {ZONE_BADGE_POSITIONS.map(({ zone, style, side }) => {
+        const intensity = zoneIntensities[zone] ?? 0;
+        const info = BODY_ZONES[zone];
+        const pct = Math.round(intensity * 100);
+        return (
+          <button
+            key={zone}
+            onClick={() => onZoneTap?.(zone)}
+            style={style}
+            className="absolute flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-card/80 backdrop-blur-sm border border-border/40 hover:border-border/80 transition-all active:scale-95 text-left"
+          >
+            {side === 'right' && (
+              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: info.color, boxShadow: `0 0 4px ${info.color}` }} />
+            )}
+            <span className="text-[9px] font-mono font-semibold" style={{ color: info.color }}>{pct}%</span>
+            {side === 'left' && (
+              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: info.color, boxShadow: `0 0 4px ${info.color}` }} />
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 };
@@ -358,7 +337,7 @@ const ProtocolCoverageCard = ({ activeCompounds, zoneIntensities, bodyCoverage, 
   }
 
   const bodyImg = (
-    <CartoonBodyHeatmap
+    <CartoonBody
       zoneIntensities={zoneIntensities}
       gender={displayGender}
       onZoneTap={onZoneTap}
