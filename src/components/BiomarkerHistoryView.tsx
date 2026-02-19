@@ -407,11 +407,17 @@ function FilePreviewSection({ fileUrl, fileName }: { fileUrl: string; fileName?:
             />
           </button>
         ) : (
-          <div className="px-3 py-3 flex items-center gap-2">
+          <a
+            href={fileUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-3 flex items-center gap-2 hover:bg-secondary/20 transition-colors cursor-pointer"
+            onClick={e => e.stopPropagation()}
+          >
             <ClipboardList className="w-4 h-4 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground truncate flex-1">{fileName || 'Uploaded file'}</span>
-            <span className="text-[10px] text-muted-foreground/60 bg-muted/30 px-2 py-0.5 rounded-full">PDF / Document</span>
-          </div>
+            <span className="text-xs text-foreground truncate flex-1">{fileName || 'Uploaded file'}</span>
+            <span className="text-[10px] text-primary border border-primary/30 bg-primary/10 px-2 py-0.5 rounded-full font-medium">Open ↗</span>
+          </a>
         )}
       </div>
 
@@ -1858,7 +1864,9 @@ export default function BiomarkerHistoryView({
             onClick={() => setActiveTab('uploads')}
             className={cn(
               'px-3 py-1.5 rounded-md text-xs font-semibold transition-all',
-              activeTab === 'uploads' ? 'bg-card text-foreground shadow-sm border border-border/50' : 'text-muted-foreground hover:text-foreground'
+              activeTab === 'uploads'
+                ? 'bg-amber-500/20 text-amber-400 shadow-sm border border-amber-500/40'
+                : 'text-muted-foreground hover:text-foreground'
             )}
           >
             Uploads
@@ -1867,7 +1875,9 @@ export default function BiomarkerHistoryView({
             onClick={() => setActiveTab('alerts')}
             className={cn(
               'px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5',
-              activeTab === 'alerts' ? 'bg-card text-foreground shadow-sm border border-border/50' : 'text-muted-foreground hover:text-foreground'
+              activeTab === 'alerts'
+                ? 'bg-amber-500/20 text-amber-400 shadow-sm border border-amber-500/40'
+                : 'text-muted-foreground hover:text-foreground'
             )}
           >
             Alerts
