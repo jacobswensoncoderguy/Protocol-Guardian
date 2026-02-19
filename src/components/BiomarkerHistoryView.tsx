@@ -1037,15 +1037,105 @@ ${summaries}`;
             })}
           </div>
 
-          {/* Shared marker sparklines — visual trend across all selected uploads */}
+          {/* Cross-category trend LineChart — each shared marker as a colored line */}
           {sharedMarkerTrends.length > 0 && (
-            <div className="rounded-xl border border-border/30 bg-secondary/10 p-3 space-y-2">
+            <div className="rounded-xl border border-border/30 bg-secondary/10 p-3 space-y-3">
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                 <TrendingUp className="w-3 h-3 text-primary" />
                 Shared Marker Trends
                 <span className="text-[9px] font-normal text-muted-foreground/60">{sharedMarkerTrends.length} markers across all uploads</span>
               </p>
-              <div className="grid grid-cols-2 gap-2">
+
+              {/* Full recharts LineChart — X = upload date, each marker = a colored line.
+                  Build a merged dataset: each row is a date, each marker has its own key */}
+              {(() => {
+                const HUE_STEPS = [200, 150, 30, 270, 0, 60];
+                // Merge all marker values into rows keyed by date
+                const dateSet = new Set<string>();
+                sharedMarkerTrends.forEach(m => m.points.forEach(p => dateSet.add(p.date)));
+                const dates = Array.from(dateSet);
+                const mergedData = dates.map(date => {
+                  const row: Record<string, any> = { date };
+                  sharedMarkerTrends.forEach(m => {
+                    const pt = m.points.find(p => p.date === date);
+                    if (pt) row[m.name] = pt.value;
+                  });
+                  return row;
+                });
+                return (
+                  <div className="h-44">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={mergedData} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.3)" />
+                        <XAxis
+                          dataKey="date"
+                          tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <YAxis
+                          tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
+                          tickLine={false}
+                          axisLine={false}
+                          width={30}
+                          tickFormatter={(v: number) => v.toFixed(0)}
+                        />
+                        <RechartsTooltip
+                          contentStyle={{
+                            background: 'hsl(var(--card))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '8px',
+                            fontSize: '11px',
+                            color: 'hsl(var(--foreground))',
+                          }}
+                          labelStyle={{ color: 'hsl(var(--muted-foreground))', fontSize: '10px' }}
+                        />
+                        {sharedMarkerTrends.map((marker, idx) => {
+                          const hue = HUE_STEPS[idx % HUE_STEPS.length];
+                          const color = `hsl(${hue}, 80%, 55%)`;
+                          return (
+                            <Line
+                              key={marker.name}
+                              dataKey={marker.name}
+                              stroke={color}
+                              strokeWidth={2}
+                              dot={{ r: 3, fill: color, strokeWidth: 0 }}
+                              activeDot={{ r: 5 }}
+                              type="monotone"
+                              connectNulls
+                            />
+                          );
+                        })}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                );
+              })()}
+
+              {/* Legend */}
+              <div className="flex flex-wrap gap-2">
+                {sharedMarkerTrends.map((marker, idx) => {
+                  const HUE_STEPS = [200, 150, 30, 270, 0, 60];
+                  const hue = HUE_STEPS[idx % HUE_STEPS.length];
+                  const color = `hsl(${hue}, 80%, 55%)`;
+                  const values = marker.points.map(p => p.value);
+                  const delta = values[values.length - 1] - values[0];
+                  return (
+                    <div key={marker.name} className="flex items-center gap-1.5">
+                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                      <span className="text-[9px] text-muted-foreground">{marker.name}</span>
+                      {delta !== 0 && (
+                        <span className={`text-[9px] font-mono font-semibold ${delta > 0 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                          {delta > 0 ? '+' : ''}{delta.toFixed(1)}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Mini sparkline tiles below */}
+              <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border/20">
                 {sharedMarkerTrends.map(marker => {
                   const values = marker.points.map(p => p.value);
                   const delta = values[values.length - 1] - values[0];
@@ -1305,9 +1395,9 @@ function UploadTile({
       <div
         className={cn(
           'relative bg-card rounded-xl border cursor-pointer hover:border-primary/40 hover:shadow-sm transition-all overflow-hidden',
-          critical.length > 0 ? 'border-destructive/30' : flagged.length > 0 ? 'border-status-warning/30' : 'border-border/50',
-          compareMode && selected && 'border-primary ring-2 ring-primary/30',
-          compareMode && !selected && 'opacity-80',
+          !compareMode && (critical.length > 0 ? 'border-destructive/30' : flagged.length > 0 ? 'border-status-warning/30' : 'border-border/50'),
+          compareMode && selected && 'border-primary ring-[3px] ring-primary/50 shadow-[0_0_12px_hsl(var(--primary)/0.3)]',
+          compareMode && !selected && 'border-border/30 opacity-60',
         )}
         onClick={() => {
           if (editing) return;
@@ -1316,17 +1406,23 @@ function UploadTile({
         }}
       >
         {/* Status stripe */}
-        {(critical.length > 0 || flagged.length > 0) && (
+        {!compareMode && (critical.length > 0 || flagged.length > 0) && (
           <div className={`h-0.5 w-full ${critical.length > 0 ? 'bg-destructive' : 'bg-status-warning'}`} />
         )}
+        {/* Compare mode selected top stripe */}
+        {compareMode && selected && (
+          <div className="h-1 w-full bg-primary" />
+        )}
 
-        {/* Compare mode checkmark */}
+        {/* Compare mode checkmark badge — large and obvious when selected */}
         {compareMode && (
           <div className={cn(
-            'absolute top-1.5 right-1.5 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all z-10',
-            selected ? 'bg-primary border-primary' : 'border-border/60 bg-card'
+            'absolute top-2 right-2 flex items-center justify-center transition-all z-10',
+            selected
+              ? 'w-6 h-6 rounded-full bg-primary shadow-lg shadow-primary/30 border-2 border-primary-foreground/20'
+              : 'w-5 h-5 rounded-full border-2 border-muted-foreground/30 bg-card/80'
           )}>
-            {selected && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
+            {selected && <Check className="w-3.5 h-3.5 text-primary-foreground" />}
           </div>
         )}
 

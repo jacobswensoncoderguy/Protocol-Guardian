@@ -478,6 +478,25 @@ const DoseGroup = ({
     return true;
   });
 
+  // Active (not off-cycle, not paused) dose keys for check-all — must match checkKey formula below
+  const activeDoseKeys = filteredDoses
+    .map((dose, i) => ({ dose, i }))
+    .filter(({ dose }) => !offCycleIds.has(dose.compoundId) && !pausedIds.has(dose.compoundId))
+    .map(({ dose, i }) => `${dose.compoundId}-${dose.timing}-${i}`);
+
+  const allChecked = activeDoseKeys.length > 0 && activeDoseKeys.every(k => checkedDoses.has(k));
+  const someChecked = activeDoseKeys.some(k => checkedDoses.has(k));
+
+  const handleCheckAll = () => {
+    if (allChecked) {
+      // Uncheck all
+      activeDoseKeys.forEach(k => { if (checkedDoses.has(k)) onToggleChecked(k); });
+    } else {
+      // Check all that aren't already checked
+      activeDoseKeys.forEach(k => { if (!checkedDoses.has(k)) onToggleChecked(k); });
+    }
+  };
+
   const convertToMl = (compound: Compound, doseStr: string): string => {
     if (doseUnit !== 'ml') return doseStr;
     const isPeptide = compound.category === 'peptide';
@@ -515,7 +534,24 @@ const DoseGroup = ({
 
   return (
     <div>
-      <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">{label}</p>
+      <div className="flex items-center justify-between mb-1.5">
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
+        {!readOnly && activeDoseKeys.length > 1 && (
+          <button
+            onClick={handleCheckAll}
+            className={`flex items-center gap-1 text-[9px] font-semibold px-2 py-0.5 rounded-full border transition-all ${
+              allChecked
+                ? 'bg-primary/20 border-primary/40 text-primary'
+                : someChecked
+                  ? 'bg-secondary/60 border-border/50 text-muted-foreground'
+                  : 'bg-secondary/30 border-border/30 text-muted-foreground/60 hover:text-muted-foreground hover:border-border/50'
+            }`}
+          >
+            <Check className="w-2.5 h-2.5" />
+            {allChecked ? 'Uncheck All' : 'Check All'}
+          </button>
+        )}
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
         {filteredDoses.map((dose, i) => {
           const compound = compoundMap.get(dose.compoundId);
