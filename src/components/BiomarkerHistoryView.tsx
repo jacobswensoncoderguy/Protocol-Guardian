@@ -374,7 +374,11 @@ function RangeChip({
 // ─── Inline file preview (avoids 404 from opening storage URLs in new tab) ─
 function FilePreviewSection({ fileUrl, fileName }: { fileUrl: string; fileName?: string }) {
   const [modalOpen, setModalOpen] = useState(false);
-  const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(fileUrl) || fileUrl.includes('image');
+  // Detect data URLs (base64 images captured at upload time) or image file extensions
+  const isImage = fileUrl.startsWith('data:image') || /\.(jpg|jpeg|png|gif|webp)$/i.test(fileUrl);
+  const isPlaceholder = fileUrl === 'parsed_text' || fileUrl === '';
+
+  if (isPlaceholder) return null; // No file stored — skip section entirely for old records
 
   return (
     <>
@@ -387,7 +391,7 @@ function FilePreviewSection({ fileUrl, fileName }: { fileUrl: string; fileName?:
               onClick={e => { e.stopPropagation(); setModalOpen(true); }}
               className="ml-auto text-[10px] text-primary hover:text-primary/80 transition-colors font-medium"
             >
-              View full size
+              View full size ↗
             </button>
           )}
         </div>
@@ -399,14 +403,14 @@ function FilePreviewSection({ fileUrl, fileName }: { fileUrl: string; fileName?:
             <img
               src={fileUrl}
               alt={fileName || 'Uploaded lab report'}
-              className="w-full max-h-48 object-contain bg-black/5 cursor-zoom-in"
+              className="w-full max-h-56 object-contain bg-muted/20 cursor-zoom-in"
             />
           </button>
         ) : (
           <div className="px-3 py-3 flex items-center gap-2">
             <ClipboardList className="w-4 h-4 text-muted-foreground" />
             <span className="text-xs text-muted-foreground truncate flex-1">{fileName || 'Uploaded file'}</span>
-            <span className="text-[10px] text-muted-foreground">PDF / Document</span>
+            <span className="text-[10px] text-muted-foreground/60 bg-muted/30 px-2 py-0.5 rounded-full">PDF / Document</span>
           </div>
         )}
       </div>

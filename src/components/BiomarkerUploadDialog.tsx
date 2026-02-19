@@ -99,6 +99,8 @@ export default function BiomarkerUploadDialog({
   const [parseProgress, setParseProgress] = useState<{ current: number; total: number } | null>(null);
   const [uploadLabel, setUploadLabel] = useState('');
   const [uploadDate, setUploadDate] = useState('');
+  // Store the first image file as a data URL so the detail sheet can show it inline
+  const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -119,6 +121,7 @@ export default function BiomarkerUploadDialog({
     setParseProgress(null);
     setUploadLabel('');
     setUploadDate('');
+    setImageDataUrl(null);
   };
 
   const handleClose = (open: boolean) => {
@@ -178,6 +181,7 @@ export default function BiomarkerUploadDialog({
 
     const mergedBiomarkers: Biomarker[] = [];
     let mergedResult: ParsedResult | null = null;
+    let capturedImageDataUrl: string | null = null;
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
@@ -190,14 +194,28 @@ export default function BiomarkerUploadDialog({
 
       try {
         const ext = file.name.split('.').pop()?.toLowerCase();
+        const isImg = ['jpg','jpeg','png','gif','webp'].includes(ext || '');
         let fileType = 'medical document';
         if (file.name.toLowerCase().includes('dexa')) fileType = 'DEXA scan';
         else if (file.name.toLowerCase().includes('blood')) fileType = 'bloodwork';
         else if (ext === 'csv') fileType = 'CSV lab data';
         else if (ext === 'pdf') fileType = file.name.toLowerCase().includes('dexa') ? 'DEXA scan' : 'PDF lab report';
 
+        // Capture the first image file so we can show it inline in the detail sheet
+        if (isImg && !capturedImageDataUrl) {
+          capturedImageDataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+        }
+
         let result: ParsedResult | null;
         if (ext === 'pdf') {
+          const base64 = await readFileAsBase64(file);
+          result = await parseSingleFile('', fileType, base64);
+        } else if (isImg) {
           const base64 = await readFileAsBase64(file);
           result = await parseSingleFile('', fileType, base64);
         } else {
@@ -228,6 +246,7 @@ export default function BiomarkerUploadDialog({
         ? `Merged results from ${files.length} files · ${mergedBiomarkers.length} biomarkers found`
         : mergedResult.summary;
       setParsedResult(mergedResult);
+      if (capturedImageDataUrl) setImageDataUrl(capturedImageDataUrl);
       setStep('results');
     } else {
       toast.error('No biomarkers could be extracted from the selected files.');
@@ -257,11 +276,15 @@ export default function BiomarkerUploadDialog({
       const label = uploadLabel.trim() || buildDefaultLabel(parsedResult.document_type, parsedResult.document_date);
       const date = uploadDate || parsedResult.document_date || new Date().toISOString().split('T')[0];
 
+      // Store the image data URL if available (for inline preview in detail sheet)
+      // Data URLs are base64-encoded images stored directly; PDFs fall back to 'parsed_text'
+      const fileUrl = imageDataUrl || 'parsed_text';
+
       const { error } = await supabase.from('user_goal_uploads').insert({
         user_id: userId,
         user_goal_id: null,
         file_name: label,
-        file_url: 'parsed_text',
+        file_url: fileUrl,
         upload_type: parsedResult.document_type,
         reading_date: date,
         ai_extracted_data: parsedResult as any,
@@ -330,7 +353,7 @@ export default function BiomarkerUploadDialog({
                 or <span className="text-primary font-medium underline underline-offset-2">click to browse</span>
               </p>
               <p className="text-[10px] text-muted-foreground/60 mt-3">
-                PDF, .txt, .csv · Select multiple files at once
+                PDF, .txt, .csv, images · Select multiple files at once
               </p>
 
               {/* Multi-file badge */}
@@ -342,7 +365,7 @@ export default function BiomarkerUploadDialog({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".pdf,.txt,.csv,.tsv,.text,.md"
+                accept=".pdf,.txt,.csv,.tsv,.text,.md,image/*"
                 multiple
                 className="hidden"
                 onChange={e => {
