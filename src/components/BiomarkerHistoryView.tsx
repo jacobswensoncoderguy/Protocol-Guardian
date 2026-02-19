@@ -4,7 +4,7 @@ import {
   X, Trash2, RefreshCw, Loader2, Upload, AlertTriangle, FlaskConical,
   AlertCircle, Droplets, Bone, Zap, Syringe, Heart, Bug, ClipboardList,
   Link2, Pencil, Check, GitCompare, BookMarked, Info, Sparkles,
-  ArrowRightLeft, TrendingUp,
+  ArrowRightLeft, TrendingUp, ExternalLink,
 } from 'lucide-react';
 import { getReferenceRange, formatRange } from '@/lib/biomarkerReferenceRanges';
 import { LineChart, Line, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid, ReferenceArea } from 'recharts';
@@ -565,6 +565,19 @@ function DetailSheet({
             </div>
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
+            {/* Open original file — only shown when a real URL is stored */}
+            {upload.file_url && upload.file_url !== 'parsed_text' && upload.file_url !== '' && (
+              <a
+                href={upload.file_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open original file"
+                className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                onClick={e => e.stopPropagation()}
+              >
+                <ExternalLink className="w-4 h-4" />
+              </a>
+            )}
             <button
               onClick={() => { onAlignToGoal(upload); onClose(); }}
               title="Align to a goal"
