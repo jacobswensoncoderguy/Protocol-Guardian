@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import ChatMarkdown from '@/components/ChatMarkdown';
 import { Compound } from '@/data/compounds';
-import { Target, Plus, Shield, Scale, Rocket, Ruler, Weight, Percent, Calendar as CalendarIcon, Check, ToggleLeft, ChevronRight, Sparkles, Package, AlertTriangle, TrendingUp, TrendingDown, Zap, Info, Brain, Heart, Dumbbell, Flame, Activity, History, LayoutGrid } from 'lucide-react';
+import { Target, Plus, Shield, Scale, Rocket, Ruler, Weight, Percent, Calendar as CalendarIcon, Check, ToggleLeft, ChevronRight, Sparkles, Package, AlertTriangle, TrendingUp, TrendingDown, Zap, Info, Brain, Heart, Dumbbell, Flame, Activity, History, LayoutGrid, Pause, Play, Send, MessageCircle } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import bodyMaleImg from '@/assets/body-male.png';
 import bodyFemaleImg from '@/assets/body-female.png';
 import { useScheduleSnapshots } from '@/hooks/useScheduleSnapshots';
@@ -294,10 +295,36 @@ const AIInsightPanel = ({ activeCompounds, goals }: { activeCompounds: Compound[
   const [error, setError] = useState<string | null>(null);
   const [isPaused, setIsPaused] = useState(false);
   const autoRotateRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isMobile = useIsMobile();
+
+  // Reply / follow-up state
+  const [showReply, setShowReply] = useState(false);
+  const [replyText, setReplyText] = useState('');
+  const [replyLoading, setReplyLoading] = useState(false);
+  const [followUp, setFollowUp] = useState<string | null>(null);
+
+  // Compound fingerprint to auto-clear cache on pause/cycle changes
+  const compoundFingerprint = useMemo(() =>
+    activeCompounds.map(c =>
+      `${c.id}-${(c as any).pausedAt ?? ''}-${(c as any).cycleOnDays ?? 0}-${(c as any).cycleOffDays ?? 0}-${(c as any).cycleStartDate ?? ''}`
+    ).sort().join('|'),
+    [activeCompounds]
+  );
+
+  // Clear insight cache when compounds change (pause, cycle, add, remove)
+  const prevFingerprintRef = useRef(compoundFingerprint);
+  useEffect(() => {
+    if (prevFingerprintRef.current !== compoundFingerprint) {
+      prevFingerprintRef.current = compoundFingerprint;
+      setInsights({});
+      setFollowUp(null);
+      setError(null);
+    }
+  }, [compoundFingerprint]);
 
   const fetchInsight = useCallback(async (type: InsightType, cachedInsights?: Partial<Record<InsightType, string>>) => {
     const cache = cachedInsights ?? insights;
-    if (cache[type]) return; // cached
+    if (cache[type]) return;
     if (activeCompounds.length === 0) return;
     setLoading(type);
     setError(null);
@@ -326,10 +353,12 @@ const AIInsightPanel = ({ activeCompounds, goals }: { activeCompounds: Compound[
     }
   }, [activeCompounds, goals, insights]);
 
-  // Load first tab on mount
+  // Load first tab on mount or after cache clear
   useEffect(() => {
-    fetchInsight('performance');
-  }, []);
+    if (!insights['performance'] && activeCompounds.length > 0) {
+      fetchInsight('performance');
+    }
+  }, [compoundFingerprint]);
 
   // Auto-rotate every 10 seconds
   useEffect(() => {
@@ -338,11 +367,8 @@ const AIInsightPanel = ({ activeCompounds, goals }: { activeCompounds: Compound[
       setActiveTab(prev => {
         const idx = INSIGHT_ORDER.indexOf(prev);
         const next = INSIGHT_ORDER[(idx + 1) % INSIGHT_ORDER.length];
-        // Prefetch next insight if not cached
         setInsights(cache => {
-          if (!cache[next] && activeCompounds.length > 0) {
-            fetchInsight(next, cache);
-          }
+          if (!cache[next] && activeCompounds.length > 0) fetchInsight(next, cache);
           return cache;
         });
         return next;
@@ -353,8 +379,9 @@ const AIInsightPanel = ({ activeCompounds, goals }: { activeCompounds: Compound[
 
   const handleTabChange = (type: InsightType) => {
     setActiveTab(type);
+    setFollowUp(null);
+    setShowReply(false);
     fetchInsight(type);
-    // Reset auto-rotate timer when user manually switches
     clearInterval(autoRotateRef.current!);
     if (!isPaused) {
       autoRotateRef.current = setInterval(() => {
@@ -371,20 +398,59 @@ const AIInsightPanel = ({ activeCompounds, goals }: { activeCompounds: Compound[
     }
   };
 
+  // Reply / follow-up handler
+  const handleReply = async () => {
+    const currentInsight = insights[activeTab];
+    if (!replyText.trim() || !currentInsight) return;
+    setReplyLoading(true);
+    setFollowUp(null);
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/daily-insight`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            compounds: activeCompounds,
+            goals: goals || [],
+            symptoms: [],
+            insightType: activeTab,
+            followUp: replyText.trim(),
+            previousInsight: currentInsight,
+          }),
+        }
+      );
+      const data = await res.json();
+      if (data.error) {
+        setError(data.error);
+      } else {
+        setFollowUp(data.insight);
+      }
+    } catch {
+      setError('Failed to get response');
+    } finally {
+      setReplyLoading(false);
+      setReplyText('');
+    }
+  };
+
   const currentInsight = insights[activeTab];
   const isLoading = loading === activeTab;
+
+  const togglePause = () => setIsPaused(p => !p);
 
   return (
     <div
       className="px-4 pt-4 pb-3 space-y-3"
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
-      onTouchStart={() => setIsPaused(true)}
-      onTouchEnd={() => setTimeout(() => setIsPaused(false), 3000)}
+      onMouseEnter={() => !isMobile && setIsPaused(true)}
+      onMouseLeave={() => !isMobile && setIsPaused(false)}
     >
       {/* Tab row */}
       <div className="flex gap-1.5">
-        {INSIGHT_TABS.map((tab, i) => (
+        {INSIGHT_TABS.map((tab) => (
           <button
             key={tab.id}
             onClick={() => handleTabChange(tab.id)}
@@ -405,8 +471,16 @@ const AIInsightPanel = ({ activeCompounds, goals }: { activeCompounds: Compound[
               <div key={t} className={`w-1 h-1 rounded-full transition-all ${activeTab === t ? 'bg-primary scale-125' : 'bg-muted-foreground/25'}`} />
             ))}
           </div>
+          {/* Pause/Play toggle */}
           <button
-            onClick={() => { setInsights(prev => ({ ...prev, [activeTab]: undefined })); fetchInsight(activeTab); }}
+            onClick={togglePause}
+            className="p-0.5 rounded text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors"
+            title={isPaused ? 'Resume rotation' : 'Pause rotation'}
+          >
+            {isPaused ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
+          </button>
+          <button
+            onClick={() => { setInsights(prev => ({ ...prev, [activeTab]: undefined })); setFollowUp(null); fetchInsight(activeTab); }}
             className="text-[9px] text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors"
             title="Refresh"
           >
@@ -416,7 +490,7 @@ const AIInsightPanel = ({ activeCompounds, goals }: { activeCompounds: Compound[
       </div>
 
       {/* Insight text */}
-      <div className="min-h-[72px] flex items-start">
+      <div className="min-h-[72px] flex flex-col items-start gap-2">
         {isLoading ? (
           <div className="flex items-center gap-2 text-muted-foreground/50">
             <div className="flex gap-0.5">
@@ -431,17 +505,70 @@ const AIInsightPanel = ({ activeCompounds, goals }: { activeCompounds: Compound[
         ) : activeCompounds.length === 0 ? (
           <p className="text-[11px] text-muted-foreground/50">Add compounds to generate AI insights.</p>
         ) : currentInsight ? (
-          <div className="text-[12px] text-foreground leading-relaxed"><ChatMarkdown content={currentInsight} /></div>
+          <>
+            <div className="text-[12px] text-foreground leading-relaxed"><ChatMarkdown content={currentInsight} /></div>
+            {/* Follow-up response */}
+            {replyLoading && (
+              <div className="flex items-center gap-2 text-muted-foreground/50 mt-1">
+                <div className="flex gap-0.5">
+                  {[0,1,2].map(i => (
+                    <div key={i} className="w-1.5 h-1.5 rounded-full bg-primary/40 animate-bounce" style={{ animationDelay: `${i * 120}ms` }} />
+                  ))}
+                </div>
+                <span className="text-[11px]">Thinking…</span>
+              </div>
+            )}
+            {followUp && (
+              <div className="text-[12px] text-foreground/80 leading-relaxed border-l-2 border-primary/30 pl-2 mt-1">
+                <ChatMarkdown content={followUp} />
+              </div>
+            )}
+          </>
         ) : (
           <p className="text-[11px] text-muted-foreground/40 italic">Tap a tab to load insight.</p>
         )}
       </div>
-      {!isPaused && activeCompounds.length > 0 && (
-        <p className="text-[8px] text-muted-foreground/25 text-right">auto-rotating · hover to pause</p>
+
+      {/* Reply / ask more row */}
+      {currentInsight && !isLoading && (
+        <div className="space-y-2">
+          {!showReply ? (
+            <button
+              onClick={() => { setShowReply(true); setIsPaused(true); }}
+              className="flex items-center gap-1.5 text-[10px] text-muted-foreground/50 hover:text-primary transition-colors"
+            >
+              <MessageCircle className="w-3 h-3" />
+              <span>Ask more or act on this</span>
+            </button>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <input
+                type="text"
+                value={replyText}
+                onChange={e => setReplyText(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleReply()}
+                placeholder="Tell me more… or suggest changes"
+                className="flex-1 bg-secondary/30 border border-border/30 rounded-lg px-3 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/40"
+                autoFocus
+                disabled={replyLoading}
+              />
+              <button
+                onClick={handleReply}
+                disabled={!replyText.trim() || replyLoading}
+                className="p-1.5 rounded-lg bg-primary text-primary-foreground disabled:opacity-40 transition-opacity active:scale-95"
+              >
+                <Send className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+        </div>
       )}
-      {isPaused && (
-        <p className="text-[8px] text-muted-foreground/40 text-right">paused</p>
-      )}
+
+      {/* Status text */}
+      <p className="text-[8px] text-muted-foreground/25 text-right">
+        {isPaused ? 'paused' : 'auto-rotating'}
+        {isMobile ? ' · tap ⏸ to pause' : ' · hover to pause'}
+      </p>
     </div>
   );
 };
