@@ -35,6 +35,9 @@ For DEXA scans specifically, extract: total body fat %, lean mass, bone mineral 
 
 For bloodwork, extract: CBC, CMP, lipid panel, thyroid panel, hormone levels (testosterone, estrogen, cortisol, IGF-1, etc.), inflammatory markers (CRP, ESR), vitamins (D, B12), iron studies, etc.
 
+SUMMARY FIELD — CRITICAL:
+Write the summary as 1-2 punchy sentences. Lead with the single most important finding. Example: "Testosterone at 340 ng/dL — below optimal range. Hematocrit and liver enzymes normal." No filler words. No "this panel shows". Just findings.
+
 Use the extract_biomarkers tool to return structured results.`;
 
     // Build messages with optional PDF image content
