@@ -48,7 +48,7 @@ export function useProtocolChat(
   conversationId: string | null,
   onConversationUpdate?: (convId: string, content: string) => void,
   onAutoTitle?: (convId: string, title: string) => void,
-  onChangeAccepted?: () => void,
+  onChangeAccepted?: (info: { compoundId: string; field: string }) => void,
 ) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -424,8 +424,12 @@ export function useProtocolChat(
 
     // Cascade: refetch compounds so all views (schedule, dashboard, costs) update
     await refetch();
-    // Notify parent so it can navigate to the AI Changes history tab
-    onChangeAccepted?.();
+    // Notify parent with the compound ID + field so it can navigate contextually
+    if (compound && change.field) {
+      onChangeAccepted?.({ compoundId: compound.id, field: change.field });
+    } else {
+      onChangeAccepted?.({ compoundId: '', field: '' });
+    }
   }, [pendingConfirm, findCompoundByName, updateCompound, deleteCompound, updatePersistedMessage, refetch, onChangeAccepted]);
 
   const undoChange = useCallback(async (proposalId: string, changeIndex: number) => {
@@ -504,7 +508,7 @@ export function useProtocolChat(
     }
     setPendingConfirm(null);
     await refetch();
-    onChangeAccepted?.();
+    onChangeAccepted?.({ compoundId: '', field: '' });
   }, [proposals, findCompoundByName, updateCompound, deleteCompound, messages, updatePersistedMessage, refetch, onChangeAccepted]);
 
   const cancelStream = useCallback(() => { abortRef.current?.abort(); }, []);

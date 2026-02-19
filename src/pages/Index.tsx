@@ -191,13 +191,25 @@ const Index = () => {
     conversationManager.activeConversationId,
     conversationManager.refreshConversation,
     conversationManager.renameConversation,
-    () => { setActiveTab('schedule'); setScheduleSubTab('ai-changes'); },
+    ({ compoundId, field }) => {
+      const cyclingFields = ['cycleOnDays', 'cycleOffDays', 'cycleStartDate'];
+      if (cyclingFields.includes(field) && compoundId) {
+        // Navigate to inventory stock tab and scroll to the compound card
+        setActiveTab('inventory');
+        setInventorySubTab('stock');
+        setScrollToCompoundId(compoundId);
+      } else {
+        setActiveTab('schedule');
+        setScheduleSubTab('ai-changes');
+      }
+    },
   );
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [scheduleSubTab, setScheduleSubTab] = useState('this-week');
   const [inventorySubTab, setInventorySubTab] = useState('stock');
   const [trackingSubTab, setTrackingSubTab] = useState('food');
+  const [scrollToCompoundId, setScrollToCompoundId] = useState<string | null>(null);
   const [labsFlaggedCount, setLabsFlaggedCount] = useState(0);
 
   const scheduleSwipe = useSwipeTabs({ tabs: ['this-week', 'history', 'ai-changes'], currentTab: scheduleSubTab, onTabChange: setScheduleSubTab });
@@ -541,6 +553,8 @@ const Index = () => {
                     onRemoveCustomField={householdViewId === 'self' ? removeCustomField : undefined}
                     onReorderCustomField={householdViewId === 'self' ? reorderCustomField : undefined}
                     onSetCustomFieldValue={householdViewId === 'self' ? setCustomFieldValue : undefined}
+                    scrollToCompoundId={scrollToCompoundId}
+                    onScrollToCompoundDone={() => setScrollToCompoundId(null)}
                   />}
                 </TabsContent>
                 <TabsContent value="costs" forceMount={inventorySubTab === 'costs' ? true : undefined}>
