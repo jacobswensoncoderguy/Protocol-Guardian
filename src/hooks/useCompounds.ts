@@ -104,6 +104,32 @@ export function useCompounds(userId: string | undefined) {
     fetchCompounds();
   }, [fetchCompounds]);
 
+  // Realtime subscription — any change to this user's compounds instantly re-syncs all views
+  useEffect(() => {
+    if (!userId) return;
+
+    const channel = supabase
+      .channel(`user_compounds:${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_compounds',
+          filter: `user_id=eq.${userId}`,
+        },
+        () => {
+          // Refetch on any INSERT/UPDATE/DELETE so schedule, inventory, costs all stay in sync
+          fetchCompounds();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId, fetchCompounds]);
+
   const updateCompound = useCallback(async (id: string, updates: Partial<Compound>) => {
     setCompounds(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
 
