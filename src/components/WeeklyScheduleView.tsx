@@ -665,16 +665,20 @@ const DoseGroup = ({
                   ))}
                   <div className="flex items-center gap-1.5">
                     {isPausedItem && (
-                      <span className="flex items-center gap-1 text-[10px] font-mono text-muted-foreground">
+                      <span className="flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
                         <Pause className="w-3 h-3" />
                         {pauseRestart ? `→ ${pauseRestart}` : 'Paused'}
                       </span>
                     )}
                     {!isPausedItem && isOff && status?.hasCycle && (
-                      <span className="text-[10px] font-mono text-status-warning">OFF → {getResumeDate(status.daysLeftInPhase)}</span>
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-status-warning/15 text-status-warning" title={`OFF phase — resumes ${getResumeDate(status.daysLeftInPhase)}`}>
+                        OFF {status.daysLeftInPhase}d → {getResumeDate(status.daysLeftInPhase)}
+                      </span>
                     )}
                     {showCycleDays && (
-                      <span className="text-[10px] font-mono text-muted-foreground">{status.daysLeftInPhase}d</span>
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-status-good/15 text-status-good" title={`ON phase — ${status.daysLeftInPhase} days remaining`}>
+                        ON {status.daysLeftInPhase}d
+                      </span>
                     )}
                     {!isOff && !isPausedItem && <span className={`text-xs font-mono text-primary ${isChecked ? 'line-through opacity-60' : ''}`}>{displayDose}</span>}
                   </div>
