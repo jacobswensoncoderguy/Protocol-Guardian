@@ -50,6 +50,7 @@ const categoryOrder: string[] = ['peptide', 'injectable-oil', 'prescription', 'o
 
 const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCompound, protocols = [], toleranceLevel, onToleranceChange, customFields = [], customFieldValues = new Map(), onAddCustomField, onRemoveCustomField, onReorderCustomField, onSetCustomFieldValue, scrollToCompoundId, onScrollToCompoundDone }: InventoryViewProps) => {
   const [filter, setFilter] = useState<string>('all');
+  const [showOffOnly, setShowOffOnly] = useState(false);
   const [sortBy, setSortBy] = useState<'name' | 'days'>('name');
   const [showToleranceConfirm, setShowToleranceConfirm] = useState(false);
   const [pendingTolerance, setPendingTolerance] = useState<ToleranceLevel | null>(null);
@@ -83,7 +84,16 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
     }, 350);
     return () => clearTimeout(timer);
   }, [scrollToCompoundId, scrollToCompound, onScrollToCompoundDone]);
-  const filtered = filter === 'all' ? activeCompounds : activeCompounds.filter(c => c.category === filter);
+  const filtered = (() => {
+    let base = filter === 'all' ? activeCompounds : activeCompounds.filter(c => c.category === filter);
+    if (showOffOnly) {
+      base = base.filter(c => {
+        const cs = getCycleStatus(c);
+        return cs.hasCycle && !cs.isOn;
+      });
+    }
+    return base;
+  })();
   const sorted = [...filtered].sort((a, b) => {
     if (sortBy === 'days') return getDaysRemainingWithCycling(a) - getDaysRemainingWithCycling(b);
     return a.name.localeCompare(b.name);
@@ -247,12 +257,25 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
             </button>
           ))}
         </div>
-        <button
-          onClick={() => setSortBy(s => s === 'days' ? 'name' : 'days')}
-          className="ml-auto px-2.5 py-1.5 sm:py-1 rounded-md text-[11px] sm:text-xs bg-secondary text-secondary-foreground active:bg-secondary/60 touch-manipulation"
-        >
-          {sortBy === 'days' ? <><Clock className="w-3 h-3 inline mr-0.5" /> Days</> : <><SortAsc className="w-3 h-3 inline mr-0.5" /> Name</>}
-        </button>
+        <div className="ml-auto flex items-center gap-1">
+          <button
+            onClick={() => setShowOffOnly(v => !v)}
+            className={`px-2.5 py-1.5 sm:py-1 rounded-md text-[11px] sm:text-xs transition-all touch-manipulation ${
+              showOffOnly
+                ? 'bg-status-warning/20 text-status-warning border border-status-warning/30'
+                : 'bg-secondary text-secondary-foreground active:bg-secondary/60'
+            }`}
+            title="Show only compounds currently in OFF phase"
+          >
+            <RefreshCcw className="w-3 h-3 inline mr-0.5" /> OFF
+          </button>
+          <button
+            onClick={() => setSortBy(s => s === 'days' ? 'name' : 'days')}
+            className="px-2.5 py-1.5 sm:py-1 rounded-md text-[11px] sm:text-xs bg-secondary text-secondary-foreground active:bg-secondary/60 touch-manipulation"
+          >
+            {sortBy === 'days' ? <><Clock className="w-3 h-3 inline mr-0.5" /> Days</> : <><SortAsc className="w-3 h-3 inline mr-0.5" /> Name</>}
+          </button>
+        </div>
       </div>
 
       {/* Add button */}
@@ -764,7 +787,9 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
         )}
         {compoundIsPaused && (
           <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-accent/20 text-status-warning">
-            PAUSED
+            PAUSED{compound.pauseRestartDate
+              ? ` → ${new Date(compound.pauseRestartDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+              : ''}
           </span>
         )}
         {!compoundIsPaused && cycleStatus.hasCycle && compound.cycleOnDays && compound.cycleOnDays > 0 && compound.cycleOffDays && compound.cycleOffDays > 0 && (
