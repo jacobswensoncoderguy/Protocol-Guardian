@@ -46,36 +46,48 @@ serve(async (req) => {
       messages.push({ role: "user", content: userPrompt });
     }
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages,
-        max_tokens: followUp ? 300 : 150,
-      }),
+    const fetchWithRetry = async (body: string, maxRetries = 2) => {
+      for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+        const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body,
+        });
+        if (res.status === 429) {
+          return new Response(JSON.stringify({ error: "Rate limit exceeded, please try again later." }), {
+            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (res.status === 402) {
+          return new Response(JSON.stringify({ error: "Credits required — add funds to your workspace." }), {
+            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (res.ok) return res;
+        if (res.status === 500 && attempt <= maxRetries) {
+          const delay = attempt * 2000;
+          console.warn(`AI gateway 500 on attempt ${attempt}, retrying in ${delay / 1000}s...`);
+          await new Promise(r => setTimeout(r, delay));
+          continue;
+        }
+        const text = await res.text();
+        console.error("AI gateway error:", res.status, text);
+        throw new Error(`AI gateway: ${res.status}`);
+      }
+      throw new Error("AI gateway: max retries exceeded");
+    };
+
+    const requestBody = JSON.stringify({
+      model: "google/gemini-3-flash-preview",
+      messages,
+      max_tokens: followUp ? 300 : 150,
     });
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded, please try again later." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Credits required — add funds to your workspace." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const text = await response.text();
-      console.error("AI gateway error:", response.status, text);
-      throw new Error(`AI gateway: ${response.status}`);
-    }
+    const response = await fetchWithRetry(requestBody);
+    if (response instanceof Response && response.status !== 200) return response;
 
     const data = await response.json();
     const insight = data.choices?.[0]?.message?.content?.trim() || "Unable to generate insight at this time.";
