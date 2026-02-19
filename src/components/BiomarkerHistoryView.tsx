@@ -45,6 +45,7 @@ interface UploadRecord {
   reading_date: string;
   ai_extracted_data: any;
   created_at: string;
+  file_url?: string;
 }
 
 interface SavedComparison {
@@ -493,6 +494,47 @@ function DetailSheet({
 
         {/* Body */}
         <div className="px-4 py-4 space-y-3">
+
+          {/* ── Original file image preview ── */}
+          {upload.file_url && (
+            <div className="rounded-xl overflow-hidden border border-border/40 bg-secondary/10">
+              <div className="flex items-center gap-2 px-3 py-2 border-b border-border/30">
+                <Upload className="w-3 h-3 text-muted-foreground" />
+                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Original Upload</span>
+                <a
+                  href={upload.file_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-auto text-[10px] text-primary hover:underline flex items-center gap-1"
+                  onClick={e => e.stopPropagation()}
+                >
+                  Open full size ↗
+                </a>
+              </div>
+              {/\.(jpg|jpeg|png|gif|webp|heic)$/i.test(upload.file_url) ? (
+                <img
+                  src={upload.file_url}
+                  alt={`Original: ${upload.file_name}`}
+                  className="w-full max-h-48 object-contain bg-black/5"
+                />
+              ) : (
+                <div className="px-3 py-3 flex items-center gap-2">
+                  <ClipboardList className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">{upload.file_name}</span>
+                  <a
+                    href={upload.file_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-auto text-xs text-primary hover:underline"
+                    onClick={e => e.stopPropagation()}
+                  >
+                    View file ↗
+                  </a>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* AI Summary */}
           {summary && (
             <p className="text-xs text-muted-foreground bg-secondary/20 rounded-xl px-3 py-2.5 leading-relaxed border border-border/30">
@@ -519,36 +561,55 @@ function DetailSheet({
 
           {/* Critical alerts */}
           {critical.length > 0 && (
-            <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 space-y-1.5">
+            <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 space-y-2">
               <p className="text-[10px] font-semibold text-destructive uppercase tracking-wider flex items-center gap-1.5">
                 <AlertCircle className="w-3.5 h-3.5" /> Critical Alerts
               </p>
-              {critical.map((m: any, i: number) => (
-                <div key={i} className="flex items-center justify-between text-xs gap-2">
-                  <span className="text-foreground font-medium flex-1 min-w-0 truncate">{m.name}</span>
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    <RangeChip markerName={m.name} gender={userGender} age={userAge} />
-                    <span className="font-mono text-destructive">{m.value} {m.unit}</span>
+              {critical.map((m: any, i: number) => {
+                const refRange = getReferenceRange(m.name, userGender, userAge);
+                return (
+                  <div key={i} className="space-y-0.5">
+                    <div className="flex items-center justify-between text-xs gap-2">
+                      <span className="text-foreground font-medium flex-1 min-w-0 truncate">{m.name}</span>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <span className="font-mono text-destructive font-semibold">{m.value} {m.unit}</span>
+                        <span className="text-[9px] uppercase text-destructive border border-destructive/30 bg-destructive/10 px-1 py-0.5 rounded">{m.status.replace('_', ' ')}</span>
+                      </div>
+                    </div>
+                    {refRange && (
+                      <p className="text-[9px] font-mono text-muted-foreground">
+                        Normal range: {formatRange(refRange)}
+                      </p>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
           {/* Out of range (non-critical) */}
           {flaggedOnly.length > 0 && (
-            <div className="rounded-xl border border-status-warning/30 bg-status-warning/5 p-3 space-y-1.5">
+            <div className="rounded-xl border border-status-warning/30 bg-status-warning/5 p-3 space-y-2">
               <p className="text-[10px] font-semibold text-status-warning uppercase tracking-wider">Out of Range</p>
-              {flaggedOnly.map((m: any, i: number) => (
-                <div key={i} className="flex items-center justify-between text-xs">
-                  <span className="text-foreground font-medium">{m.name}</span>
-                  <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
-                    <RangeChip markerName={m.name} gender={userGender} age={userAge} />
-                    <span className="font-mono text-foreground">{m.value} {m.unit}</span>
-                    <span className="text-[10px] uppercase text-status-warning">{m.status.replace('_', ' ')}</span>
+              {flaggedOnly.map((m: any, i: number) => {
+                const refRange = getReferenceRange(m.name, userGender, userAge);
+                return (
+                  <div key={i} className="space-y-0.5">
+                    <div className="flex items-center justify-between text-xs gap-2">
+                      <span className="text-foreground font-medium flex-1 min-w-0 truncate">{m.name}</span>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <span className="font-mono text-foreground">{m.value} {m.unit}</span>
+                        <span className="text-[9px] uppercase text-status-warning border border-status-warning/30 bg-status-warning/10 px-1 py-0.5 rounded">{m.status.replace('_', ' ')}</span>
+                      </div>
+                    </div>
+                    {refRange && (
+                      <p className="text-[9px] font-mono text-muted-foreground">
+                        Normal range: {formatRange(refRange)}
+                      </p>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -1561,7 +1622,7 @@ export default function BiomarkerHistoryView({
     setLoading(true);
     const { data, error } = await supabase
       .from('user_goal_uploads')
-      .select('*')
+      .select('id, file_name, upload_type, reading_date, ai_extracted_data, created_at, file_url')
       .eq('user_id', userId)
       .order('reading_date', { ascending: false });
     if (!error && data) setUploads(data as UploadRecord[]);
