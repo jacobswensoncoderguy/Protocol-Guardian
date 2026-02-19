@@ -191,18 +191,9 @@ const Index = () => {
     conversationManager.activeConversationId,
     conversationManager.refreshConversation,
     conversationManager.renameConversation,
-    ({ compoundId, field }) => {
-      const cyclingFields = ['cycleOnDays', 'cycleOffDays', 'cycleStartDate'];
-      if (cyclingFields.includes(field) && compoundId) {
-        // Navigate to inventory stock tab and scroll to the compound card
-        setActiveTab('inventory');
-        setInventorySubTab('stock');
-        setScrollToCompoundId(compoundId);
-      } else {
-        setActiveTab('schedule');
-        setScheduleSubTab('ai-changes');
-      }
-    },
+    // Stay on the Protocol Advisor thread after accepting a change so the
+    // user can review and accept any additional suggestions without navigating back.
+    undefined,
   );
 
   const [activeTab, setActiveTab] = useState('dashboard');
