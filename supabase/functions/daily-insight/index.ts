@@ -18,7 +18,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { compounds = [], goals = [], symptoms = [], insightType = "performance" } = await req.json();
+    const { compounds = [], goals = [], symptoms = [], insightType = "performance", followUp, previousInsight } = await req.json();
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
@@ -27,7 +27,24 @@ serve(async (req) => {
     const goalTitles: string[] = goals.map((g: { title: string }) => g.title);
     const symptomList: string[] = symptoms.map((s: string) => s);
 
-    const userPrompt = (INSIGHT_PROMPTS[insightType] || INSIGHT_PROMPTS.performance)(compoundNames, goalTitles, symptomList);
+    // Build messages array
+    const messages: Array<{ role: string; content: string }> = [
+      {
+        role: "system",
+        content: "You are a concise protocol optimization AI. Be specific, direct, and scannable. Use **bold** for key numbers, compound names, and actions. Max 2 sentences unless answering a follow-up. Zero disclaimers. Zero filler words. No emojis.",
+      },
+    ];
+
+    if (followUp && previousInsight) {
+      // Follow-up conversation: include previous context
+      const userPrompt = (INSIGHT_PROMPTS[insightType] || INSIGHT_PROMPTS.performance)(compoundNames, goalTitles, symptomList);
+      messages.push({ role: "user", content: userPrompt });
+      messages.push({ role: "assistant", content: previousInsight });
+      messages.push({ role: "user", content: followUp });
+    } else {
+      const userPrompt = (INSIGHT_PROMPTS[insightType] || INSIGHT_PROMPTS.performance)(compoundNames, goalTitles, symptomList);
+      messages.push({ role: "user", content: userPrompt });
+    }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -37,14 +54,8 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
-        messages: [
-          {
-            role: "system",
-            content: "You are a concise protocol optimization AI. Be specific, direct, and scannable. Use **bold** for key numbers, compound names, and actions. Max 2 sentences. Zero disclaimers. Zero filler words. No emojis.",
-          },
-          { role: "user", content: userPrompt },
-        ],
-        max_tokens: 150,
+        messages,
+        max_tokens: followUp ? 300 : 150,
       }),
     });
 
