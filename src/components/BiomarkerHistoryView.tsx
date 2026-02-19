@@ -1391,12 +1391,12 @@ function UploadTile({
 
   return (
     <>
-      {/* Tile */}
+      {/* Tile — compact */}
       <div
         className={cn(
-          'relative bg-card rounded-xl border cursor-pointer hover:border-primary/40 hover:shadow-sm transition-all overflow-hidden',
+          'relative bg-card rounded-lg border cursor-pointer hover:border-primary/40 hover:shadow-sm transition-all overflow-hidden',
           !compareMode && (critical.length > 0 ? 'border-destructive/30' : flagged.length > 0 ? 'border-status-warning/30' : 'border-border/50'),
-          compareMode && selected && 'border-primary ring-[3px] ring-primary/50 shadow-[0_0_12px_hsl(var(--primary)/0.3)]',
+          compareMode && selected && 'border-primary ring-[3px] ring-primary/50 shadow-[0_0_10px_hsl(var(--primary)/0.25)]',
           compareMode && !selected && 'border-border/30 opacity-60',
         )}
         onClick={() => {
@@ -1409,20 +1409,17 @@ function UploadTile({
         {!compareMode && (critical.length > 0 || flagged.length > 0) && (
           <div className={`h-0.5 w-full ${critical.length > 0 ? 'bg-destructive' : 'bg-status-warning'}`} />
         )}
-        {/* Compare mode selected top stripe */}
-        {compareMode && selected && (
-          <div className="h-1 w-full bg-primary" />
-        )}
+        {compareMode && selected && <div className="h-0.5 w-full bg-primary" />}
 
-        {/* Compare mode checkmark badge — large and obvious when selected */}
+        {/* Compare checkmark */}
         {compareMode && (
           <div className={cn(
-            'absolute top-2 right-2 flex items-center justify-center transition-all z-10',
+            'absolute top-1.5 right-1.5 flex items-center justify-center transition-all z-10',
             selected
-              ? 'w-6 h-6 rounded-full bg-primary shadow-lg shadow-primary/30 border-2 border-primary-foreground/20'
-              : 'w-5 h-5 rounded-full border-2 border-muted-foreground/30 bg-card/80'
+              ? 'w-5 h-5 rounded-full bg-primary shadow-md border-2 border-primary-foreground/20'
+              : 'w-4 h-4 rounded-full border-2 border-muted-foreground/30 bg-card/80'
           )}>
-            {selected && <Check className="w-3.5 h-3.5 text-primary-foreground" />}
+            {selected && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
           </div>
         )}
 
@@ -1435,42 +1432,42 @@ function UploadTile({
           />
         )}
 
-        <div className="p-3">
-          {/* Header row with icon + edit button */}
-          <div className="flex items-start justify-between mb-2">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <DocIcon className="w-4 h-4 text-primary" />
+        <div className="p-2">
+          {/* Icon row */}
+          <div className="flex items-start justify-between mb-1.5">
+            <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <DocIcon className="w-3.5 h-3.5 text-primary" />
             </div>
             {!compareMode && (
               <button
                 onClick={e => { e.stopPropagation(); setEditing(true); }}
                 title="Edit label & date"
-                className="p-1 rounded-md text-muted-foreground/40 hover:text-muted-foreground hover:bg-secondary/40 transition-colors"
+                className="p-0.5 rounded text-muted-foreground/30 hover:text-muted-foreground hover:bg-secondary/40 transition-colors"
               >
-                <Pencil className="w-3 h-3" />
+                <Pencil className="w-2.5 h-2.5" />
               </button>
             )}
           </div>
 
           {/* Name */}
-          <p className="text-xs font-semibold text-foreground leading-snug line-clamp-2 mb-1">{tileName}</p>
+          <p className="text-[10px] font-semibold text-foreground leading-snug line-clamp-2 mb-1">{tileName}</p>
 
           {/* Date */}
-          <p className="text-[10px] text-muted-foreground flex items-center gap-1 mb-2">
-            <Calendar className="w-2.5 h-2.5 flex-shrink-0" />
-            {labelDate}
-          </p>
+          <p className="text-[9px] text-muted-foreground mb-1.5">{labelDate}</p>
 
-          {/* Status chips */}
+          {/* Status row */}
           <div className="flex items-center gap-1 flex-wrap">
-            <span className="text-[9px] text-muted-foreground">{biomarkers.length}m</span>
+            {/* Uploaded badge */}
+            <span className="text-[8px] px-1 py-0.5 rounded bg-secondary/60 text-muted-foreground border border-border/30 leading-none">
+              uploaded
+            </span>
             {critical.length > 0 && (
-              <span className="text-[9px] px-1 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/20 font-semibold">
+              <span className="text-[8px] px-1 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/20 font-semibold leading-none">
                 {critical.length}!
               </span>
             )}
             {flagged.length > 0 && critical.length === 0 && (
-              <span className="text-[9px] px-1 py-0.5 rounded-full bg-status-warning/10 text-status-warning border border-status-warning/20">
+              <span className="text-[8px] px-1 py-0.5 rounded-full bg-status-warning/10 text-status-warning border border-status-warning/20 leading-none">
                 {flagged.length}↑
               </span>
             )}
@@ -1785,7 +1782,6 @@ export default function BiomarkerHistoryView({
   const [reanalyzingId, setReanalyzingId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [alignUpload, setAlignUpload] = useState<UploadRecord | null>(null);
-  const [timelineDetailUpload, setTimelineDetailUpload] = useState<UploadRecord | null>(null);
   const [activeTab, setActiveTab] = useState<'uploads' | 'alerts'>('uploads');
 
   // Compare mode state — global (cross-category)
@@ -2066,54 +2062,19 @@ export default function BiomarkerHistoryView({
 
       {activeTab === 'uploads' && <>
 
-      {/* Biomarker summary strip */}
-      <div className="bg-card rounded-xl border border-border/50 p-3 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-          <FlaskConical className="w-4 h-4 text-primary" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-semibold text-foreground">
-              {totalMarkersTracked} marker{totalMarkersTracked !== 1 ? 's' : ''} tracked
-            </span>
-          </div>
-          <p className="text-[11px] text-muted-foreground mt-0.5">across all uploads · tap the badge to view flags</p>
-        </div>
-        <FlaggedBadgePopover
-          uploads={uploads}
-          flagRecencyDays={flagRecencyDays}
-          onRecencyChange={handleRecencyChange}
-        />
+      {/* Biomarker summary strip — compact */}
+      <div className="bg-card rounded-xl border border-border/50 px-3 py-2 flex items-center gap-2">
+        <FlaskConical className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+        <span className="text-xs font-semibold text-foreground">
+          {totalMarkersTracked} marker{totalMarkersTracked !== 1 ? 's' : ''} tracked
+        </span>
+        <span className="text-[10px] text-muted-foreground">across {uploads.length} upload{uploads.length !== 1 ? 's' : ''}</span>
+        {recentFlaggedCount > 0 && (
+          <span className="ml-auto text-[9px] font-bold bg-status-warning/15 text-status-warning border border-status-warning/20 px-1.5 py-0.5 rounded-full flex items-center gap-1">
+            <AlertTriangle className="w-2.5 h-2.5" />{recentFlaggedCount} flagged
+          </span>
+        )}
       </div>
-
-      {/* ── Lab Timeline Strip ── */}
-      <div className="bg-card rounded-xl border border-border/50 p-3 space-y-2">
-        <div className="flex items-center gap-1.5 mb-1">
-          <Calendar className="w-3 h-3 text-muted-foreground" />
-          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Health Timeline</span>
-          <span className="text-[9px] text-muted-foreground/60">· tap to open</span>
-        </div>
-        <LabTimelineStrip
-          uploads={filteredUploads}
-          onSelect={setTimelineDetailUpload}
-        />
-      </div>
-
-      {/* Timeline detail sheet (opened from timeline node) */}
-      {timelineDetailUpload && (
-        <DetailSheet
-          upload={timelineDetailUpload}
-          allUploads={uploads}
-          onClose={() => setTimelineDetailUpload(null)}
-          onDelete={handleDelete}
-          onReanalyze={handleReanalyze}
-          onAlignToGoal={setAlignUpload}
-          isDeleting={deletingId === timelineDetailUpload.id}
-          isReanalyzing={reanalyzingId === timelineDetailUpload.id}
-          userGender={profile?.gender}
-          userAge={profile?.age}
-        />
-      )}
 
       {/* Date Range Filter */}
       <div className="flex items-center gap-2 flex-wrap">
@@ -2225,7 +2186,7 @@ export default function BiomarkerHistoryView({
               </div>
 
               {/* Tiles */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
                 {catUploads.map(upload => (
                   <UploadTile
                     key={upload.id}
