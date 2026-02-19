@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Compound } from '@/data/compounds';
 import { Target, Plus, Shield, Scale, Rocket, Ruler, Weight, Percent, Calendar as CalendarIcon, Check, ToggleLeft, ChevronRight, Sparkles, Package, AlertTriangle, TrendingUp, TrendingDown, Zap, Info, Brain, Heart, Dumbbell, Flame, Activity, History, LayoutGrid } from 'lucide-react';
 import bodyMaleImg from '@/assets/body-male.png';
@@ -167,8 +167,6 @@ const ZoneLegend = ({ zoneIntensities, onZoneTap }: { zoneIntensities: Record<Bo
 
 const CartoonBody = ({
   gender,
-  onZoneTap,
-  zoneIntensities,
 }: {
   gender?: string | null;
   onZoneTap?: (zone: BodyZone) => void;
@@ -176,23 +174,13 @@ const CartoonBody = ({
 }) => {
   const imgSrc = gender === 'female' ? bodyFemaleImg : bodyMaleImg;
 
-  // Zone badges positioned around the body
-  const ZONE_BADGE_POSITIONS: Array<{ zone: BodyZone; style: React.CSSProperties; side: 'left' | 'right' }> = [
-    { zone: 'brain',    style: { top: '4%',  right: '4%'  }, side: 'right' },
-    { zone: 'heart',    style: { top: '22%', right: '4%'  }, side: 'right' },
-    { zone: 'arms',     style: { top: '38%', left:  '2%'  }, side: 'left'  },
-    { zone: 'immune',   style: { top: '46%', left:  '2%'  }, side: 'left'  },
-    { zone: 'hormonal', style: { top: '55%', right: '4%'  }, side: 'right' },
-    { zone: 'core',     style: { top: '65%', left:  '2%'  }, side: 'left'  },
-    { zone: 'legs',     style: { top: '78%', right: '4%'  }, side: 'right' },
-  ];
-
   return (
     <div className="relative w-full h-full">
       <img
         src={imgSrc}
         alt="Body coverage map"
-        className="w-full h-full object-contain object-top"
+        className="w-full h-full object-contain object-top mix-blend-multiply dark:mix-blend-screen"
+        style={{ background: 'transparent' }}
         draggable={false}
       />
     </div>
@@ -294,14 +282,19 @@ const INSIGHT_TABS: Array<{ id: InsightType; label: string; emoji: string }> = [
   { id: 'symptom',        label: 'Body',   emoji: '🧬' },
 ];
 
+const INSIGHT_ORDER: InsightType[] = ['performance', 'recommendation', 'symptom'];
+
 const AIInsightPanel = ({ activeCompounds, goals }: { activeCompounds: Compound[]; goals?: any[] }) => {
   const [activeTab, setActiveTab] = useState<InsightType>('performance');
   const [insights, setInsights] = useState<Partial<Record<InsightType, string>>>({});
   const [loading, setLoading] = useState<InsightType | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isPaused, setIsPaused] = useState(false);
+  const autoRotateRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const fetchInsight = useCallback(async (type: InsightType) => {
-    if (insights[type]) return; // cached
+  const fetchInsight = useCallback(async (type: InsightType, cachedInsights?: Partial<Record<InsightType, string>>) => {
+    const cache = cachedInsights ?? insights;
+    if (cache[type]) return; // cached
     if (activeCompounds.length === 0) return;
     setLoading(type);
     setError(null);
@@ -335,19 +328,60 @@ const AIInsightPanel = ({ activeCompounds, goals }: { activeCompounds: Compound[
     fetchInsight('performance');
   }, []);
 
+  // Auto-rotate every 10 seconds
+  useEffect(() => {
+    if (isPaused) { clearInterval(autoRotateRef.current!); return; }
+    autoRotateRef.current = setInterval(() => {
+      setActiveTab(prev => {
+        const idx = INSIGHT_ORDER.indexOf(prev);
+        const next = INSIGHT_ORDER[(idx + 1) % INSIGHT_ORDER.length];
+        // Prefetch next insight if not cached
+        setInsights(cache => {
+          if (!cache[next] && activeCompounds.length > 0) {
+            fetchInsight(next, cache);
+          }
+          return cache;
+        });
+        return next;
+      });
+    }, 10000);
+    return () => clearInterval(autoRotateRef.current!);
+  }, [isPaused, activeCompounds, fetchInsight]);
+
   const handleTabChange = (type: InsightType) => {
     setActiveTab(type);
     fetchInsight(type);
+    // Reset auto-rotate timer when user manually switches
+    clearInterval(autoRotateRef.current!);
+    if (!isPaused) {
+      autoRotateRef.current = setInterval(() => {
+        setActiveTab(prev => {
+          const idx = INSIGHT_ORDER.indexOf(prev);
+          const next = INSIGHT_ORDER[(idx + 1) % INSIGHT_ORDER.length];
+          setInsights(cache => {
+            if (!cache[next] && activeCompounds.length > 0) fetchInsight(next, cache);
+            return cache;
+          });
+          return next;
+        });
+      }, 10000);
+    }
   };
 
   const currentInsight = insights[activeTab];
   const isLoading = loading === activeTab;
 
   return (
-    <div className="px-4 pt-4 pb-3 space-y-3">
+    <div
+      className="px-4 pt-4 pb-3 space-y-3"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+      onTouchStart={() => setIsPaused(true)}
+      onTouchEnd={() => setTimeout(() => setIsPaused(false), 3000)}
+    >
       {/* Tab row */}
       <div className="flex gap-1.5">
-        {INSIGHT_TABS.map(tab => (
+        {INSIGHT_TABS.map((tab, i) => (
           <button
             key={tab.id}
             onClick={() => handleTabChange(tab.id)}
@@ -361,13 +395,21 @@ const AIInsightPanel = ({ activeCompounds, goals }: { activeCompounds: Compound[
             <span>{tab.label}</span>
           </button>
         ))}
-        <button
-          onClick={() => { setInsights(prev => ({ ...prev, [activeTab]: undefined })); fetchInsight(activeTab); }}
-          className="ml-auto text-[9px] text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors"
-          title="Refresh"
-        >
-          ↻ refresh
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          {/* Rotation indicator dots */}
+          <div className="flex items-center gap-0.5">
+            {INSIGHT_ORDER.map(t => (
+              <div key={t} className={`w-1 h-1 rounded-full transition-all ${activeTab === t ? 'bg-primary scale-125' : 'bg-muted-foreground/25'}`} />
+            ))}
+          </div>
+          <button
+            onClick={() => { setInsights(prev => ({ ...prev, [activeTab]: undefined })); fetchInsight(activeTab); }}
+            className="text-[9px] text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors"
+            title="Refresh"
+          >
+            ↻
+          </button>
+        </div>
       </div>
 
       {/* Insight text */}
@@ -388,9 +430,15 @@ const AIInsightPanel = ({ activeCompounds, goals }: { activeCompounds: Compound[
         ) : currentInsight ? (
           <p className="text-[12px] text-foreground leading-relaxed">{currentInsight}</p>
         ) : (
-          <p className="text-[11px] text-muted-foreground/40 italic">Tap a tab to generate an insight.</p>
+          <p className="text-[11px] text-muted-foreground/40 italic">Tap a tab to load insight.</p>
         )}
       </div>
+      {!isPaused && activeCompounds.length > 0 && (
+        <p className="text-[8px] text-muted-foreground/25 text-right">auto-rotating · hover to pause</p>
+      )}
+      {isPaused && (
+        <p className="text-[8px] text-muted-foreground/40 text-right">paused</p>
+      )}
     </div>
   );
 };
@@ -435,7 +483,7 @@ const ScoreBlock = ({ bodyCoverage, activeCount, activeZones, coverageGrade }: {
 
 const ProtocolCoverageCard = ({ activeCompounds, zoneIntensities, bodyCoverage, displayGender, onZoneTap, onAddCompound }: ProtocolCoverageCardProps) => {
   const [showExplainer, setShowExplainer] = useState(false);
-  const [layout, setLayout] = useState<LayoutStyle>('classic');
+  const [layout, setLayout] = useState<LayoutStyle>('insight');
   const [showLayoutPicker, setShowLayoutPicker] = useState(false);
 
   const zoneEntries = useMemo(() =>
@@ -483,7 +531,6 @@ const ProtocolCoverageCard = ({ activeCompounds, zoneIntensities, bodyCoverage, 
     <CartoonBody
       zoneIntensities={zoneIntensities}
       gender={displayGender}
-      onZoneTap={onZoneTap}
     />
   );
 

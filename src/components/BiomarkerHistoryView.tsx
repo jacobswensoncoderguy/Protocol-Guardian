@@ -1546,35 +1546,41 @@ export default function BiomarkerHistoryView({
 
   return (
     <div className="space-y-4">
-      {/* Summary header + Upload button */}
-      <div className="bg-card rounded-xl border border-border/50 p-3.5 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-            <FlaskConical className="w-4 h-4 text-primary" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm font-semibold text-foreground">
-                {totalMarkersTracked} marker{totalMarkersTracked !== 1 ? 's' : ''} tracked
-              </span>
-              {/* Clickable flagged badge with popover */}
-              <FlaggedBadgePopover
-                uploads={uploads}
-                flagRecencyDays={flagRecencyDays}
-                onRecencyChange={handleRecencyChange}
-              />
-            </div>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              {uploads.length} upload{uploads.length !== 1 ? 's' : ''} · tap a tile to view full analysis
-            </p>
-          </div>
+      {/* Header row: upload button only */}
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-foreground">
+            {uploads.length} upload{uploads.length !== 1 ? 's' : ''}
+          </p>
+          <p className="text-[11px] text-muted-foreground">Tap a tile to view full analysis</p>
         </div>
         <button
           onClick={onUploadClick}
           className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm"
         >
-          <Upload className="w-3.5 h-3.5" /> Upload
+          <Upload className="w-3.5 h-3.5" /> Upload Labs
         </button>
+      </div>
+
+      {/* Biomarker summary strip — separate from upload CTA */}
+      <div className="bg-card rounded-xl border border-border/50 p-3 flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+          <FlaskConical className="w-4 h-4 text-primary" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-semibold text-foreground">
+              {totalMarkersTracked} marker{totalMarkersTracked !== 1 ? 's' : ''} tracked
+            </span>
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-0.5">across all uploads · flagged alerts below</p>
+        </div>
+        {/* Flagged badge — now lives here in the summary card */}
+        <FlaggedBadgePopover
+          uploads={uploads}
+          flagRecencyDays={flagRecencyDays}
+          onRecencyChange={handleRecencyChange}
+        />
       </div>
 
       {/* Date Range Filter */}

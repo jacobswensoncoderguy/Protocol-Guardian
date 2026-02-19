@@ -125,7 +125,10 @@ const Index = () => {
 
   const { fields: customFields, values: customFieldValues, addField: addCustomField, removeField: removeCustomField, reorderField: reorderCustomField, setValue: setCustomFieldValue } = useCustomFields(user?.id);
 
-  const { checkedDoses, toggleChecked: toggleDoseCheck } = useDoseCheckOffs();
+  // Selected day for schedule — lifted here so useDoseCheckOffs can target the right date
+  const [scheduleSelectedDay, setScheduleSelectedDay] = useState<number>(new Date().getDay());
+
+  const { checkedDoses, toggleChecked: toggleDoseCheck } = useDoseCheckOffs(scheduleSelectedDay);
   const { snapshots: scheduleSnapshots, loading: snapshotsLoading } = useScheduleSnapshots(compounds);
   const { checkedDosesMap: historicalCheckOffs } = useHistoricalCheckOffs();
 
@@ -491,6 +494,8 @@ const Index = () => {
                     onExitReadOnly={() => setHouseholdViewId('self')}
                     memberInitialsDoses={memberInitialsDoses}
                     memberCompoundIds={householdViewId === 'combined' ? new Set(memberCompounds.map(c => c.id)) : undefined}
+                    selectedDay={scheduleSelectedDay}
+                    onSelectedDayChange={setScheduleSelectedDay}
                   />}
                 </TabsContent>
                 <TabsContent value="history" forceMount={scheduleSubTab === 'history' ? true : undefined}>
