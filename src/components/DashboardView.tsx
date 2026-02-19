@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Compound } from '@/data/compounds';
-import { Target, Plus, Shield, Scale, Rocket, Ruler, Weight, Percent, Calendar as CalendarIcon, Check, ToggleLeft, ChevronRight, Sparkles, Package, AlertTriangle, TrendingUp, TrendingDown, Zap, Info, Brain, Heart, Dumbbell, Flame, Activity } from 'lucide-react';
+import { Target, Plus, Shield, Scale, Rocket, Ruler, Weight, Percent, Calendar as CalendarIcon, Check, ToggleLeft, ChevronRight, Sparkles, Package, AlertTriangle, TrendingUp, TrendingDown, Zap, Info, Brain, Heart, Dumbbell, Flame, Activity, History } from 'lucide-react';
+import { useScheduleSnapshots } from '@/hooks/useScheduleSnapshots';
 import InfoTooltip from '@/components/InfoTooltip';
 import { AppFeatures } from '@/lib/appFeatures';
 import FeatureTeaserCard from '@/components/FeatureTeaserCard';
@@ -530,6 +531,125 @@ const ProtocolCoverageCard = ({ activeCompounds, zoneIntensities, bodyCoverage, 
   );
 };
 
+// ── Stack Score History Sparkline ──────────────────────────────────────
+
+const StackScoreHistory = ({ snapshots, currentScore }: {
+  snapshots: ReturnType<typeof useScheduleSnapshots>['snapshots'];
+  currentScore: number;
+}) => {
+  const dataPoints = useMemo(() => {
+    if (snapshots.length === 0) return [];
+
+    const points = snapshots
+      .slice()
+      .sort((a, b) => a.week_start_date.localeCompare(b.week_start_date))
+      .map(snap => {
+        const ids = ((snap.compound_snapshots || []) as Compound[])
+          .filter(c => !c.notes?.includes('[DORMANT]'))
+          .map(c => c.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''));
+        const intensities = computeZoneIntensities(ids);
+        const zones = Object.values(intensities);
+        const score = zones.length > 0
+          ? Math.round((zones.reduce((s, v) => s + v, 0) / zones.length) * 100)
+          : 0;
+        return {
+          score,
+          label: new Date(snap.week_start_date + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+        };
+      });
+
+    // Replace last point with live current score
+    if (points.length > 0) points[points.length - 1].score = currentScore;
+    return points;
+  }, [snapshots, currentScore]);
+
+  if (dataPoints.length < 2) return null;
+
+  const scores = dataPoints.map(p => p.score);
+  const minScore = Math.max(0, Math.min(...scores) - 8);
+  const maxScore = Math.min(100, Math.max(...scores) + 8);
+  const range = maxScore - minScore || 1;
+
+  const W = 280, H = 60, PX = 4, PY = 8;
+  const xStep = (W - PX * 2) / (dataPoints.length - 1);
+
+  const pts = dataPoints.map((p, i) => ({
+    x: PX + i * xStep,
+    y: PY + (1 - (p.score - minScore) / range) * (H - PY * 2),
+    ...p,
+  }));
+
+  const linePath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const areaPath = `${linePath} L${pts[pts.length - 1].x.toFixed(1)},${H} L${pts[0].x.toFixed(1)},${H} Z`;
+
+  const delta = scores[scores.length - 1] - scores[0];
+  const trendColor = delta > 2 ? 'hsl(142 80% 50%)' : delta < -2 ? 'hsl(var(--destructive))' : 'hsl(var(--primary))';
+  const TrendIcon = delta > 2 ? TrendingUp : delta < -2 ? TrendingDown : Activity;
+
+  return (
+    <div className="rounded-2xl border border-border/30 bg-card/40 backdrop-blur-sm overflow-hidden">
+      <div className="px-4 pt-3 pb-2">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <History className="w-3.5 h-3.5 text-muted-foreground/60" />
+            <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground/60 font-semibold">Stack Score History</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <TrendIcon className="w-3 h-3" style={{ color: trendColor }} />
+            <span className="text-[10px] font-mono font-semibold" style={{ color: trendColor }}>
+              {delta > 0 ? '+' : ''}{delta}% over {dataPoints.length}w
+            </span>
+          </div>
+        </div>
+
+        {/* SVG Sparkline */}
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: '60px' }}>
+          <defs>
+            <linearGradient id="scoreGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={trendColor} stopOpacity="0.3" />
+              <stop offset="100%" stopColor={trendColor} stopOpacity="0.02" />
+            </linearGradient>
+          </defs>
+          <path d={areaPath} fill="url(#scoreGrad)" />
+          <path
+            d={linePath}
+            fill="none"
+            stroke={trendColor}
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ filter: `drop-shadow(0 0 4px ${trendColor}70)` }}
+          />
+          {pts.map((p, i) => (
+            <circle
+              key={i}
+              cx={p.x}
+              cy={p.y}
+              r={i === pts.length - 1 ? 3.5 : 2}
+              fill={i === pts.length - 1 ? trendColor : 'hsl(var(--card))'}
+              stroke={trendColor}
+              strokeWidth="1.2"
+              style={i === pts.length - 1 ? { filter: `drop-shadow(0 0 5px ${trendColor})` } : undefined}
+            />
+          ))}
+        </svg>
+
+        {/* X-axis labels — first and last */}
+        <div className="flex items-center justify-between mt-0.5 px-1">
+          <span className="text-[8px] text-muted-foreground/40 font-mono">{pts[0].label}</span>
+          <span className="text-[8px] text-muted-foreground/40 font-mono">{pts[pts.length - 1].label}</span>
+        </div>
+      </div>
+
+      <div className="border-t border-border/10 px-4 py-2 flex items-center justify-between">
+        <span className="text-[9px] text-muted-foreground/40">Peak <span className="font-mono text-muted-foreground/70">{Math.max(...scores)}%</span></span>
+        <span className="text-[9px] text-muted-foreground/40">Low <span className="font-mono text-muted-foreground/70">{Math.min(...scores)}%</span></span>
+        <span className="text-[9px] text-muted-foreground/40">Avg <span className="font-mono text-muted-foreground/70">{Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)}%</span></span>
+      </div>
+    </div>
+  );
+};
+
 
 const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpdateProfile, onToleranceChange, onGenderChange, measurementSystem = 'metric', onNavigateToInventory }: {
   profile?: UserProfile | null;
@@ -745,6 +865,7 @@ const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpda
 
 const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, toleranceLevel, onAnalyzeStack, onViewAIInsights, onViewOutcomes, goals = [], userId, profile, toleranceHistory = [], onUpdateProfile, onToleranceChange, measurementSystem = 'metric', doseUnitPreference = 'mg', onNavigateToInventory, conversationManager, appFeatures, onEnableFeature, onAddCompound }: DashboardViewProps) => {
   const { readings, fetchReadings, addReading } = useGoalReadings(userId);
+  const { snapshots } = useScheduleSnapshots(compounds);
   const [selectedZone, setSelectedZone] = useState<BodyZone | null>(null);
   const [zoneDrawerOpen, setZoneDrawerOpen] = useState(false);
   const [tempGender, setTempGender] = useState<string | null>(null);
@@ -859,6 +980,8 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
 
       {/* Combined Protocol Metrics — just below avatar */}
       {f.supplementation && <ProtocolOutcomesCard />}
+      {/* Stack Score History sparkline */}
+      {f.supplementation && <StackScoreHistory snapshots={snapshots} currentScore={bodyCoverage} />}
 
       {/* Goal Progress - removed from dashboard */}
       {false && f.goal_tracking ? (
