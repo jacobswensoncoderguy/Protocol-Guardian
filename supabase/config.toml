@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.symptom-analysis]
 verify_jwt = false
+
+[functions.daily-insight]
+verify_jwt = false
