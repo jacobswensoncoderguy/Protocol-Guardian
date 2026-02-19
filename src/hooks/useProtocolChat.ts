@@ -366,7 +366,27 @@ export function useProtocolChat(
     } else if (compound && change.field && change.newValue !== undefined) {
       const numericFields = ['dosePerUse', 'dosesPerDay', 'daysPerWeek', 'cycleOnDays', 'cycleOffDays'];
       const value = numericFields.includes(change.field) ? parseFloat(change.newValue) : change.newValue;
-      updateCompound(compound.id, { [change.field]: value } as Partial<Compound>);
+
+      // Build the update object — start with the changed field
+      const updates: Partial<Compound> = { [change.field]: value };
+
+      // If AI is setting cycling days, we must ensure ALL three cycle fields are present
+      // otherwise getCycleStatus() bails out and cycling never activates in the UI.
+      if (change.field === 'cycleOnDays' || change.field === 'cycleOffDays') {
+        // Set cycleStartDate to today if not already configured
+        if (!compound.cycleStartDate) {
+          updates.cycleStartDate = new Date().toISOString().split('T')[0];
+        }
+        // If setting onDays but offDays is missing, default to equal off period (and vice-versa)
+        if (change.field === 'cycleOnDays' && !compound.cycleOffDays) {
+          updates.cycleOffDays = parseFloat(change.newValue);
+        }
+        if (change.field === 'cycleOffDays' && !compound.cycleOnDays) {
+          updates.cycleOnDays = parseFloat(change.newValue);
+        }
+      }
+
+      updateCompound(compound.id, updates);
       // Log protocol change
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
