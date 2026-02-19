@@ -9,6 +9,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import ConfirmDialog from '@/components/ConfirmDialog';
 import ToleranceSelector from '@/components/ToleranceSelector';
 import { ToleranceLevel } from '@/hooks/useProtocolAnalysis';
+import CycleTimelineBar from '@/components/CycleTimelineBar';
 
 interface InventoryViewProps {
   compounds: Compound[];
@@ -373,6 +374,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
   const [newFieldName, setNewFieldName] = useState('');
   const [newFieldType, setNewFieldType] = useState<'text' | 'number' | 'date'>('text');
   const [newFieldUnit, setNewFieldUnit] = useState('');
+  const [showCycleTimeline, setShowCycleTimeline] = useState(false);
 
   const compoundIsPaused = isPaused(compound);
   const days = getDaysRemainingWithCycling(compound);
@@ -832,7 +834,25 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
         )}
       </div>
 
-      {/* Delete confirmation */}
+      {/* Collapsible Cycle Timeline Bar */}
+      {!compoundIsPaused && cycleStatus.hasCycle && compound.cycleOnDays && compound.cycleOffDays && compound.cycleStartDate && (
+        <div className="mb-2">
+          <button
+            onClick={() => setShowCycleTimeline(v => !v)}
+            className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-colors w-full"
+          >
+            <RefreshCcw className="w-2.5 h-2.5" />
+            <span>Cycle timeline</span>
+            {showCycleTimeline ? <ChevronUp className="w-2.5 h-2.5 ml-auto" /> : <ChevronDown className="w-2.5 h-2.5 ml-auto" />}
+          </button>
+          {showCycleTimeline && (
+            <div className="mt-1.5">
+              <CycleTimelineBar compound={compound} />
+            </div>
+          )}
+        </div>
+      )}
+
       {confirmDelete && (
         <div className="flex items-center justify-between bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2 mb-2">
           <span className="text-[11px] text-destructive font-medium">Remove from protocol?</span>

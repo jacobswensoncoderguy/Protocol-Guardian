@@ -1,4 +1,5 @@
 import { Brain, RefreshCw, ChevronRight, TrendingUp, AlertCircle, CircleAlert, Info } from 'lucide-react';
+import ChatMarkdown from '@/components/ChatMarkdown';
 import InfoTooltip from '@/components/InfoTooltip';
 import { Shield, Scale, Zap, Rocket } from 'lucide-react';
 import { StackAnalysis } from '@/hooks/useProtocolAnalysis';
@@ -91,7 +92,7 @@ const ProtocolIntelligenceCard = ({ analysis, loading, needsRefresh, toleranceLe
                   {toleranceLabels[toleranceLevel].label}
                 </span>
               )}
-              <p className="text-xs text-muted-foreground leading-snug">{analysis.overallSummary}</p>
+              <div className="text-xs text-muted-foreground leading-snug"><ChatMarkdown content={analysis.overallSummary} /></div>
             </div>
           </div>
 
@@ -102,14 +103,14 @@ const ProtocolIntelligenceCard = ({ analysis, loading, needsRefresh, toleranceLe
               return (
                 <div key={i} className="flex items-start gap-2 text-xs">
                   <sev.Icon className={`w-3 h-3 flex-shrink-0 mt-0.5 ${sev.color}`} />
-                  <span className="text-foreground/80 leading-snug">{c.description}</span>
+                  <div className="text-foreground/80 leading-snug flex-1"><ChatMarkdown content={c.description} /></div>
                 </div>
               );
             })}
             {analysis.topRecommendations.slice(0, 2).map((r, i) => (
               <div key={`rec-${i}`} className="flex items-start gap-2 text-xs">
                 <TrendingUp className="w-3 h-3 text-primary flex-shrink-0 mt-0.5" />
-                <span className="text-foreground/80 leading-snug">{r}</span>
+                <div className="text-foreground/80 leading-snug flex-1"><ChatMarkdown content={r} /></div>
               </div>
             ))}
           </div>

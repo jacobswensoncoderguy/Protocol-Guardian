@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Brain, RefreshCw, ShieldAlert, Beaker, BarChart3, DollarSign, Lightbulb, ChevronDown, GitCompare, AlertTriangle, Zap, MessageSquare, Send, X, ThumbsDown, TrendingUp, Shield, Scale, Rocket } from 'lucide-react';
+import ChatMarkdown from '@/components/ChatMarkdown';
 import { StackAnalysis, ToleranceComparison } from '@/hooks/useProtocolAnalysis';
 import { ToleranceLevel } from '@/hooks/useProtocolAnalysis';
 import ToleranceSelector from '@/components/ToleranceSelector';
@@ -391,14 +392,14 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
                         <ImpactPercent value={(c as any).impactPercent} label={(c as any).impactLabel} />
                         <div className="ml-auto"><DismissButton onDismiss={() => dismiss(key)} /></div>
                       </div>
-                      <p className="text-xs text-foreground/85 mb-1">{c.description}</p>
+                      <div className="text-xs text-foreground/85 mb-1"><ChatMarkdown content={c.description} /></div>
                       <p className="text-[11px] text-muted-foreground">
                         <span className="font-semibold text-foreground/70">Compounds:</span> {c.compounds.join(', ')}
                       </p>
-                      <p className="text-[11px] text-primary mt-1">
-                        <Lightbulb className="w-3 h-3 inline mr-1 -mt-0.5" />
-                        {c.recommendation}
-                      </p>
+                      <div className="text-[11px] text-primary mt-1 flex items-start gap-1">
+                        <Lightbulb className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                        <ChatMarkdown content={c.recommendation} />
+                      </div>
                       <InlineReply context={c.description} onSend={handleInlineReply} />
                     </div>
                   );
@@ -433,11 +434,11 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
                           <DismissButton onDismiss={() => dismiss(key)} />
                         </div>
                       </div>
-                      <p className="text-xs text-foreground/80 mb-1">{b.issue}</p>
-                      <p className="text-[11px] text-primary">
-                        <RefreshCw className="w-3 h-3 inline mr-1 -mt-0.5" />
-                        {b.suggestion} ({b.improvementEstimate})
-                      </p>
+                      <div className="text-xs text-foreground/80 mb-1"><ChatMarkdown content={b.issue} /></div>
+                      <div className="text-[11px] text-primary flex items-start gap-1">
+                        <RefreshCw className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                        <ChatMarkdown content={`${b.suggestion} (${b.improvementEstimate})`} />
+                      </div>
                       <InlineReply context={`${b.compound}: ${b.issue}`} onSend={handleInlineReply} />
                     </div>
                   );
@@ -512,7 +513,7 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
                         <span className="text-xs font-semibold text-foreground">{c.compound}</span>
                         <DismissButton onDismiss={() => dismiss(key)} />
                       </div>
-                      <p className="text-[11px] text-muted-foreground">{c.reasoning}</p>
+                      <div className="text-[11px] text-muted-foreground"><ChatMarkdown content={c.reasoning} /></div>
                       {c.alternative && c.alternative !== 'N/A' && (
                         <p className="text-[11px] text-primary mt-0.5">→ {c.alternative}</p>
                       )}
@@ -542,7 +543,7 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
                   <div key={i} className="select-text" style={{ userSelect: 'text', WebkitUserSelect: 'text' }}>
                     <div className="flex gap-2.5 items-start">
                       <span className="text-primary text-xs mt-0.5 font-bold">{i + 1}.</span>
-                      <p className="text-xs text-foreground/85 leading-relaxed flex-1">{r}</p>
+                      <div className="text-xs text-foreground/85 leading-relaxed flex-1"><ChatMarkdown content={r} /></div>
                       <DismissButton onDismiss={() => dismiss(key)} />
                     </div>
                     <div className="pl-5">
