@@ -304,18 +304,41 @@ export default function BiomarkerUploadDialog({
         {/* ── Upload Step ── */}
         {step === 'upload' && (
           <div className="space-y-4">
+            {/* Primary drop zone — bold, prominent */}
             <div
               onDragOver={e => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
-                dragOver ? 'border-primary bg-primary/10' : 'border-border/50 hover:border-primary/40 hover:bg-secondary/30'
+              className={`relative border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-all group ${
+                dragOver
+                  ? 'border-primary bg-primary/10 scale-[1.01]'
+                  : 'border-border hover:border-primary/60 hover:bg-secondary/20'
               }`}
             >
-              <Upload className={`w-8 h-8 mx-auto mb-3 ${dragOver ? 'text-primary' : 'text-muted-foreground'}`} />
-              <p className="text-sm font-medium text-foreground">Drop files here or click to browse</p>
-              <p className="text-xs text-muted-foreground mt-1">PDF, .txt, .csv — select multiple files at once</p>
+              {/* Animated upload arrow */}
+              <div className={`mx-auto mb-4 w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${
+                dragOver ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary'
+              }`}>
+                <Upload className={`w-7 h-7 transition-transform ${dragOver ? 'scale-110' : 'group-hover:-translate-y-0.5'}`} />
+              </div>
+
+              <p className="text-sm font-semibold text-foreground mb-1">
+                {dragOver ? 'Drop to analyze' : 'Drop lab files here'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                or <span className="text-primary font-medium underline underline-offset-2">click to browse</span>
+              </p>
+              <p className="text-[10px] text-muted-foreground/60 mt-3">
+                PDF, .txt, .csv · Select multiple files at once
+              </p>
+
+              {/* Multi-file badge */}
+              <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-[9px] font-semibold text-primary">
+                <FileText className="w-2.5 h-2.5" />
+                Multi-file
+              </div>
+
               <input
                 ref={fileInputRef}
                 type="file"
@@ -338,7 +361,7 @@ export default function BiomarkerUploadDialog({
             <textarea
               ref={textAreaRef}
               placeholder="Paste your bloodwork results, DEXA scan data, or lab report text here…"
-              className="w-full h-36 px-3 py-2.5 rounded-xl border border-border/50 bg-secondary/30 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 resize-none font-mono"
+              className="w-full h-32 px-3 py-2.5 rounded-xl border border-border/50 bg-secondary/30 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 resize-none font-mono"
             />
 
             <button
