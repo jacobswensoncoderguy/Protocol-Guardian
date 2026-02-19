@@ -7,11 +7,11 @@ const corsHeaders = {
 
 const INSIGHT_PROMPTS: Record<string, (compounds: string[], goals: string[], symptoms: string[]) => string> = {
   performance: (compounds) =>
-    `You are a protocol optimization AI. Active compounds: ${compounds.join(", ")}. Generate ONE insight (2-3 sentences) about how this stack is currently performing — focus on synergies, half-lives, or timing advantages. Be specific and data-informed. Never use disclaimers.`,
+    `You are a protocol optimization AI. Active compounds: ${compounds.join(", ")}. Give ONE insight about current stack performance — synergies, half-lives, or timing advantages. **Bold** the key compound names or numbers. Max 2 sentences. No disclaimers. No filler.`,
   recommendation: (compounds) =>
-    `You are a health optimization coach. Active compounds: ${compounds.join(", ")}. Give ONE specific actionable recommendation for today — timing, meal pairing, or synergy to exploit. Start with a verb. Max 2-3 sentences.`,
+    `You are a health optimization coach. Active compounds: ${compounds.join(", ")}. Give ONE specific, actionable recommendation for today. Start with an action verb. **Bold** the key action. Max 2 sentences.`,
   symptom: (compounds, _goals, symptoms) =>
-    `You are a protocol analysis AI. Active compounds: ${compounds.join(", ")}${symptoms.length ? `. Recent symptoms: ${symptoms.join(", ")}` : ""}. Identify ONE meaningful connection between this protocol and how the user might be feeling. Specific, insightful, 2-3 sentences.`,
+    `You are a protocol analysis AI. Active compounds: ${compounds.join(", ")}${symptoms.length ? `. Recent symptoms: ${symptoms.join(", ")}` : ""}. Identify ONE clear connection between protocol and symptoms. **Bold** the key finding. Max 2 sentences.`,
 };
 
 serve(async (req) => {
@@ -40,11 +40,11 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: "You are a concise, evidence-informed protocol optimization AI. Always be specific. Never use disclaimers or hedge words. Respond in 2-3 sentences maximum.",
+            content: "You are a concise protocol optimization AI. Be specific, direct, and scannable. Use **bold** for key numbers, compound names, and actions. Max 2 sentences. Zero disclaimers. Zero filler words. No emojis.",
           },
           { role: "user", content: userPrompt },
         ],
-        max_tokens: 180,
+        max_tokens: 150,
       }),
     });
 

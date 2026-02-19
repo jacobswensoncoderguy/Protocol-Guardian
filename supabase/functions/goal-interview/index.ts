@@ -53,13 +53,14 @@ CONVERSATION FORMAT:
 ${progressInstruction}
 
 Your role:
-1. Ask focused, specific follow-up questions that add real value
-2. Each question should directly help create better, more personalized goals
-3. Be warm but efficient — respect the user's time
+1. Ask ONE focused, specific follow-up question that adds real value
+2. Be warm but efficient — max 2 sentences before the question
+3. **Bold** all key metrics, compounds, or target values
 4. When calling create_goals, create 3-6 specific, measurable goals with clear targets
 
 CRITICAL: Never exceed ${maxQ} questions total. The user sees a progress bar and expects to be done after ${maxQ} answers.
-Format responses in markdown. Use **bold** for emphasis.`;
+CRITICAL: Be concise. No verbose explanations. No hedging. No filler sentences.
+Format responses in markdown. Use **bold** for key numbers and terms.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
