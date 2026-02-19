@@ -1,14 +1,13 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   ChevronDown, ChevronUp, Calendar,
   X, Trash2, RefreshCw, Loader2, Upload, AlertTriangle, FlaskConical,
   AlertCircle, Droplets, Bone, Zap, Syringe, Heart, Bug, ClipboardList,
-  Link2, Pencil, Check, GitCompare, BookMarked, Info, Sparkles, Settings2,
+  Link2, Pencil, Check, GitCompare, BookMarked, Info, Sparkles,
   ArrowRightLeft, TrendingUp,
 } from 'lucide-react';
 import { getReferenceRange, formatRange } from '@/lib/biomarkerReferenceRanges';
 import { LineChart, Line, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid, ReferenceArea } from 'recharts';
-import { Slider } from '@/components/ui/slider';
 import { supabase } from '@/integrations/supabase/client';
 import { format, differenceInDays } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -22,8 +21,7 @@ import { UserGoal } from '@/hooks/useGoals';
 import { toast } from 'sonner';
 
 // ── Constants ────────────────────────────────────────────────────
-const DEFAULT_FLAG_RECENCY_DAYS = 90;
-const RECENCY_OPTIONS = [30, 60, 90, 180] as const;
+const FLAG_RECENCY_DAYS = 30; // fixed 30-day window for badge count
 
 interface UserProfileSnippet {
   gender?: string | null;
@@ -90,165 +88,6 @@ function makeIsUploadRecent(flagRecencyDays: number) {
   };
 }
 
-// ─── Flagged markers popover ─────────────────────────────────────
-function FlaggedBadgePopover({
-  uploads,
-  flagRecencyDays,
-  onRecencyChange,
-}: {
-  uploads: UploadRecord[];
-  flagRecencyDays: number;
-  onRecencyChange: (days: number) => void;
-}) {
-  const isUploadRecent = useMemo(() => makeIsUploadRecent(flagRecencyDays), [flagRecencyDays]);
-
-  const { recentFlags, staleFlags, recentUploadDate } = useMemo(() => {
-    const recentUploads = uploads.filter(isUploadRecent);
-    const staleUploads = uploads.filter(u => !isUploadRecent(u));
-
-    const recentFlagMap = new Map<string, { name: string; value: any; unit: string; status: string; uploadLabel: string }>();
-    recentUploads.forEach(u => {
-      (u.ai_extracted_data?.biomarkers || []).forEach((b: any) => {
-        if (b.status !== 'normal') {
-          recentFlagMap.set(b.name, {
-            name: b.name, value: b.value, unit: b.unit, status: b.status,
-            uploadLabel: u.file_name || u.upload_type,
-          });
-        }
-      });
-    });
-
-    const staleFlagMap = new Map<string, { name: string; status: string; uploadLabel: string; daysAgo: number }>();
-    staleUploads.forEach(u => {
-      const daysAgo = differenceInDays(new Date(), parseRecordDate(u));
-      (u.ai_extracted_data?.biomarkers || []).forEach((b: any) => {
-        if (b.status !== 'normal' && !recentFlagMap.has(b.name)) {
-          staleFlagMap.set(b.name, {
-            name: b.name, status: b.status,
-            uploadLabel: u.file_name || u.upload_type,
-            daysAgo,
-          });
-        }
-      });
-    });
-
-    const newestRecent = recentUploads[0];
-    const newestDate = newestRecent
-      ? parseRecordDate(newestRecent).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-      : null;
-
-    return {
-      recentFlags: Array.from(recentFlagMap.values()),
-      staleFlags: Array.from(staleFlagMap.values()),
-      recentUploadDate: newestDate,
-    };
-  }, [uploads, isUploadRecent]);
-
-  const totalRecent = recentFlags.length;
-  if (totalRecent === 0 && staleFlags.length === 0) return null;
-
-  // Map slider index → value
-  const sliderIndex = RECENCY_OPTIONS.indexOf(flagRecencyDays as typeof RECENCY_OPTIONS[number]);
-  const safeSliderIndex = sliderIndex === -1 ? 1 : sliderIndex; // default 90d = index 2
-
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <button className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-status-warning/10 text-status-warning border border-status-warning/20 font-medium hover:bg-status-warning/20 transition-colors cursor-pointer">
-          <AlertTriangle className="w-2.5 h-2.5" />
-          {totalRecent > 0 ? `${totalRecent} flagged` : `${staleFlags.length} stale flags`}
-        </button>
-      </PopoverTrigger>
-      <PopoverContent className="w-80 p-0 bg-card border-border shadow-xl z-[60]" align="start" side="bottom">
-        {/* Header */}
-        <div className="px-3 pt-3 pb-2 border-b border-border/40">
-          <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-            <AlertTriangle className="w-3.5 h-3.5 text-status-warning" />
-            Current Flags
-          </p>
-          <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">
-            Flags from uploads within the last <strong>{flagRecencyDays} days</strong>. Older data tracked as history only.
-            {recentUploadDate && ` Most recent: ${recentUploadDate}.`}
-          </p>
-        </div>
-
-        {/* Recency threshold slider */}
-        <div className="px-3 py-2.5 border-b border-border/30 bg-secondary/10">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-              <Settings2 className="w-3 h-3" /> Recency Window
-            </span>
-            <span className="text-[10px] font-mono text-primary font-semibold">{flagRecencyDays}d</span>
-          </div>
-          <Slider
-            min={0}
-            max={RECENCY_OPTIONS.length - 1}
-            step={1}
-            value={[safeSliderIndex]}
-            onValueChange={([idx]) => onRecencyChange(RECENCY_OPTIONS[idx])}
-            className="w-full"
-          />
-          <div className="flex justify-between mt-1">
-            {RECENCY_OPTIONS.map(opt => (
-              <span key={opt} className={`text-[9px] tabular-nums ${opt === flagRecencyDays ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>
-                {opt}d
-              </span>
-            ))}
-          </div>
-        </div>
-
-        <div className="max-h-52 overflow-y-auto px-3 py-2 space-y-1">
-          {totalRecent > 0 ? (
-            <>
-              {recentFlags.map((f, i) => (
-                <div key={i} className="flex items-center justify-between text-xs py-1.5 border-b border-border/20 last:border-0">
-                  <div className="min-w-0">
-                    <p className="font-medium text-foreground truncate">{f.name}</p>
-                    <p className="text-[10px] text-muted-foreground truncate">{f.uploadLabel}</p>
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
-                    <span className="font-mono text-[10px] text-foreground">{f.value} {f.unit}</span>
-                    <span className={`text-[9px] font-semibold uppercase px-1 py-0.5 rounded ${
-                      f.status.startsWith('critical')
-                        ? 'bg-destructive/10 text-destructive'
-                        : 'bg-status-warning/10 text-status-warning'
-                    }`}>
-                      {f.status.replace('_', ' ')}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </>
-          ) : (
-            <p className="text-[11px] text-muted-foreground py-2 text-center">No recent flags — your latest results look good.</p>
-          )}
-        </div>
-
-        {staleFlags.length > 0 && (
-          <div className="border-t border-border/40 px-3 py-2 bg-secondary/10 rounded-b-lg">
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
-              <Info className="w-3 h-3" /> Historical (older than {flagRecencyDays}d)
-            </p>
-            <div className="space-y-1">
-              {staleFlags.slice(0, 5).map((f, i) => (
-                <div key={i} className="flex items-center justify-between text-[10px] text-muted-foreground">
-                  <span className="truncate max-w-[140px]">{f.name}</span>
-                  <span className="text-[9px] opacity-60">{f.daysAgo}d ago · {f.uploadLabel}</span>
-                </div>
-              ))}
-              {staleFlags.length > 5 && (
-                <p className="text-[10px] text-muted-foreground text-center opacity-60">+{staleFlags.length - 5} more historical</p>
-              )}
-            </div>
-            <p className="text-[9px] text-muted-foreground mt-1.5 italic leading-relaxed">
-              These markers were flagged in older uploads. They appear as trend data points only, not current flags.
-            </p>
-          </div>
-        )}
-      </PopoverContent>
-    </Popover>
-  );
-}
 
 // ─── Inline edit form ─────────────────────────────────────────
 function InlineEditForm({
@@ -1494,87 +1333,8 @@ function UploadTile({
   );
 }
 
-// ─── Lab Timeline Strip ───────────────────────────────────────
-function LabTimelineStrip({
-  uploads,
-  onSelect,
-}: {
-  uploads: UploadRecord[];
-  onSelect: (upload: UploadRecord) => void;
-}) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const sorted = useMemo(
-    () => [...uploads].sort((a, b) => parseRecordDate(a).getTime() - parseRecordDate(b).getTime()),
-    [uploads]
-  );
 
-  if (sorted.length === 0) return null;
 
-  return (
-    <div className="relative">
-      <div
-        ref={scrollRef}
-        className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-border/40"
-        style={{ scrollbarWidth: 'thin' }}
-      >
-        {/* Timeline connector line */}
-        <div className="absolute top-[26px] left-0 right-0 h-px bg-border/40 pointer-events-none z-0" />
-
-        {sorted.map((upload, idx) => {
-          const DocIcon = DOC_TYPE_ICONS[upload.upload_type] || ClipboardList;
-          const biomarkers: any[] = upload.ai_extracted_data?.biomarkers || [];
-          const flagged = biomarkers.filter(b => b.status !== 'normal');
-          const critical = biomarkers.filter(b => b.status?.startsWith('critical'));
-          const date = parseRecordDate(upload);
-          const dateLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-          const yearLabel = date.getFullYear().toString().slice(2);
-          const hasCritical = critical.length > 0;
-          const hasFlagged = flagged.length > 0 && !hasCritical;
-
-          return (
-            <button
-              key={upload.id}
-              onClick={() => onSelect(upload)}
-              className="relative flex flex-col items-center gap-1 flex-shrink-0 group z-10"
-              style={{ minWidth: '56px' }}
-            >
-              {/* Node */}
-              <div className={cn(
-                'w-10 h-10 rounded-full flex items-center justify-center border-2 bg-card transition-all group-hover:scale-110 group-hover:shadow-md',
-                hasCritical
-                  ? 'border-destructive bg-destructive/10 shadow-[0_0_8px_hsl(var(--destructive)/0.3)]'
-                  : hasFlagged
-                    ? 'border-status-warning bg-status-warning/10'
-                    : 'border-primary/40 bg-primary/5 group-hover:border-primary'
-              )}>
-                <DocIcon className={cn(
-                  'w-4 h-4',
-                  hasCritical ? 'text-destructive' : hasFlagged ? 'text-status-warning' : 'text-primary'
-                )} />
-              </div>
-
-              {/* Flag count badge */}
-              {flagged.length > 0 && (
-                <div className={cn(
-                  'absolute -top-0.5 -right-0.5 min-w-[16px] h-4 rounded-full text-[8px] font-bold flex items-center justify-center px-1 border border-card',
-                  hasCritical ? 'bg-destructive text-destructive-foreground' : 'bg-status-warning text-black'
-                )}>
-                  {flagged.length}
-                </div>
-              )}
-
-              {/* Date label */}
-              <span className="text-[9px] text-muted-foreground tabular-nums leading-none">{dateLabel}</span>
-              <span className="text-[8px] text-muted-foreground/50 tabular-nums leading-none">'{yearLabel}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ─── Alerts Panel (recency-aware, with values + context) ───────
 const ALERT_RECENCY_OPTIONS = [30, 60] as const;
 type AlertRecencyDays = typeof ALERT_RECENCY_OPTIONS[number];
 
@@ -1794,7 +1554,7 @@ export default function BiomarkerHistoryView({
   const [savedComparisons, setSavedComparisons] = useState<SavedComparison[]>([]);
 
   // Recency threshold for flags — persisted to profile
-  const [flagRecencyDays, setFlagRecencyDays] = useState<number>(DEFAULT_FLAG_RECENCY_DAYS);
+
 
   const fetchUploads = useCallback(async () => {
     if (!userId) return;
@@ -1813,11 +1573,6 @@ export default function BiomarkerHistoryView({
     const { data } = await supabase.from('profiles').select('app_features').eq('user_id', userId).single();
     const comps: SavedComparison[] = (data?.app_features as any)?.lab_comparisons || [];
     setSavedComparisons(comps);
-    // Also restore persisted recency days
-    const savedRecency = (data?.app_features as any)?.flag_recency_days;
-    if (savedRecency && RECENCY_OPTIONS.includes(savedRecency)) {
-      setFlagRecencyDays(savedRecency);
-    }
   }, [userId]);
 
   useEffect(() => { fetchUploads(); fetchSavedComparisons(); }, [fetchUploads, fetchSavedComparisons]);
@@ -1887,9 +1642,9 @@ export default function BiomarkerHistoryView({
 
   const hasDateFilter = dateFrom || dateTo;
 
-  // Flagged count — recency-aware
+  // Flagged count — fixed 30-day window
   const recentFlaggedCount = useMemo(() => {
-    const isRecent = makeIsUploadRecent(flagRecencyDays);
+    const isRecent = makeIsUploadRecent(FLAG_RECENCY_DAYS);
     const recentUploads = uploads.filter(isRecent);
     const markerMap = new Map<string, string>();
     [...recentUploads].reverse().forEach(upload => {
@@ -1900,18 +1655,8 @@ export default function BiomarkerHistoryView({
     let count = 0;
     markerMap.forEach(status => { if (status !== 'normal') count++; });
     return count;
-  }, [uploads, flagRecencyDays]);
+  }, [uploads]);
 
-  const handleRecencyChange = useCallback(async (days: number) => {
-    setFlagRecencyDays(days);
-    if (!userId) return;
-    try {
-      const { data: profile } = await supabase.from('profiles').select('app_features').eq('user_id', userId).single();
-      await supabase.from('profiles').update({
-        app_features: { ...(profile?.app_features as any || {}), flag_recency_days: days },
-      }).eq('user_id', userId);
-    } catch { /* silent — UI already updated */ }
-  }, [userId]);
 
   const totalMarkersTracked = useMemo(() => {
     const names = new Set<string>();
