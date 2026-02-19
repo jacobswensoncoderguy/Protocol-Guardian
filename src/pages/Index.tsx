@@ -194,6 +194,9 @@ const Index = () => {
     // Stay on the Protocol Advisor thread after accepting a change so the
     // user can review and accept any additional suggestions without navigating back.
     undefined,
+    // Nav shortcuts surfaced inside the success toast
+    () => { setActiveTab('inventory'); setInventorySubTab('stock'); },
+    () => { setActiveTab('protocol'); setScheduleSubTab('ai-changes'); },
   );
 
   const [activeTab, setActiveTab] = useState('dashboard');
