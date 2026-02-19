@@ -5,7 +5,7 @@ import { BodyZone, BODY_ZONES, getCompoundsForZone } from '@/data/bodyZoneMappin
 import { Compound } from '@/data/compounds';
 import { compoundBenefits } from '@/data/compoundBenefits';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Loader2, Copy, Check, TrendingUp, TrendingDown, ArrowRightLeft, Trash2, Plus, MessageSquare, Send, X, AlertTriangle, DollarSign, Zap } from 'lucide-react';
+import { Sparkles, Loader2, Copy, Check, TrendingUp, TrendingDown, ArrowRightLeft, Trash2, Plus, MessageSquare, Send, X, AlertTriangle, DollarSign, Zap, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import { MeasurementSystem, displayHeight, displayWeight } from '@/lib/measurements';
@@ -25,6 +25,7 @@ interface ZoneDetailDrawerProps {
   onUpdateCompound?: (id: string, updates: Partial<Compound>) => void;
   onDeleteCompound?: (id: string) => void;
   userId?: string;
+  zoneIntensity?: number; // 0–1, used to detect saturation for redundancy audit
   conversationManager?: {
     createProject: (name: string, description?: string, color?: string) => Promise<any>;
     createConversation: (title?: string, projectId?: string) => Promise<any>;
@@ -96,7 +97,7 @@ const ACTION_COLORS: Record<string, string> = {
   swap: 'border-chart-5/30 bg-chart-5/5',
 };
 
-const ZoneDetailDrawer = ({ zone, open, onOpenChange, compounds, toleranceLevel = 'moderate', measurementSystem = 'metric', profile, goals = [], onUpdateCompound, onDeleteCompound, userId, conversationManager }: ZoneDetailDrawerProps) => {
+const ZoneDetailDrawer = ({ zone, open, onOpenChange, compounds, toleranceLevel = 'moderate', measurementSystem = 'metric', profile, goals = [], onUpdateCompound, onDeleteCompound, userId, zoneIntensity = 0, conversationManager }: ZoneDetailDrawerProps) => {
   const [analysis, setAnalysis] = useState<ZoneAnalysis | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -357,6 +358,105 @@ Give me specific, actionable suggestions to increase ${info.label} impact — co
     conversationManager?.refreshConversation(convId, content);
   };
 
+  // Build and fire the redundancy audit message into chat
+  const triggerRedundancyAudit = async () => {
+    if (!zone) return;
+    const compoundCosts = compoundDetails.map(cd => {
+      const c = cd.compound;
+      if (!c) return null;
+      const weeklyDoses = c.dosesPerDay * c.daysPerWeek;
+      const weeklyUnits = (c.dosePerUse * weeklyDoses) / c.unitSize;
+      const monthlyCost = (weeklyUnits * c.unitPrice) * 4.33;
+      return `${c.name}: $${monthlyCost.toFixed(0)}/mo (${cd.weight >= 0.8 ? 'Primary' : cd.weight >= 0.5 ? 'Strong' : cd.weight >= 0.3 ? 'Supporting' : 'Minimal'} impact, zone weight=${cd.weight})`;
+    }).filter(Boolean);
+
+    const auditPrompt = `🔍 REDUNDANCY AUDIT — ${info.label} zone (${Math.round(zoneIntensity * 100)}% saturated)
+
+This zone is fully saturated. Identify which compounds are redundant and calculate exactly how much I'm wasting per month.
+
+Compounds targeting this zone with estimated monthly costs:
+${compoundCosts.length > 0 ? compoundCosts.join('\n') : 'None identified'}
+
+Full stack: ${compounds.length} compounds total.
+
+Please: 1) Identify overlapping/redundant compounds for this zone. 2) State each redundant compound's monthly cost. 3) Recommend the minimum effective set. 4) Calculate total monthly savings. 5) Apply the 40% rule — flag any compound providing <40% additional benefit beyond what others already cover. Be precise with dollar amounts.`;
+
+    const userMsg: ChatMessage = { role: 'user', content: auditPrompt };
+    const newMessages = [...chatMessages, userMsg];
+    setChatMessages(newMessages);
+    setShowChat(true);
+    setChatLoading(true);
+
+    const convId = await ensureZoneConversation();
+    if (convId) await persistMessage(convId, 'user', auditPrompt);
+
+    try {
+      const resp = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-protocol`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+          body: JSON.stringify({
+            compounds: compounds.map(c => ({
+              name: c.name, category: c.category, dosePerUse: c.dosePerUse,
+              doseLabel: c.doseLabel, dosesPerDay: c.dosesPerDay, daysPerWeek: c.daysPerWeek,
+              timingNote: c.timingNote, cyclingNote: c.cyclingNote,
+              cycleOnDays: c.cycleOnDays, cycleOffDays: c.cycleOffDays, unitPrice: c.unitPrice,
+            })),
+            protocols: [],
+            toleranceLevel,
+            analysisType: 'chat',
+            messages: [
+              { role: 'user', content: `Context: "${info.label}" zone (${info.description}). Saturation: ${Math.round(zoneIntensity * 100)}%. Apply 40% rule strictly. Quantify all dollar waste.` },
+              ...newMessages,
+            ],
+          }),
+        }
+      );
+
+      if (!resp.ok) { if (resp.status === 429) { toast.error('Rate limited'); setChatLoading(false); return; } throw new Error(); }
+
+      const reader = resp.body?.getReader();
+      if (!reader) throw new Error('No stream');
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let fullText = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let idx: number;
+        while ((idx = buffer.indexOf('\n')) !== -1) {
+          let line = buffer.slice(0, idx);
+          buffer = buffer.slice(idx + 1);
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (!line.startsWith('data: ')) continue;
+          const json = line.slice(6).trim();
+          if (json === '[DONE]') break;
+          try {
+            const parsed = JSON.parse(json);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) {
+              fullText += content;
+              setChatMessages(prev => {
+                const last = prev[prev.length - 1];
+                if (last?.role === 'assistant') return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: fullText } : m);
+                return [...prev, { role: 'assistant', content: fullText }];
+              });
+            }
+          } catch { /* partial */ }
+        }
+      }
+
+      if (convId && fullText) await persistMessage(convId, 'assistant', fullText);
+      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+    } catch (e) {
+      console.error('Audit error:', e);
+      toast.error('Audit failed');
+    } finally { setChatLoading(false); }
+  };
+
   const sendChatMessage = async () => {
     if (!chatInput.trim() || chatLoading) return;
     const userMsg: ChatMessage = { role: 'user', content: chatInput.trim() };
@@ -471,6 +571,24 @@ Give me specific, actionable suggestions to increase ${info.label} impact — co
           <div className="bg-secondary/30 rounded-lg border border-border/20 p-2.5">
             <p className="text-[11px] text-muted-foreground leading-snug">{zoneGapAnalysis}</p>
           </div>
+
+          {/* Redundancy Audit Banner — shown when zone is saturated (≥95%) */}
+          {zoneIntensity >= 0.95 && compoundDetails.length > 0 && (
+            <button
+              onClick={triggerRedundancyAudit}
+              disabled={chatLoading}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-amber-500/40 bg-amber-500/8 hover:bg-amber-500/15 hover:border-amber-500/60 transition-all active:scale-[0.99] text-left group"
+            >
+              <div className="w-7 h-7 rounded-md bg-amber-500/15 flex items-center justify-center flex-shrink-0">
+                {chatLoading ? <Loader2 className="w-3.5 h-3.5 text-amber-400 animate-spin" /> : <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] font-semibold text-amber-400">Zone Saturated — Run Redundancy Audit</p>
+                <p className="text-[9px] text-muted-foreground/60 mt-0.5">AI will identify overlapping compounds &amp; calculate your exact monthly waste</p>
+              </div>
+              <DollarSign className="w-3.5 h-3.5 text-amber-400/60 group-hover:text-amber-400 transition-colors flex-shrink-0" />
+            </button>
+          )}
 
           {/* Quick Action Buttons — TOP */}
           <div className="grid grid-cols-3 gap-1.5">

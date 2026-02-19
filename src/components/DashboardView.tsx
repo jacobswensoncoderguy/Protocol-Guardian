@@ -843,6 +843,7 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
         goals={goals}
         userId={userId}
         conversationManager={conversationManager}
+        zoneIntensity={selectedZone ? zoneIntensities[selectedZone] : 0}
       />
     </div>
   );
