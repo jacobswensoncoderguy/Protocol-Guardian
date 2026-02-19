@@ -1,4 +1,4 @@
-import { ArrowRight, Check, X, Zap, Info, TrendingDown, TrendingUp, Minus } from 'lucide-react';
+import { ArrowRight, Check, X, Zap, Info, TrendingDown, TrendingUp, Minus, RefreshCw } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { ProposedChange } from '@/hooks/useProtocolChat';
@@ -155,6 +155,64 @@ const ProtocolChangeConfirmSheet = ({
             </div>
           </div>
         )}
+
+        {/* Resulting cycle config preview — shown when AI sets cycleOnDays or cycleOffDays */}
+        {change && (change.field === 'cycleOnDays' || change.field === 'cycleOffDays') && (() => {
+          const newVal = change.newValue ? parseFloat(change.newValue) : null;
+          const resultOnDays  = change.field === 'cycleOnDays'  ? newVal : (compound?.cycleOnDays  ?? newVal);
+          const resultOffDays = change.field === 'cycleOffDays' ? newVal : (compound?.cycleOffDays ?? newVal);
+          const startDate     = compound?.cycleStartDate ?? new Date().toISOString().split('T')[0];
+          const isStartNew    = !compound?.cycleStartDate;
+          const cycleLen      = (resultOnDays ?? 0) + (resultOffDays ?? 0);
+          const onPct         = cycleLen > 0 ? Math.round(((resultOnDays ?? 0) / cycleLen) * 100) : 0;
+
+          return (
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 mb-4">
+              <p className="text-[10px] uppercase tracking-wider text-primary/70 mb-2.5 font-semibold flex items-center gap-1.5">
+                <RefreshCw className="w-3 h-3" />
+                Resulting Cycle Config
+              </p>
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                <div className="rounded-md bg-status-good/10 border border-status-good/25 p-2 text-center">
+                  <p className="text-[9px] text-muted-foreground mb-0.5 uppercase tracking-wider">ON days</p>
+                  <p className="text-base font-mono font-bold text-status-good">{resultOnDays ?? '—'}</p>
+                </div>
+                <div className="rounded-md bg-destructive/10 border border-destructive/20 p-2 text-center">
+                  <p className="text-[9px] text-muted-foreground mb-0.5 uppercase tracking-wider">OFF days</p>
+                  <p className="text-base font-mono font-bold text-status-critical">{resultOffDays ?? '—'}</p>
+                  {!compound?.cycleOffDays && change.field === 'cycleOnDays' && (
+                    <p className="text-[8px] text-status-warning mt-0.5">auto-filled</p>
+                  )}
+                </div>
+                <div className="rounded-md bg-secondary/50 border border-border/40 p-2 text-center">
+                  <p className="text-[9px] text-muted-foreground mb-0.5 uppercase tracking-wider">Cycle</p>
+                  <p className="text-base font-mono font-bold text-foreground">{cycleLen}d</p>
+                  <p className="text-[8px] text-primary">{onPct}% on</p>
+                </div>
+              </div>
+              {/* Visual ON/OFF bar */}
+              {resultOnDays && resultOffDays && cycleLen > 0 && (
+                <div className="mb-2.5">
+                  <div className="flex rounded-full overflow-hidden h-2">
+                    <div className="bg-status-good" style={{ width: `${onPct}%` }} />
+                    <div className="bg-destructive/40" style={{ width: `${100 - onPct}%` }} />
+                  </div>
+                  <div className="flex justify-between text-[8px] text-muted-foreground mt-0.5">
+                    <span>ON</span>
+                    <span>OFF</span>
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center gap-1.5 text-[10px]">
+                <span className="text-muted-foreground">Start date:</span>
+                <span className="font-mono font-medium text-foreground">{startDate}</span>
+                {isStartNew && (
+                  <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-status-warning/15 text-status-warning font-medium">auto-set to today</span>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Compound details if available */}
         {compound && (
