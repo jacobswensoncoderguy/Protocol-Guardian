@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Square, Trash2, Check, X, CheckCheck, Brain, ArrowRight, Mic, MicOff, Maximize2, Minimize2, PanelLeftOpen, PanelLeftClose, Copy, MessageCircle, Sparkles, TrendingUp, Shield, DollarSign, Clock, Undo2, ChevronDown } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { Send, Square, Trash2, Check, X, CheckCheck, Brain, ArrowRight, Mic, MicOff, Maximize2, Minimize2, PanelLeftOpen, PanelLeftClose, Copy, MessageCircle, Sparkles, TrendingUp, Shield, DollarSign, Clock, Undo2, ChevronDown, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import ChatMarkdown from '@/components/ChatMarkdown';
 import { ChatMessage, ChangeProposal, ProposedChange, PendingConfirm } from '@/hooks/useProtocolChat';
@@ -9,6 +9,7 @@ import GeminiBadge from '@/components/GeminiBadge';
 import { useIsMobile } from '@/hooks/use-mobile';
 import ProtocolChangeConfirmSheet from '@/components/ProtocolChangeConfirmSheet';
 import { Compound } from '@/data/compounds';
+import CycleTimelineBar from '@/components/CycleTimelineBar';
 
 interface ProtocolChatProps {
   messages: ChatMessage[];
@@ -49,6 +50,40 @@ const changeTypeColor = (type: string) => {
   return 'text-primary bg-primary/10';
 };
 
+// --- Cycling inline widget ---
+const CYCLING_KEYWORDS = /\b(cycl(e|ing|ed|es)|ON phase|OFF phase|on days|off days|cycle start|cycle length|on\/off|pulsed|pulse protocol|week on|week off|days on|days off)\b/i;
+
+const normalize = (s: string) => s.replace(/\s*\([^)]*\)\s*$/, '').trim().toLowerCase();
+
+const CyclingInlineWidget = ({ content, compounds }: { content: string; compounds: Compound[] }) => {
+  const matched = useMemo(() => {
+    if (!CYCLING_KEYWORDS.test(content)) return [];
+    const lc = content.toLowerCase();
+    return compounds.filter(c => {
+      const n = normalize(c.name);
+      return n.length > 2 && lc.includes(n);
+    }).filter(c => c.cycleOnDays && c.cycleOffDays && c.cycleStartDate);
+  }, [content, compounds]);
+
+  if (matched.length === 0) return null;
+
+  return (
+    <div className="mt-3 pt-3 border-t border-border/30 space-y-2.5">
+      <div className="flex items-center gap-1.5">
+        <RefreshCw className="w-3 h-3 text-primary" />
+        <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">Cycle Status</span>
+      </div>
+      {matched.map(c => (
+        <div key={c.id} className="bg-background/50 rounded-lg p-2.5 border border-border/20">
+          <p className="text-[11px] font-semibold text-foreground mb-2">{c.name}</p>
+          <CycleTimelineBar compound={c} />
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// --- Proposal card ---
 const ProposalCard = ({
   proposal,
   onApply,
@@ -557,6 +592,9 @@ const ProtocolChat = ({
                 }`}>
                   {msg.content && (
                     <ChatMarkdown content={msg.content} />
+                  )}
+                  {msg.role === 'assistant' && msg.content && compounds && compounds.length > 0 && (
+                    <CyclingInlineWidget content={msg.content} compounds={compounds} />
                   )}
                   {msg.proposal && (
                     <ProposalCard
