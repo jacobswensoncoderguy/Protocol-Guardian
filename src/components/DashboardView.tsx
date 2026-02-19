@@ -1188,7 +1188,7 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
       {f.supplementation && <StackScoreHistory snapshots={snapshots} currentScore={bodyCoverage} />}
 
       {/* Goal Progress - removed from dashboard */}
-      {false && f.goal_tracking ? (
+      {false && (
         <div className="rounded-xl border border-border/30 bg-card/40 backdrop-blur-sm p-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -1253,8 +1253,6 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
             </div>
           )}
         </div>
-      ) : (
-        <FeatureTeaserCard featureKey="goal_tracking" onEnable={() => onEnableFeature?.('goal_tracking')} />
       )}
 
       {/* Inventory Tracking teaser */}
