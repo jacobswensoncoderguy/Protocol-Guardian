@@ -401,7 +401,16 @@
   list-style-type: disc;
 }
 
+
 /* Bottom line styling - bold paragraph after hr */
 .chat-markdown hr + p {
   font-size: 0.8125rem;
+}
+
+/* Logging sub-tab (Food / Symptoms / Labs) — amber active state */
+.logging-tabs [data-state="active"] {
+  background: rgba(245, 158, 11, 0.18) !important;
+  color: #f59e0b !important;
+  border: 1px solid rgba(245, 158, 11, 0.4) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }

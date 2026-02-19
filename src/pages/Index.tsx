@@ -569,10 +569,10 @@ const Index = () => {
           <TabsContent value="tracking" className="animate-slide-up">
             <TabErrorBoundary tabName="Logging">
             <Tabs value={trackingSubTab} onValueChange={setTrackingSubTab} className="w-full">
-              <TabsList className="w-full bg-card/80 border border-border/60 mb-3 h-10 p-1 gap-1">
-                <TabsTrigger value="food" className="flex-1 text-xs font-semibold rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">Food</TabsTrigger>
-                <TabsTrigger value="symptoms" className="flex-1 text-xs font-semibold rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">Symptoms</TabsTrigger>
-                <TabsTrigger value="labs" className="relative flex-1 text-xs font-semibold rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">
+              <TabsList className="w-full bg-card/80 border border-border/60 mb-3 h-10 p-1 gap-1 logging-tabs">
+                <TabsTrigger value="food" className="flex-1 text-xs font-semibold rounded-md data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">Food</TabsTrigger>
+                <TabsTrigger value="symptoms" className="flex-1 text-xs font-semibold rounded-md data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">Symptoms</TabsTrigger>
+                <TabsTrigger value="labs" className="relative flex-1 text-xs font-semibold rounded-md data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">
                   Labs
                   {labsFlaggedCount > 0 && (
                     <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-0.5 rounded-full bg-status-warning text-primary-foreground text-[9px] font-bold flex items-center justify-center">
