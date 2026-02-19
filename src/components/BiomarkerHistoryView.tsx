@@ -376,9 +376,24 @@ function FilePreviewSection({ fileUrl, fileName }: { fileUrl: string; fileName?:
   const [modalOpen, setModalOpen] = useState(false);
   // Detect data URLs (base64 images captured at upload time) or image file extensions
   const isImage = fileUrl.startsWith('data:image') || /\.(jpg|jpeg|png|gif|webp)$/i.test(fileUrl);
-  const isPlaceholder = fileUrl === 'parsed_text' || fileUrl === '';
+  const isParsedText = fileUrl === 'parsed_text' || fileUrl === '';
 
-  if (isPlaceholder) return null; // No file stored — skip section entirely for old records
+  // For PDF/text uploads that were parsed but not stored as files, show an info section
+  if (isParsedText) {
+    return (
+      <div className="rounded-xl overflow-hidden border border-border/40 bg-secondary/10">
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-border/30">
+          <Upload className="w-3 h-3 text-muted-foreground" />
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Original Upload</span>
+        </div>
+        <div className="px-3 py-3 flex items-center gap-2">
+          <ClipboardList className="w-4 h-4 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground flex-1">{fileName || 'PDF / Document'}</span>
+          <span className="text-[10px] text-muted-foreground/60 bg-muted/30 px-2 py-0.5 rounded-full">Text extracted</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -1862,23 +1877,31 @@ export default function BiomarkerHistoryView({
         <div className="flex items-center gap-1 bg-secondary/40 rounded-lg p-0.5">
           <button
             onClick={() => setActiveTab('uploads')}
-            className={cn(
-              'px-3 py-1.5 rounded-md text-xs font-semibold transition-all',
-              activeTab === 'uploads'
-                ? 'bg-amber-500/20 text-amber-400 shadow-sm border border-amber-500/40'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
+            className="px-3 py-1.5 rounded-md text-xs font-semibold transition-all"
+            style={activeTab === 'uploads' ? {
+              background: 'rgba(245,158,11,0.18)',
+              color: '#f59e0b',
+              border: '1px solid rgba(245,158,11,0.4)',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+            } : {
+              color: 'hsl(var(--muted-foreground))',
+              border: '1px solid transparent',
+            }}
           >
             Uploads
           </button>
           <button
             onClick={() => setActiveTab('alerts')}
-            className={cn(
-              'px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5',
-              activeTab === 'alerts'
-                ? 'bg-amber-500/20 text-amber-400 shadow-sm border border-amber-500/40'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
+            className="px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5"
+            style={activeTab === 'alerts' ? {
+              background: 'rgba(245,158,11,0.18)',
+              color: '#f59e0b',
+              border: '1px solid rgba(245,158,11,0.4)',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+            } : {
+              color: 'hsl(var(--muted-foreground))',
+              border: '1px solid transparent',
+            }}
           >
             Alerts
             {recentFlaggedCount > 0 && (
