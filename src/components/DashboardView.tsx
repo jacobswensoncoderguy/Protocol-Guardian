@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Compound } from '@/data/compounds';
-import { Target, Plus, Shield, Scale, Rocket, Ruler, Weight, Percent, Calendar as CalendarIcon, Check, ToggleLeft, ChevronRight, Sparkles, Package } from 'lucide-react';
+import { Target, Plus, Shield, Scale, Rocket, Ruler, Weight, Percent, Calendar as CalendarIcon, Check, ToggleLeft, ChevronRight, Sparkles, Package, AlertTriangle, TrendingUp, TrendingDown, Zap, Info, ChevronDown, ChevronUp, Brain, Heart, Dumbbell, Flame, Activity } from 'lucide-react';
 import InfoTooltip from '@/components/InfoTooltip';
 import { AppFeatures } from '@/lib/appFeatures';
 import FeatureTeaserCard from '@/components/FeatureTeaserCard';
@@ -133,7 +133,7 @@ const GoalCard = ({ goal, GoalIcon, progress, progressVal, barColor, sparkData, 
   );
 };
 
-// Zone legend with color-coded labels
+// Zone legend with color-coded labels (kept for possible reuse)
 const ZoneLegend = ({ zoneIntensities, onZoneTap }: { zoneIntensities: Record<BodyZone, number>; onZoneTap?: (zone: BodyZone) => void }) => {
   const activeZones = (Object.entries(zoneIntensities) as Array<[BodyZone, number]>)
     .filter(([, v]) => v > 0.1)
@@ -163,7 +163,247 @@ const ZoneLegend = ({ zoneIntensities, onZoneTap }: { zoneIntensities: Record<Bo
     </div>
   );
 };
-// Profile & Tolerance info bar for Protocol Coverage screen
+
+// ── Protocol Coverage Card ──────────────────────────────────────────
+// COMPOUND_ZONE_MAP imported at top via bodyZoneMapping
+
+const ZONE_ICONS_MAP: Record<BodyZone, React.ComponentType<{ className?: string; style?: React.CSSProperties }>> = {
+  brain: Brain,
+  heart: Heart,
+  arms: Dumbbell,
+  core: Flame,
+  legs: Activity,
+  immune: Shield,
+  hormonal: Zap,
+};
+
+interface ProtocolCoverageCardProps {
+  activeCompounds: Compound[];
+  zoneIntensities: Record<BodyZone, number>;
+  bodyCoverage: number;
+  displayGender?: string | null;
+  onZoneTap: (zone: BodyZone) => void;
+  onAddCompound?: () => void;
+}
+
+const ProtocolCoverageCard = ({ activeCompounds, zoneIntensities, bodyCoverage, displayGender, onZoneTap, onAddCompound }: ProtocolCoverageCardProps) => {
+  const [showExplainer, setShowExplainer] = useState(false);
+
+  const zoneEntries = useMemo(() =>
+    (Object.entries(zoneIntensities) as Array<[BodyZone, number]>)
+      .sort((a, b) => b[1] - a[1]),
+    [zoneIntensities]
+  );
+
+  const uncoveredZones = zoneEntries.filter(([, v]) => v <= 0.1);
+  const saturatedZones = zoneEntries.filter(([, v]) => v >= 0.95);
+
+  // Protocol health alerts
+  const alerts = useMemo(() => {
+    const list: Array<{ type: 'danger' | 'warning' | 'info'; message: string }> = [];
+    if (uncoveredZones.length > 0) {
+      list.push({
+        type: 'warning',
+        message: `${uncoveredZones.map(([z]) => BODY_ZONES[z].label).join(', ')} ${uncoveredZones.length === 1 ? 'has' : 'have'} no active compounds — ${uncoveredZones.length === 1 ? 'this system is' : 'these systems are'} unaddressed.`,
+      });
+    }
+    if (saturatedZones.length >= 3) {
+      list.push({
+        type: 'info',
+        message: `${saturatedZones.length} zones at maximum saturation. Stacking beyond 100% adds cost without measurable benefit — tap to audit redundancies.`,
+      });
+    }
+    if (activeCompounds.length > 20) {
+      list.push({
+        type: 'warning',
+        message: `${activeCompounds.length} compounds is a large stack. Tap any zone for an AI redundancy audit.`,
+      });
+    }
+    return list;
+  }, [uncoveredZones, saturatedZones, activeCompounds.length]);
+
+  const coverageGrade = bodyCoverage >= 90
+    ? { label: 'Elite', color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30' }
+    : bodyCoverage >= 75
+    ? { label: 'Strong', color: 'text-primary', bg: 'bg-primary/10 border-primary/30' }
+    : bodyCoverage >= 55
+    ? { label: 'Moderate', color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/30' }
+    : { label: 'Low', color: 'text-rose-400', bg: 'bg-rose-500/10 border-rose-500/30' };
+
+  if (activeCompounds.length === 0) {
+    return (
+      <div className="rounded-xl border border-border/30 bg-card/40 backdrop-blur-sm p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xs uppercase tracking-[0.15em] text-muted-foreground font-semibold">Protocol Coverage</h2>
+        </div>
+        <div className="py-10 flex items-center justify-center">
+          <div className="text-center">
+            <Package className="w-12 h-12 text-muted-foreground/20 mx-auto mb-3" />
+            <h3 className="text-sm font-semibold text-foreground mb-1">No Compounds Yet</h3>
+            <p className="text-xs text-muted-foreground mb-4">Add your first compound to see body zone coverage and protocol analysis.</p>
+            {onAddCompound && (
+              <button onClick={onAddCompound} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all active:scale-95">
+                <Plus className="w-4 h-4" />Add Compound
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-border/30 bg-card/40 backdrop-blur-sm p-4 space-y-4">
+      {/* Header */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h2 className="text-xs uppercase tracking-[0.15em] text-muted-foreground font-semibold mb-0.5">Protocol Coverage</h2>
+          <p className="text-[10px] text-muted-foreground/60">
+            {activeCompounds.length} active compounds · {zoneEntries.filter(([, v]) => v > 0.1).length}/7 body systems covered
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowExplainer(v => !v)}
+            className="p-1 rounded hover:bg-secondary/60 transition-colors text-muted-foreground"
+            title="What does this mean?"
+          >
+            <Info className="w-3.5 h-3.5" />
+          </button>
+          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border ${coverageGrade.bg} ${coverageGrade.color}`}>
+            <span className="font-mono text-base font-bold">{bodyCoverage}%</span>
+            <span className="text-[10px] font-medium">{coverageGrade.label}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Explainer panel */}
+      {showExplainer && (
+        <div className="rounded-lg bg-secondary/30 border border-border/20 p-3 text-[11px] text-muted-foreground space-y-1.5 leading-relaxed">
+          <p><span className="text-foreground font-semibold">What is Protocol Coverage?</span> A weighted average of how effectively your compounds address 7 body systems: Cognitive, Cardiovascular, Musculoskeletal, Metabolic, Recovery, Immune, and Hormonal.</p>
+          <p><span className="text-foreground font-semibold">How is it calculated?</span> Each zone scores 0–100% based on the strongest compound targeting it, plus a small synergy bonus (up to +15%) for multiple complementary compounds. The overall score is the average across all 7 zones.</p>
+          <p><span className="text-foreground font-semibold">What does 100% per zone mean?</span> Your primary compound for that system is at peak mapped efficacy. Adding more compounds to an already-saturated zone adds cost without measurable benefit — you're paying for redundancy.</p>
+          <p><span className="text-foreground font-semibold">Why isn't the overall 100%?</span> Any zone with no compounds targeting it scores 0%, pulling the average down. Tap a low-scoring zone below to get AI-driven gap-closing recommendations.</p>
+        </div>
+      )}
+
+      {/* Alerts */}
+      {alerts.length > 0 && (
+        <div className="space-y-1.5">
+          {alerts.map((alert, i) => (
+            <div key={i} className={`flex items-start gap-2 px-2.5 py-2 rounded-lg text-[11px] leading-snug ${
+              alert.type === 'danger' ? 'bg-destructive/10 border border-destructive/30 text-destructive'
+              : alert.type === 'warning' ? 'bg-amber-500/10 border border-amber-500/30 text-amber-400'
+              : 'bg-primary/10 border border-primary/30 text-primary'
+            }`}>
+              <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+              <span>{alert.message}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Overall progress bar */}
+      <div>
+        <div className="h-1.5 bg-secondary/50 rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-700"
+            style={{
+              width: `${bodyCoverage}%`,
+              background: bodyCoverage >= 90
+                ? 'linear-gradient(90deg, hsl(var(--primary)), hsl(160 100% 45%))'
+                : bodyCoverage >= 55
+                ? 'linear-gradient(90deg, hsl(var(--primary)), hsl(45 100% 55%))'
+                : 'linear-gradient(90deg, hsl(330 100% 60%), hsl(15 100% 60%))',
+            }}
+          />
+        </div>
+        <div className="flex justify-between mt-1 text-[9px] text-muted-foreground/40 font-mono">
+          <span>0% No coverage</span>
+          <span>100% Full saturation</span>
+        </div>
+      </div>
+
+      {/* Zone breakdown — the core UI */}
+      <div className="space-y-1">
+        {zoneEntries.map(([zone, intensity]) => {
+          const info = BODY_ZONES[zone];
+          const Icon = ZONE_ICONS_MAP[zone];
+          const pct = Math.round(intensity * 100);
+          const isSaturated = pct >= 95;
+          const isWeak = pct > 0 && pct < 40;
+          const isUncovered = pct === 0;
+
+          const statusColor = isSaturated ? 'text-emerald-400'
+            : isWeak ? 'text-amber-400'
+            : isUncovered ? 'text-muted-foreground/30'
+            : 'text-foreground';
+
+          const barColor = isSaturated ? '#34d399'
+            : isWeak ? '#f59e0b'
+            : isUncovered ? 'transparent'
+            : info.color;
+
+          const guidance = isSaturated ? 'Saturated · review for redundancy'
+            : pct >= 70 ? 'Strong coverage'
+            : pct >= 40 ? 'Adequate · synergy compounds may help'
+            : pct > 0 ? 'Low · consider targeted compounds'
+            : 'Gap · no compounds target this system';
+
+          return (
+            <button
+              key={zone}
+              onClick={() => onZoneTap(zone)}
+              className="w-full flex items-center gap-3 px-2.5 py-2 rounded-lg bg-secondary/20 hover:bg-secondary/40 border border-transparent hover:border-border/30 transition-all active:scale-[0.99] group text-left"
+            >
+              <div
+                className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: `${info.color}18` }}
+              >
+                <Icon className="w-3.5 h-3.5" style={{ color: isUncovered ? 'hsl(var(--muted-foreground) / 0.3)' : info.color }} />
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1">
+                  <span className="text-[11px] font-medium text-foreground">{info.label}</span>
+                  {isSaturated && <TrendingUp className="w-2.5 h-2.5 text-emerald-400 flex-shrink-0" />}
+                  {isWeak && <TrendingDown className="w-2.5 h-2.5 text-amber-400 flex-shrink-0" />}
+                  {isUncovered && <AlertTriangle className="w-2.5 h-2.5 text-muted-foreground/40 flex-shrink-0" />}
+                </div>
+                <p className="text-[9px] text-muted-foreground/50 truncate">{guidance}</p>
+              </div>
+
+              <div className="w-14 h-1 bg-secondary/60 rounded-full overflow-hidden flex-shrink-0">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${pct}%`,
+                    backgroundColor: barColor,
+                    boxShadow: pct > 0 ? `0 0 4px ${barColor}60` : 'none',
+                  }}
+                />
+              </div>
+
+              <span className={`text-[11px] font-mono font-bold w-8 text-right flex-shrink-0 ${statusColor}`}>
+                {isUncovered ? '—' : `${pct}%`}
+              </span>
+
+              <ChevronRight className="w-3 h-3 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors flex-shrink-0" />
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Footer CTA */}
+      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/50 pt-1 border-t border-border/20">
+        <Sparkles className="w-3 h-3 flex-shrink-0" />
+        <span>Tap any system above for AI compound recommendations &amp; redundancy analysis</span>
+      </div>
+    </div>
+  );
+};
+
+
 const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpdateProfile, onToleranceChange, onGenderChange, measurementSystem = 'metric', onNavigateToInventory }: {
   profile?: UserProfile | null;
   toleranceLevel?: string;
@@ -478,93 +718,14 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
 
       {/* Protocol Coverage — supplementation feature */}
       {f.supplementation ? (
-        <div className="rounded-xl border border-border/30 bg-card/40 backdrop-blur-sm p-4">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-xs uppercase tracking-[0.15em] text-muted-foreground font-semibold flex items-center gap-1.5">
-              Protocol Coverage
-              <InfoTooltip text="Shows how well your compounds cover 7 body zones (brain, heart, arms, core, hormonal, legs, immune). Higher % means broader protection." />
-            </h2>
-            <span className="text-lg font-mono font-bold text-primary">{bodyCoverage}%</span>
-          </div>
-          <div className="h-2 bg-secondary/50 rounded-full overflow-hidden mb-2">
-            <div className="h-full bg-gradient-to-r from-primary to-chart-2 rounded-full transition-all duration-700" style={{ width: `${bodyCoverage}%` }} />
-          </div>
-          <p className="text-[9px] text-muted-foreground/60 mb-3 leading-snug">
-            {activeCompounds.length} active compounds · {coverageRationale}
-          </p>
-
-          {/* Empty state CTA when no active compounds */}
-          {activeCompounds.length === 0 ? (
-            <div className="py-10 flex items-center justify-center">
-              <div className="text-center">
-                <Package className="w-12 h-12 text-muted-foreground/20 mx-auto mb-3" />
-                <h3 className="text-sm font-semibold text-foreground mb-1">No Compounds Yet</h3>
-                <p className="text-xs text-muted-foreground mb-4">Add your first compound to see body zone coverage and protocol analysis.</p>
-                {onAddCompound && (
-                  <button
-                    onClick={onAddCompound}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all active:scale-95"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add Compound
-                  </button>
-                )}
-              </div>
-            </div>
-          ) : (
-            <>
-
-          {/* Body avatar with floating zone badges */}
-          <div className="relative flex justify-center my-4">
-            <div className="relative">
-              <img
-                src={displayGender === 'female' ? bodyFemaleImg : bodyMaleImg}
-                alt={displayGender === 'female' ? 'Female body' : 'Male body'}
-                className="h-72 w-auto rounded-xl object-contain"
-              />
-              {(() => {
-                const zonePositions: Record<BodyZone, { top: string; left?: string; right?: string }> = {
-                  brain: { top: '2%', right: '-10%' },
-                  heart: { top: '22%', right: '-12%' },
-                  arms: { top: '28%', left: '-12%' },
-                  core: { top: '45%', right: '-12%' },
-                  hormonal: { top: '52%', left: '-12%' },
-                  legs: { top: '72%', right: '-10%' },
-                  immune: { top: '38%', left: '-10%' },
-                };
-                return (Object.entries(zoneIntensities) as Array<[BodyZone, number]>)
-                  .filter(([, v]) => v > 0.1)
-                  .map(([zone, intensity]) => {
-                    const pos = zonePositions[zone];
-                    if (!pos) return null;
-                    const pct = Math.round(intensity * 100);
-                    return (
-                      <button
-                        key={zone}
-                        onClick={() => handleZoneTap(zone)}
-                        className="absolute flex items-center gap-1 px-2 py-0.5 rounded-full bg-card/80 backdrop-blur-sm border border-border/30 hover:border-primary/50 transition-all active:scale-95 shadow-lg"
-                        style={{ top: pos.top, left: pos.left, right: pos.right }}
-                      >
-                        <div
-                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                          style={{
-                            backgroundColor: BODY_ZONES[zone].color,
-                            boxShadow: `0 0 ${4 + intensity * 8}px ${BODY_ZONES[zone].color}`,
-                          }}
-                        />
-                        <span className="text-[10px] font-mono font-semibold text-foreground">{pct}%</span>
-                      </button>
-                    );
-                  });
-              })()}
-            </div>
-          </div>
-           <p className="text-[10px] text-muted-foreground/50 text-center mb-3">Tap a zone to view compounds &amp; impact</p>
-
-           <ZoneLegend zoneIntensities={zoneIntensities} onZoneTap={handleZoneTap} />
-            </>
-          )}
-        </div>
+        <ProtocolCoverageCard
+          activeCompounds={activeCompounds}
+          zoneIntensities={zoneIntensities}
+          bodyCoverage={bodyCoverage}
+          displayGender={displayGender}
+          onZoneTap={handleZoneTap}
+          onAddCompound={onAddCompound}
+        />
       ) : (
         <FeatureTeaserCard featureKey="supplementation" onEnable={() => onEnableFeature?.('supplementation')} />
       )}
