@@ -724,9 +724,17 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
             <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
               cycleStatus.isOn
                 ? 'bg-status-good/15 text-status-good'
-                : 'bg-muted text-muted-foreground'
+                : 'bg-status-warning/15 text-status-warning'
             }`} title={cycleStatus.isOn ? `${cycleStatus.daysLeftInPhase} days left in ON phase` : `${cycleStatus.daysLeftInPhase} days left in OFF phase`}>
-              {cycleStatus.isOn ? `ON ${cycleStatus.daysLeftInPhase}d` : `OFF ${cycleStatus.daysLeftInPhase}d`}
+              {cycleStatus.isOn
+                ? `ON ${cycleStatus.daysLeftInPhase}d`
+                : (() => {
+                    const resume = new Date();
+                    resume.setDate(resume.getDate() + cycleStatus.daysLeftInPhase);
+                    const label = resume.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    return `OFF ${cycleStatus.daysLeftInPhase}d → ${label}`;
+                  })()
+              }
             </span>
           )}
           {/* "no date" badge — only for categories that need purchase date to count units */}
