@@ -1497,6 +1497,276 @@ function UploadTile({
   );
 }
 
+// ─── Lab Timeline Strip ───────────────────────────────────────
+function LabTimelineStrip({
+  uploads,
+  onSelect,
+}: {
+  uploads: UploadRecord[];
+  onSelect: (upload: UploadRecord) => void;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const sorted = useMemo(
+    () => [...uploads].sort((a, b) => parseRecordDate(a).getTime() - parseRecordDate(b).getTime()),
+    [uploads]
+  );
+
+  if (sorted.length === 0) return null;
+
+  return (
+    <div className="relative">
+      <div
+        ref={scrollRef}
+        className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-border/40"
+        style={{ scrollbarWidth: 'thin' }}
+      >
+        {/* Timeline connector line */}
+        <div className="absolute top-[26px] left-0 right-0 h-px bg-border/40 pointer-events-none z-0" />
+
+        {sorted.map((upload, idx) => {
+          const DocIcon = DOC_TYPE_ICONS[upload.upload_type] || ClipboardList;
+          const biomarkers: any[] = upload.ai_extracted_data?.biomarkers || [];
+          const flagged = biomarkers.filter(b => b.status !== 'normal');
+          const critical = biomarkers.filter(b => b.status?.startsWith('critical'));
+          const date = parseRecordDate(upload);
+          const dateLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          const yearLabel = date.getFullYear().toString().slice(2);
+          const hasCritical = critical.length > 0;
+          const hasFlagged = flagged.length > 0 && !hasCritical;
+
+          return (
+            <button
+              key={upload.id}
+              onClick={() => onSelect(upload)}
+              className="relative flex flex-col items-center gap-1 flex-shrink-0 group z-10"
+              style={{ minWidth: '56px' }}
+            >
+              {/* Node */}
+              <div className={cn(
+                'w-10 h-10 rounded-full flex items-center justify-center border-2 bg-card transition-all group-hover:scale-110 group-hover:shadow-md',
+                hasCritical
+                  ? 'border-destructive bg-destructive/10 shadow-[0_0_8px_hsl(var(--destructive)/0.3)]'
+                  : hasFlagged
+                    ? 'border-status-warning bg-status-warning/10'
+                    : 'border-primary/40 bg-primary/5 group-hover:border-primary'
+              )}>
+                <DocIcon className={cn(
+                  'w-4 h-4',
+                  hasCritical ? 'text-destructive' : hasFlagged ? 'text-status-warning' : 'text-primary'
+                )} />
+              </div>
+
+              {/* Flag count badge */}
+              {flagged.length > 0 && (
+                <div className={cn(
+                  'absolute -top-0.5 -right-0.5 min-w-[16px] h-4 rounded-full text-[8px] font-bold flex items-center justify-center px-1 border border-card',
+                  hasCritical ? 'bg-destructive text-destructive-foreground' : 'bg-status-warning text-black'
+                )}>
+                  {flagged.length}
+                </div>
+              )}
+
+              {/* Date label */}
+              <span className="text-[9px] text-muted-foreground tabular-nums leading-none">{dateLabel}</span>
+              <span className="text-[8px] text-muted-foreground/50 tabular-nums leading-none">'{yearLabel}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── Alerts Panel (recency-aware, with values + context) ───────
+const ALERT_RECENCY_OPTIONS = [30, 60] as const;
+type AlertRecencyDays = typeof ALERT_RECENCY_OPTIONS[number];
+
+function AlertsPanel({
+  uploads,
+  userGender,
+  userAge,
+}: {
+  uploads: UploadRecord[];
+  userGender?: string | null;
+  userAge?: number | null;
+}) {
+  const [recencyDays, setRecencyDays] = useState<AlertRecencyDays>(30);
+
+  const alertContext: Record<string, string> = {
+    high: 'Value exceeds the upper reference limit. Elevated levels may indicate inflammation, metabolic stress, or organ strain depending on the marker.',
+    low: 'Value falls below the lower reference limit. Low readings can signal deficiency, suppression, or underproduction of this biomarker.',
+    critical_high: 'Critically elevated — significantly above normal range. This warrants prompt medical attention and follow-up.',
+    critical_low: 'Critically low — significantly below normal range. This requires urgent medical review.',
+  };
+
+  const { currentAlerts, noAlerts } = useMemo(() => {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - recencyDays);
+
+    const seen = new Map<string, {
+      name: string; value: any; unit: string; status: string;
+      uploadLabel: string; uploadDate: Date; uploadType: string;
+      referenceHigh?: number; referenceLow?: number;
+    }>();
+
+    [...uploads]
+      .sort((a, b) => parseRecordDate(a).getTime() - parseRecordDate(b).getTime())
+      .forEach(u => {
+        const d = parseRecordDate(u);
+        if (d < cutoff) return;
+        (u.ai_extracted_data?.biomarkers || []).forEach((b: any) => {
+          if (b.status && b.status !== 'normal') {
+            seen.set(b.name, {
+              name: b.name,
+              value: b.value,
+              unit: b.unit,
+              status: b.status,
+              uploadLabel: u.file_name || u.upload_type,
+              uploadDate: d,
+              uploadType: u.upload_type,
+              referenceHigh: b.reference_high,
+              referenceLow: b.reference_low,
+            });
+          }
+        });
+      });
+
+    return {
+      currentAlerts: Array.from(seen.values()).sort((a, b) => {
+        const sev = (s: string) => s.startsWith('critical') ? 0 : 1;
+        return sev(a.status) - sev(b.status);
+      }),
+      noAlerts: seen.size === 0,
+    };
+  }, [uploads, recencyDays]);
+
+  return (
+    <div className="space-y-3">
+      {/* Recency toggle */}
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] text-muted-foreground">
+          Showing flags from the last <strong className="text-foreground">{recencyDays} days</strong>
+        </p>
+        <div className="flex items-center gap-1 bg-secondary/40 rounded-lg p-0.5">
+          {ALERT_RECENCY_OPTIONS.map(opt => (
+            <button
+              key={opt}
+              onClick={() => setRecencyDays(opt)}
+              className={cn(
+                'px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all',
+                recencyDays === opt
+                  ? 'bg-card text-foreground shadow-sm border border-border/50'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              {opt}d
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {noAlerts ? (
+        <div className="py-6 text-center">
+          <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto mb-2">
+            <Check className="w-5 h-5 text-emerald-400" />
+          </div>
+          <p className="text-sm font-semibold text-foreground">No alerts in last {recencyDays} days</p>
+          <p className="text-xs text-muted-foreground mt-1">All recent labs are within range</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {currentAlerts.map((alert, i) => {
+            const isCritical = alert.status.startsWith('critical');
+            const refRange = getReferenceRange(alert.name, userGender, userAge);
+            const context = alertContext[alert.status] || '';
+            const DocIcon = DOC_TYPE_ICONS[alert.uploadType] || ClipboardList;
+            const dateStr = alert.uploadDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+            // Compute deviation from range
+            let deviation = '';
+            if (refRange) {
+              if (alert.status.includes('high') && typeof alert.value === 'number') {
+                const pct = Math.round(((alert.value - refRange.high) / refRange.high) * 100);
+                deviation = `${pct > 0 ? '+' : ''}${pct}% above normal`;
+              } else if (alert.status.includes('low') && typeof alert.value === 'number') {
+                const pct = Math.round(((refRange.low - alert.value) / refRange.low) * 100);
+                deviation = `${pct > 0 ? '+' : ''}${pct}% below normal`;
+              }
+            }
+
+            return (
+              <div
+                key={i}
+                className={cn(
+                  'rounded-xl border p-3 space-y-2',
+                  isCritical
+                    ? 'border-destructive/40 bg-destructive/5'
+                    : 'border-status-warning/30 bg-status-warning/5'
+                )}
+              >
+                {/* Header row */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-xs font-semibold text-foreground">{alert.name}</span>
+                      <span className={cn(
+                        'text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border',
+                        isCritical
+                          ? 'bg-destructive/15 text-destructive border-destructive/30'
+                          : 'bg-status-warning/15 text-status-warning border-status-warning/30'
+                      )}>
+                        {alert.status.replace('_', ' ')}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-muted-foreground">
+                      <DocIcon className="w-2.5 h-2.5 flex-shrink-0" />
+                      <span className="truncate">{alert.uploadLabel}</span>
+                      <span>·</span>
+                      <span>{dateStr}</span>
+                    </div>
+                  </div>
+                  {/* Value + range */}
+                  <div className="text-right flex-shrink-0">
+                    <span className={cn(
+                      'text-sm font-bold font-mono',
+                      isCritical ? 'text-destructive' : 'text-status-warning'
+                    )}>
+                      {alert.value} {alert.unit}
+                    </span>
+                    {refRange && (
+                      <p className="text-[9px] text-muted-foreground font-mono mt-0.5">
+                        Normal: {formatRange(refRange)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Deviation pill */}
+                {deviation && (
+                  <div className={cn(
+                    'inline-flex items-center gap-1 text-[9px] font-semibold px-2 py-0.5 rounded-full border',
+                    isCritical ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-status-warning/10 text-status-warning border-status-warning/20'
+                  )}>
+                    <AlertTriangle className="w-2.5 h-2.5" />
+                    {deviation}
+                  </div>
+                )}
+
+                {/* Context explanation */}
+                {context && (
+                  <p className="text-[10px] text-muted-foreground leading-relaxed border-t border-border/30 pt-1.5">
+                    {context}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main export ──────────────────────────────────────────────
 export default function BiomarkerHistoryView({
   userId,
@@ -1515,6 +1785,8 @@ export default function BiomarkerHistoryView({
   const [reanalyzingId, setReanalyzingId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [alignUpload, setAlignUpload] = useState<UploadRecord | null>(null);
+  const [timelineDetailUpload, setTimelineDetailUpload] = useState<UploadRecord | null>(null);
+  const [activeTab, setActiveTab] = useState<'uploads' | 'alerts'>('uploads');
 
   // Compare mode state — global (cross-category)
   const [compareMode, setCompareMode] = useState(false);
@@ -1729,19 +2001,38 @@ export default function BiomarkerHistoryView({
     );
   }
 
+
   return (
     <div className="space-y-4">
-      {/* Header row: upload + compare buttons */}
+      {/* Header row: upload + compare + tab buttons */}
       <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-foreground">
-            {uploads.length} upload{uploads.length !== 1 ? 's' : ''}
-          </p>
-          <p className="text-[11px] text-muted-foreground">Tap a tile to view full analysis</p>
+        <div className="flex items-center gap-1 bg-secondary/40 rounded-lg p-0.5">
+          <button
+            onClick={() => setActiveTab('uploads')}
+            className={cn(
+              'px-3 py-1.5 rounded-md text-xs font-semibold transition-all',
+              activeTab === 'uploads' ? 'bg-card text-foreground shadow-sm border border-border/50' : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            Uploads
+          </button>
+          <button
+            onClick={() => setActiveTab('alerts')}
+            className={cn(
+              'px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5',
+              activeTab === 'alerts' ? 'bg-card text-foreground shadow-sm border border-border/50' : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            Alerts
+            {recentFlaggedCount > 0 && (
+              <span className="text-[9px] font-bold bg-status-warning/20 text-status-warning px-1 py-0.5 rounded-full">
+                {recentFlaggedCount}
+              </span>
+            )}
+          </button>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          {/* Compare toggle — always visible when 2+ uploads exist */}
-          {uploads.length >= 2 && (
+          {uploads.length >= 2 && activeTab === 'uploads' && (
             <button
               onClick={() => handleToggleCompareMode()}
               className={cn(
@@ -1764,7 +2055,18 @@ export default function BiomarkerHistoryView({
         </div>
       </div>
 
-      {/* Biomarker summary strip — separate from upload CTA */}
+      {/* ── Alerts Tab ── */}
+      {activeTab === 'alerts' && (
+        <AlertsPanel
+          uploads={uploads}
+          userGender={profile?.gender}
+          userAge={profile?.age}
+        />
+      )}
+
+      {activeTab === 'uploads' && <>
+
+      {/* Biomarker summary strip */}
       <div className="bg-card rounded-xl border border-border/50 p-3 flex items-center gap-3">
         <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
           <FlaskConical className="w-4 h-4 text-primary" />
@@ -1777,13 +2079,41 @@ export default function BiomarkerHistoryView({
           </div>
           <p className="text-[11px] text-muted-foreground mt-0.5">across all uploads · tap the badge to view flags</p>
         </div>
-        {/* Flagged badge — now lives here in the summary card */}
         <FlaggedBadgePopover
           uploads={uploads}
           flagRecencyDays={flagRecencyDays}
           onRecencyChange={handleRecencyChange}
         />
       </div>
+
+      {/* ── Lab Timeline Strip ── */}
+      <div className="bg-card rounded-xl border border-border/50 p-3 space-y-2">
+        <div className="flex items-center gap-1.5 mb-1">
+          <Calendar className="w-3 h-3 text-muted-foreground" />
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Health Timeline</span>
+          <span className="text-[9px] text-muted-foreground/60">· tap to open</span>
+        </div>
+        <LabTimelineStrip
+          uploads={filteredUploads}
+          onSelect={setTimelineDetailUpload}
+        />
+      </div>
+
+      {/* Timeline detail sheet (opened from timeline node) */}
+      {timelineDetailUpload && (
+        <DetailSheet
+          upload={timelineDetailUpload}
+          allUploads={uploads}
+          onClose={() => setTimelineDetailUpload(null)}
+          onDelete={handleDelete}
+          onReanalyze={handleReanalyze}
+          onAlignToGoal={setAlignUpload}
+          isDeleting={deletingId === timelineDetailUpload.id}
+          isReanalyzing={reanalyzingId === timelineDetailUpload.id}
+          userGender={profile?.gender}
+          userAge={profile?.age}
+        />
+      )}
 
       {/* Date Range Filter */}
       <div className="flex items-center gap-2 flex-wrap">
@@ -1928,6 +2258,8 @@ export default function BiomarkerHistoryView({
           onDelete={handleDeleteComparison}
         />
       )}
+
+      </>}
 
       {/* Delete confirmation */}
       <ConfirmDialog
