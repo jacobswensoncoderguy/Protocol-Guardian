@@ -616,51 +616,61 @@ function DetailSheet({
         className="w-full max-w-lg max-h-[88vh] overflow-y-auto rounded-2xl bg-card border border-border shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
+        {/* Hidden file input for attaching a file to existing records */}
+        <input
+          ref={attachInputRef}
+          type="file"
+          accept=".pdf,.txt,.csv,image/*"
+          className="hidden"
+          onChange={async e => {
+            const file = e.target.files?.[0];
+            if (file) await attachFile(file);
+            e.target.value = '';
+          }}
+        />
+
         {/* Sticky header */}
-        <div className="flex items-center justify-between px-4 pt-4 pb-3 sticky top-0 bg-card border-b border-border/30 z-10">
-          <div className="flex items-center gap-2 min-w-0">
+        <div className="sticky top-0 bg-card border-b border-border/30 z-10 px-3 pt-3 pb-2">
+          {/* Title row */}
+          <div className="flex items-center gap-2 min-w-0 mb-2">
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
               <DocIcon className="w-4 h-4 text-primary" />
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-foreground truncate">{upload.file_name || upload.upload_type.replace(/_/g, ' ')}</p>
               <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                 <Calendar className="w-2.5 h-2.5" /> {labelDate}
               </p>
             </div>
+            {/* Close always visible */}
+            <button onClick={onClose} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors flex-shrink-0">
+              <X className="w-4 h-4" />
+            </button>
           </div>
-          <div className="flex items-center gap-1 flex-shrink-0">
-            {/* Hidden file input for attaching a file to existing records */}
-            <input
-              ref={attachInputRef}
-              type="file"
-              accept=".pdf,.txt,.csv,image/*"
-              className="hidden"
-              onChange={async e => {
-                const file = e.target.files?.[0];
-                if (file) await attachFile(file);
-                e.target.value = '';
-              }}
-            />
-            {/* Open if file exists, Attach if not */}
+          {/* Action row */}
+          <div className="flex items-center gap-1">
+            {/* Open/Attach file — most prominent action */}
             {hasFile ? (
               <button
                 title="Open original file"
-                className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
                 onClick={e => { e.stopPropagation(); openFile(localFileUrl!); }}
               >
-                <ExternalLink className="w-4 h-4" />
+                <ExternalLink className="w-3.5 h-3.5" />
+                Open file
               </button>
             ) : (
               <button
                 title={attachingFile ? 'Attaching…' : 'Attach original file'}
                 disabled={attachingFile}
-                className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-40"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-muted-foreground border border-border/50 hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-colors disabled:opacity-40"
                 onClick={e => { e.stopPropagation(); attachInputRef.current?.click(); }}
               >
-                {attachingFile ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
+                {attachingFile ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Paperclip className="w-3.5 h-3.5" />}
+                {attachingFile ? 'Attaching…' : 'Attach file'}
               </button>
             )}
+            <div className="flex-1" />
             <button
               onClick={() => { onAlignToGoal(upload); onClose(); }}
               title="Align to a goal"
@@ -684,9 +694,6 @@ function DetailSheet({
               className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-40"
             >
               {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-            </button>
-            <button onClick={onClose} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors">
-              <X className="w-4 h-4" />
             </button>
           </div>
         </div>
