@@ -97,6 +97,25 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
       .sort((a, b) => a.days - b.days);
   }, [activeCompounds]);
 
+  // Compounds with incomplete cycling configs
+  const incompleteCyclingCompounds = useMemo(() => {
+    return activeCompounds.filter(c => {
+      const hasAny = c.cycleOnDays || c.cycleOffDays || c.cycleStartDate;
+      const hasAll = c.cycleOnDays && c.cycleOffDays && c.cycleStartDate;
+      return hasAny && !hasAll;
+    });
+  }, [activeCompounds]);
+
+  const fixCycleConfig = useCallback((compound: Compound) => {
+    const today = new Date().toISOString().split('T')[0];
+    const fixes: Partial<Compound> = {};
+    if (!compound.cycleOffDays) fixes.cycleOffDays = compound.cycleOnDays ?? 5;
+    if (!compound.cycleOnDays) fixes.cycleOnDays = compound.cycleOffDays ?? 5;
+    if (!compound.cycleStartDate) fixes.cycleStartDate = today;
+    onUpdateCompound(compound.id, fixes);
+    toast.success(`Cycle config fixed for ${compound.name}`);
+  }, [onUpdateCompound]);
+
   // Build protocol groups + ungrouped by category
   const buildGroups = () => {
     if (sortBy === 'days') return [{ label: 'all', items: sorted }];
@@ -152,6 +171,40 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
                 {a.compound.name} — {a.days}d
               </button>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Cycling Config Health Check Banner */}
+      {incompleteCyclingCompounds.length > 0 && (
+        <div className="rounded-lg border border-primary/30 bg-primary/5 p-2.5 space-y-1.5">
+          <div className="flex items-center gap-1.5">
+            <RefreshCcw className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+            <span className="text-[11px] font-semibold text-primary">
+              {incompleteCyclingCompounds.length} incomplete cycling config{incompleteCyclingCompounds.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+          <p className="text-[10px] text-muted-foreground leading-relaxed">
+            These compounds have partial cycling data — fix to enable accurate supply math and schedule display.
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {incompleteCyclingCompounds.map(c => {
+              const missing: string[] = [];
+              if (!c.cycleOnDays) missing.push('ON days');
+              if (!c.cycleOffDays) missing.push('OFF days');
+              if (!c.cycleStartDate) missing.push('start date');
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => fixCycleConfig(c)}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono cursor-pointer transition-all hover:scale-105 active:scale-95 bg-primary/15 text-primary border border-primary/20 hover:bg-primary/25"
+                  title={`Missing: ${missing.join(', ')}`}
+                >
+                  <Check className="w-2.5 h-2.5" />
+                  Fix {c.name}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
