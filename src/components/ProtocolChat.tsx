@@ -65,6 +65,10 @@ const ProposalCard = ({
   compounds?: Compound[];
 }) => {
   const hasPending = proposal.changes.some(c => c.status === 'pending');
+  const hasAccepted = proposal.changes.some(c => c.status === 'accepted');
+  const pendingCount = proposal.changes.filter(c => c.status === 'pending').length;
+  // Show "Accept All Remaining" (highlighted) once at least one change accepted + more pending
+  const showAcceptAllRemaining = hasAccepted && hasPending;
 
   const normalize = (s: string) => s.replace(/\s*\([^)]*\)\s*$/, '').trim().toLowerCase();
   const findCompound = (name: string) =>
@@ -75,7 +79,15 @@ const ProposalCard = ({
     <div className="mt-3 rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2.5">
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-semibold text-primary uppercase tracking-wider">Proposed Changes</span>
-        {hasPending && (
+        {showAcceptAllRemaining ? (
+          <button
+            onClick={onApplyAll}
+            className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
+          >
+            <CheckCheck className="w-3 h-3" />
+            Accept All Remaining ({pendingCount})
+          </button>
+        ) : hasPending && (
           <button
             onClick={onApplyAll}
             className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-md bg-primary/15 text-primary hover:bg-primary/25 transition-colors"
