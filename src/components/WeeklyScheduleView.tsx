@@ -95,8 +95,18 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
   };
 
   const isViewingToday = selectedDay === today;
-  // Future days (in the current week, after today) are read-only — can't pre-check future doses
-  const isViewingFuture = selectedDay > today;
+  // Compare actual calendar dates (not just day-of-week indices) to determine future/past
+  // e.g. if today is Sunday (0), Monday (1) is still a future day this week
+  const todayDate = new Date();
+  const getDateForDayIndex = (dayIdx: number): Date => {
+    const d = new Date(todayDate);
+    d.setDate(todayDate.getDate() + (dayIdx - todayDate.getDay()));
+    return d;
+  };
+  const selectedDate = getDateForDayIndex(selectedDay);
+  const todayMidnight = new Date(todayDate.getFullYear(), todayDate.getMonth(), todayDate.getDate());
+  const selectedMidnight = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+  const isViewingFuture = selectedMidnight > todayMidnight;
   const [selectedCompound, setSelectedCompound] = useState<Compound | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [doseUnit, setDoseUnit] = useState<'mg' | 'ml'>('mg');
