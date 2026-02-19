@@ -592,35 +592,32 @@ Please: 1) Identify overlapping/redundant compounds for this zone. 2) State each
 
           {/* Quick Action Buttons — TOP */}
           <div className="grid grid-cols-3 gap-1.5">
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 text-xs border-primary/30 hover:border-primary/60 hover:bg-primary/5"
+            <button
+              className="flex flex-col items-center gap-0.5 px-2 py-2 rounded-xl border border-primary/30 hover:border-primary/60 hover:bg-primary/5 transition-all active:scale-95 disabled:opacity-50"
               onClick={fetchAnalysis}
               disabled={analysisLoading}
             >
-              {analysisLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5 text-primary" />}
-              Optimize
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 text-xs border-amber-500/30 hover:border-amber-500/60 hover:bg-amber-500/5"
+              {analysisLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" /> : <Zap className="w-3.5 h-3.5 text-primary" />}
+              <span className="text-[10px] font-semibold text-foreground">Optimize</span>
+              <span className="text-[8px] text-muted-foreground/60 leading-tight text-center">Trim &amp; rebalance stack</span>
+            </button>
+            <button
+              className="flex flex-col items-center gap-0.5 px-2 py-2 rounded-xl border border-amber-500/30 hover:border-amber-500/60 hover:bg-amber-500/5 transition-all active:scale-95 disabled:opacity-50"
               onClick={handleImproveImpact}
               disabled={aiLoading}
             >
-              {aiLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-400" />}
-              Improve
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 text-xs border-chart-5/30 hover:border-chart-5/60 hover:bg-chart-5/5"
+              {aiLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" /> : <Sparkles className="w-3.5 h-3.5 text-amber-400" />}
+              <span className="text-[10px] font-semibold text-foreground">Improve</span>
+              <span className="text-[8px] text-muted-foreground/60 leading-tight text-center">Boost zone impact</span>
+            </button>
+            <button
+              className="flex flex-col items-center gap-0.5 px-2 py-2 rounded-xl border border-chart-5/30 hover:border-chart-5/60 hover:bg-chart-5/5 transition-all active:scale-95"
               onClick={() => setShowChat(!showChat)}
             >
               <MessageSquare className="w-3.5 h-3.5 text-chart-5" />
-              Chat
-            </Button>
+              <span className="text-[10px] font-semibold text-foreground">Chat</span>
+              <span className="text-[8px] text-muted-foreground/60 leading-tight text-center">Ask anything</span>
+            </button>
           </div>
 
           {/* Compound List */}
