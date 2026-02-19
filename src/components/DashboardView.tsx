@@ -1107,9 +1107,42 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
     [compounds]
   );
 
+  // For body coverage: exclude paused compounds AND compounds currently in their OFF cycle phase
+  // This ensures the body map and dials reflect the actual active protocol state in real-time
+  const coverageCompounds = useMemo(() => {
+    const now = new Date();
+    return activeCompounds.filter(c => {
+      // Exclude paused compounds
+      if (c.pausedAt) {
+        if (!c.pauseRestartDate) return false; // paused indefinitely
+        const restart = new Date(c.pauseRestartDate);
+        restart.setHours(0, 0, 0, 0);
+        const today = new Date(now);
+        today.setHours(0, 0, 0, 0);
+        if (today < restart) return false; // still paused
+      }
+      // Exclude compounds in their OFF cycle phase
+      if (c.cycleOnDays && c.cycleOffDays && c.cycleStartDate) {
+        const cycleLength = c.cycleOnDays + c.cycleOffDays;
+        const start = new Date(c.cycleStartDate);
+        let diffDays = Math.floor((now.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
+        // Subtract paused days
+        if (c.pausedAt) {
+          const pauseStart = new Date(c.pausedAt);
+          const pauseEnd = c.pauseRestartDate && new Date(c.pauseRestartDate) < now
+            ? new Date(c.pauseRestartDate) : now;
+          diffDays -= Math.max(0, Math.floor((pauseEnd.getTime() - pauseStart.getTime()) / (24 * 60 * 60 * 1000)));
+        }
+        const dayInCycle = ((diffDays % cycleLength) + cycleLength) % cycleLength;
+        if (dayInCycle >= c.cycleOnDays) return false; // currently in OFF phase
+      }
+      return true;
+    });
+  }, [activeCompounds]);
+
   const compoundNameIds = useMemo(() =>
-    activeCompounds.map(c => c.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')),
-    [activeCompounds]
+    coverageCompounds.map(c => c.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')),
+    [coverageCompounds]
   );
 
   const zoneIntensities = useMemo(() => computeZoneIntensities(compoundNameIds), [compoundNameIds]);
@@ -1170,9 +1203,10 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
       />
 
       {/* Protocol Coverage — supplementation feature */}
+      {/* coverageCompounds excludes paused + OFF-cycle items so dials reflect actual active protocol */}
       {f.supplementation ? (
         <ProtocolCoverageCard
-          activeCompounds={activeCompounds}
+          activeCompounds={coverageCompounds}
           zoneIntensities={zoneIntensities}
           bodyCoverage={bodyCoverage}
           displayGender={displayGender}

@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Compound } from '@/data/compounds';
 import { UserProtocol } from '@/hooks/useProtocols';
+import { getCycleStatus, isPaused } from '@/lib/cycling';
 import { toast } from 'sonner';
 
 export type ToleranceLevel = 'conservative' | 'moderate' | 'performance';
@@ -72,6 +73,33 @@ export interface CompoundAnalysis {
   suggestions: string[];
 }
 
+/** Serialize a compound's live state for AI analysis, including pause and cycle phase context */
+function serializeCompoundForAI(c: Compound) {
+  const cycleStatus = getCycleStatus(c);
+  const paused = isPaused(c);
+  return {
+    name: c.name,
+    category: c.category,
+    dosePerUse: c.dosePerUse,
+    doseLabel: c.doseLabel,
+    dosesPerDay: c.dosesPerDay,
+    daysPerWeek: c.daysPerWeek,
+    timingNote: c.timingNote,
+    cyclingNote: c.cyclingNote,
+    cycleOnDays: c.cycleOnDays,
+    cycleOffDays: c.cycleOffDays,
+    cycleStartDate: c.cycleStartDate,
+    unitPrice: c.unitPrice,
+    kitPrice: c.kitPrice,
+    // Live state — AI uses these to adjust grading and recommendations
+    isPaused: paused,
+    pauseRestartDate: c.pauseRestartDate,
+    cyclePhase: cycleStatus.hasCycle ? (cycleStatus.isOn ? 'ON' : 'OFF') : 'continuous',
+    daysLeftInPhase: cycleStatus.hasCycle ? cycleStatus.daysLeftInPhase : null,
+    isActiveNow: !paused && cycleStatus.isOn,
+  };
+}
+
 export function useProtocolAnalysis(compounds: Compound[], protocols: UserProtocol[]) {
   const [stackAnalysis, setStackAnalysis] = useState<StackAnalysis | null>(null);
   const [compoundAnalyses, setCompoundAnalyses] = useState<Record<string, CompoundAnalysis>>({});
@@ -84,7 +112,10 @@ export function useProtocolAnalysis(compounds: Compound[], protocols: UserProtoc
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
   // Create a hash of the current stack to detect changes
-  const stackHash = compounds.map(c => `${c.id}-${c.dosePerUse}-${c.dosesPerDay}-${c.daysPerWeek}`).sort().join('|') + `|${toleranceLevel}`;
+  // Hash includes cycle and pause fields so any cycle adjustment or pause toggles an automatic re-analysis
+  const stackHash = compounds.map(c =>
+    `${c.id}-${c.dosePerUse}-${c.dosesPerDay}-${c.daysPerWeek}-${c.cycleOnDays ?? 0}-${c.cycleOffDays ?? 0}-${c.cycleStartDate ?? ''}-${c.pausedAt ?? ''}-${c.pauseRestartDate ?? ''}`
+  ).sort().join('|') + `|${toleranceLevel}`;
 
   const analyzeStack = useCallback(async () => {
     if (compounds.length === 0) return;
@@ -99,21 +130,7 @@ export function useProtocolAnalysis(compounds: Compound[], protocols: UserProtoc
 
       const { data, error } = await supabase.functions.invoke('analyze-protocol', {
         body: {
-          compounds: compounds.map(c => ({
-            name: c.name,
-            category: c.category,
-            dosePerUse: c.dosePerUse,
-            doseLabel: c.doseLabel,
-            dosesPerDay: c.dosesPerDay,
-            daysPerWeek: c.daysPerWeek,
-            timingNote: c.timingNote,
-            cyclingNote: c.cyclingNote,
-            cycleOnDays: c.cycleOnDays,
-            cycleOffDays: c.cycleOffDays,
-            cycleStartDate: c.cycleStartDate,
-            unitPrice: c.unitPrice,
-            kitPrice: c.kitPrice,
-          })),
+          compounds: compounds.map(serializeCompoundForAI),
           protocols: protocolsWithNames,
           toleranceLevel,
           analysisType: 'stack',
@@ -148,21 +165,7 @@ export function useProtocolAnalysis(compounds: Compound[], protocols: UserProtoc
 
       const { data, error } = await supabase.functions.invoke('analyze-protocol', {
         body: {
-          compounds: allCompounds.map(c => ({
-            name: c.name,
-            category: c.category,
-            dosePerUse: c.dosePerUse,
-            doseLabel: c.doseLabel,
-            dosesPerDay: c.dosesPerDay,
-            daysPerWeek: c.daysPerWeek,
-            timingNote: c.timingNote,
-            cyclingNote: c.cyclingNote,
-            cycleOnDays: c.cycleOnDays,
-            cycleOffDays: c.cycleOffDays,
-            cycleStartDate: c.cycleStartDate,
-            unitPrice: c.unitPrice,
-            kitPrice: c.kitPrice,
-          })),
+          compounds: allCompounds.map(serializeCompoundForAI),
           toleranceLevel,
           analysisType: 'compound',
         },
@@ -210,21 +213,7 @@ export function useProtocolAnalysis(compounds: Compound[], protocols: UserProtoc
 
       const { data, error } = await supabase.functions.invoke('analyze-protocol', {
         body: {
-          compounds: compounds.map(c => ({
-            name: c.name,
-            category: c.category,
-            dosePerUse: c.dosePerUse,
-            doseLabel: c.doseLabel,
-            dosesPerDay: c.dosesPerDay,
-            daysPerWeek: c.daysPerWeek,
-            timingNote: c.timingNote,
-            cyclingNote: c.cyclingNote,
-            cycleOnDays: c.cycleOnDays,
-            cycleOffDays: c.cycleOffDays,
-            cycleStartDate: c.cycleStartDate,
-            unitPrice: c.unitPrice,
-            kitPrice: c.kitPrice,
-          })),
+          compounds: compounds.map(serializeCompoundForAI),
           protocols: protocolsWithNames,
           analysisType: 'compare',
         },

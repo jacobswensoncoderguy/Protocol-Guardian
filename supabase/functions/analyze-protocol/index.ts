@@ -145,36 +145,57 @@ CONTENT RULES
 10. Bold all compound names on first mention in each section
 11. Use tables when comparing 2+ compounds`;
 
+function buildCompoundLine(c: any): string {
+  let line = '- ' + c.name + ' (' + c.category + '): ' + c.dosePerUse + ' ' + c.doseLabel
+    + ' \u00d7 ' + c.dosesPerDay + '/day \u00d7 ' + c.daysPerWeek + 'd/wk';
+
+  // Live state: pause and cycle phase
+  if (c.isPaused) {
+    line += ' [\u23f8 PAUSED' + (c.pauseRestartDate ? ' \u2014 resumes ' + c.pauseRestartDate : ' \u2014 indefinitely') + ']';
+  } else if (c.cyclePhase === 'OFF') {
+    line += ' [\uD83D\uDD34 CURRENTLY OFF-CYCLE \u2014 ' + c.daysLeftInPhase + 'd left in OFF phase]';
+  } else if (c.cycleOnDays && c.cycleOffDays) {
+    line += ' [\uD83D\uDFE2 ACTIVE CYCLING: ' + c.cycleOnDays + 'd ON / ' + c.cycleOffDays + 'd OFF \u2014 ' + (c.daysLeftInPhase ?? '?') + 'd left in ON phase';
+    if (c.cycleStartDate) line += ', started ' + c.cycleStartDate;
+    line += ']';
+  } else if (c.cyclingNote) {
+    line += ' [Cycling note: ' + c.cyclingNote + ']';
+  } else {
+    line += ' [Continuous use]';
+  }
+
+  if (c.timingNote) line += ' [Timing: ' + c.timingNote + ']';
+  line += ' | Price: $' + c.unitPrice + '/unit';
+  return line;
+}
+
 function formatStackForChat(compounds: any[], protocols: any[], toleranceLevel: string, analysis: any) {
-  const stackDesc = compounds.map((c: any) => {
-    let line = `- ${c.name} (${c.category}): ${c.dosePerUse} ${c.doseLabel} × ${c.dosesPerDay}/day × ${c.daysPerWeek}d/wk`;
-    if (c.cycleOnDays && c.cycleOffDays) {
-      line += ` [ACTIVE CYCLING: ${c.cycleOnDays} days ON / ${c.cycleOffDays} days OFF`;
-      if (c.cycleStartDate) line += `, started ${c.cycleStartDate}`;
-      line += `]`;
-    } else if (c.cyclingNote) {
-      line += ` [Cycling note: ${c.cyclingNote}]`;
-    } else {
-      line += ` [No cycling configured — continuous use]`;
-    }
-    if (c.timingNote) line += ` [Timing: ${c.timingNote}]`;
-    line += ` | Price: $${c.unitPrice}/unit`;
-    return line;
-  }).join('\n');
+  const stackDesc = compounds.map(buildCompoundLine).join('\n');
 
   const protocolDesc = protocols?.length > 0
     ? '\n\nProtocol Groups:\n' + protocols.map((p: any) =>
-      `- ${p.name}: ${p.compoundNames?.join(', ') || 'No compounds assigned'}`
+      '- ' + p.name + ': ' + (p.compoundNames?.join(', ') || 'No compounds assigned')
     ).join('\n')
     : '';
 
-  const analysisDesc = analysis ? `\n\nPrevious Analysis Results:
-Overall Grade: ${analysis.overallGrade}
-Summary: ${analysis.overallSummary}
-Contraindications: ${analysis.contraindications?.map((c: any) => `[${c.severity}] ${c.description}`).join('; ') || 'None'}
-Top Recommendations: ${analysis.topRecommendations?.join('; ') || 'None'}` : '';
+  const analysisDesc = analysis
+    ? '\n\nPrevious Analysis Results:\nOverall Grade: ' + analysis.overallGrade
+      + '\nSummary: ' + analysis.overallSummary
+      + '\nContraindications: ' + (analysis.contraindications?.map((c: any) => '[' + c.severity + '] ' + c.description).join('; ') || 'None')
+      + '\nTop Recommendations: ' + (analysis.topRecommendations?.join('; ') || 'None')
+    : '';
 
-  return `Current Stack (Tolerance: ${toleranceLevel}):\n${stackDesc}${protocolDesc}${analysisDesc}\n\nIMPORTANT: Before suggesting cycling changes, CHECK the cycling data above. Many compounds already have active ON/OFF cycling schedules configured. Do NOT recommend cycling if the compound is already being cycled — instead acknowledge the existing schedule and evaluate whether the cycle parameters are appropriate.`;
+  const pausedNames = compounds.filter((c: any) => c.isPaused).map((c: any) => c.name);
+  const offCycleNames = compounds.filter((c: any) => !c.isPaused && c.cyclePhase === 'OFF').map((c: any) => c.name);
+
+  let activeNote = '';
+  if (pausedNames.length > 0) activeNote += '\n\u26a0 PAUSED (not contributing to coverage): ' + pausedNames.join(', ');
+  if (offCycleNames.length > 0) activeNote += '\n\u26a0 CURRENTLY OFF-CYCLE (not active today): ' + offCycleNames.join(', ');
+
+  return 'Current Stack (Tolerance: ' + toleranceLevel + '):\n' + stackDesc + protocolDesc + analysisDesc + activeNote
+    + '\n\nIMPORTANT:\n'
+    + '- Compounds marked PAUSED or OFF-CYCLE are NOT currently contributing to body coverage or daily dose totals. Factor this into your grade and recommendations.\n'
+    + '- Before suggesting cycling changes, CHECK the cycling data above. Many compounds already have active ON/OFF cycling schedules configured. Do NOT recommend cycling if the compound is already being cycled \u2014 instead acknowledge the existing schedule and evaluate whether the cycle parameters are appropriate.';
 }
 
 serve(async (req) => {
@@ -317,36 +338,28 @@ Rules:
 
     // ── COMPARE MODE: grades across all tolerance levels in one call ──
     if (analysisType === 'compare') {
-      const stackDescription = compounds.map((c: any) => {
-        let line = `- ${c.name} (${c.category}): ${c.dosePerUse} ${c.doseLabel} × ${c.dosesPerDay}/day × ${c.daysPerWeek}d/wk`;
-        if (c.cycleOnDays && c.cycleOffDays) {
-          line += ` [ACTIVE CYCLING: ${c.cycleOnDays}d ON / ${c.cycleOffDays}d OFF]`;
-        } else if (c.cyclingNote) {
-          line += ` [Cycling: ${c.cyclingNote}]`;
-        }
-        if (c.timingNote) line += ` [Timing: ${c.timingNote}]`;
-        line += ` | Price: $${c.unitPrice}/unit`;
-        return line;
-      }).join('\n');
+      const stackDescription = compounds.map(buildCompoundLine).join('\n');
 
       const protocolDescription = protocols?.length > 0
         ? '\n\nProtocol Groups:\n' + protocols.map((p: any) =>
-          `- ${p.name}: ${p.compoundNames?.join(', ') || 'No compounds assigned'}`
+          '- ' + p.name + ': ' + (p.compoundNames?.join(', ') || 'No compounds assigned')
         ).join('\n')
         : '';
 
-      const comparePrompt = `Analyze this complete stack and grade it at ALL FOUR tolerance levels simultaneously:
+      const pausedNote = compounds
+        .filter((c: any) => c.isPaused || c.cyclePhase === 'OFF')
+        .map((c: any) => c.name + ' [' + (c.isPaused ? 'PAUSED' : 'OFF-CYCLE') + ']')
+        .join(', ');
 
-${stackDescription}
-${protocolDescription}
-
-For EACH tolerance level (conservative, moderate, aggressive, performance), provide:
-1. The letter grade (A+ through F) calibrated properly for that level
-2. A brief 1-2 sentence summary explaining why this grade was given at that level
-3. The top risk or concern at that level
-4. The top strength or advantage at that level
-
-Remember the grading calibration rules — conservative grades harshly, performance grades on goal alignment.`;
+      const comparePrompt = 'Analyze this complete stack and grade it at ALL FOUR tolerance levels simultaneously.\n'
+        + (pausedNote ? 'Note: These compounds are NOT currently active: ' + pausedNote + '. Factor this into your analysis.\n' : '')
+        + '\n' + stackDescription + '\n' + protocolDescription
+        + '\n\nFor EACH tolerance level (conservative, moderate, aggressive, performance), provide:\n'
+        + '1. The letter grade (A+ through F) calibrated properly for that level\n'
+        + '2. A brief 1-2 sentence summary explaining why this grade was given at that level\n'
+        + '3. The top risk or concern at that level\n'
+        + '4. The top strength or advantage at that level\n\n'
+        + 'Remember the grading calibration rules — conservative grades harshly, performance grades on goal alignment.';
 
       const compareTools = [{
         type: "function",
@@ -459,23 +472,22 @@ Remember the grading calibration rules — conservative grades harshly, performa
     }
 
     // ── STRUCTURED ANALYSIS MODES (stack / compound) ──
-    const stackDescription = compounds.map((c: any) => {
-      let line = `- ${c.name} (${c.category}): ${c.dosePerUse} ${c.doseLabel} × ${c.dosesPerDay}/day × ${c.daysPerWeek}d/wk`;
-      if (c.cycleOnDays && c.cycleOffDays) {
-        line += ` [ACTIVE CYCLING: ${c.cycleOnDays}d ON / ${c.cycleOffDays}d OFF]`;
-      } else if (c.cyclingNote) {
-        line += ` [Cycling: ${c.cyclingNote}]`;
-      }
-      if (c.timingNote) line += ` [Timing: ${c.timingNote}]`;
-      line += ` | Price: $${c.unitPrice}/unit`;
-      return line;
-    }).join('\n');
+    const stackDescription = compounds.map(buildCompoundLine).join('\n');
 
     const protocolDescription = protocols?.length > 0
       ? '\n\nProtocol Groups:\n' + protocols.map((p: any) =>
-        `- ${p.name}: ${p.compoundNames?.join(', ') || 'No compounds assigned'}`
+        '- ' + p.name + ': ' + (p.compoundNames?.join(', ') || 'No compounds assigned')
       ).join('\n')
       : '';
+
+    const inactiveNote = (() => {
+      const paused = compounds.filter((c: any) => c.isPaused).map((c: any) => c.name);
+      const offCycle = compounds.filter((c: any) => !c.isPaused && c.cyclePhase === 'OFF').map((c: any) => c.name);
+      const parts = [];
+      if (paused.length) parts.push(`Paused (no current contribution): ${paused.join(', ')}`);
+      if (offCycle.length) parts.push(`Off-cycle (not active today): ${offCycle.join(', ')}`);
+      return parts.join(' | ');
+    })();
 
     let userPrompt: string;
     let tools: any[];
@@ -484,16 +496,19 @@ Remember the grading calibration rules — conservative grades harshly, performa
     if (analysisType === 'compound') {
       const targetCompound = compounds[0];
       const restOfStack = compounds.slice(1);
-      userPrompt = `Analyze this specific compound within the context of the user's full stack:
-
-TARGET COMPOUND: ${targetCompound.name} (${targetCompound.category}) - ${targetCompound.dosePerUse} ${targetCompound.doseLabel} × ${targetCompound.dosesPerDay}/day × ${targetCompound.daysPerWeek}d/wk
-
-REST OF STACK:
-${restOfStack.map((c: any) => `- ${c.name} (${c.category}): ${c.dosePerUse} ${c.doseLabel}`).join('\n')}
-
-Tolerance Level: ${toleranceLevel}
-
-Analyze interactions, bioavailability, and provide suggestions specific to this compound.`;
+      const targetStatus = targetCompound.isPaused
+        ? ' [\u23f8 CURRENTLY PAUSED]'
+        : targetCompound.cyclePhase === 'OFF'
+        ? ' [\uD83D\uDD34 CURRENTLY OFF-CYCLE]'
+        : '';
+      userPrompt = 'Analyze this specific compound within the context of the user\'s full stack:\n\n'
+        + 'TARGET COMPOUND: ' + targetCompound.name + ' (' + targetCompound.category + ') - '
+        + targetCompound.dosePerUse + ' ' + targetCompound.doseLabel + ' \u00d7 '
+        + targetCompound.dosesPerDay + '/day \u00d7 ' + targetCompound.daysPerWeek + 'd/wk' + targetStatus
+        + '\n\nREST OF STACK:\n' + restOfStack.map(buildCompoundLine).join('\n')
+        + (inactiveNote ? '\n\nNote on inactive compounds: ' + inactiveNote : '')
+        + '\n\nTolerance Level: ' + toleranceLevel
+        + '\n\nAnalyze interactions, bioavailability, and provide suggestions specific to this compound. Factor in whether the target compound or any stack members are currently paused or in OFF cycle phase.';
 
       tools = [{
         type: "function",
@@ -551,29 +566,30 @@ Analyze interactions, bioavailability, and provide suggestions specific to this 
       }];
       toolChoice = { type: "function", function: { name: "compound_analysis" } };
     } else {
-      userPrompt = `Analyze this complete supplement/compound stack:
+      const toleranceInstruction = toleranceLevel === 'performance'
+        ? 'This user accepts high risk for maximum outcomes. Grade based on goal alignment and synergy — a well-structured aggressive stack with organ support should earn A- or A. Only grade below B+ for truly reckless stacks with zero support or contradictory compounds.'
+        : toleranceLevel === 'aggressive'
+        ? 'This user accepts above-average risk. A well-supported aggressive stack can earn A-. Only penalize for genuinely dangerous unsupported combinations.'
+        : toleranceLevel === 'conservative'
+        ? 'Grade HARSHLY. Any supra-physiological dosing or multiple orals should heavily penalize the grade. Even moderate biohacker stacks get B- at best.'
+        : 'Balanced grading. Standard biohacker dosing is acceptable. A well-structured stack with support can earn B+.';
 
-${stackDescription}
-${protocolDescription}
+      const inactiveBlock = inactiveNote
+        ? '\n\u26a0 INACTIVE COMPOUNDS (not currently contributing to body coverage or daily dose):\n' + inactiveNote + '\nFactor these into your analysis \u2014 the grade should reflect the CURRENTLY ACTIVE protocol state, not the theoretical full stack.'
+        : '';
 
-Tolerance Level: ${toleranceLevel}
-
-CRITICAL GRADING INSTRUCTION: The tolerance level is "${toleranceLevel}". ${
-  toleranceLevel === 'performance' 
-    ? 'This user accepts high risk for maximum outcomes. Grade based on goal alignment and synergy — a well-structured aggressive stack with organ support should earn A- or A. Only grade below B+ for truly reckless stacks with zero support or contradictory compounds.'
-    : toleranceLevel === 'aggressive'
-    ? 'This user accepts above-average risk. A well-supported aggressive stack can earn A-. Only penalize for genuinely dangerous unsupported combinations.'
-    : toleranceLevel === 'conservative'
-    ? 'Grade HARSHLY. Any supra-physiological dosing or multiple orals should heavily penalize the grade. Even moderate biohacker stacks get B- at best.'
-    : 'Balanced grading. Standard biohacker dosing is acceptable. A well-structured stack with support can earn B+.'
-}
-
-Provide a comprehensive analysis covering:
-1. Contraindications and dangerous interactions
-2. Bioavailability issues and optimization suggestions
-3. Protocol efficiency grades (A-F) for each protocol group
-4. Cost-efficiency analysis
-5. Overall stack grade and top recommendations`;
+      userPrompt = 'Analyze this complete supplement/compound stack:\n\n'
+        + stackDescription + '\n'
+        + protocolDescription + '\n'
+        + inactiveBlock
+        + '\n\nTolerance Level: ' + toleranceLevel
+        + '\n\nCRITICAL GRADING INSTRUCTION: The tolerance level is "' + toleranceLevel + '". ' + toleranceInstruction
+        + '\n\nProvide a comprehensive analysis covering:\n'
+        + '1. Contraindications and dangerous interactions\n'
+        + '2. Bioavailability issues and optimization suggestions\n'
+        + '3. Protocol efficiency grades (A-F) for each protocol group\n'
+        + '4. Cost-efficiency analysis\n'
+        + '5. Overall stack grade and top recommendations';
 
       tools = [{
         type: "function",
