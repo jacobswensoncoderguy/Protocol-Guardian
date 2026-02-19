@@ -49,6 +49,8 @@ export function useProtocolChat(
   onConversationUpdate?: (convId: string, content: string) => void,
   onAutoTitle?: (convId: string, title: string) => void,
   onChangeAccepted?: (info: { compoundId: string; field: string }) => void,
+  onNavigateToInventory?: () => void,
+  onNavigateToAIChanges?: () => void,
 ) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -361,7 +363,9 @@ export function useProtocolChat(
       }
       toast.success(`Removed ${change.compoundName} from protocol`, {
         description: 'Schedule, inventory & costs have been updated.',
-        duration: 4000,
+        duration: 6000,
+        action: onNavigateToInventory ? { label: 'View Inventory', onClick: onNavigateToInventory } : undefined,
+        cancel: onNavigateToAIChanges ? { label: 'AI Changes', onClick: onNavigateToAIChanges } : undefined,
       });
     } else if (compound && change.field && change.newValue !== undefined) {
       const numericFields = ['dosePerUse', 'dosesPerDay', 'daysPerWeek', 'cycleOnDays', 'cycleOffDays'];
@@ -406,7 +410,9 @@ export function useProtocolChat(
       const friendlyField = fieldNames[change.field] ?? change.field;
       toast.success(`${change.compoundName} updated`, {
         description: `${friendlyField}: ${change.oldValue} → ${change.newValue} · Schedule & inventory synced.`,
-        duration: 5000,
+        duration: 6000,
+        action: onNavigateToInventory ? { label: 'View Inventory', onClick: onNavigateToInventory } : undefined,
+        cancel: onNavigateToAIChanges ? { label: 'AI Changes', onClick: onNavigateToAIChanges } : undefined,
       });
     }
 
@@ -430,7 +436,7 @@ export function useProtocolChat(
     } else {
       onChangeAccepted?.({ compoundId: '', field: '' });
     }
-  }, [pendingConfirm, findCompoundByName, updateCompound, deleteCompound, updatePersistedMessage, refetch, onChangeAccepted]);
+  }, [pendingConfirm, findCompoundByName, updateCompound, deleteCompound, updatePersistedMessage, refetch, onChangeAccepted, onNavigateToInventory, onNavigateToAIChanges]);
 
   const undoChange = useCallback(async (proposalId: string, changeIndex: number) => {
     const proposal = proposalsRef.current.find(p => p.id === proposalId);
@@ -509,7 +515,14 @@ export function useProtocolChat(
     setPendingConfirm(null);
     await refetch();
     onChangeAccepted?.({ compoundId: '', field: '' });
-  }, [proposals, findCompoundByName, updateCompound, deleteCompound, messages, updatePersistedMessage, refetch, onChangeAccepted]);
+    // Show a final summary toast with nav shortcuts
+    toast.success('All changes applied', {
+      description: 'Protocol, schedule & inventory have been synced.',
+      duration: 6000,
+      action: onNavigateToInventory ? { label: 'View Inventory', onClick: onNavigateToInventory } : undefined,
+      cancel: onNavigateToAIChanges ? { label: 'AI Changes', onClick: onNavigateToAIChanges } : undefined,
+    });
+  }, [proposals, findCompoundByName, updateCompound, deleteCompound, messages, updatePersistedMessage, refetch, onChangeAccepted, onNavigateToInventory, onNavigateToAIChanges]);
 
   const cancelStream = useCallback(() => { abortRef.current?.abort(); }, []);
 
