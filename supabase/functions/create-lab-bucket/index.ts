@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
 
   // Create the bucket if it doesn't exist
   const { data, error } = await supabase.storage.createBucket('lab-uploads', {
-    public: false,
+    public: true,
     fileSizeLimit: 20 * 1024 * 1024,
     allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'text/plain', 'text/csv'],
   });

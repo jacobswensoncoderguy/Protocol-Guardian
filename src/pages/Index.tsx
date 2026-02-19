@@ -472,10 +472,10 @@ const Index = () => {
               onSelect={handleHouseholdSelect}
             />
             <Tabs value={scheduleSubTab} onValueChange={setScheduleSubTab} className="w-full">
-              <TabsList className="w-full bg-card/80 border border-border/60 mb-3 h-10 p-1 gap-1">
-                <TabsTrigger value="this-week" className="flex-1 text-xs font-semibold rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">This Week</TabsTrigger>
-                <TabsTrigger value="history" className="flex-1 text-xs font-semibold rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">History</TabsTrigger>
-                <TabsTrigger value="ai-changes" className="flex-1 text-xs font-semibold rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">AI Changes</TabsTrigger>
+              <TabsList className="w-full bg-card/80 border border-border/60 mb-3 h-10 p-1 gap-1 logging-tabs">
+                <TabsTrigger value="this-week" className="flex-1 text-xs font-semibold rounded-md data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">This Week</TabsTrigger>
+                <TabsTrigger value="history" className="flex-1 text-xs font-semibold rounded-md data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">History</TabsTrigger>
+                <TabsTrigger value="ai-changes" className="flex-1 text-xs font-semibold rounded-md data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">AI Changes</TabsTrigger>
               </TabsList>
               <div key={scheduleSubTab} className={scheduleSwipe.slideClass} onAnimationEnd={scheduleSwipe.onAnimationEnd} onTouchStart={scheduleSwipe.onTouchStart} onTouchEnd={scheduleSwipe.onTouchEnd}>
                 <TabsContent value="this-week" forceMount={scheduleSubTab === 'this-week' ? true : undefined}>
@@ -524,10 +524,10 @@ const Index = () => {
               </div>
             )}
             <Tabs value={inventorySubTab} onValueChange={setInventorySubTab} className="w-full">
-              <TabsList className="w-full bg-card/80 border border-border/60 mb-3 h-10 p-1 gap-1">
-                <TabsTrigger value="stock" className="flex-1 text-xs font-semibold rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">Stock</TabsTrigger>
-                <TabsTrigger value="costs" className="flex-1 text-xs font-semibold rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">Costs</TabsTrigger>
-                <TabsTrigger value="reorder" className="relative flex-1 text-xs font-semibold rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">
+              <TabsList className="w-full bg-card/80 border border-border/60 mb-3 h-10 p-1 gap-1 logging-tabs">
+                <TabsTrigger value="stock" className="flex-1 text-xs font-semibold rounded-md data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">Stock</TabsTrigger>
+                <TabsTrigger value="costs" className="flex-1 text-xs font-semibold rounded-md data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">Costs</TabsTrigger>
+                <TabsTrigger value="reorder" className="relative flex-1 text-xs font-semibold rounded-md data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">
                   Reorder
                   {lowStockCounts.reorder > 0 && (
                     <span className="absolute -top-1 -right-1 min-w-[14px] h-3.5 px-0.5 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">

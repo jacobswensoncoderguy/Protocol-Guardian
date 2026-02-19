@@ -99,8 +99,9 @@ export default function BiomarkerUploadDialog({
   const [parseProgress, setParseProgress] = useState<{ current: number; total: number } | null>(null);
   const [uploadLabel, setUploadLabel] = useState('');
   const [uploadDate, setUploadDate] = useState('');
-  // Store the first image file as a data URL so the detail sheet can show it inline
+  // Store the first image file as a data URL for inline preview, and the raw file for storage upload
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
+  const [rawFileForStorage, setRawFileForStorage] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -122,6 +123,7 @@ export default function BiomarkerUploadDialog({
     setUploadLabel('');
     setUploadDate('');
     setImageDataUrl(null);
+    setRawFileForStorage(null);
   };
 
   const handleClose = (open: boolean) => {
@@ -182,6 +184,7 @@ export default function BiomarkerUploadDialog({
     const mergedBiomarkers: Biomarker[] = [];
     let mergedResult: ParsedResult | null = null;
     let capturedImageDataUrl: string | null = null;
+    let capturedRawFile: File | null = null;
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
@@ -201,7 +204,12 @@ export default function BiomarkerUploadDialog({
         else if (ext === 'csv') fileType = 'CSV lab data';
         else if (ext === 'pdf') fileType = file.name.toLowerCase().includes('dexa') ? 'DEXA scan' : 'PDF lab report';
 
-        // Capture the first image file so we can show it inline in the detail sheet
+        // Capture first file for storage upload (prefer PDF, then image)
+        if (!capturedRawFile) {
+          capturedRawFile = file;
+        }
+
+        // Capture the first image file for inline preview
         if (isImg && !capturedImageDataUrl) {
           capturedImageDataUrl = await new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
@@ -247,6 +255,7 @@ export default function BiomarkerUploadDialog({
         : mergedResult.summary;
       setParsedResult(mergedResult);
       if (capturedImageDataUrl) setImageDataUrl(capturedImageDataUrl);
+      if (capturedRawFile) setRawFileForStorage(capturedRawFile);
       setStep('results');
     } else {
       toast.error('No biomarkers could be extracted from the selected files.');
@@ -268,7 +277,7 @@ export default function BiomarkerUploadDialog({
     parseContent(text);
   };
 
-  /** Save the upload record — no goal-linking here, that's done via Align to Goal */
+  /** Save the upload record — upload file to storage first if available */
   const saveAndClose = async () => {
     if (!parsedResult || !userId) return;
     setSavingReadings(true);
@@ -276,9 +285,33 @@ export default function BiomarkerUploadDialog({
       const label = uploadLabel.trim() || buildDefaultLabel(parsedResult.document_type, parsedResult.document_date);
       const date = uploadDate || parsedResult.document_date || new Date().toISOString().split('T')[0];
 
-      // Store the image data URL if available (for inline preview in detail sheet)
-      // Data URLs are base64-encoded images stored directly; PDFs fall back to 'parsed_text'
-      const fileUrl = imageDataUrl || 'parsed_text';
+      let fileUrl = imageDataUrl || 'parsed_text';
+
+      // Upload file to storage so users can open the original
+      if (rawFileForStorage) {
+        try {
+          // Ensure bucket exists (calls the create-lab-bucket edge function)
+          await supabase.functions.invoke('create-lab-bucket');
+
+          const ext = rawFileForStorage.name.split('.').pop()?.toLowerCase() || 'bin';
+          const storagePath = `${userId}/${Date.now()}-${label.replace(/[^a-zA-Z0-9]/g, '_')}.${ext}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from('lab-uploads')
+            .upload(storagePath, rawFileForStorage, { upsert: true });
+
+          if (!uploadError) {
+            const { data: urlData } = supabase.storage
+              .from('lab-uploads')
+              .getPublicUrl(storagePath);
+            if (urlData?.publicUrl) {
+              fileUrl = urlData.publicUrl;
+            }
+          }
+        } catch {
+          // Storage upload failed — fall back to data URL or parsed_text
+        }
+      }
 
       const { error } = await supabase.from('user_goal_uploads').insert({
         user_id: userId,
@@ -301,6 +334,7 @@ export default function BiomarkerUploadDialog({
       setSavingReadings(false);
     }
   };
+
 
   // Group biomarkers by category
   const groupedBiomarkers = parsedResult?.biomarkers.reduce((acc, b) => {
