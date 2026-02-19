@@ -873,6 +873,33 @@ function ComparisonSheet({
     return changes;
   }, [uploads]);
 
+  // Shared markers trend: markers present in ALL selected uploads, sorted by date
+  const sharedMarkerTrends = useMemo(() => {
+    const sorted = [...uploads].sort((a, b) => parseRecordDate(a).getTime() - parseRecordDate(b).getTime());
+    // Build name→values map across all uploads
+    const markerValues = new Map<string, { date: string; value: number; unit: string }[]>();
+    sorted.forEach(u => {
+      const d = parseRecordDate(u).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      (u.ai_extracted_data?.biomarkers || []).forEach((b: any) => {
+        if (typeof b.value !== 'number') return;
+        if (!markerValues.has(b.name)) markerValues.set(b.name, []);
+        markerValues.get(b.name)!.push({ date: d, value: b.value, unit: b.unit });
+      });
+    });
+    // Keep only markers present in every upload with numeric values
+    const shared: { name: string; unit: string; points: { date: string; value: number }[] }[] = [];
+    markerValues.forEach((points, name) => {
+      if (points.length === sorted.length) {
+        // Filter to top flagged or changed markers first
+        shared.push({ name, unit: points[0].unit, points: points.map(p => ({ date: p.date, value: p.value })) });
+      }
+    });
+    // Prioritize markers that changed or are flagged
+    const flaggedNames = new Set(keyChanges.map(c => c.name));
+    shared.sort((a, b) => (flaggedNames.has(b.name) ? 1 : 0) - (flaggedNames.has(a.name) ? 1 : 0));
+    return shared.slice(0, 6); // show top 6
+  }, [uploads, keyChanges]);
+
   const generateComparison = useCallback(async () => {
     if (uploads.length < 2) {
       toast.error('Select at least 2 uploads to compare');
@@ -881,21 +908,37 @@ function ComparisonSheet({
     setLoading(true);
     setAiResult('');
     try {
-      const summaries = uploads.map((u, i) => {
+      const sorted = [...uploads].sort((a, b) => parseRecordDate(a).getTime() - parseRecordDate(b).getTime());
+
+      const summaries = sorted.map((u, i) => {
         const bm = u.ai_extracted_data?.biomarkers || [];
         const flagged = bm.filter((b: any) => b.status !== 'normal');
-        const d = parseRecordDate(u).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-        return `Upload ${i + 1}: "${u.file_name || u.upload_type}" (${d})\n` +
-          `  Total markers: ${bm.length}, Flagged: ${flagged.length}\n` +
-          `  Markers: ${bm.map((b: any) => `${b.name}=${b.value}${b.unit}(${b.status})`).join(', ')}`;
+        const d = parseRecordDate(u).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+        return `Upload ${i + 1} — "${u.file_name || u.upload_type}" (${d})\n` +
+          `  Markers: ${bm.length} total, ${flagged.length} flagged\n` +
+          `  Data: ${bm.map((b: any) => `${b.name}=${b.value}${b.unit}[${b.status}]`).join(', ')}`;
       }).join('\n\n');
 
-      const prompt = `You are a health data analyst. Compare and contrast the following lab uploads for the same user, highlighting key changes, improvements, regressions, and trends across the time period. Keep it concise and actionable (200-300 words):\n\n${summaries}`;
+      const prompt = `You are an expert health data analyst reviewing multiple lab uploads from the same person over time.
+
+Analyze these ${sorted.length} lab uploads and provide a structured report covering:
+1. **Key Trends** — what's improving or worsening over the time period
+2. **Correlations** — biomarkers that appear to move together (e.g., inflammatory markers trending together)
+3. **Contradictions** — unexpected findings or biomarkers moving in opposite directions from what's expected
+4. **Notable Changes** — the most clinically significant status changes (normal→flagged or flagged→normal)
+5. **Overall Assessment** — one-line summary of overall health trajectory
+
+Be specific with numbers. Keep under 300 words. Use plain text with no markdown symbols.
+
+Lab Data:
+${summaries}`;
 
       const { data, error } = await supabase.functions.invoke('analyze-protocol', {
         body: { prompt, context: 'lab_comparison' },
       });
       if (error) throw error;
+      if (data?.status === 429) throw new Error('Rate limit reached. Please try again in a moment.');
+      if (data?.status === 402) throw new Error('AI usage limit reached. Add credits in workspace settings.');
       setAiResult(data?.analysis || data?.response || 'Analysis complete.');
     } catch (e: any) {
       toast.error(e.message || 'Failed to generate comparison');
@@ -994,6 +1037,41 @@ function ComparisonSheet({
             })}
           </div>
 
+          {/* Shared marker sparklines — visual trend across all selected uploads */}
+          {sharedMarkerTrends.length > 0 && (
+            <div className="rounded-xl border border-border/30 bg-secondary/10 p-3 space-y-2">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <TrendingUp className="w-3 h-3 text-primary" />
+                Shared Marker Trends
+                <span className="text-[9px] font-normal text-muted-foreground/60">{sharedMarkerTrends.length} markers across all uploads</span>
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {sharedMarkerTrends.map(marker => {
+                  const values = marker.points.map(p => p.value);
+                  const delta = values[values.length - 1] - values[0];
+                  const isGood = Math.abs(delta) < 0.01 ? null : delta > 0;
+                  return (
+                    <div key={marker.name} className="bg-card rounded-lg p-2 border border-border/20 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-medium text-foreground truncate flex-1">{marker.name}</span>
+                        {delta !== 0 && (
+                          <span className={`text-[9px] font-mono font-semibold flex-shrink-0 ml-1 ${isGood === null ? 'text-muted-foreground' : isGood ? 'text-emerald-400' : 'text-amber-400'}`}>
+                            {delta > 0 ? '+' : ''}{delta.toFixed(1)}
+                          </span>
+                        )}
+                      </div>
+                      <MiniSparkline values={values} width={100} height={20} className="w-full" />
+                      <div className="flex items-center justify-between text-[9px] text-muted-foreground/60">
+                        <span>{marker.points[0].date}</span>
+                        <span>{marker.points[marker.points.length - 1].date}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Save form */}
           {showSaveForm && (
             <div className="bg-secondary/20 rounded-xl p-3 border border-primary/20 space-y-2">
@@ -1022,17 +1100,22 @@ function ComparisonSheet({
               <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
               <div>
                 <p className="text-sm font-medium text-foreground">Analyzing your labs…</p>
-                <p className="text-xs text-muted-foreground mt-1">Comparing biomarkers across {uploads.length} uploads</p>
+                <p className="text-xs text-muted-foreground mt-1">Finding correlations & trends across {uploads.length} uploads</p>
               </div>
             </div>
           )}
 
           {aiResult && !loading && (
-            <div className="bg-secondary/20 rounded-xl p-3.5 border border-border/30 space-y-2">
+            <div className="bg-secondary/20 rounded-xl p-3.5 border border-border/30 space-y-3">
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                 <Sparkles className="w-3 h-3 text-primary" /> AI Analysis
               </p>
-              <p className="text-xs text-foreground leading-relaxed whitespace-pre-line">{aiResult}</p>
+              {/* Render structured sections if they appear */}
+              <div className="space-y-2">
+                {aiResult.split(/\n(?=\d\.)/).map((section, i) => (
+                  <p key={i} className="text-xs text-foreground leading-relaxed whitespace-pre-line">{section.trim()}</p>
+                ))}
+              </div>
               <button
                 onClick={generateComparison}
                 className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-colors"
@@ -1505,7 +1588,13 @@ export default function BiomarkerHistoryView({
   const handleToggleSelect = (id: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else if (next.size < 4) {
+        next.add(id);
+      } else {
+        toast.error('Maximum 4 uploads can be compared at once');
+      }
       return next;
     });
   };
@@ -1546,7 +1635,7 @@ export default function BiomarkerHistoryView({
 
   return (
     <div className="space-y-4">
-      {/* Header row: upload button only */}
+      {/* Header row: upload + compare buttons */}
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-foreground">
@@ -1554,12 +1643,29 @@ export default function BiomarkerHistoryView({
           </p>
           <p className="text-[11px] text-muted-foreground">Tap a tile to view full analysis</p>
         </div>
-        <button
-          onClick={onUploadClick}
-          className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm"
-        >
-          <Upload className="w-3.5 h-3.5" /> Upload Labs
-        </button>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Compare toggle — always visible when 2+ uploads exist */}
+          {uploads.length >= 2 && (
+            <button
+              onClick={() => handleToggleCompareMode()}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all",
+                compareMode
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-secondary/50 text-muted-foreground border-border/50 hover:border-primary/40 hover:text-foreground"
+              )}
+            >
+              <ArrowRightLeft className="w-3.5 h-3.5" />
+              {compareMode ? 'Cancel' : 'Compare'}
+            </button>
+          )}
+          <button
+            onClick={onUploadClick}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm"
+          >
+            <Upload className="w-3.5 h-3.5" /> Upload
+          </button>
+        </div>
       </div>
 
       {/* Biomarker summary strip — separate from upload CTA */}
@@ -1626,26 +1732,38 @@ export default function BiomarkerHistoryView({
         )}
       </div>
 
-      {/* ── Global Compare Mode Toolbar ── */}
+      {/* ── Compare Mode Selection Bar ── */}
       {compareMode && (
-        <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-primary/5 border border-primary/20 sticky top-0 z-20">
-          <p className="text-[10px] text-primary font-medium">
-            {selectedIds.size === 0
-              ? 'Tap any tile to select for comparison'
-              : `${selectedIds.size} tile${selectedIds.size !== 1 ? 's' : ''} selected`}
-          </p>
-          <div className="flex items-center gap-2">
+        <div className="sticky top-0 z-20 rounded-xl bg-card border border-primary/30 shadow-lg px-3 py-2.5 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-6 h-6 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
+              <ArrowRightLeft className="w-3 h-3 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-foreground">
+                {selectedIds.size === 0
+                  ? 'Select 2–4 uploads'
+                  : `${selectedIds.size} selected`}
+                {selectedIds.size >= 4 && <span className="text-[10px] text-muted-foreground font-normal ml-1">(max)</span>}
+              </p>
+              <p className="text-[10px] text-muted-foreground truncate">
+                {selectedIds.size === 0 ? 'Tap any tile to add to comparison' : 'AI will find correlations & trends'}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
             {selectedIds.size >= 2 && (
               <button
                 onClick={() => setShowComparisonSheet(true)}
-                className="flex items-center gap-1 text-[10px] font-semibold text-primary-foreground bg-primary px-2.5 py-1 rounded-lg hover:bg-primary/90 transition-colors"
+                className="flex items-center gap-1.5 text-[11px] font-semibold text-primary-foreground bg-primary px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors"
               >
-                <Sparkles className="w-3 h-3" /> Compare ({selectedIds.size})
+                <Sparkles className="w-3 h-3" />
+                Compare {selectedIds.size}
               </button>
             )}
             <button
               onClick={() => handleToggleCompareMode()}
-              className="text-[10px] text-muted-foreground hover:text-foreground transition-colors px-1"
+              className="text-[10px] text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-lg hover:bg-secondary/50"
             >
               Cancel
             </button>
