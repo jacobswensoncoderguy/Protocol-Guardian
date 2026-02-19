@@ -195,28 +195,6 @@ const CartoonBody = ({
         className="w-full h-full object-contain object-top"
         draggable={false}
       />
-      {/* Zone badges */}
-      {ZONE_BADGE_POSITIONS.map(({ zone, style, side }) => {
-        const intensity = zoneIntensities[zone] ?? 0;
-        const info = BODY_ZONES[zone];
-        const pct = Math.round(intensity * 100);
-        return (
-          <button
-            key={zone}
-            onClick={() => onZoneTap?.(zone)}
-            style={style}
-            className="absolute flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-card/80 backdrop-blur-sm border border-border/40 hover:border-border/80 transition-all active:scale-95 text-left"
-          >
-            {side === 'right' && (
-              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: info.color, boxShadow: `0 0 4px ${info.color}` }} />
-            )}
-            <span className="text-[9px] font-mono font-semibold" style={{ color: info.color }}>{pct}%</span>
-            {side === 'left' && (
-              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: info.color, boxShadow: `0 0 4px ${info.color}` }} />
-            )}
-          </button>
-        );
-      })}
     </div>
   );
 };
@@ -242,15 +220,180 @@ interface ProtocolCoverageCardProps {
   onAddCompound?: () => void;
 }
 
-type LayoutStyle = 'classic' | 'hero' | 'split' | 'compact' | 'immersive';
+type LayoutStyle = 'classic' | 'hero' | 'split' | 'compact' | 'immersive' | 'insight';
 
 const LAYOUT_OPTIONS: Array<{ id: LayoutStyle; label: string; desc: string }> = [
-  { id: 'classic', label: 'Classic', desc: 'Body left · bars right' },
-  { id: 'hero',    label: 'Hero',    desc: 'Full-width glowing body' },
-  { id: 'split',   label: 'Split',   desc: 'Score top · body full-width' },
-  { id: 'compact', label: 'Compact', desc: 'Mini body · rings' },
-  { id: 'immersive', label: 'Immersive', desc: 'Body fills card bg' },
+  { id: 'classic',  label: 'Classic',  desc: 'Body left · bars right' },
+  { id: 'hero',     label: 'Hero',     desc: 'Full-width glowing body' },
+  { id: 'split',    label: 'Split',    desc: 'Score top · body full-width' },
+  { id: 'compact',  label: 'Compact',  desc: 'Mini body · rings' },
+  { id: 'immersive',label: 'Immersive',desc: 'Body fills card bg' },
+  { id: 'insight',  label: 'Insight',  desc: 'AI insight · coverage rings' },
 ];
+
+// ── Radial Coverage Rings ──────────────────────────────────────────────
+const CoverageRings = ({ zoneIntensities, onZoneTap }: { zoneIntensities: Record<BodyZone, number>; onZoneTap: (z: BodyZone) => void }) => {
+  const R = 20, STROKE = 5, C = 2 * Math.PI * R;
+  const zones = Object.keys(BODY_ZONES) as BodyZone[];
+  return (
+    <div className="grid grid-cols-4 gap-x-2 gap-y-3">
+      {zones.map(zone => {
+        const info = BODY_ZONES[zone];
+        const Icon = ZONE_ICONS_MAP[zone];
+        const intensity = zoneIntensities[zone] ?? 0;
+        const pct = Math.round(intensity * 100);
+        const dash = (pct / 100) * C;
+        const isUncovered = pct === 0;
+        const ringColor = isUncovered ? 'hsl(var(--muted-foreground) / 0.15)' : info.color;
+        return (
+          <button
+            key={zone}
+            onClick={() => onZoneTap(zone)}
+            className="flex flex-col items-center gap-1 active:scale-95 transition-transform"
+          >
+            <div className="relative">
+              <svg width="52" height="52" viewBox="0 0 52 52">
+                {/* Track */}
+                <circle cx="26" cy="26" r={R} fill="none" stroke="hsl(var(--secondary))" strokeWidth={STROKE} />
+                {/* Fill arc */}
+                {pct > 0 && (
+                  <circle
+                    cx="26" cy="26" r={R}
+                    fill="none"
+                    stroke={info.color}
+                    strokeWidth={STROKE}
+                    strokeDasharray={`${dash} ${C}`}
+                    strokeLinecap="round"
+                    transform="rotate(-90 26 26)"
+                    style={{ filter: `drop-shadow(0 0 5px ${info.color}80)` }}
+                  />
+                )}
+              </svg>
+              {/* Icon centered */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Icon className="w-3.5 h-3.5" style={{ color: ringColor }} />
+              </div>
+            </div>
+            <span className="text-[8px] font-mono font-bold" style={{ color: isUncovered ? 'hsl(var(--muted-foreground) / 0.3)' : info.color }}>
+              {isUncovered ? '—' : `${pct}%`}
+            </span>
+            <span className="text-[8px] text-muted-foreground/50 text-center leading-tight">{info.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
+// ── AI Daily Insight ──────────────────────────────────────────────────
+type InsightType = 'performance' | 'recommendation' | 'symptom';
+
+const INSIGHT_TABS: Array<{ id: InsightType; label: string; emoji: string }> = [
+  { id: 'performance',    label: 'Stack',  emoji: '⚡' },
+  { id: 'recommendation', label: 'Today',  emoji: '🎯' },
+  { id: 'symptom',        label: 'Body',   emoji: '🧬' },
+];
+
+const AIInsightPanel = ({ activeCompounds, goals }: { activeCompounds: Compound[]; goals?: any[] }) => {
+  const [activeTab, setActiveTab] = useState<InsightType>('performance');
+  const [insights, setInsights] = useState<Partial<Record<InsightType, string>>>({});
+  const [loading, setLoading] = useState<InsightType | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchInsight = useCallback(async (type: InsightType) => {
+    if (insights[type]) return; // cached
+    if (activeCompounds.length === 0) return;
+    setLoading(type);
+    setError(null);
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/daily-insight`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ compounds: activeCompounds, goals: goals || [], symptoms: [], insightType: type }),
+        }
+      );
+      const data = await res.json();
+      if (data.error) {
+        setError(data.error);
+      } else {
+        setInsights(prev => ({ ...prev, [type]: data.insight }));
+      }
+    } catch {
+      setError('Failed to load insight');
+    } finally {
+      setLoading(null);
+    }
+  }, [activeCompounds, goals, insights]);
+
+  // Load first tab on mount
+  useEffect(() => {
+    fetchInsight('performance');
+  }, []);
+
+  const handleTabChange = (type: InsightType) => {
+    setActiveTab(type);
+    fetchInsight(type);
+  };
+
+  const currentInsight = insights[activeTab];
+  const isLoading = loading === activeTab;
+
+  return (
+    <div className="px-4 pt-4 pb-3 space-y-3">
+      {/* Tab row */}
+      <div className="flex gap-1.5">
+        {INSIGHT_TABS.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => handleTabChange(tab.id)}
+            className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-medium transition-all active:scale-95 ${
+              activeTab === tab.id
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-secondary/40 text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <span>{tab.emoji}</span>
+            <span>{tab.label}</span>
+          </button>
+        ))}
+        <button
+          onClick={() => { setInsights(prev => ({ ...prev, [activeTab]: undefined })); fetchInsight(activeTab); }}
+          className="ml-auto text-[9px] text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors"
+          title="Refresh"
+        >
+          ↻ refresh
+        </button>
+      </div>
+
+      {/* Insight text */}
+      <div className="min-h-[72px] flex items-start">
+        {isLoading ? (
+          <div className="flex items-center gap-2 text-muted-foreground/50">
+            <div className="flex gap-0.5">
+              {[0,1,2].map(i => (
+                <div key={i} className="w-1.5 h-1.5 rounded-full bg-primary/40 animate-bounce" style={{ animationDelay: `${i * 120}ms` }} />
+              ))}
+            </div>
+            <span className="text-[11px]">Generating insight…</span>
+          </div>
+        ) : error ? (
+          <p className="text-[11px] text-destructive/70">{error}</p>
+        ) : activeCompounds.length === 0 ? (
+          <p className="text-[11px] text-muted-foreground/50">Add compounds to generate AI insights.</p>
+        ) : currentInsight ? (
+          <p className="text-[12px] text-foreground leading-relaxed">{currentInsight}</p>
+        ) : (
+          <p className="text-[11px] text-muted-foreground/40 italic">Tap a tab to generate an insight.</p>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const ZoneBars = ({ zoneEntries, onZoneTap }: { zoneEntries: Array<[BodyZone, number]>; onZoneTap: (z: BodyZone) => void }) => (
   <div className="space-y-1.5">
@@ -431,6 +574,43 @@ const ProtocolCoverageCard = ({ activeCompounds, zoneIntensities, bodyCoverage, 
       </div>
     );
 
+    // ── Layout 6: Insight — AI daily insight + radial coverage rings ──────────────
+    if (layout === 'insight') return (
+      <div className="space-y-1">
+        {/* Score strip */}
+        <div className="flex items-center justify-between px-4 pt-4 pb-2">
+          <div>
+            <p className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground/50 font-semibold mb-0.5">Protocol Coverage</p>
+            <div className="flex items-baseline gap-2">
+              <span className={`text-3xl font-black font-mono leading-none ${coverageGrade.color}`} style={{ textShadow: `0 0 20px ${coverageGrade.glow}50` }}>
+                {bodyCoverage}%
+              </span>
+              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${coverageGrade.border} ${coverageGrade.color}`}>{coverageGrade.label}</span>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-[9px] text-muted-foreground/40">{activeCompounds.length} compounds</p>
+            <p className="text-[9px] text-muted-foreground/40">{activeZoneCount}/7 systems</p>
+          </div>
+        </div>
+
+        {/* Coverage Rings */}
+        <div className="px-4 pb-3">
+          <CoverageRings zoneIntensities={zoneIntensities} onZoneTap={onZoneTap} />
+        </div>
+
+        {/* Divider */}
+        <div className="border-t border-border/20 mx-4" />
+
+        {/* AI Insight Panel */}
+        <div className="flex items-center gap-1.5 px-4 pt-3 pb-0">
+          <Sparkles className="w-3 h-3 text-primary/60" />
+          <p className="text-[9px] uppercase tracking-[0.18em] text-muted-foreground/50 font-semibold">AI Daily Insight</p>
+        </div>
+        <AIInsightPanel activeCompounds={activeCompounds} goals={[]} />
+      </div>
+    );
+
     return null;
   };
 
@@ -482,7 +662,7 @@ const ProtocolCoverageCard = ({ activeCompounds, zoneIntensities, bodyCoverage, 
       )}
 
       {/* ── Alerts ── */}
-      {alerts.length > 0 && (
+      {alerts.length > 0 && layout !== 'insight' && (
         <div className="px-4 pb-3 space-y-2">
           {alerts.map((alert, i) => (
             <div key={i} className={`flex items-start gap-2 px-3 py-2.5 rounded-xl text-[11px] leading-snug ${
@@ -497,50 +677,10 @@ const ProtocolCoverageCard = ({ activeCompounds, zoneIntensities, bodyCoverage, 
         </div>
       )}
 
-      {/* ── System Detail rows ── */}
-      <div className="border-t border-border/20 px-4 pt-3 pb-4 space-y-0.5">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-[9px] uppercase tracking-[0.15em] text-muted-foreground/40">System Detail</p>
-          <button onClick={() => setShowExplainer(v => !v)} className="flex items-center gap-1 text-[9px] text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors">
-            <Info className="w-3 h-3" />How scored?
-          </button>
-        </div>
-        {zoneEntries.map(([zone, intensity]) => {
-          const info = BODY_ZONES[zone];
-          const Icon = ZONE_ICONS_MAP[zone];
-          const pct = Math.round(intensity * 100);
-          const isSaturated = pct >= 95;
-          const isWeak = pct > 0 && pct < 40;
-          const isUncovered = pct === 0;
-          const barColor = isSaturated ? 'hsl(142 80% 50%)' : isWeak ? 'hsl(45 100% 55%)' : info.color;
-          const guidance = isSaturated ? 'Saturated · tap to audit' : pct >= 70 ? 'Strong coverage' : pct >= 40 ? 'Adequate · synergy may help' : pct > 0 ? 'Low · consider additions' : 'Gap · no compounds';
-          return (
-            <button key={zone} onClick={() => onZoneTap(zone)} className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl hover:bg-secondary/30 border border-transparent hover:border-border/20 transition-all active:scale-[0.99] group text-left">
-              <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${info.color}14` }}>
-                <Icon className="w-3.5 h-3.5" style={{ color: isUncovered ? 'hsl(var(--muted-foreground) / 0.25)' : info.color }} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1 mb-0.5">
-                  <span className="text-[11px] font-medium text-foreground">{info.label}</span>
-                  {isSaturated && <TrendingUp className="w-2.5 h-2.5 text-emerald-400 flex-shrink-0" />}
-                  {isWeak && <TrendingDown className="w-2.5 h-2.5 text-amber-400 flex-shrink-0" />}
-                  {isUncovered && <AlertTriangle className="w-2.5 h-2.5 text-muted-foreground/40 flex-shrink-0" />}
-                </div>
-                <p className="text-[9px] text-muted-foreground/50 truncate">{guidance}</p>
-              </div>
-              <span className="text-xs font-mono font-bold w-8 text-right flex-shrink-0" style={{ color: isUncovered ? 'hsl(var(--muted-foreground) / 0.25)' : barColor }}>
-                {isUncovered ? '—' : `${pct}%`}
-              </span>
-              <ChevronRight className="w-3 h-3 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors flex-shrink-0" />
-            </button>
-          );
-        })}
-      </div>
-
       {/* Footer */}
-      <div className="px-4 pb-3 flex items-center gap-1.5 text-[9px] text-muted-foreground/35 border-t border-border/10 pt-2">
+      <div className="px-4 pb-3 flex items-center gap-1.5 text-[9px] text-muted-foreground/35 border-t border-border/10 pt-2 mt-1">
         <Sparkles className="w-3 h-3 flex-shrink-0" />
-        <span>Tap body or system rows for AI analysis &amp; redundancy audits</span>
+        <span>{layout === 'insight' ? 'Tap any ring to drill into zone compounds & AI audit' : 'Tap body or zone bars for AI analysis & redundancy audits'}</span>
       </div>
     </div>
   );
