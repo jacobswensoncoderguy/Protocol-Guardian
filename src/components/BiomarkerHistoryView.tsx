@@ -371,6 +371,84 @@ function RangeChip({
   );
 }
 
+// ─── Inline file preview (avoids 404 from opening storage URLs in new tab) ─
+function FilePreviewSection({ fileUrl, fileName }: { fileUrl: string; fileName?: string }) {
+  const [modalOpen, setModalOpen] = useState(false);
+  const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(fileUrl) || fileUrl.includes('image');
+
+  return (
+    <>
+      <div className="rounded-xl overflow-hidden border border-border/40 bg-secondary/10">
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-border/30">
+          <Upload className="w-3 h-3 text-muted-foreground" />
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Original Upload</span>
+          {isImage && (
+            <button
+              onClick={e => { e.stopPropagation(); setModalOpen(true); }}
+              className="ml-auto text-[10px] text-primary hover:text-primary/80 transition-colors font-medium"
+            >
+              View full size
+            </button>
+          )}
+        </div>
+        {isImage ? (
+          <button
+            className="w-full focus:outline-none"
+            onClick={e => { e.stopPropagation(); setModalOpen(true); }}
+          >
+            <img
+              src={fileUrl}
+              alt={fileName || 'Uploaded lab report'}
+              className="w-full max-h-48 object-contain bg-black/5 cursor-zoom-in"
+            />
+          </button>
+        ) : (
+          <div className="px-3 py-3 flex items-center gap-2">
+            <ClipboardList className="w-4 h-4 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground truncate flex-1">{fileName || 'Uploaded file'}</span>
+            <span className="text-[10px] text-muted-foreground">PDF / Document</span>
+          </div>
+        )}
+      </div>
+
+      {/* Full-size image modal — stays inside app, no new tab */}
+      {modalOpen && isImage && (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/85 backdrop-blur-sm p-4"
+          onClick={() => setModalOpen(false)}
+        >
+          <div
+            className="relative max-w-2xl w-full max-h-[90vh] rounded-2xl overflow-hidden shadow-2xl bg-card border border-border"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40 bg-card">
+              <div className="flex items-center gap-2">
+                <Upload className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-xs font-medium text-foreground truncate">{fileName || 'Original Upload'}</span>
+              </div>
+              <button
+                onClick={() => setModalOpen(false)}
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            {/* Full image */}
+            <div className="overflow-auto max-h-[80vh] bg-black/5 flex items-center justify-center">
+              <img
+                src={fileUrl}
+                alt={fileName || 'Lab report'}
+                className="w-full h-auto object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 function DetailSheet({
   upload,
   allUploads,
@@ -495,45 +573,8 @@ function DetailSheet({
         {/* Body */}
         <div className="px-4 py-4 space-y-3">
 
-          {/* ── Original file image preview ── */}
-          {upload.file_url && (
-            <div className="rounded-xl overflow-hidden border border-border/40 bg-secondary/10">
-              <div className="flex items-center gap-2 px-3 py-2 border-b border-border/30">
-                <Upload className="w-3 h-3 text-muted-foreground" />
-                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Original Upload</span>
-                <a
-                  href={upload.file_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="ml-auto text-[10px] text-primary hover:underline flex items-center gap-1"
-                  onClick={e => e.stopPropagation()}
-                >
-                  Open full size ↗
-                </a>
-              </div>
-              {/\.(jpg|jpeg|png|gif|webp|heic)$/i.test(upload.file_url) ? (
-                <img
-                  src={upload.file_url}
-                  alt={`Original: ${upload.file_name}`}
-                  className="w-full max-h-48 object-contain bg-black/5"
-                />
-              ) : (
-                <div className="px-3 py-3 flex items-center gap-2">
-                  <ClipboardList className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">{upload.file_name}</span>
-                  <a
-                    href={upload.file_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="ml-auto text-xs text-primary hover:underline"
-                    onClick={e => e.stopPropagation()}
-                  >
-                    View file ↗
-                  </a>
-                </div>
-              )}
-            </div>
-          )}
+          {/* ── Original file image preview — inline modal ── */}
+          {upload.file_url && <FilePreviewSection fileUrl={upload.file_url} fileName={upload.file_name} />}
 
           {/* AI Summary */}
           {summary && (

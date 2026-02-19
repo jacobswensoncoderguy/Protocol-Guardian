@@ -206,10 +206,29 @@ serve(async (req) => {
         body: JSON.stringify({
           model: "google/gemini-2.5-flash",
           messages: [
-            { role: "system", content: "You are a health data analyst specializing in lab biomarker interpretation. Provide clear, actionable analysis of health data changes over time. Do not add medical disclaimers." },
+            {
+              role: "system",
+              content: `You are a health data analyst specializing in lab biomarker interpretation.
+
+RESPONSE FORMAT — MANDATORY:
+1. Start with a bold **Summary** (2 sentences max).
+2. List findings as short bullet points using these markers:
+   - [GOOD] Improved or normal markers
+   - [ALERT] Out-of-range or worsened markers (include the value and normal range)
+   - [WATCH] Borderline or trending values
+   - [TIP] Actionable next step
+3. End with **Bottom Line:** one sentence on what to prioritize.
+
+Rules:
+- Max 200 words total.
+- Bold marker names.
+- No medical disclaimers.
+- No hedging language.
+- Be direct and specific.`,
+            },
             { role: "user", content: prompt },
           ],
-          max_tokens: 1024,
+          max_tokens: 512,
         }),
       });
 
