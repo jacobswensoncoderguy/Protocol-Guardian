@@ -57,7 +57,7 @@ import HouseholdMemberToggle, { HouseholdViewOption } from '@/components/Househo
 
 
 const LoadingSkeleton = () => (
-  <div className="min-h-screen bg-background">
+  <div className="min-h-screen bg-background" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
     <header className="border-b border-border/50 px-4 py-2.5 sm:py-4">
       <div className="container mx-auto flex items-center justify-between">
         <Skeleton className="h-6 w-48" />
@@ -318,7 +318,7 @@ const Index = () => {
 
   return (
     <ComplianceProvider userId={user?.id}>
-    <div ref={containerRef} className="min-h-screen bg-background relative">
+    <div ref={containerRef} className="min-h-screen bg-background relative" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
       {/* Pull-to-refresh indicator */}
       <div
         className="absolute left-0 right-0 flex items-center justify-center overflow-hidden transition-[height] duration-200 ease-out z-50"
