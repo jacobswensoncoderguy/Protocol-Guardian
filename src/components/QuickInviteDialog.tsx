@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 interface QuickInviteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSendInvite: (email: string) => Promise<{ success: boolean; error?: string }>;
+  onSendInvite: (email: string) => Promise<{ success: boolean; error?: string; isResend?: boolean }>;
 }
 
 const QuickInviteDialog = ({ open, onOpenChange, onSendInvite }: QuickInviteDialogProps) => {
@@ -24,7 +24,7 @@ const QuickInviteDialog = ({ open, onOpenChange, onSendInvite }: QuickInviteDial
     setSending(true);
     const result = await onSendInvite(email.trim());
     if (result.success) {
-      toast.success('Household invite sent!');
+      toast.success(result.isResend ? 'Invite resent!' : 'Household invite sent!');
       setEmail('');
       onOpenChange(false);
     } else {

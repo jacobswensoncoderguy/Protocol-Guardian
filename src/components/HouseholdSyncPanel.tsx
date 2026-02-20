@@ -18,7 +18,7 @@ interface HouseholdSyncPanelProps {
   pendingIncoming: HouseholdMember[];
   pendingOutgoing: HouseholdMember[];
   loading: boolean;
-  onSendInvite: (email: string) => Promise<{ success: boolean; error?: string }>;
+  onSendInvite: (email: string) => Promise<{ success: boolean; error?: string; isResend?: boolean }>;
   onAccept: (linkId: string) => Promise<boolean>;
   onReject: (linkId: string) => Promise<boolean>;
   onRemove: (linkId: string) => Promise<boolean>;
@@ -56,7 +56,7 @@ const HouseholdSyncPanel = ({
     setSending(true);
     const result = await onSendInvite(inviteEmail.trim());
     if (result.success) {
-      toast.success('Household invite sent!');
+      toast.success(result.isResend ? 'Invite resent!' : 'Household invite sent!');
       setInviteEmail('');
     } else {
       toast.error(result.error || 'Failed to send invite');
