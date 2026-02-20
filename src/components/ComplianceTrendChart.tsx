@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { useComplianceTrend, CompoundMeta } from '@/hooks/useComplianceTrend';
-import { CheckCircle2, ChevronDown, ChevronUp, TrendingUp } from 'lucide-react';
+import { CheckCircle2, ChevronDown, ChevronUp, TrendingUp, Eye, EyeOff } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface ComplianceTrendChartProps {
@@ -30,6 +30,8 @@ const ComplianceTrendChart = ({ userId }: ComplianceTrendChartProps) => {
   const { data, compounds, loading } = useComplianceTrend(userId);
   const [expanded, setExpanded] = useState(true);
   const [hiddenCompounds, setHiddenCompounds] = useState<Set<string>>(new Set());
+  const [legendExpanded, setLegendExpanded] = useState(false);
+  const LEGEND_PREVIEW_COUNT = 6;
 
   if (loading) {
     return (
@@ -117,27 +119,48 @@ const ComplianceTrendChart = ({ userId }: ComplianceTrendChartProps) => {
             </ResponsiveContainer>
           </div>
 
-          {/* Legend — toggleable compound pills */}
-          <div className="flex flex-wrap gap-1.5">
-            {compounds.map((c) => {
-              const isHidden = hiddenCompounds.has(c.name);
-              return (
-                <button
-                  key={c.compoundId}
-                  onClick={() => toggleCompound(c.name)}
-                  className={`text-[10px] font-mono px-2 py-0.5 rounded-full border transition-all ${
-                    isHidden
-                      ? 'border-border/50 text-muted-foreground/50 bg-transparent'
-                      : 'border-transparent text-foreground/90'
-                  }`}
-                  style={!isHidden ? { backgroundColor: `${c.color}22`, borderColor: `${c.color}44` } : undefined}
-                >
-                  <span className="inline-block w-1.5 h-1.5 rounded-full mr-1" style={{ backgroundColor: isHidden ? 'hsl(var(--muted-foreground))' : c.color, opacity: isHidden ? 0.3 : 1 }} />
-                  {c.name}
-                </button>
-              );
-            })}
-          </div>
+          {/* Legend — toggleable compound pills with show more/less */}
+          {(() => {
+            const showAll = legendExpanded || compounds.length <= LEGEND_PREVIEW_COUNT;
+            const displayed = showAll ? compounds : compounds.slice(0, LEGEND_PREVIEW_COUNT);
+            const hiddenCount = compounds.length - LEGEND_PREVIEW_COUNT;
+            return (
+              <div className="space-y-1.5">
+                <div className="flex flex-wrap gap-1.5">
+                  {displayed.map((c) => {
+                    const isHidden = hiddenCompounds.has(c.name);
+                    return (
+                      <button
+                        key={c.compoundId}
+                        onClick={() => toggleCompound(c.name)}
+                        className={`text-[10px] font-mono px-2 py-0.5 rounded-full border transition-all ${
+                          isHidden
+                            ? 'border-border/50 text-muted-foreground/50 bg-transparent'
+                            : 'border-transparent text-foreground/90'
+                        }`}
+                        style={!isHidden ? { backgroundColor: `${c.color}22`, borderColor: `${c.color}44` } : undefined}
+                      >
+                        <span className="inline-block w-1.5 h-1.5 rounded-full mr-1" style={{ backgroundColor: isHidden ? 'hsl(var(--muted-foreground))' : c.color, opacity: isHidden ? 0.3 : 1 }} />
+                        {c.name}
+                      </button>
+                    );
+                  })}
+                </div>
+                {compounds.length > LEGEND_PREVIEW_COUNT && (
+                  <button
+                    onClick={() => setLegendExpanded(!legendExpanded)}
+                    className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors ml-1"
+                  >
+                    {legendExpanded ? (
+                      <><EyeOff className="w-3 h-3" /> Show less</>
+                    ) : (
+                      <><Eye className="w-3 h-3" /> +{hiddenCount} more compounds</>
+                    )}
+                  </button>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Insight line */}
           {data.length >= 2 && (() => {
