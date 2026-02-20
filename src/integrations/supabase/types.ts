@@ -1284,6 +1284,15 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_compound_compliance: {
+        Args: { p_user_id: string }
+        Returns: {
+          checked_doses: number
+          compound_id: string
+          first_check_date: string
+          last_check_date: string
+        }[]
+      }
       is_household_linked: {
         Args: { user_a: string; user_b: string }
         Returns: boolean

@@ -4,6 +4,7 @@ import { compoundBenefits, TimelineEvent } from '@/data/compoundBenefits';
 import { getCycleStatus } from '@/lib/cycling';
 import { getDaysRemainingWithCycling } from '@/lib/cycling';
 import { getStatus } from '@/data/compounds';
+import { useCompliance } from '@/contexts/ComplianceContext';
 import { Info, Clock, Pill, BarChart3 } from 'lucide-react';
 import { getCompoundIcon } from '@/lib/iconMap';
 import CompoundAISection from '@/components/CompoundAISection';
@@ -127,12 +128,13 @@ function toBenefitKey(name: string): string {
 }
 
 const CompoundInfoDrawer = ({ compound, open, onOpenChange, compoundAnalysis, compoundLoading, onAnalyzeCompound }: CompoundInfoDrawerProps) => {
+  const { getDaysRemainingAdjusted } = useCompliance();
   if (!compound) return null;
 
   const key = toBenefitKey(compound.name);
   const benefits = compoundBenefits[key];
   const cycleStatus = getCycleStatus(compound);
-  const daysLeft = getDaysRemainingWithCycling(compound);
+  const daysLeft = getDaysRemainingAdjusted(compound);
   const status = getStatus(daysLeft);
 
   return (

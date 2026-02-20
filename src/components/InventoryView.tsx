@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Compound, getStatus, getReorderDateString, CompoundCategory, getDaysRemaining, getEffectiveQuantity, getConsumedSinceDate, consumedToContainerUnits } from '@/data/compounds';
 import { getCycleStatus, getDaysRemainingWithCycling, isPaused } from '@/lib/cycling';
+import { useCompliance } from '@/contexts/ComplianceContext';
 import { UserProtocol } from '@/hooks/useProtocols';
 import { CustomField, CustomFieldValue, PREDEFINED_FIELDS } from '@/hooks/useCustomFields';
 import { Pencil, Check, X, Trash2, Plus, ChevronDown, ChevronUp, GripVertical, Syringe, Clock, SortAsc, Moon as MoonIcon, Sun, Dumbbell, RefreshCcw, Package, PlusCircle, AlertTriangle, Pause, Play, Calendar } from 'lucide-react';
@@ -50,6 +51,7 @@ const categoryLabels: Record<string, string> = {
 const categoryOrder: string[] = ['peptide', 'injectable-oil', 'prescription', 'oral', 'powder', 'vitamin', 'holistic', 'adaptogen', 'nootropic', 'essential-oil', 'alternative-medicine', 'probiotic', 'topical'];
 
 const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCompound, protocols = [], toleranceLevel, onToleranceChange, customFields = [], customFieldValues = new Map(), onAddCustomField, onRemoveCustomField, onReorderCustomField, onSetCustomFieldValue, scrollToCompoundId, onScrollToCompoundDone }: InventoryViewProps) => {
+  const { getDaysRemainingAdjusted, getEffectiveQtyAdjusted, getConsumedAdjusted, getComplianceInfo } = useCompliance();
   const [filter, setFilter] = useState<string>('all');
   const [showOffOnly, setShowOffOnly] = useState(false);
   const [sortBy, setSortBy] = useState<'name' | 'days'>('name');
@@ -96,17 +98,17 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
     return base;
   })();
   const sorted = [...filtered].sort((a, b) => {
-    if (sortBy === 'days') return getDaysRemainingWithCycling(a) - getDaysRemainingWithCycling(b);
+    if (sortBy === 'days') return getDaysRemainingAdjusted(a) - getDaysRemainingAdjusted(b);
     return a.name.localeCompare(b.name);
   });
 
   // Compounds with stock alerts
   const alertCompounds = useMemo(() => {
     return activeCompounds
-      .map(c => ({ compound: c, days: getDaysRemainingWithCycling(c), status: getStatus(getDaysRemainingWithCycling(c)) }))
+      .map(c => ({ compound: c, days: getDaysRemainingAdjusted(c), status: getStatus(getDaysRemainingAdjusted(c)) }))
       .filter(a => a.status === 'critical' || a.status === 'warning')
       .sort((a, b) => a.days - b.days);
-  }, [activeCompounds]);
+  }, [activeCompounds, getDaysRemainingAdjusted]);
 
   // Compounds with incomplete cycling configs
   const incompleteCyclingCompounds = useMemo(() => {
@@ -377,8 +379,9 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
   const cycleStatus = getCycleStatus(compound);
   const [showCycleTimeline, setShowCycleTimeline] = useState(cycleStatus.hasCycle && !cycleStatus.isOn);
 
+  const { getDaysRemainingAdjusted: getDaysAdj, getEffectiveQtyAdjusted: getQtyAdj, getConsumedAdjusted: getConsumedAdj, getComplianceInfo: getCI } = useCompliance();
   const compoundIsPaused = isPaused(compound);
-  const days = getDaysRemainingWithCycling(compound);
+  const days = getDaysAdj(compound);
   const status = compoundIsPaused ? 'good' as const : getStatus(days);
   const maxDays = 90;
   const progress = Math.min(100, (days / maxDays) * 100);
@@ -1820,9 +1823,10 @@ const InlineQuantityEditor = ({ compound, status, isOil, isPeptide, onUpdate }: 
 
   const label = isPeptide ? 'Vials' : 'On Hand';
 
-  // Effective quantity = currentQuantity minus consumed since purchaseDate
-  const effectiveQty = getEffectiveQuantity(compound);
-  const consumedUnits = consumedToContainerUnits(compound, getConsumedSinceDate(compound));
+  // Effective quantity = currentQuantity minus actual consumed (compliance-aware)
+  const { getEffectiveQtyAdjusted, getConsumedAdjusted } = useCompliance();
+  const effectiveQty = getEffectiveQtyAdjusted(compound);
+  const consumedUnits = consumedToContainerUnits(compound, getConsumedAdjusted(compound));
   const hasDepletion = consumedUnits > 0.005 && compound.purchaseDate;
 
   const formatQty = (qty: number) => {

@@ -67,46 +67,73 @@ export function getNormalizedDailyConsumption(compound: Compound): number {
 /**
  * Compute how many native supply units (IU for peptides, mg for oils, pills/scoops etc
  * for orals/powders) have been consumed since the purchaseDate.
- * This allows the app to dynamically adjust the displayed days-remaining when the user
- * back-dates a purchase — rather than always treating currentQuantity as "full stock right now".
  *
- * The function is deliberately conservative: it only subtracts usage on active (ON-cycle)
- * days, and it caps the deduction at the total purchase supply so it never goes negative.
+ * When `compliance` data is provided, the calculation is split:
+ *   - Before the first check-off date: theoretical consumption (assume all taken)
+ *   - From the first check-off onward: actual checked doses × dosePerUse
+ * When no compliance data is provided, falls back to fully theoretical calculation.
  */
-export function getConsumedSinceDate(compound: Compound, referenceDate: Date = new Date()): number {
+export function getConsumedSinceDate(
+  compound: Compound,
+  referenceDate: Date = new Date(),
+  compliance?: { checkedDoses: number; firstCheckDate: string | null; lastCheckDate: string | null }
+): number {
   if (!compound.purchaseDate) return 0;
 
   const purchaseDay = new Date(compound.purchaseDate);
   purchaseDay.setHours(0, 0, 0, 0);
   const now = new Date(referenceDate);
   now.setHours(0, 0, 0, 0);
-
   const daysSincePurchase = Math.floor((now.getTime() - purchaseDay.getTime()) / (24 * 60 * 60 * 1000));
-  if (daysSincePurchase <= 0) return 0; // purchase is today or in the future
+  if (daysSincePurchase <= 0) return 0;
 
-  // Per-dose-day consumption (amount consumed on each active day)
+  // If we have compliance data, split into pre-tracking (theoretical) + post-tracking (actual)
+  if (compliance && compliance.firstCheckDate) {
+    const firstCheck = new Date(compliance.firstCheckDate);
+    firstCheck.setHours(0, 0, 0, 0);
+
+    // Theoretical consumption for the period BEFORE first check-off
+    const preTrackingDays = Math.max(0, Math.floor((firstCheck.getTime() - purchaseDay.getTime()) / (24 * 60 * 60 * 1000)));
+    const theoreticalPreTracking = preTrackingDays > 0
+      ? getTheoreticalConsumption(compound, preTrackingDays, purchaseDay)
+      : 0;
+
+    // Actual consumption = checked doses × dose per use
+    const actualPostTracking = compliance.checkedDoses * compound.dosePerUse;
+
+    return theoreticalPreTracking + actualPostTracking;
+  }
+
+  // Fallback: fully theoretical (original behavior)
+  return getTheoreticalConsumption(compound, daysSincePurchase, purchaseDay);
+}
+
+/**
+ * Calculate theoretical consumption for a given number of days from a start date.
+ * Extracted to share between compliance-aware and fallback paths.
+ */
+function getTheoreticalConsumption(compound: Compound, dayCount: number, fromDate: Date): number {
+  if (dayCount <= 0) return 0;
+
   const dosePerActiveDay = compound.dosePerUse * compound.dosesPerDay;
   if (dosePerActiveDay === 0) return 0;
 
-  // daysPerWeek: how many days/week this is taken (0–7)
   const daysPerWeek = Math.min(7, Math.max(0, compound.daysPerWeek || 0));
 
   // No cycling: scale by daysPerWeek fraction
   if (!compound.cycleOnDays || !compound.cycleOffDays || !compound.cycleStartDate) {
-    // Accurate active days = total days × (daysPerWeek / 7)
-    const activeDays = daysSincePurchase * (daysPerWeek / 7);
+    const activeDays = dayCount * (daysPerWeek / 7);
     return dosePerActiveDay * activeDays;
   }
 
-  // With cycling: walk each day since purchase and only count ON days,
-  // further weighted by daysPerWeek / 7 for partial-week schedules.
+  // With cycling: walk each day and only count ON days
   const cycleLength = compound.cycleOnDays + compound.cycleOffDays;
   const cycleStart = new Date(compound.cycleStartDate);
   const onFraction = daysPerWeek / 7;
   let consumed = 0;
 
-  for (let d = 0; d < daysSincePurchase; d++) {
-    const dayDate = new Date(purchaseDay.getTime() + d * 24 * 60 * 60 * 1000);
+  for (let d = 0; d < dayCount; d++) {
+    const dayDate = new Date(fromDate.getTime() + d * 24 * 60 * 60 * 1000);
     const diffDays = Math.floor((dayDate.getTime() - cycleStart.getTime()) / (24 * 60 * 60 * 1000));
     const dayInCycle = ((diffDays % cycleLength) + cycleLength) % cycleLength;
     if (dayInCycle < compound.cycleOnDays) {
@@ -142,11 +169,14 @@ export function consumedToContainerUnits(compound: Compound, consumed: number): 
 
 /**
  * Get the effective quantity remaining, accounting for usage since purchaseDate.
- * This is the value that should be used for days-remaining calculations.
+ * When compliance data is provided, uses actual check-off consumption.
  * We cap at [0, currentQuantity] to avoid negatives or exceeding what was purchased.
  */
-export function getEffectiveQuantity(compound: Compound): number {
-  const consumed = getConsumedSinceDate(compound);
+export function getEffectiveQuantity(
+  compound: Compound,
+  compliance?: { checkedDoses: number; firstCheckDate: string | null; lastCheckDate: string | null }
+): number {
+  const consumed = getConsumedSinceDate(compound, new Date(), compliance);
   const consumedUnits = consumedToContainerUnits(compound, consumed);
   return Math.max(0, compound.currentQuantity - consumedUnits);
 }
@@ -165,16 +195,37 @@ function totalSupplyInDoseUnits(compound: Compound, effectiveQty: number): numbe
   return effectiveQty * compound.unitSize;
 }
 
-export function getDaysRemaining(compound: Compound): number {
+export function getDaysRemaining(
+  compound: Compound,
+  compliance?: { checkedDoses: number; firstCheckDate: string | null; lastCheckDate: string | null }
+): number {
   const dosePerActiveDay = compound.dosePerUse * compound.dosesPerDay;
   if (dosePerActiveDay === 0) return 999;
   const daysPerWeek = Math.min(7, Math.max(0, compound.daysPerWeek || 0));
   if (daysPerWeek === 0) return 999;
 
-  const effectiveQty = getEffectiveQuantity(compound);
+  const effectiveQty = getEffectiveQuantity(compound, compliance);
   const totalSupply = totalSupplyInDoseUnits(compound, effectiveQty);
-  // totalSupply is in dose units; divide by per-day consumption × weekly fraction
   const dailyRate = dosePerActiveDay * (daysPerWeek / 7);
+
+  // If we have compliance data, adjust the daily rate by the compliance rate
+  if (compliance && compliance.firstCheckDate && compliance.lastCheckDate) {
+    const first = new Date(compliance.firstCheckDate);
+    const last = new Date(compliance.lastCheckDate);
+    first.setHours(0, 0, 0, 0);
+    last.setHours(0, 0, 0, 0);
+    const trackingDays = Math.max(1, Math.floor((last.getTime() - first.getTime()) / (24 * 60 * 60 * 1000)) + 1);
+    const expectedDoses = compound.dosesPerDay * trackingDays * (daysPerWeek / 7);
+    if (expectedDoses > 0) {
+      const complianceRate = Math.min(1, compliance.checkedDoses / expectedDoses);
+      // Project forward using actual compliance rate
+      const adjustedDailyRate = dailyRate * complianceRate;
+      if (adjustedDailyRate > 0) {
+        return Math.max(0, Math.floor(totalSupply / adjustedDailyRate));
+      }
+    }
+  }
+
   return Math.max(0, Math.floor(totalSupply / dailyRate));
 }
 

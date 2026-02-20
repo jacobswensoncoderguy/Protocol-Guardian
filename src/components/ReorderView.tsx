@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import { Compound, getReorderCost } from '@/data/compounds';
 import { getDaysRemainingWithCycling, getEffectiveDailyConsumption } from '@/lib/cycling';
+import { useCompliance } from '@/contexts/ComplianceContext';
 import { UserProtocol } from '@/hooks/useProtocols';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -50,13 +51,13 @@ const HORIZON_OPTIONS = [
 ] as const;
 type Horizon = 30 | 45 | 60;
 
-function buildNeededItems(compounds: Compound[], horizon: Horizon): (Omit<OrderItem, 'id' | 'ordered_at' | 'received_at' | 'notes'>)[] {
+type ReorderComplianceGetter = (compoundId: string) => { checkedDoses: number; firstCheckDate: string | null; lastCheckDate: string | null } | undefined;
+
+function buildNeededItems(compounds: Compound[], horizon: Horizon, getCI?: ReorderComplianceGetter): (Omit<OrderItem, 'id' | 'ordered_at' | 'received_at' | 'notes'>)[] {
   const now = new Date();
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const items: (Omit<OrderItem, 'id' | 'ordered_at' | 'received_at' | 'notes'>)[] = [];
 
-  // Peptides and oils calculate burn rate from dose × frequency — no purchaseDate needed.
-  // Orals/powders/vitamins still require purchaseDate to know units per bottle.
   const activeCompounds = compounds.filter(c => {
     if (c.notes?.includes('[DORMANT]') || c.currentQuantity <= 0) return false;
     const isPeptideOrOil = c.category === 'peptide' || c.category === 'injectable-oil';
@@ -65,7 +66,7 @@ function buildNeededItems(compounds: Compound[], horizon: Horizon): (Omit<OrderI
   });
 
   activeCompounds.forEach(compound => {
-    const daysLeft = getDaysRemainingWithCycling(compound);
+    const daysLeft = getDaysRemainingWithCycling(compound, getCI?.(compound.id));
     if (daysLeft > horizon) return;
     const cost = getReorderCost(compound);
     const reorderDate = new Date(now.getTime() + daysLeft * 24 * 60 * 60 * 1000);
@@ -76,7 +77,7 @@ function buildNeededItems(compounds: Compound[], horizon: Horizon): (Omit<OrderI
   return items.sort((a, b) => {
     const compA = activeCompounds.find(c => c.id === a.compound_id);
     const compB = activeCompounds.find(c => c.id === b.compound_id);
-    return (compA ? getDaysRemainingWithCycling(compA) : 999) - (compB ? getDaysRemainingWithCycling(compB) : 999);
+    return (compA ? getDaysRemainingWithCycling(compA, getCI?.(compA.id)) : 999) - (compB ? getDaysRemainingWithCycling(compB, getCI?.(compB.id)) : 999);
   });
 }
 
@@ -114,6 +115,7 @@ function getAvgShippingDays(compoundId: string, receivedOrders: OrderItem[]): nu
 }
 
 const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reorderHorizon = 30, onHorizonChange }: ReorderViewProps) => {
+  const { getComplianceInfo, getDaysRemainingAdjusted } = useCompliance();
   const [tab, setTab] = useState<Tab>('needed');
   const [orders, setOrders] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -167,7 +169,7 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
-  const neededItems = buildNeededItems(compounds, horizon);
+  const neededItems = buildNeededItems(compounds, horizon, getComplianceInfo);
   const orderedItems = orders.filter(o => o.status === 'ordered');
   const receivedItems = orders.filter(o => o.status === 'received');
   const activeOrderIds = new Set(orderedItems.map(o => o.compound_id));
@@ -399,12 +401,12 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
 
   const criticalCompounds = filteredNeeded
     .map(n => compoundMap.get(n.compound_id))
-    .filter((c): c is Compound => !!c && getDaysRemainingWithCycling(c) <= 7);
+    .filter((c): c is Compound => !!c && getDaysRemainingAdjusted(c) <= 7);
   const warningCompounds = filteredNeeded
     .map(n => compoundMap.get(n.compound_id))
     .filter((c): c is Compound => {
       if (!c) return false;
-      const d = getDaysRemainingWithCycling(c);
+      const d = getDaysRemainingAdjusted(c);
       return d > 7 && d <= horizon;
     });
 
@@ -512,7 +514,7 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
                   <div className="space-y-1.5">
                     {group.items.map((item, i) => {
                       const compound = compoundMap.get(item.compound_id);
-                      const days = compound ? getDaysRemainingWithCycling(compound) : 999;
+                      const days = compound ? getDaysRemainingAdjusted(compound) : 999;
                       const status = days <= 7 ? 'critical' : days <= 30 ? 'warning' : 'good';
                       const avgShip = shippingByCompound.get(item.compound_id) ?? null;
                       return (
