@@ -1,6 +1,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CalendarDays, Package, LayoutDashboard, RefreshCw, Brain, Gauge, LineChart } from 'lucide-react';
 import { getDaysRemainingWithCycling, getEffectiveDailyConsumption } from '@/lib/cycling';
+import { ComplianceProvider } from '@/contexts/ComplianceContext';
 import { getStatus } from '@/data/compounds';
 import { Compound } from '@/data/compounds';
 import { useCompounds } from '@/hooks/useCompounds';
@@ -217,6 +218,8 @@ const Index = () => {
   // Must match ReorderView logic: only count compounds with a purchase date set
   // (no purchase date = depletion tracking unreliable, would inflate badges).
   const lowStockCounts = useMemo(() => {
+    // Note: compliance-adjusted values are handled inside components via context;
+    // badge counts use theoretical values for consistency (context not available here at top level)
     let inventoryWarnings = 0;
     let reorderNeeded = 0;
     compounds.forEach(c => {
@@ -312,6 +315,7 @@ const Index = () => {
   }
 
   return (
+    <ComplianceProvider userId={user?.id}>
     <div ref={containerRef} className="min-h-screen bg-background relative">
       {/* Pull-to-refresh indicator */}
       <div
@@ -774,6 +778,7 @@ const Index = () => {
         />
       )}
     </div>
+    </ComplianceProvider>
   );
 };
 

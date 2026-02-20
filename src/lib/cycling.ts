@@ -1,5 +1,7 @@
 import { Compound, getNormalizedDailyConsumption, getEffectiveQuantity } from '@/data/compounds';
 
+export type ComplianceInfo = { checkedDoses: number; firstCheckDate: string | null; lastCheckDate: string | null };
+
 export interface CycleStatus {
   /** Whether this compound has a cycling pattern at all */
   hasCycle: boolean;
@@ -80,18 +82,35 @@ export function getCycleStatus(compound: Compound, referenceDate: Date = new Dat
  * Get the effective daily consumption adjusted for cycling and pause state.
  * Paused compounds consume nothing. During cycling OFF phases, average is reduced.
  */
-export function getEffectiveDailyConsumption(compound: Compound): number {
+export function getEffectiveDailyConsumption(compound: Compound, compliance?: ComplianceInfo): number {
   if (isPaused(compound)) return 0;
   const rawDaily = getNormalizedDailyConsumption(compound);
   const { onFraction } = getCycleStatus(compound);
-  return rawDaily * onFraction;
+  let adjusted = rawDaily * onFraction;
+
+  // Scale by compliance rate if available
+  if (compliance && compliance.firstCheckDate && compliance.lastCheckDate) {
+    const first = new Date(compliance.firstCheckDate);
+    const last = new Date(compliance.lastCheckDate);
+    first.setHours(0, 0, 0, 0);
+    last.setHours(0, 0, 0, 0);
+    const trackingDays = Math.max(1, Math.floor((last.getTime() - first.getTime()) / (24 * 60 * 60 * 1000)) + 1);
+    const daysPerWeek = Math.min(7, Math.max(0, compound.daysPerWeek || 0));
+    const expectedDoses = compound.dosesPerDay * trackingDays * (daysPerWeek / 7);
+    if (expectedDoses > 0) {
+      const complianceRate = Math.min(1, compliance.checkedDoses / expectedDoses);
+      adjusted *= complianceRate;
+    }
+  }
+
+  return adjusted;
 }
 
 /**
  * Calculate days remaining accounting for cycling ON/OFF periods and pause.
  * Paused compounds don't deplete, so days remaining is effectively infinite while paused.
  */
-export function getDaysRemainingWithCycling(compound: Compound): number {
+export function getDaysRemainingWithCycling(compound: Compound, compliance?: ComplianceInfo): number {
   if (isPaused(compound)) return 999;
 
   const dosePerActiveDay = compound.dosePerUse * compound.dosesPerDay;
@@ -99,8 +118,8 @@ export function getDaysRemainingWithCycling(compound: Compound): number {
   const daysPerWeek = Math.min(7, Math.max(0, compound.daysPerWeek || 0));
   if (daysPerWeek === 0) return 999;
 
-  // Use effective quantity (adjusted for usage since purchaseDate)
-  const effectiveQty = getEffectiveQuantity(compound);
+  // Use effective quantity (adjusted for actual usage via compliance data)
+  const effectiveQty = getEffectiveQuantity(compound, compliance);
 
   // Total supply in raw dose units
   const totalSupply = compound.category === 'peptide' && compound.bacstatPerVial

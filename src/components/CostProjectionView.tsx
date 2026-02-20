@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Compound, getReorderCost, getNormalizedDailyConsumption } from '@/data/compounds';
 import { supabase } from '@/integrations/supabase/client';
 import { getDaysRemainingWithCycling, getEffectiveDailyConsumption, getCycleStatus } from '@/lib/cycling';
+import { useCompliance } from '@/contexts/ComplianceContext';
 import { UserProtocol } from '@/hooks/useProtocols';
 import { CustomField } from '@/hooks/useCustomFields';
 import { TrendingDown, ChevronDown } from 'lucide-react';
@@ -46,8 +47,10 @@ interface MonthData {
   total: number;
 }
 
-function getReorderSupplyDays(compound: Compound): number {
-  const effectiveDaily = getEffectiveDailyConsumption(compound);
+type ComplianceGetter = (compoundId: string) => { checkedDoses: number; firstCheckDate: string | null; lastCheckDate: string | null } | undefined;
+
+function getReorderSupplyDays(compound: Compound, getCI?: ComplianceGetter): number {
+  const effectiveDaily = getEffectiveDailyConsumption(compound, getCI?.(compound.id));
   if (effectiveDaily === 0) return 9999;
 
   const reorderUnits = compound.category === 'peptide'
@@ -61,7 +64,7 @@ function getReorderSupplyDays(compound: Compound): number {
   return (reorderUnits * unitsPerUnit) / effectiveDaily;
 }
 
-function buildProjection(compounds: Compound[], getModifiers: (compoundId: string) => CostModifiers, receivedOrders: ReceivedOrder[] = []): MonthData[] {
+function buildProjection(compounds: Compound[], getModifiers: (compoundId: string) => CostModifiers, receivedOrders: ReceivedOrder[] = [], getCI?: ComplianceGetter): MonthData[] {
   // Apply dosesPerDay overrides to compounds for accurate projection
   const effectiveCompounds = compounds.map(c => {
     const mods = getModifiers(c.id);
@@ -84,7 +87,7 @@ function buildProjection(compounds: Compound[], getModifiers: (compoundId: strin
   endDate.setFullYear(endDate.getFullYear() + 1);
 
   effectiveCompounds.forEach(compound => {
-    const daysLeft = getDaysRemainingWithCycling(compound);
+    const daysLeft = getDaysRemainingWithCycling(compound, getCI?.(compound.id));
     const baseCost = getReorderCost(compound);
     const mods = getModifiers(compound.id);
     // Apply discount then add shipping
@@ -107,7 +110,7 @@ function buildProjection(compounds: Compound[], getModifiers: (compoundId: strin
       ? isSingleUnit ? compound.unitPrice : (compound.kitPrice || 0)
       : compound.unitPrice;
 
-    const supplyDays = getReorderSupplyDays(compound);
+    const supplyDays = getReorderSupplyDays(compound, getCI);
     let nextReorderDay = daysLeft;
 
     while (nextReorderDay < 365) {
@@ -202,6 +205,7 @@ function groupItemsByProtocol(
 }
 
 const CostProjectionView = ({ compounds, protocols = [], customFields = [], customFieldValues = new Map(), userId, memberBreakdowns }: CostProjectionViewProps) => {
+  const { getComplianceInfo } = useCompliance();
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [showSavings, setShowSavings] = useState(false);
   const [receivedOrders, setReceivedOrders] = useState<ReceivedOrder[]>([]);
@@ -249,7 +253,7 @@ const CostProjectionView = ({ compounds, protocols = [], customFields = [], cust
     return { shippingCost, discountPct, dosesPerDayOverride };
   };
 
-  const projection = buildProjection(compounds, getModifiers, receivedOrders);
+  const projection = buildProjection(compounds, getModifiers, receivedOrders, getComplianceInfo);
   const totalAnnual = projection.reduce((sum, m) => sum + m.total, 0);
   const totalSpent = projection.reduce((sum, m) => 
     sum + m.compounds.filter(c => c.isReceived).reduce((s, c) => s + c.cost, 0), 0);
@@ -260,7 +264,7 @@ const CostProjectionView = ({ compounds, protocols = [], customFields = [], cust
     const effectiveCompound = mods.dosesPerDayOverride !== null
       ? { ...c, dosesPerDay: mods.dosesPerDayOverride }
       : c;
-    const effectiveDaily = getEffectiveDailyConsumption(effectiveCompound);
+    const effectiveDaily = getEffectiveDailyConsumption(effectiveCompound, getComplianceInfo(c.id));
     if (effectiveDaily === 0) return sum;
     const monthlyConsumption = effectiveDaily * 30;
 
