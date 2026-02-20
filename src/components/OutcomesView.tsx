@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { UserProfile } from '@/hooks/useProfile';
 import { MeasurementSystem, displayHeight, displayWeight } from '@/lib/measurements';
 import BiomarkerHistoryView from './BiomarkerHistoryView';
+import ComplianceTrendChart from './ComplianceTrendChart';
 import AddGoalDialog from './AddGoalDialog';
 import ConfirmDialog from './ConfirmDialog';
 import GoalCardChat from './GoalCardChat';
@@ -775,6 +776,9 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
           )}
         </div>
       )}
+
+      {/* Compliance Trend */}
+      <ComplianceTrendChart userId={userId} />
 
       {/* Biomarker History */}
       <BiomarkerHistoryView userId={userId} onUploadClick={onUploadClick || (() => {})} goals={goals} onCreateGoal={onCreateGoal} onRefreshGoals={onRefreshGoals} />
