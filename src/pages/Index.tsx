@@ -318,7 +318,7 @@ const Index = () => {
 
   return (
     <ComplianceProvider userId={user?.id}>
-    <div ref={containerRef} className="min-h-screen bg-background relative" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+    <div ref={containerRef} className="min-h-screen bg-background relative pt-[env(safe-area-inset-top,0px)]">
       {/* Pull-to-refresh indicator */}
       <div
         className="absolute left-0 right-0 flex items-center justify-center overflow-hidden transition-[height] duration-200 ease-out z-50"
@@ -363,7 +363,7 @@ const Index = () => {
         </div>
       )}
 
-      <header className="border-b border-border/50 px-4 py-2.5 sm:py-4">
+      <header className="sticky top-0 z-40 border-b border-border/50 px-4 py-2.5 sm:py-4 bg-background">
         <div className="container mx-auto flex items-center justify-between">
           <div className="min-w-0">
             <h1 className="text-base sm:text-xl font-bold tracking-tight truncate">
