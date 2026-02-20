@@ -374,12 +374,12 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
   const [newFieldName, setNewFieldName] = useState('');
   const [newFieldType, setNewFieldType] = useState<'text' | 'number' | 'date'>('text');
   const [newFieldUnit, setNewFieldUnit] = useState('');
-  const [showCycleTimeline, setShowCycleTimeline] = useState(false);
+  const cycleStatus = getCycleStatus(compound);
+  const [showCycleTimeline, setShowCycleTimeline] = useState(cycleStatus.hasCycle && !cycleStatus.isOn);
 
   const compoundIsPaused = isPaused(compound);
   const days = getDaysRemainingWithCycling(compound);
   const status = compoundIsPaused ? 'good' as const : getStatus(days);
-  const cycleStatus = getCycleStatus(compound);
   const maxDays = 90;
   const progress = Math.min(100, (days / maxDays) * 100);
   const isPeptide = compound.category === 'peptide';
