@@ -120,15 +120,21 @@ export function useHousehold(userId?: string) {
 
     // Send email notification via edge function
     try {
-      await supabase.functions.invoke('send-household-invite', {
+      const { data: emailResult, error: fnError } = await supabase.functions.invoke('send-household-invite', {
         body: {
           inviteeEmail: email,
           inviterName: profileData?.display_name || undefined,
         },
       });
+
+      if (fnError) {
+        console.warn('Email invite notification failed:', fnError);
+      } else if (emailResult?.error) {
+        // Validation error from the edge function (e.g. invalid email)
+        return { success: false, error: emailResult.error };
+      }
     } catch (e) {
       console.warn('Email invite notification failed:', e);
-      // Don't block on email failure — the in-app invite still works
     }
 
     if (!targetUserId) {
