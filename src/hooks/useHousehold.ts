@@ -84,33 +84,56 @@ export function useHousehold(userId?: string) {
     const { data: foundUsers, error: findError } = await (supabase as any)
       .rpc('find_user_for_household', { lookup_email: email });
 
-    if (findError || !foundUsers || foundUsers.length === 0) {
-      return { success: false, error: 'No PROTOCOL Guardian account found with that email.' };
+    // Whether or not a user is found, we still want to send an email invite
+    const targetUserId = foundUsers?.[0]?.user_id;
+
+    if (targetUserId) {
+      // Check if link already exists
+      const exists = links.some(l =>
+        (l.requester_id === userId && l.member_id === targetUserId) ||
+        (l.requester_id === targetUserId && l.member_id === userId)
+      );
+      if (exists) {
+        return { success: false, error: 'A household link already exists with this user.' };
+      }
+
+      const { error: insertError } = await (supabase as any)
+        .from('household_links')
+        .insert({
+          requester_id: userId,
+          member_id: targetUserId,
+          status: 'pending',
+          invite_token: `email:${email}`,
+        });
+
+      if (insertError) {
+        return { success: false, error: 'Failed to send invite. Please try again.' };
+      }
     }
 
-    const targetUser = foundUsers[0];
+    // Get inviter's display name for the email
+    const { data: profileData } = await (supabase as any)
+      .from('profiles')
+      .select('display_name')
+      .eq('user_id', userId)
+      .maybeSingle();
 
-    // Check if link already exists
-    const exists = links.some(l =>
-      (l.requester_id === userId && l.member_id === targetUser.user_id) ||
-      (l.requester_id === targetUser.user_id && l.member_id === userId)
-    );
-    if (exists) {
-      return { success: false, error: 'A household link already exists with this user.' };
-    }
-
-    const { error: insertError } = await (supabase as any)
-      .from('household_links')
-      .insert({
-        requester_id: userId,
-        member_id: targetUser.user_id,
-        status: 'pending',
-        // Store invited email as fallback display label (prefix to distinguish from real tokens)
-        invite_token: `email:${email}`,
+    // Send email notification via edge function
+    try {
+      await supabase.functions.invoke('send-household-invite', {
+        body: {
+          inviteeEmail: email,
+          inviterName: profileData?.display_name || undefined,
+        },
       });
+    } catch (e) {
+      console.warn('Email invite notification failed:', e);
+      // Don't block on email failure — the in-app invite still works
+    }
 
-    if (insertError) {
-      return { success: false, error: 'Failed to send invite. Please try again.' };
+    if (!targetUserId) {
+      // No existing account — email was sent but no in-app link created yet
+      return { success: true };
     }
 
     await fetchLinks();
