@@ -835,6 +835,24 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
             {days}d left
           </span>
         )}
+        {(() => {
+          const ci = getCI(compound.id);
+          if (!ci || !ci.firstCheckDate) return null;
+          const start = new Date(ci.firstCheckDate);
+          const end = ci.lastCheckDate ? new Date(ci.lastCheckDate) : new Date();
+          const trackingDays = Math.max(1, Math.floor((end.getTime() - start.getTime()) / (86400000)) + 1);
+          const expectedDoses = trackingDays * compound.dosesPerDay * (compound.daysPerWeek / 7);
+          if (expectedDoses <= 0) return null;
+          const rate = Math.min(100, Math.round((ci.checkedDoses / expectedDoses) * 100));
+          const color = rate >= 90 ? 'bg-status-good/10 text-status-good' :
+                        rate >= 70 ? 'bg-accent/15 text-status-warning' :
+                        'bg-destructive/15 text-status-critical';
+          return (
+            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${color}`} title={`${ci.checkedDoses} of ~${Math.round(expectedDoses)} expected doses checked`}>
+              {rate}%
+            </span>
+          );
+        })()}
       </div>
 
       {/* Collapsible Cycle Timeline Bar */}
