@@ -93,22 +93,21 @@ export function useHousehold(userId?: string) {
         (l.requester_id === userId && l.member_id === targetUserId) ||
         (l.requester_id === targetUserId && l.member_id === userId)
       );
-      if (exists) {
-        return { success: false, error: 'A household link already exists with this user.' };
-      }
+      if (!exists) {
+        const { error: insertError } = await (supabase as any)
+          .from('household_links')
+          .insert({
+            requester_id: userId,
+            member_id: targetUserId,
+            status: 'pending',
+            invite_token: `email:${email}`,
+          });
 
-      const { error: insertError } = await (supabase as any)
-        .from('household_links')
-        .insert({
-          requester_id: userId,
-          member_id: targetUserId,
-          status: 'pending',
-          invite_token: `email:${email}`,
-        });
-
-      if (insertError) {
-        return { success: false, error: 'Failed to send invite. Please try again.' };
+        if (insertError) {
+          return { success: false, error: 'Failed to send invite. Please try again.' };
+        }
       }
+      // If link exists, we still proceed to resend the email below
     }
 
     // Get inviter's display name for the email
