@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CalendarDays, Package, LayoutDashboard, RefreshCw, Brain, Gauge, LineChart } from 'lucide-react';
+import { CalendarDays, Package, LayoutDashboard, RefreshCw, Brain, Gauge, LineChart, UserPlus } from 'lucide-react';
 import { getDaysRemainingWithCycling, getEffectiveDailyConsumption } from '@/lib/cycling';
 import { ComplianceProvider } from '@/contexts/ComplianceContext';
 import { getStatus } from '@/data/compounds';
@@ -32,6 +32,7 @@ import GuidedTour from '@/components/GuidedTour';
 import WhatsNewOverlay from '@/components/WhatsNewOverlay';
 import FeatureManagerDialog from '@/components/FeatureManagerDialog';
 import { AppFeatures } from '@/lib/appFeatures';
+import QuickInviteDialog from '@/components/QuickInviteDialog';
 import { supabase } from '@/integrations/supabase/client';
 
 import DashboardView from '@/components/DashboardView';
@@ -238,6 +239,7 @@ const Index = () => {
   const [showGuidedTour, setShowGuidedTour] = useState(false);
   const [showTourPrompt, setShowTourPrompt] = useState(false);
   const [showFeatureManager, setShowFeatureManager] = useState(false);
+  const [showQuickInvite, setShowQuickInvite] = useState(false);
 
   const handleToggleFeature = useCallback(async (key: keyof AppFeatures) => {
     const updated = { ...appFeatures, [key]: !appFeatures[key] };
@@ -377,6 +379,13 @@ const Index = () => {
               onGoalExpansion={() => setShowGoalExpansion(true)}
               onNavigateTab={setActiveTab}
             />
+            <button
+              onClick={() => setShowQuickInvite(true)}
+              className="p-1.5 sm:p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 active:scale-90 transition-all duration-150"
+              aria-label="Invite household member"
+            >
+              <UserPlus className="w-4 h-4 sm:w-[18px] sm:h-[18px]" />
+            </button>
             <div className="w-px h-5 bg-border/50 hidden sm:block" />
             <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground font-mono">
               <span className="inline-block w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-status-good animate-pulse-glow" />
@@ -745,6 +754,12 @@ const Index = () => {
           features={appFeatures}
           onToggle={handleToggleFeature}
           onRequestFeature={handleFeatureRequest}
+        />
+
+        <QuickInviteDialog
+          open={showQuickInvite}
+          onOpenChange={setShowQuickInvite}
+          onSendInvite={household.sendInvite}
         />
       </main>
       <WhatsNewOverlay />
