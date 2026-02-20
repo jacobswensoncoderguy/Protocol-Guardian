@@ -54,7 +54,7 @@ export function useComplianceTrend(userId: string | undefined) {
         .order('check_date', { ascending: true }),
       supabase
         .from('user_compounds')
-        .select('compound_id, name, doses_per_day, days_per_week')
+        .select('id, name, doses_per_day, days_per_week')
         .eq('user_id', userId),
     ]);
 
@@ -77,7 +77,7 @@ export function useComplianceTrend(userId: string | undefined) {
     // Build compound lookup
     const compoundMap = new Map<string, { name: string; dosesPerDay: number; daysPerWeek: number }>();
     userCompounds.forEach(c => {
-      compoundMap.set(c.compound_id, {
+      compoundMap.set(c.id, {
         name: c.name,
         dosesPerDay: c.doses_per_day,
         daysPerWeek: c.days_per_week,
