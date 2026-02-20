@@ -848,8 +848,8 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                         rate >= 70 ? 'bg-accent/15 text-status-warning' :
                         'bg-destructive/15 text-status-critical';
           return (
-            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${color}`} title={`${ci.checkedDoses} of ~${Math.round(expectedDoses)} expected doses checked`}>
-              {rate}%
+            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full inline-flex items-center gap-1 ${color}`} title={`${ci.checkedDoses} of ~${Math.round(expectedDoses)} expected doses checked`}>
+              ✓ {rate}% taken
             </span>
           );
         })()}
