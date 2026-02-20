@@ -77,7 +77,7 @@ export function useHousehold(userId?: string) {
     fetchLinks();
   }, [fetchLinks]);
 
-  const sendInvite = useCallback(async (email: string): Promise<{ success: boolean; error?: string }> => {
+  const sendInvite = useCallback(async (email: string): Promise<{ success: boolean; error?: string; isResend?: boolean }> => {
     if (!userId) return { success: false, error: 'Not authenticated' };
 
     // Find user by email using the security definer function
@@ -87,6 +87,7 @@ export function useHousehold(userId?: string) {
     // Whether or not a user is found, we still want to send an email invite
     const targetUserId = foundUsers?.[0]?.user_id;
 
+    let isResend = false;
     if (targetUserId) {
       // Check if link already exists
       const exists = links.some(l =>
@@ -106,8 +107,9 @@ export function useHousehold(userId?: string) {
         if (insertError) {
           return { success: false, error: 'Failed to send invite. Please try again.' };
         }
+      } else {
+        isResend = true;
       }
-      // If link exists, we still proceed to resend the email below
     }
 
     // Get inviter's display name for the email
@@ -129,7 +131,6 @@ export function useHousehold(userId?: string) {
       if (fnError) {
         console.warn('Email invite notification failed:', fnError);
       } else if (emailResult?.error) {
-        // Validation error from the edge function (e.g. invalid email)
         return { success: false, error: emailResult.error };
       }
     } catch (e) {
@@ -137,12 +138,11 @@ export function useHousehold(userId?: string) {
     }
 
     if (!targetUserId) {
-      // No existing account — email was sent but no in-app link created yet
-      return { success: true };
+      return { success: true, isResend: false };
     }
 
     await fetchLinks();
-    return { success: true };
+    return { success: true, isResend };
   }, [userId, links, fetchLinks]);
 
   const acceptInvite = useCallback(async (linkId: string) => {
