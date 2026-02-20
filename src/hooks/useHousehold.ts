@@ -6,9 +6,10 @@ export interface HouseholdMember {
   linkId: string;
   userId: string;
   displayName: string | null;
-  email: string | null; // fallback when no display_name
+  email: string | null;
   status: 'pending' | 'accepted' | 'rejected';
-  isRequester: boolean; // true if current user sent the invite
+  isRequester: boolean;
+  createdAt: string;
 }
 
 export interface HouseholdLink {
@@ -67,6 +68,7 @@ export function useHousehold(userId?: string) {
         email: emailFallback,
         status: link.status as 'pending' | 'accepted' | 'rejected',
         isRequester: link.requester_id === userId,
+        createdAt: link.created_at,
       });
     }
     setMembers(enriched);
