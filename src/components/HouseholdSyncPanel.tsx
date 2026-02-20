@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Users, UserPlus, Check, X, Trash2, Loader2, Mail, Clock, UserCheck, LogOut } from 'lucide-react';
+import { Users, UserPlus, Check, X, Trash2, Loader2, Mail, Clock, UserCheck, LogOut, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { HouseholdMember } from '@/hooks/useHousehold';
 import {
@@ -159,13 +159,30 @@ const HouseholdSyncPanel = ({
                   <p className="text-[10px] text-muted-foreground">Pending acceptance</p>
                 </div>
               </div>
-              <button
-                onClick={() => handleAction(() => onRemove(m.linkId), m.linkId, 'Invite cancelled.')}
-                disabled={actionLoading === m.linkId}
-                className="p-1.5 rounded-md bg-secondary text-muted-foreground border border-border/50 hover:bg-destructive/10 hover:text-destructive transition-colors"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
+              <div className="flex gap-1.5">
+                <button
+                  onClick={async () => {
+                    if (!m.email) return;
+                    setActionLoading(m.linkId + '-resend');
+                    const result = await onSendInvite(m.email);
+                    if (result.success) toast.success('Invite resent!');
+                    else toast.error(result.error || 'Failed to resend invite');
+                    setActionLoading(null);
+                  }}
+                  disabled={actionLoading === m.linkId + '-resend' || !m.email}
+                  className="flex items-center gap-1 px-2 py-1.5 rounded-md text-xs text-primary border border-primary/30 hover:bg-primary/10 transition-colors disabled:opacity-50"
+                >
+                  {actionLoading === m.linkId + '-resend' ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                  Resend
+                </button>
+                <button
+                  onClick={() => handleAction(() => onRemove(m.linkId), m.linkId, 'Invite cancelled.')}
+                  disabled={actionLoading === m.linkId}
+                  className="p-1.5 rounded-md bg-secondary text-muted-foreground border border-border/50 hover:bg-destructive/10 hover:text-destructive transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
           ))}
         </div>
