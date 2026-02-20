@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Users, UserPlus, Check, X, Trash2, Loader2, Mail, Clock, UserCheck, LogOut, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatDistanceToNow } from 'date-fns';
 import { HouseholdMember } from '@/hooks/useHousehold';
 import {
   AlertDialog,
@@ -156,7 +157,9 @@ const HouseholdSyncPanel = ({
                 <Clock className="w-3.5 h-3.5 text-muted-foreground" />
                 <div>
                   <p className="text-xs font-medium">{getMemberLabel(m)}</p>
-                  <p className="text-[10px] text-muted-foreground">Pending acceptance</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    Sent {formatDistanceToNow(new Date(m.createdAt), { addSuffix: true })}
+                  </p>
                 </div>
               </div>
               <div className="flex gap-1.5">
