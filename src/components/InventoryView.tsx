@@ -1913,20 +1913,78 @@ const InlineQuantityEditor = ({ compound, status, isOil, isPeptide, onUpdate }: 
     );
   }
 
+  // Calculate units remaining for depletion bar
+  const totalUnitsInStock = compound.currentQuantity * compound.unitSize;
+  const effectiveUnitsRemaining = effectiveQty * compound.unitSize;
+  const pctRemaining = totalUnitsInStock > 0 ? Math.max(0, Math.min(100, (effectiveUnitsRemaining / totalUnitsInStock) * 100)) : 100;
+  const unitsConsumed = Math.round((totalUnitsInStock - effectiveUnitsRemaining) * 10) / 10;
+  const unitsLeft = Math.round(effectiveUnitsRemaining * 10) / 10;
+
+  // Determine unit label for display
+  const unitDisplayLabel = (() => {
+    if (isPeptide) return compound.bacstatPerVial ? 'IU' : 'doses';
+    if (isOil) return 'mL';
+    const ul = (compound.unitLabel || 'caps').toLowerCase();
+    if (ul.includes('pill')) return 'pills';
+    if (ul.includes('cap')) return 'caps';
+    if (ul.includes('tab')) return 'tabs';
+    if (ul.includes('softgel')) return 'softgels';
+    if (ul.includes('scoop')) return 'scoops';
+    if (ul.includes('serving')) return 'servings';
+    return ul;
+  })();
+
+  // For peptides/oils, calculate supply in dose units
+  const supplyInDoseUnits = (() => {
+    if (isPeptide && compound.bacstatPerVial) {
+      return { total: compound.currentQuantity * compound.bacstatPerVial, remaining: effectiveQty * compound.bacstatPerVial };
+    }
+    if (isOil && compound.vialSizeMl) {
+      return { total: compound.currentQuantity * compound.unitSize * compound.vialSizeMl, remaining: effectiveQty * compound.unitSize * compound.vialSizeMl };
+    }
+    return { total: totalUnitsInStock, remaining: effectiveUnitsRemaining };
+  })();
+
+  const supplyPct = supplyInDoseUnits.total > 0 ? Math.max(0, Math.min(100, (supplyInDoseUnits.remaining / supplyInDoseUnits.total) * 100)) : 100;
+  const barColor = supplyPct > 50 ? 'bg-status-good' : supplyPct > 20 ? 'bg-status-warning' : 'bg-destructive';
+
   return (
-    <div>
-      <span className="text-muted-foreground text-[10px]">{label}:</span>{' '}
-      <button
-        onClick={() => { hapticTap(8); setInlineValue(compound.currentQuantity.toString()); setInlineEditing(true); }}
-        className={`font-mono text-[10px] text-foreground underline decoration-dotted underline-offset-2 cursor-pointer hover:text-primary transition-all duration-150 ${justSaved ? 'text-primary scale-110' : ''} ${status === 'critical' ? 'animate-pulse text-status-critical' : status === 'warning' ? 'text-status-warning' : ''}`}
-        title={hasDepletion ? `Purchased ${compound.currentQuantity} — ~${Math.round(consumedUnits * 100) / 100} consumed since ${compound.purchaseDate}. Tap to set current stock.` : 'Tap to edit quantity'}
-      >
-        {displayValue}
-      </button>
-      {hasDepletion && (
-        <span className="text-[9px] text-muted-foreground/60 ml-1" title={`Started with ${compound.currentQuantity}, ~${Math.round(consumedUnits * 100) / 100} used since ${compound.purchaseDate}`}>
-          (of {compound.currentQuantity} purchased)
-        </span>
+    <div className="col-span-2 space-y-1">
+      <div className="flex items-center justify-between">
+        <div>
+          <span className="text-muted-foreground text-[10px]">{label}:</span>{' '}
+          <button
+            onClick={() => { hapticTap(8); setInlineValue(compound.currentQuantity.toString()); setInlineEditing(true); }}
+            className={`font-mono text-[10px] text-foreground underline decoration-dotted underline-offset-2 cursor-pointer hover:text-primary transition-all duration-150 ${justSaved ? 'text-primary scale-110' : ''} ${status === 'critical' ? 'animate-pulse text-status-critical' : status === 'warning' ? 'text-status-warning' : ''}`}
+            title={hasDepletion ? `Purchased ${compound.currentQuantity} — ~${Math.round(consumedUnits * 100) / 100} consumed since ${compound.purchaseDate}. Tap to set current stock.` : 'Tap to edit quantity'}
+          >
+            {displayValue}
+          </button>
+          {hasDepletion && (
+            <span className="text-[9px] text-muted-foreground/60 ml-1">
+              (of {compound.currentQuantity} purchased)
+            </span>
+          )}
+        </div>
+      </div>
+      {/* Supply depletion bar */}
+      {(hasDepletion || isPeptide || isOil) && (
+        <div className="space-y-0.5">
+          <div className="relative h-2 rounded-full overflow-hidden bg-muted/50 border border-border/30">
+            <div
+              className={`absolute inset-y-0 left-0 rounded-full transition-all duration-500 ${barColor}`}
+              style={{ width: `${supplyPct}%`, opacity: 0.7 }}
+            />
+          </div>
+          <div className="flex items-center justify-between text-[9px] font-mono text-muted-foreground">
+            <span>
+              {Math.round(supplyInDoseUnits.remaining)} of {Math.round(supplyInDoseUnits.total)} {unitDisplayLabel} left
+            </span>
+            <span className={supplyPct > 50 ? 'text-status-good' : supplyPct > 20 ? 'text-status-warning' : 'text-status-critical'}>
+              {Math.round(supplyPct)}%
+            </span>
+          </div>
+        </div>
       )}
     </div>
   );
