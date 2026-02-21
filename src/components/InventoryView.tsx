@@ -951,7 +951,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
       {/* Purchase date prompt — only for orals/powders/vitamins/etc where you need to know
           how many units are in the current bottle. Peptides and oils burn at a known rate
           from dose × frequency alone, so no purchase date is required. */}
-      {!compound.purchaseDate && !editing && !compoundIsPaused && !isPeptide && !isOil && (
+      {!compound.purchaseDate && !editing && !isPeptide && !isOil && (
         <div className="mb-2 flex items-center gap-2 bg-primary/5 border border-primary/20 rounded-lg px-2.5 py-1.5">
           <Calendar className="w-3 h-3 text-primary/70 flex-shrink-0" />
           <span className="text-[10px] text-muted-foreground flex-1">Set purchase date to track pills remaining</span>
