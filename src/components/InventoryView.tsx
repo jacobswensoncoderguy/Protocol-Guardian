@@ -5,7 +5,7 @@ import { getCycleStatus, getDaysRemainingWithCycling, isPaused } from '@/lib/cyc
 import { useCompliance } from '@/contexts/ComplianceContext';
 import { UserProtocol } from '@/hooks/useProtocols';
 import { CustomField, CustomFieldValue, PREDEFINED_FIELDS } from '@/hooks/useCustomFields';
-import { Pencil, Check, X, Trash2, Plus, ChevronDown, ChevronUp, GripVertical, Syringe, Clock, SortAsc, Moon as MoonIcon, Sun, Dumbbell, RefreshCcw, Package, PlusCircle, AlertTriangle, Pause, Play, Calendar } from 'lucide-react';
+import { Pencil, Check, X, Trash2, Plus, ChevronDown, ChevronUp, GripVertical, Syringe, Clock, SortAsc, Moon as MoonIcon, Sun, Dumbbell, RefreshCcw, Package, PlusCircle, AlertTriangle, Pause, Play, Calendar, TrendingDown } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import ToleranceSelector from '@/components/ToleranceSelector';
@@ -1986,6 +1986,40 @@ const InlineQuantityEditor = ({ compound, status, isOil, isPeptide, onUpdate }: 
           </div>
         </div>
       )}
+      {/* Supply Forecast */}
+      {(() => {
+        const { getDaysRemainingAdjusted: getDaysAdj, getEffectiveDailyAdjusted: getDailyAdj } = useCompliance();
+        const daysLeft = getDaysAdj(compound);
+        const dailyRate = getDailyAdj(compound);
+        if (daysLeft <= 0 || daysLeft >= 999 || dailyRate <= 0) return null;
+
+        const now = new Date();
+        const runOutDate = new Date(now);
+        runOutDate.setDate(runOutDate.getDate() + daysLeft);
+        const runOutStr = runOutDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: runOutDate.getFullYear() !== now.getFullYear() ? 'numeric' : undefined });
+
+        // Reorder lead time: order ~14 days before run-out
+        const reorderLeadDays = 14;
+        const reorderDaysFromNow = Math.max(0, daysLeft - reorderLeadDays);
+        const reorderDate = new Date(now);
+        reorderDate.setDate(reorderDate.getDate() + reorderDaysFromNow);
+        const reorderStr = reorderDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: reorderDate.getFullYear() !== now.getFullYear() ? 'numeric' : undefined });
+
+        const urgency = daysLeft <= 14 ? 'text-status-critical' : daysLeft <= 30 ? 'text-status-warning' : 'text-muted-foreground';
+
+        return (
+          <div className="flex items-center gap-2 text-[9px] font-mono mt-0.5">
+            <TrendingDown className={`w-2.5 h-2.5 flex-shrink-0 ${urgency}`} />
+            <span className={urgency}>
+              Runs out <span className="font-semibold">{runOutStr}</span>
+            </span>
+            <span className="text-muted-foreground/40">·</span>
+            <span className="text-muted-foreground">
+              Reorder by <span className="font-semibold text-accent">{reorderStr}</span>
+            </span>
+          </div>
+        );
+      })()}
     </div>
   );
 };
