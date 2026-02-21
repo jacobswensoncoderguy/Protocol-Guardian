@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
-import { Compound, getReorderCost } from '@/data/compounds';
+import { Compound, getReorderCost, getEffectiveQuantity } from '@/data/compounds';
 import { getDaysRemainingWithCycling, getEffectiveDailyConsumption } from '@/lib/cycling';
 import { useCompliance } from '@/contexts/ComplianceContext';
 import { UserProtocol } from '@/hooks/useProtocols';
@@ -342,7 +342,17 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
       .eq('id', order.id);
     if (error) return;
     const compound = compoundMap.get(order.compound_id);
-    if (compound) onUpdateCompound(compound.id, { currentQuantity: compound.currentQuantity + order.quantity });
+    if (compound) {
+      // Snapshot the actual remaining quantity, add received stock, and reset baseline
+      // This prevents the depletion math from "eating" new stock with old consumption
+      const complianceInfo = getComplianceInfo(compound.id);
+      const effectiveRemaining = getEffectiveQuantity(compound, complianceInfo);
+      const newCurrentQuantity = effectiveRemaining + order.quantity;
+      onUpdateCompound(compound.id, {
+        currentQuantity: newCurrentQuantity,
+        purchaseDate: new Date().toISOString().split('T')[0],
+      });
+    }
     setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'received', received_at: now } : o));
   };
 
@@ -352,7 +362,16 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
 
   const handleUndoReceived = async (order: OrderItem) => {
     const compound = compoundMap.get(order.compound_id);
-    if (compound) onUpdateCompound(compound.id, { currentQuantity: Math.max(0, compound.currentQuantity - order.quantity) });
+    if (compound) {
+      // Snapshot actual remaining, subtract the received stock, reset baseline
+      const complianceInfo = getComplianceInfo(compound.id);
+      const effectiveRemaining = getEffectiveQuantity(compound, complianceInfo);
+      const newCurrentQuantity = Math.max(0, effectiveRemaining - order.quantity);
+      onUpdateCompound(compound.id, {
+        currentQuantity: newCurrentQuantity,
+        purchaseDate: new Date().toISOString().split('T')[0],
+      });
+    }
     const { error } = await supabase.from('orders').update({ status: 'ordered', received_at: null }).eq('id', order.id);
     if (!error) {
       setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'ordered', received_at: null } : o));
