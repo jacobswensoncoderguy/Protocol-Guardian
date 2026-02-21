@@ -131,8 +131,9 @@ const Index = () => {
 
   // Selected day for schedule — lifted here so useDoseCheckOffs can target the right date
   const [scheduleSelectedDay, setScheduleSelectedDay] = useState<number>(new Date().getDay());
+  const [scheduleWeekOffset, setScheduleWeekOffset] = useState(0);
 
-  const { checkedDoses, toggleChecked: toggleDoseCheck } = useDoseCheckOffs(scheduleSelectedDay);
+  const { checkedDoses, toggleChecked: toggleDoseCheck } = useDoseCheckOffs(scheduleSelectedDay, scheduleWeekOffset);
   const { snapshots: scheduleSnapshots, loading: snapshotsLoading } = useScheduleSnapshots(compounds);
   const { checkedDosesMap: historicalCheckOffs } = useHistoricalCheckOffs();
 
@@ -516,6 +517,8 @@ const Index = () => {
                     memberCompoundIds={householdViewId === 'combined' ? new Set(memberCompounds.map(c => c.id)) : undefined}
                     selectedDay={scheduleSelectedDay}
                     onSelectedDayChange={setScheduleSelectedDay}
+                    weekOffset={scheduleWeekOffset}
+                    onWeekOffsetChange={setScheduleWeekOffset}
                   />}
                 </TabsContent>
                 <TabsContent value="history" forceMount={scheduleSubTab === 'history' ? true : undefined}>
