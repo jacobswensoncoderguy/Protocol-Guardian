@@ -119,6 +119,8 @@ const Index = () => {
   const [showGoalExpansion, setShowGoalExpansion] = useState(false);
   const [showBiomarkerUpload, setShowBiomarkerUpload] = useState(false);
   const [labsRefreshKey, setLabsRefreshKey] = useState(0);
+  const [foodRefreshKey, setFoodRefreshKey] = useState(0);
+  const [symptomsRefreshKey, setSymptomsRefreshKey] = useState(0);
   const {
     protocols, createProtocol, deleteProtocol, cloneProtocol, updateProtocol,
     addCompoundToProtocol, removeCompoundFromProtocol, refetch: refetchProtocols,
@@ -255,7 +257,12 @@ const Index = () => {
 
   const handleRefresh = useCallback(async () => {
     await Promise.all([refetch(), refetchProtocols()]);
-  }, [refetch, refetchProtocols]);
+    if (activeTab === 'tracking') {
+      setFoodRefreshKey(k => k + 1);
+      setSymptomsRefreshKey(k => k + 1);
+      setLabsRefreshKey(k => k + 1);
+    }
+  }, [refetch, refetchProtocols, activeTab]);
 
   const { containerRef, pullDistance, refreshing, isTriggered } = usePullToRefresh({
     onRefresh: handleRefresh,
@@ -596,10 +603,10 @@ const Index = () => {
               </TabsList>
               <div>
                 <TabsContent value="food" forceMount={trackingSubTab === 'food' ? true : undefined}>
-                  {trackingSubTab === 'food' && <FoodTrackerView />}
+                  {trackingSubTab === 'food' && <FoodTrackerView key={foodRefreshKey} />}
                 </TabsContent>
                 <TabsContent value="symptoms" forceMount={trackingSubTab === 'symptoms' ? true : undefined}>
-                  {trackingSubTab === 'symptoms' && <SymptomsTrackerView />}
+                  {trackingSubTab === 'symptoms' && <SymptomsTrackerView key={symptomsRefreshKey} />}
                 </TabsContent>
                 <TabsContent value="labs" forceMount={trackingSubTab === 'labs' ? true : undefined}>
                   {trackingSubTab === 'labs' && (
