@@ -602,6 +602,11 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
       dose = Math.round(dose * 1000) / 1000;
     }
 
+    // When user changes quantity via edit form, reset compliance offset so
+    // the new quantity is treated as "what I have right now"
+    const qtyChanged = qty !== compound.currentQuantity;
+    const ci = qtyChanged ? getCI(compound.id) : undefined;
+
     const updates: Partial<Compound> = {
       name: editState.name?.trim() || compound.name,
       category: (editState.category as CompoundCategory) || compound.category,
@@ -610,6 +615,10 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
       dosePerUse: dose,
       reorderQuantity: reorder,
       reorderType: (editState.reorderType as 'single' | 'kit') || 'single',
+      ...(qtyChanged ? {
+        complianceDoseOffset: ci?.checkedDoses || 0,
+        purchaseDate: new Date().toISOString().split('T')[0],
+      } : {}),
     };
 
     const editIsPeptide = editState.category === 'peptide';
@@ -1842,7 +1851,7 @@ const InlineQuantityEditor = ({ compound, status, isOil, isPeptide, onUpdate }: 
   const label = isPeptide ? 'Vials' : 'On Hand';
 
   // Effective quantity = currentQuantity minus actual consumed (compliance-aware)
-  const { getEffectiveQtyAdjusted, getConsumedAdjusted } = useCompliance();
+  const { getEffectiveQtyAdjusted, getConsumedAdjusted, getComplianceInfo } = useCompliance();
   const effectiveQty = getEffectiveQtyAdjusted(compound);
   const consumedUnits = consumedToContainerUnits(compound, getConsumedAdjusted(compound));
   const hasDepletion = compound.purchaseDate ? true : consumedUnits > 0.005;
@@ -1866,11 +1875,14 @@ const InlineQuantityEditor = ({ compound, status, isOil, isPeptide, onUpdate }: 
   const saveInline = () => {
     const val = parseFloat(inlineValue);
     if (!isNaN(val) && val >= 0) {
-      // When user manually sets quantity, treat it as "as of today" by resetting purchaseDate to today
-      // so the depletion math starts fresh from this new baseline.
+      // When user manually sets quantity, treat it as "as of today" by resetting
+      // complianceDoseOffset to current checked doses so past consumption is zeroed out,
+      // and setting purchaseDate to today so theoretical pre-tracking is also zeroed.
+      const ci = getComplianceInfo(compound.id);
       onUpdate(compound.id, {
         currentQuantity: val,
         purchaseDate: new Date().toISOString().split('T')[0],
+        complianceDoseOffset: ci?.checkedDoses || 0,
       });
       hapticTap(15);
       setJustSaved(true);
