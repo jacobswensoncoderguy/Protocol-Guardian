@@ -594,7 +594,7 @@ const Index = () => {
                   )}
                 </TabsTrigger>
               </TabsList>
-              <div key={trackingSubTab} className={trackingSwipe.slideClass} onAnimationEnd={trackingSwipe.onAnimationEnd} onTouchStart={trackingSwipe.onTouchStart} onTouchEnd={trackingSwipe.onTouchEnd}>
+              <div>
                 <TabsContent value="food" forceMount={trackingSubTab === 'food' ? true : undefined}>
                   {trackingSubTab === 'food' && <FoodTrackerView />}
                 </TabsContent>
