@@ -1,0 +1,1 @@
+ALTER TABLE public.user_compounds ADD COLUMN compliance_dose_offset INTEGER NOT NULL DEFAULT 0;
