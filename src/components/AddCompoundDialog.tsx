@@ -26,6 +26,7 @@ interface LibraryCompound {
   current_quantity: number;
   reorder_quantity: number;
   notes: string | null;
+  purchase_date: string | null;
 }
 
 const categoryLabels: Record<string, string> = {
@@ -46,6 +47,10 @@ const categoryLabels: Record<string, string> = {
 
 const categoryOrder = ['peptide', 'injectable-oil', 'prescription', 'oral', 'powder', 'vitamin', 'holistic', 'adaptogen', 'nootropic', 'essential-oil', 'alternative-medicine', 'probiotic', 'topical'];
 
+const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6]; // Sun-Sat
+const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const DAY_FULL = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
 interface FormState {
   currentQuantity: string;
   unitSize: string;
@@ -54,6 +59,7 @@ interface FormState {
   dosePerUse: string;
   dosesPerDay: string;
   daysPerWeek: string;
+  selectedDays: number[];
   timingNote: string;
   bacstatPerVial: string;
   reconVolume: string;
@@ -64,6 +70,7 @@ interface FormState {
   reorderType: string;
   notes: string;
   vialSizeMl: string;
+  purchaseDate: string;
 }
 
 interface AddCompoundDialogProps {
@@ -143,6 +150,7 @@ const AddCompoundDialog = ({ open, onOpenChange, existingCompoundIds, onAdd }: A
       current_quantity: 0,
       reorder_quantity: 1,
       notes: null,
+      purchase_date: null,
     });
     setForm({
       currentQuantity: '0',
@@ -152,6 +160,7 @@ const AddCompoundDialog = ({ open, onOpenChange, existingCompoundIds, onAdd }: A
       dosePerUse: '0',
       dosesPerDay: '1',
       daysPerWeek: '7',
+      selectedDays: [...ALL_DAYS],
       timingNote: '',
       bacstatPerVial: isPeptide ? '200' : '0',
       reconVolume: isPeptide ? '2' : '0',
@@ -162,6 +171,7 @@ const AddCompoundDialog = ({ open, onOpenChange, existingCompoundIds, onAdd }: A
       reorderType: 'single',
       notes: '',
       vialSizeMl: '10',
+      purchaseDate: '',
     });
     setView('configure');
   };
@@ -170,6 +180,16 @@ const AddCompoundDialog = ({ open, onOpenChange, existingCompoundIds, onAdd }: A
     setSelected(c);
     setView('configure');
     const isPeptide = c.category === 'peptide';
+    // Derive selected days from days_per_week
+    const dpw = c.days_per_week;
+    let initDays: number[];
+    if (dpw >= 7) initDays = [...ALL_DAYS];
+    else if (dpw === 5) initDays = [1, 2, 3, 4, 5];
+    else if (dpw === 3) initDays = [1, 3, 5];
+    else if (dpw === 2) initDays = [2, 4];
+    else if (dpw === 1) initDays = [1];
+    else initDays = [...ALL_DAYS];
+
     setForm({
       currentQuantity: c.current_quantity.toString(),
       unitSize: c.unit_size.toString(),
@@ -177,7 +197,8 @@ const AddCompoundDialog = ({ open, onOpenChange, existingCompoundIds, onAdd }: A
       kitPrice: (c.kit_price || 0).toString(),
       dosePerUse: c.dose_per_use.toString(),
       dosesPerDay: c.doses_per_day.toString(),
-      daysPerWeek: c.days_per_week.toString(),
+      daysPerWeek: dpw.toString(),
+      selectedDays: initDays,
       timingNote: c.timing_note || '',
       bacstatPerVial: (c.bacstat_per_vial || (isPeptide ? 200 : 0)).toString(),
       reconVolume: (c.recon_volume || (isPeptide ? 2 : 0)).toString(),
@@ -188,6 +209,7 @@ const AddCompoundDialog = ({ open, onOpenChange, existingCompoundIds, onAdd }: A
       reorderType: 'single',
       notes: c.notes || '',
       vialSizeMl: '10',
+      purchaseDate: c.purchase_date || '',
     });
   };
 
@@ -218,6 +240,12 @@ const AddCompoundDialog = ({ open, onOpenChange, existingCompoundIds, onAdd }: A
     if (isPeptide && (isNaN(kit) || kit < 0)) return;
 
     const isOil = selected.category === 'injectable-oil';
+    // Build timing note from selected days if no explicit timing set
+    let timingNote = form.timingNote || undefined;
+    if (!timingNote && form.selectedDays.length > 0 && form.selectedDays.length < 7) {
+      timingNote = form.selectedDays.map(d => DAY_FULL[d]).join('/');
+    }
+
     const compound: Compound = {
       id: selected.id,
       name: selected.name,
@@ -233,10 +261,10 @@ const AddCompoundDialog = ({ open, onOpenChange, existingCompoundIds, onAdd }: A
       reconVolume: isPeptide ? parseFloat(form.reconVolume) || 2 : undefined,
       dosesPerDay: dpd,
       daysPerWeek: dpw,
-      timingNote: form.timingNote || undefined,
+      timingNote,
       cyclingNote: selected.cycling_note || undefined,
       currentQuantity: qty,
-      purchaseDate: '',
+      purchaseDate: form.purchaseDate || '',
       reorderQuantity: reorder,
       reorderType: (form.reorderType as 'single' | 'kit') || 'single',
       notes: form.notes || undefined,
@@ -495,10 +523,59 @@ const AddCompoundDialog = ({ open, onOpenChange, existingCompoundIds, onAdd }: A
                 onChange={v => setForm(f => f ? { ...f, dosePerUse: v } : f)} type="number" />
               <FormRow label="Doses/Day" value={form!.dosesPerDay}
                 onChange={v => setForm(f => f ? { ...f, dosesPerDay: v } : f)} type="number" />
-              <FormRow label="Days/Week" value={form!.daysPerWeek}
-                onChange={v => setForm(f => f ? { ...f, daysPerWeek: v } : f)} type="number" />
+
+              {/* Days/Week toggle buttons */}
+              <div className="flex items-start gap-2 text-[11px]">
+                <span className="text-muted-foreground w-20 flex-shrink-0 text-right pt-1.5">Days/Week</span>
+                <div className="flex-1 space-y-1.5">
+                  <button
+                    onClick={() => {
+                      const isAll = form!.selectedDays.length === 7;
+                      const newDays = isAll ? [] : [...ALL_DAYS];
+                      setForm(f => f ? { ...f, selectedDays: newDays, daysPerWeek: newDays.length.toString() } : f);
+                    }}
+                    className={`px-2.5 py-1 rounded text-[10px] font-medium transition-all ${
+                      form!.selectedDays.length === 7
+                        ? 'bg-primary/15 text-primary border border-primary/30'
+                        : 'bg-secondary text-muted-foreground border border-border/30 hover:bg-secondary/80'
+                    }`}
+                  >
+                    Daily
+                  </button>
+                  <div className="flex gap-1">
+                    {ALL_DAYS.map(d => {
+                      const isSelected = form!.selectedDays.includes(d);
+                      return (
+                        <button
+                          key={d}
+                          onClick={() => {
+                            setForm(f => {
+                              if (!f) return f;
+                              const next = isSelected
+                                ? f.selectedDays.filter(x => x !== d)
+                                : [...f.selectedDays, d].sort();
+                              return { ...f, selectedDays: next, daysPerWeek: next.length.toString() };
+                            });
+                          }}
+                          className={`w-8 h-8 rounded-md text-[10px] font-semibold transition-all ${
+                            isSelected
+                              ? 'bg-primary/15 text-primary border border-primary/30'
+                              : 'bg-secondary text-muted-foreground/50 border border-border/30 hover:bg-secondary/80'
+                          }`}
+                          title={DAY_FULL[d]}
+                        >
+                          {DAY_LABELS[d]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
               <FormRow label="Timing" value={form!.timingNote}
                 onChange={v => setForm(f => f ? { ...f, timingNote: v } : f)} type="text" />
+              <FormRow label="Purchased" value={form!.purchaseDate}
+                onChange={v => setForm(f => f ? { ...f, purchaseDate: v } : f)} type="date" />
 
               {isPeptide && (
                 <>
