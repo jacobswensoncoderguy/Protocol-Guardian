@@ -346,7 +346,9 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
       // Snapshot effective remaining, add received stock, reset baseline + offset
       const complianceInfo = getComplianceInfo(compound.id);
       const effectiveRemaining = getEffectiveQuantity(compound, complianceInfo);
-      const newCurrentQuantity = effectiveRemaining + order.quantity;
+      // For kit-based peptide orders, order.quantity is kits — multiply by 10 to get vials
+      const receivedUnits = (compound.reorderType === 'kit' && compound.category === 'peptide') ? order.quantity * 10 : order.quantity;
+      const newCurrentQuantity = effectiveRemaining + receivedUnits;
       onUpdateCompound(compound.id, {
         currentQuantity: newCurrentQuantity,
         purchaseDate: new Date().toISOString().split('T')[0],
@@ -365,7 +367,8 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
     if (compound) {
       const complianceInfo = getComplianceInfo(compound.id);
       const effectiveRemaining = getEffectiveQuantity(compound, complianceInfo);
-      const newCurrentQuantity = Math.max(0, effectiveRemaining - order.quantity);
+      const receivedUnits = (compound.reorderType === 'kit' && compound.category === 'peptide') ? order.quantity * 10 : order.quantity;
+      const newCurrentQuantity = Math.max(0, effectiveRemaining - receivedUnits);
       // Restore offset to what it was before receipt (subtract back the doses from this stock period)
       const currentOffset = compound.complianceDoseOffset || 0;
       const dosesInCurrentPeriod = Math.max(0, (complianceInfo?.checkedDoses || 0) - currentOffset);
