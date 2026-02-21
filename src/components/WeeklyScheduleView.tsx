@@ -5,7 +5,9 @@ import { getCycleStatus, isPaused } from '@/lib/cycling';
 import { generateScheduleFromCompounds } from '@/lib/scheduleGenerator';
 import { CustomField } from '@/hooks/useCustomFields';
 import { UserProtocol } from '@/hooks/useProtocols';
-import { Sun, Moon, Dumbbell, Info, Syringe, Pause, Check, ArrowLeft, Search, X } from 'lucide-react';
+import { Sun, Moon, Dumbbell, Info, Syringe, Pause, Check, ArrowLeft, Search, X, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarWidget } from '@/components/ui/calendar';
 
 const DAY_SHORT = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
@@ -76,6 +78,10 @@ interface WeeklyScheduleViewProps {
   selectedDay?: number;
   /** Called when user changes selected day */
   onSelectedDayChange?: (dayIndex: number) => void;
+  /** Week offset from current week (0=this week, -1=last week, +1=next week) */
+  weekOffset?: number;
+  /** Called when user navigates to a different week */
+  onWeekOffsetChange?: (offset: number) => void;
 }
 
 function getResumeDate(daysLeft: number): string {
@@ -85,7 +91,7 @@ function getResumeDate(daysLeft: number): string {
   return `${months[d.getMonth()]} ${d.getDate()}`;
 }
 
-const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compoundLoading, onAnalyzeCompound, customFields, customFieldValues, checkedDoses: externalChecked, onToggleChecked: externalToggle, readOnly = false, readOnlyMemberName, onExitReadOnly, memberInitialsDoses, memberCompoundIds, selectedDay: externalSelectedDay, onSelectedDayChange }: WeeklyScheduleViewProps) => {
+const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compoundLoading, onAnalyzeCompound, customFields, customFieldValues, checkedDoses: externalChecked, onToggleChecked: externalToggle, readOnly = false, readOnlyMemberName, onExitReadOnly, memberInitialsDoses, memberCompoundIds, selectedDay: externalSelectedDay, onSelectedDayChange, weekOffset = 0, onWeekOffsetChange }: WeeklyScheduleViewProps) => {
   const today = new Date().getDay();
   const [internalSelectedDay, setInternalSelectedDay] = useState(today);
   const selectedDay = externalSelectedDay ?? internalSelectedDay;
@@ -94,17 +100,27 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
     onSelectedDayChange?.(day);
   };
 
-  const isViewingToday = selectedDay === today;
+  const isCurrentWeek = weekOffset === 0;
+  const isViewingToday = selectedDay === today && isCurrentWeek;
   const todayDate = new Date();
   const getDateForDayIndex = (dayIdx: number): Date => {
     const d = new Date(todayDate);
-    d.setDate(todayDate.getDate() + (dayIdx - todayDate.getDay()));
+    d.setDate(todayDate.getDate() + (dayIdx - todayDate.getDay()) + (weekOffset * 7));
     return d;
   };
   const selectedDate = getDateForDayIndex(selectedDay);
   const todayMidnight = new Date(todayDate.getFullYear(), todayDate.getMonth(), todayDate.getDate());
   const selectedMidnight = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
   const isViewingFuture = selectedMidnight > todayMidnight;
+
+  // Week date range for header
+  const weekSunday = getDateForDayIndex(0);
+  const weekSaturday = getDateForDayIndex(6);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const weekRangeLabel = weekSunday.getMonth() === weekSaturday.getMonth()
+    ? `${months[weekSunday.getMonth()]} ${weekSunday.getDate()}–${weekSaturday.getDate()}, ${weekSunday.getFullYear()}`
+    : `${months[weekSunday.getMonth()]} ${weekSunday.getDate()} – ${months[weekSaturday.getMonth()]} ${weekSaturday.getDate()}, ${weekSunday.getFullYear()}`;
+
   const [selectedCompound, setSelectedCompound] = useState<Compound | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [doseUnit, setDoseUnit] = useState<'mg' | 'ml'>('mg');
@@ -205,9 +221,64 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
             </span>
           </div>
         )}
+        {/* Week Navigation */}
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => onWeekOffsetChange?.(weekOffset - 1)}
+            className="p-1.5 rounded-lg bg-secondary hover:bg-secondary/80 text-muted-foreground hover:text-foreground transition-colors touch-manipulation"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <div className="flex items-center gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="flex items-center gap-1.5 text-sm font-semibold text-foreground hover:text-primary transition-colors">
+                  <Calendar className="w-4 h-4 text-primary" />
+                  {weekRangeLabel}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="center">
+                <CalendarWidget
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(date) => {
+                    if (date && onWeekOffsetChange) {
+                      // Calculate how many weeks away this date is from today
+                      const now = new Date();
+                      const diffMs = date.getTime() - now.getTime();
+                      const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+                      const newOffset = Math.floor((diffDays + now.getDay()) / 7);
+                      onWeekOffsetChange(newOffset);
+                      setSelectedDay(date.getDay());
+                    }
+                  }}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+            {!isCurrentWeek && (
+              <button
+                onClick={() => { onWeekOffsetChange?.(0); setSelectedDay(today); }}
+                className="text-[10px] text-primary underline underline-offset-2 hover:text-primary/80 transition-colors"
+              >
+                Today
+              </button>
+            )}
+          </div>
+          <button
+            onClick={() => onWeekOffsetChange?.(weekOffset + 1)}
+            className="p-1.5 rounded-lg bg-secondary hover:bg-secondary/80 text-muted-foreground hover:text-foreground transition-colors touch-manipulation"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+
         {/* Day Selector */}
         <div className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-thin">
-          {weeklySchedule.map((day) => (
+          {weeklySchedule.map((day) => {
+            const dayDate = getDateForDayIndex(day.dayIndex);
+            const isToday = isCurrentWeek && day.dayIndex === today;
+            return (
             <Tooltip key={day.dayIndex}>
               <TooltipTrigger asChild>
                 <button
@@ -215,7 +286,7 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
                   className={`flex-shrink-0 px-3 py-2.5 sm:py-2 rounded-lg text-xs font-medium transition-all touch-manipulation ${
                     selectedDay === day.dayIndex
                       ? 'bg-primary text-primary-foreground glow-cyan'
-                      : day.dayIndex === today
+                      : isToday
                         ? 'bg-secondary border border-primary/30 text-primary'
                         : 'bg-secondary text-secondary-foreground active:bg-secondary/60'
                   }`}
@@ -223,20 +294,21 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
                   {day.shortName}
                 </button>
               </TooltipTrigger>
-          {day.dayIndex === today && (
+          {isToday && (
                 <TooltipContent side="bottom" className="text-xs">
                   Today
                 </TooltipContent>
               )}
             </Tooltip>
-          ))}
+          );
+          })}
         </div>
         {/* Non-today hint */}
         {!isViewingToday && (
           <p className="text-[10px] text-muted-foreground/60 text-center -mt-2">
             {isViewingFuture
-              ? <>Viewing {schedule.dayName} <span className="text-muted-foreground/40">(future · read only)</span> · <button onClick={() => setSelectedDay(today)} className="text-primary underline-offset-2 underline">Back to Today</button></>
-              : <>Viewing {schedule.dayName} <span className="text-muted-foreground/40">(past · checkmarks saved)</span> · <button onClick={() => setSelectedDay(today)} className="text-primary underline-offset-2 underline">Back to Today</button></>
+              ? <>Viewing {schedule.dayName} <span className="text-muted-foreground/40">(future · read only)</span> · <button onClick={() => { onWeekOffsetChange?.(0); setSelectedDay(today); }} className="text-primary underline-offset-2 underline">Back to Today</button></>
+              : <>Viewing {schedule.dayName} <span className="text-muted-foreground/40">(past · checkmarks saved)</span> · <button onClick={() => { onWeekOffsetChange?.(0); setSelectedDay(today); }} className="text-primary underline-offset-2 underline">Back to Today</button></>
             }
           </p>
         )}

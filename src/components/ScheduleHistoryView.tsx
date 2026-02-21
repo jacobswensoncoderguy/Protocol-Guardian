@@ -109,9 +109,11 @@ const WeekCard = ({
         return !(status.hasCycle && !status.isOn) && !isPaused(compound);
       });
       planned += activeDoses.length;
-      // Count only check-offs that match a planned dose key (avoid overcounting)
-      activeDoses.forEach((dose, i) => {
-        if (dayChecks.has(`${dose.compoundId}-${dose.timing}-${i}`)) taken++;
+      // Match by compoundId-timing prefix since stored keys use per-group indices
+      activeDoses.forEach(dose => {
+        const prefix = `${dose.compoundId}-${dose.timing}-`;
+        const matched = Array.from(dayChecks).some(k => k.startsWith(prefix));
+        if (matched) taken++;
       });
     });
     return { totalPlanned: planned, totalTaken: taken };
@@ -156,7 +158,11 @@ const WeekCard = ({
                 const status = getCycleStatus(compound);
                 return !(status.hasCycle && !status.isOn) && !isPaused(compound);
               });
-              const dayTaken = dayChecks.size;
+              // Count taken by matching compoundId-timing prefix (not raw dayChecks.size)
+              const dayTaken = activeDoses.filter(dose => {
+                const prefix = `${dose.compoundId}-${dose.timing}-`;
+                return Array.from(dayChecks).some(k => k.startsWith(prefix));
+              }).length;
               const dayTotal = activeDoses.length;
               const dayPct = dayTotal > 0 ? Math.min(dayTaken / dayTotal, 1) : 0;
               const isSelected = drillDay === dayIdx;
@@ -274,9 +280,9 @@ const DayDrillDown = ({
             <div className="space-y-0.5">
               {activeDoses.map((dose, i) => {
                 const compound = compoundMap.get(dose.compoundId);
-                // Check if this dose was taken — use the key stored in DB
-                // We check all keys in dayChecks that start with this compound's id and timing
-                const isTaken = dayChecks.has(`${dose.compoundId}-${dose.timing}-${i}`);
+                // Check if this dose was taken — match by compoundId-timing prefix
+                const prefix = `${dose.compoundId}-${dose.timing}-`;
+                const isTaken = Array.from(dayChecks).some(k => k.startsWith(prefix));
 
                 return (
                   <div key={`${dose.compoundId}-${i}`} className="flex items-center gap-2 px-2 py-1 rounded text-xs">

@@ -21,11 +21,11 @@ function todayStr(): string {
 }
 
 /** Returns a YYYY-MM-DD string for a given day-of-week index (0=Sun…6=Sat)
- *  within the current week (Sun-Sat). */
-function weekDayToDateStr(dayIndex: number): string {
+ *  within a week offset from the current one (0=this week, -1=last week, etc.). */
+function weekDayToDateStr(dayIndex: number, weekOffset: number = 0): string {
   const now = new Date();
   const todayDow = now.getDay();
-  const diff = dayIndex - todayDow;
+  const diff = dayIndex - todayDow + (weekOffset * 7);
   const target = new Date(now);
   target.setDate(now.getDate() + diff);
   return dateStr(target);
@@ -33,14 +33,14 @@ function weekDayToDateStr(dayIndex: number): string {
 
 export { weekDayToDateStr, todayStr };
 
-export function useDoseCheckOffs(selectedDayIndex?: number) {
+export function useDoseCheckOffs(selectedDayIndex?: number, weekOffset: number = 0) {
   const { user } = useAuth();
   const [checkedDoses, setCheckedDoses] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
-  // Compute the target date string based on selected day
+  // Compute the target date string based on selected day and week offset
   const targetDate = selectedDayIndex !== undefined
-    ? weekDayToDateStr(selectedDayIndex)
+    ? weekDayToDateStr(selectedDayIndex, weekOffset)
     : todayStr();
 
   // Load check-offs for the target date
