@@ -65,6 +65,7 @@ function dbToCompound(row: DbUserCompound): Compound {
     weightUnit: row.weight_unit ?? undefined,
     pausedAt: row.paused_at ?? undefined,
     pauseRestartDate: row.pause_restart_date ?? undefined,
+    complianceDoseOffset: (row as any).compliance_dose_offset ?? 0,
   };
 }
 
@@ -161,6 +162,7 @@ export function useCompounds(userId: string | undefined) {
     if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
     if ('pausedAt' in updates) dbUpdates.paused_at = updates.pausedAt ?? null;
     if ('pauseRestartDate' in updates) dbUpdates.pause_restart_date = updates.pauseRestartDate ?? null;
+    if (updates.complianceDoseOffset !== undefined) dbUpdates.compliance_dose_offset = updates.complianceDoseOffset;
 
     const { error } = await supabase
       .from('user_compounds')

@@ -890,6 +890,7 @@ export type Database = {
         Row: {
           bacstat_per_vial: number | null
           category: string
+          compliance_dose_offset: number
           compound_id: string
           created_at: string
           current_quantity: number
@@ -924,6 +925,7 @@ export type Database = {
         Insert: {
           bacstat_per_vial?: number | null
           category: string
+          compliance_dose_offset?: number
           compound_id: string
           created_at?: string
           current_quantity?: number
@@ -958,6 +960,7 @@ export type Database = {
         Update: {
           bacstat_per_vial?: number | null
           category?: string
+          compliance_dose_offset?: number
           compound_id?: string
           created_at?: string
           current_quantity?: number

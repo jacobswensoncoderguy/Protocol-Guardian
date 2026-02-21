@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
-import { Compound, getReorderCost, getConsumedSinceDate, consumedToContainerUnits } from '@/data/compounds';
+import { Compound, getReorderCost, getEffectiveQuantity } from '@/data/compounds';
 import { getDaysRemainingWithCycling, getEffectiveDailyConsumption } from '@/lib/cycling';
 import { useCompliance } from '@/contexts/ComplianceContext';
 import { UserProtocol } from '@/hooks/useProtocols';
@@ -343,15 +343,14 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
     if (error) return;
     const compound = compoundMap.get(order.compound_id);
     if (compound) {
-      // Compute effective remaining in container units directly
+      // Snapshot effective remaining, add received stock, reset baseline + offset
       const complianceInfo = getComplianceInfo(compound.id);
-      const consumed = getConsumedSinceDate(compound, new Date(), complianceInfo);
-      const consumedUnits = consumedToContainerUnits(compound, consumed);
-      const effectiveRemaining = Math.max(0, compound.currentQuantity - consumedUnits);
+      const effectiveRemaining = getEffectiveQuantity(compound, complianceInfo);
       const newCurrentQuantity = effectiveRemaining + order.quantity;
       onUpdateCompound(compound.id, {
         currentQuantity: newCurrentQuantity,
         purchaseDate: new Date().toISOString().split('T')[0],
+        complianceDoseOffset: complianceInfo?.checkedDoses || 0,
       });
     }
     setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'received', received_at: now } : o));
@@ -365,13 +364,16 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
     const compound = compoundMap.get(order.compound_id);
     if (compound) {
       const complianceInfo = getComplianceInfo(compound.id);
-      const consumed = getConsumedSinceDate(compound, new Date(), complianceInfo);
-      const consumedUnits = consumedToContainerUnits(compound, consumed);
-      const effectiveRemaining = Math.max(0, compound.currentQuantity - consumedUnits);
+      const effectiveRemaining = getEffectiveQuantity(compound, complianceInfo);
       const newCurrentQuantity = Math.max(0, effectiveRemaining - order.quantity);
+      // Restore offset to what it was before receipt (subtract back the doses from this stock period)
+      const currentOffset = compound.complianceDoseOffset || 0;
+      const dosesInCurrentPeriod = Math.max(0, (complianceInfo?.checkedDoses || 0) - currentOffset);
+      const previousOffset = Math.max(0, currentOffset - dosesInCurrentPeriod);
       onUpdateCompound(compound.id, {
         currentQuantity: newCurrentQuantity,
         purchaseDate: new Date().toISOString().split('T')[0],
+        complianceDoseOffset: previousOffset,
       });
     }
     const { error } = await supabase.from('orders').update({ status: 'ordered', received_at: null }).eq('id', order.id);

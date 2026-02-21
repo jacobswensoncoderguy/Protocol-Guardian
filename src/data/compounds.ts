@@ -38,6 +38,7 @@ export interface Compound {
   notes?: string;
   weightPerUnit?: number; // mg per individual unit (pill, cap, tab, scoop) for non-injectable compounds
   weightUnit?: string; // display unit for weightPerUnit ('g', 'mg', 'mcg', 'oz', 'lb')
+  complianceDoseOffset?: number; // check-offs already accounted for before current stock period
 }
 
 /**
@@ -98,8 +99,10 @@ export function getConsumedSinceDate(
       }
     }
 
-    // Actual consumption = checked doses × dose per use
-    const actualPostTracking = compliance.checkedDoses * compound.dosePerUse;
+    // Actual consumption = checked doses (minus offset for prior stock) × dose per use
+    const offset = compound.complianceDoseOffset || 0;
+    const effectiveCheckedDoses = Math.max(0, compliance.checkedDoses - offset);
+    const actualPostTracking = effectiveCheckedDoses * compound.dosePerUse;
     return theoreticalPreTracking + actualPostTracking;
   }
 
