@@ -78,33 +78,39 @@ export function getConsumedSinceDate(
   referenceDate: Date = new Date(),
   compliance?: { checkedDoses: number; firstCheckDate: string | null; lastCheckDate: string | null }
 ): number {
+  const now = new Date(referenceDate);
+  now.setHours(0, 0, 0, 0);
+
+  // If we have compliance data with actual check-offs, always use it
+  // (even without a purchaseDate — checked doses are ground truth)
+  if (compliance && compliance.firstCheckDate && compliance.checkedDoses > 0) {
+    const firstCheck = new Date(compliance.firstCheckDate);
+    firstCheck.setHours(0, 0, 0, 0);
+
+    // If we also have a purchaseDate, add theoretical consumption for the pre-tracking period
+    let theoreticalPreTracking = 0;
+    if (compound.purchaseDate) {
+      const purchaseDay = new Date(compound.purchaseDate);
+      purchaseDay.setHours(0, 0, 0, 0);
+      const preTrackingDays = Math.max(0, Math.floor((firstCheck.getTime() - purchaseDay.getTime()) / (24 * 60 * 60 * 1000)));
+      if (preTrackingDays > 0) {
+        theoreticalPreTracking = getTheoreticalConsumption(compound, preTrackingDays, purchaseDay);
+      }
+    }
+
+    // Actual consumption = checked doses × dose per use
+    const actualPostTracking = compliance.checkedDoses * compound.dosePerUse;
+    return theoreticalPreTracking + actualPostTracking;
+  }
+
+  // No compliance data — fall back to theoretical consumption from purchaseDate
   if (!compound.purchaseDate) return 0;
 
   const purchaseDay = new Date(compound.purchaseDate);
   purchaseDay.setHours(0, 0, 0, 0);
-  const now = new Date(referenceDate);
-  now.setHours(0, 0, 0, 0);
   const daysSincePurchase = Math.floor((now.getTime() - purchaseDay.getTime()) / (24 * 60 * 60 * 1000));
   if (daysSincePurchase <= 0) return 0;
 
-  // If we have compliance data, split into pre-tracking (theoretical) + post-tracking (actual)
-  if (compliance && compliance.firstCheckDate) {
-    const firstCheck = new Date(compliance.firstCheckDate);
-    firstCheck.setHours(0, 0, 0, 0);
-
-    // Theoretical consumption for the period BEFORE first check-off
-    const preTrackingDays = Math.max(0, Math.floor((firstCheck.getTime() - purchaseDay.getTime()) / (24 * 60 * 60 * 1000)));
-    const theoreticalPreTracking = preTrackingDays > 0
-      ? getTheoreticalConsumption(compound, preTrackingDays, purchaseDay)
-      : 0;
-
-    // Actual consumption = checked doses × dose per use
-    const actualPostTracking = compliance.checkedDoses * compound.dosePerUse;
-
-    return theoreticalPreTracking + actualPostTracking;
-  }
-
-  // Fallback: fully theoretical (original behavior)
   return getTheoreticalConsumption(compound, daysSincePurchase, purchaseDay);
 }
 
