@@ -1845,7 +1845,7 @@ const InlineQuantityEditor = ({ compound, status, isOil, isPeptide, onUpdate }: 
   const { getEffectiveQtyAdjusted, getConsumedAdjusted } = useCompliance();
   const effectiveQty = getEffectiveQtyAdjusted(compound);
   const consumedUnits = consumedToContainerUnits(compound, getConsumedAdjusted(compound));
-  const hasDepletion = consumedUnits > 0.005 && compound.purchaseDate;
+  const hasDepletion = compound.purchaseDate ? true : consumedUnits > 0.005;
 
   const formatQty = (qty: number) => {
     if (isPeptide) return `${Math.round(qty * 100) / 100}`;
