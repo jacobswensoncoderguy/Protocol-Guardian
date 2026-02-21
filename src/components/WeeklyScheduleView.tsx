@@ -243,7 +243,6 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
                   selected={selectedDate}
                   onSelect={(date) => {
                     if (date && onWeekOffsetChange) {
-                      // Calculate how many weeks away this date is from today
                       const now = new Date();
                       const diffMs = date.getTime() - now.getTime();
                       const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
@@ -253,6 +252,7 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
                     }
                   }}
                   initialFocus
+                  className="p-3 pointer-events-auto"
                 />
               </PopoverContent>
             </Popover>
