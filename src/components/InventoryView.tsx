@@ -294,7 +294,7 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
 
       {/* Compound Cards */}
       {groups.map(group => (
-        <Collapsible key={group.label} defaultOpen>
+        <Collapsible key={group.label}>
           {group.label !== 'all' && (
             <CollapsibleTrigger className="flex items-center gap-1.5 w-full text-left mb-2 group">
               <ChevronDown className="w-3.5 h-3.5 text-muted-foreground transition-transform duration-200 group-data-[state=closed]:-rotate-90" />

@@ -54,7 +54,7 @@ import { useSwipeTabs } from '@/hooks/useSwipeTabs';
 import { useHousehold, useHouseholdMemberCompounds } from '@/hooks/useHousehold';
 import { useHouseholdDoseCheckOffs } from '@/hooks/useHouseholdDoseCheckOffs';
 import HouseholdMemberToggle, { HouseholdViewOption } from '@/components/HouseholdMemberToggle';
-
+import BackToTopButton from '@/components/BackToTopButton';
 
 const LoadingSkeleton = () => (
   <div className="min-h-screen bg-background" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
@@ -802,6 +802,7 @@ const Index = () => {
           onSkip={() => { setShowGuidedTour(false); setActiveTab('dashboard'); toast('You can replay the tour from Settings anytime.'); }}
         />
       )}
+      <BackToTopButton />
     </div>
     </ComplianceProvider>
   );
