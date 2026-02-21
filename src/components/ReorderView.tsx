@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
-import { Compound, getReorderCost, getEffectiveQuantity } from '@/data/compounds';
+import { Compound, getReorderCost, getConsumedSinceDate, consumedToContainerUnits } from '@/data/compounds';
 import { getDaysRemainingWithCycling, getEffectiveDailyConsumption } from '@/lib/cycling';
 import { useCompliance } from '@/contexts/ComplianceContext';
 import { UserProtocol } from '@/hooks/useProtocols';
@@ -343,10 +343,11 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
     if (error) return;
     const compound = compoundMap.get(order.compound_id);
     if (compound) {
-      // Snapshot the actual remaining quantity, add received stock, and reset baseline
-      // This prevents the depletion math from "eating" new stock with old consumption
+      // Compute effective remaining in container units directly
       const complianceInfo = getComplianceInfo(compound.id);
-      const effectiveRemaining = getEffectiveQuantity(compound, complianceInfo);
+      const consumed = getConsumedSinceDate(compound, new Date(), complianceInfo);
+      const consumedUnits = consumedToContainerUnits(compound, consumed);
+      const effectiveRemaining = Math.max(0, compound.currentQuantity - consumedUnits);
       const newCurrentQuantity = effectiveRemaining + order.quantity;
       onUpdateCompound(compound.id, {
         currentQuantity: newCurrentQuantity,
@@ -363,9 +364,10 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
   const handleUndoReceived = async (order: OrderItem) => {
     const compound = compoundMap.get(order.compound_id);
     if (compound) {
-      // Snapshot actual remaining, subtract the received stock, reset baseline
       const complianceInfo = getComplianceInfo(compound.id);
-      const effectiveRemaining = getEffectiveQuantity(compound, complianceInfo);
+      const consumed = getConsumedSinceDate(compound, new Date(), complianceInfo);
+      const consumedUnits = consumedToContainerUnits(compound, consumed);
+      const effectiveRemaining = Math.max(0, compound.currentQuantity - consumedUnits);
       const newCurrentQuantity = Math.max(0, effectiveRemaining - order.quantity);
       onUpdateCompound(compound.id, {
         currentQuantity: newCurrentQuantity,
