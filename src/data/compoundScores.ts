@@ -43,7 +43,7 @@ function normalizeKey(name: string): string {
 function categoryToDelivery(category?: string): 'injectable' | 'oral' {
   if (!category) return 'oral';
   const cat = category.toLowerCase();
-  if (cat === 'peptide' || cat === 'oil') return 'injectable';
+  if (cat === 'peptide' || cat === 'oil' || cat === 'injectable-oil' || cat.includes('inject')) return 'injectable';
   return 'oral'; // Oral, Powder, etc.
 }
 
@@ -180,7 +180,7 @@ export function getDeliveryLabel(category?: string): string {
   if (!category) return 'Unknown';
   const cat = category.toLowerCase();
   if (cat === 'peptide') return 'SubQ Injection';
-  if (cat === 'oil') return 'IM Injection';
+  if (cat === 'oil' || cat === 'injectable-oil' || cat.includes('inject')) return 'IM Injection';
   if (cat === 'oral') return 'Oral';
   if (cat === 'powder') return 'Oral (Powder)';
   return category;
