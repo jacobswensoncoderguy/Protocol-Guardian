@@ -11,6 +11,8 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import ToleranceSelector from '@/components/ToleranceSelector';
 import { ToleranceLevel } from '@/hooks/useProtocolAnalysis';
 import CycleTimelineBar from '@/components/CycleTimelineBar';
+import { getCompoundScores } from '@/data/compoundScores';
+import { FlaskConical, Beaker, Target } from 'lucide-react';
 
 interface InventoryViewProps {
   compounds: Compound[];
@@ -864,7 +866,40 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
         })()}
       </div>
 
-      {/* Collapsible Cycle Timeline Bar */}
+      {/* Compound Scores — bioavailability, efficacy, effectiveness */}
+      {!editing && (() => {
+        const scores = getCompoundScores(compound.name);
+        if (!scores) return null;
+        const scoreColor = (v: number) =>
+          v >= 80 ? 'text-status-good' : v >= 60 ? 'text-primary' : v >= 40 ? 'text-status-warning' : 'text-status-critical';
+        const tierColors: Record<string, string> = {
+          RCT: 'text-status-good', Meta: 'text-status-good', Clinical: 'text-primary',
+          Anecdotal: 'text-status-warning', Theoretical: 'text-muted-foreground', Mixed: 'text-primary',
+        };
+        return (
+          <div className="flex flex-wrap items-center gap-1.5 mb-2">
+            <span className="inline-flex items-center gap-1 text-[9px] font-mono px-1.5 py-0.5 rounded-full border border-border/40 bg-secondary/30" title="Bioavailability — absorption/utilization efficiency">
+              <Beaker className="w-2.5 h-2.5 text-primary" />
+              <span className="text-muted-foreground">Bio</span>
+              <span className={scoreColor(scores.bioavailability)}>{scores.bioavailability}%</span>
+            </span>
+            <span className="inline-flex items-center gap-1 text-[9px] font-mono px-1.5 py-0.5 rounded-full border border-border/40 bg-secondary/30" title="Efficacy — likelihood of statistically significant benefits">
+              <FlaskConical className="w-2.5 h-2.5 text-primary" />
+              <span className="text-muted-foreground">Eff</span>
+              <span className={scoreColor(scores.efficacy)}>{scores.efficacy}%</span>
+            </span>
+            <span className="inline-flex items-center gap-1 text-[9px] font-mono px-1.5 py-0.5 rounded-full border border-border/40 bg-secondary/30" title="Effectiveness — real-world outcome score">
+              <Target className="w-2.5 h-2.5 text-primary" />
+              <span className="text-muted-foreground">Ovr</span>
+              <span className={scoreColor(scores.effectiveness)}>{scores.effectiveness}%</span>
+            </span>
+            <span className={`text-[8px] font-mono ${tierColors[scores.evidenceTier] || 'text-muted-foreground'}`}>
+              {scores.evidenceTier}
+            </span>
+          </div>
+        );
+      })()}
+
       {!compoundIsPaused && cycleStatus.hasCycle && compound.cycleOnDays && compound.cycleOffDays && compound.cycleStartDate && (
         <div className="mb-2">
           <button
