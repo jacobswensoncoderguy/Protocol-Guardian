@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import ChatMarkdown from '@/components/ChatMarkdown';
 import { Beaker, FlaskConical, Target, MessageCircle, Send, Loader2, TrendingUp, AlertTriangle, Info } from 'lucide-react';
 import { CompoundScores } from '@/data/compoundScores';
 import { supabase } from '@/integrations/supabase/client';
@@ -226,7 +227,7 @@ Keep responses under 200 words. Use bullet points. Be specific to this compound.
                 <div key={i} className={`text-[11px] leading-relaxed p-2 rounded-md ${
                   msg.role === 'user' ? 'bg-primary/10 text-foreground ml-4' : 'bg-secondary/50 text-foreground mr-4'
                 }`}>
-                  {msg.content}
+                  {msg.role === 'assistant' ? <ChatMarkdown content={msg.content} /> : msg.content}
                 </div>
               ))}
               {chatLoading && (
