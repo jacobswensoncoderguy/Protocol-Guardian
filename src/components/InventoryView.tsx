@@ -910,6 +910,11 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
               scores={scores}
               deliveryMethod={getDeliveryLabel(compound.category)}
               category={compound.category}
+              dosePerUse={compound.dosePerUse}
+              dosesPerDay={compound.dosesPerDay}
+              daysPerWeek={compound.daysPerWeek}
+              unitLabel={compound.unitLabel}
+              doseLabel={compound.doseLabel}
             />
           </>
         );
