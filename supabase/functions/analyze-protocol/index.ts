@@ -23,6 +23,8 @@ const CONFIDENCE_INSTRUCTION = `
 CONFIDENCE SCORING — MANDATORY FOR EVERY CLAIM:
 Every finding, interaction, recommendation, and suggestion MUST include a confidence score.
 
+CRITICAL: confidencePct and evidenceTier are OBJECTIVE, EVIDENCE-BASED measures. They MUST NOT change based on the user's tolerance level. The same compound interaction has the same evidence quality regardless of whether the user is conservative or performance-oriented. Only riskAtTolerance should be framed differently per tolerance level.
+
 - confidencePct: integer 0-100 representing how confident you are in this claim based on available evidence.
   - 90-100: Strong RCT data, multiple meta-analyses, well-established pharmacology
   - 70-89: Good clinical data, consistent practitioner observations, strong mechanistic basis
@@ -32,7 +34,8 @@ Every finding, interaction, recommendation, and suggestion MUST include a confid
 
 - evidenceTier: One of "RCT-backed", "Meta-analysis", "Clinical observation", "Anecdotal", "Theoretical", "Mixed"
 
-- riskAtTolerance: A brief risk statement calibrated to the user's tolerance level. Format: "[Risk level] at [tolerance] tolerance — [specific risk]"
+- riskAtTolerance: A brief risk statement calibrated to the user's tolerance level. The RISK FRAMING changes per tolerance (conservative users see more cautious language), but the underlying evidence assessment (confidencePct, evidenceTier) stays the same.
+  Format: "[Risk level] at [tolerance] tolerance — [specific risk]"
   Examples:
   - "Low risk at performance tolerance — well-supported combination"
   - "Moderate risk at conservative tolerance — limited long-term safety data"
@@ -46,7 +49,8 @@ EVIDENCE HIERARCHY (use to determine tier):
 5. Theoretical: Mechanistic reasoning from known pharmacology without direct testing
 6. Mixed: Combination of tiers with no clear dominant source
 
-BE HONEST about confidence. Do NOT inflate scores. A 45% confidence claim labeled "Anecdotal" is MORE useful than a false 90% claim.`;
+BE HONEST about confidence. Do NOT inflate scores. A 45% confidence claim labeled "Anecdotal" is MORE useful than a false 90% claim.
+REMEMBER: If a claim is 85% confident at "performance" tolerance, it is also 85% confident at "conservative" tolerance — the science doesn't change, only the risk framing does.`;
 
 const SYSTEM_PROMPT = `You are an advanced pharmacology and supplement intelligence engine for a biohacker's protocol tracker. Your job is to analyze a user's complete compound/supplement stack and provide detailed, practical analysis.
 
