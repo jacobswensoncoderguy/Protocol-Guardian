@@ -165,6 +165,8 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
 
   // Fetch cached personalized scores for all compounds
   const [cachedScoresMap, setCachedScoresMap] = useState<Map<string, CompoundScores>>(new Map());
+  const [cacheVersion, setCacheVersion] = useState(0);
+  const refreshCachedScores = () => setCacheVersion(v => v + 1);
   useEffect(() => {
     let cancelled = false;
     const fetchCached = async () => {
@@ -191,7 +193,7 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
     };
     fetchCached();
     return () => { cancelled = true; };
-  }, [compounds]);
+  }, [compounds, cacheVersion]);
 
   const weeklySchedule = useMemo(() => generateScheduleFromCompounds(compounds, customFields, customFieldValues), [compounds, customFields, customFieldValues]);
   const schedule = weeklySchedule[selectedDay];
@@ -425,6 +427,7 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
           memberCompoundIds={memberCompoundIds}
           flashedIds={flashedIds}
           cachedScoresMap={cachedScoresMap}
+          onScoreDrawerClose={refreshCachedScores}
         />
 
         {/* Afternoon */}
@@ -448,6 +451,7 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
             memberCompoundIds={memberCompoundIds}
             flashedIds={flashedIds}
             cachedScoresMap={cachedScoresMap}
+            onScoreDrawerClose={refreshCachedScores}
           />
         )}
 
@@ -471,6 +475,7 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
           memberCompoundIds={memberCompoundIds}
           flashedIds={flashedIds}
           cachedScoresMap={cachedScoresMap}
+          onScoreDrawerClose={refreshCachedScores}
         />
 
         <CompoundInfoDrawer
@@ -506,6 +511,7 @@ const DoseSection = ({
   memberCompoundIds,
   flashedIds = new Set(),
   cachedScoresMap = new Map(),
+  onScoreDrawerClose,
 }: {
   icon: React.ReactNode;
   title: string;
@@ -525,6 +531,7 @@ const DoseSection = ({
   memberCompoundIds?: Set<string>;
   flashedIds?: Set<string>;
   cachedScoresMap?: Map<string, CompoundScores>;
+  onScoreDrawerClose?: () => void;
 }) => {
   const allPeptides = doses.filter(d => d.category === 'peptide' || d.category === 'injectable-oil');
   const allOrals = doses.filter(d => d.category === 'oral' || d.category === 'prescription' || d.category === 'vitamin' || d.category === 'adaptogen' || d.category === 'nootropic' || d.category === 'holistic' || d.category === 'probiotic' || d.category === 'alternative-medicine');
@@ -615,19 +622,19 @@ const DoseSection = ({
 
       <div className="space-y-3">
         {allPeptides.length > 0 && (
-          <DoseGroup label="Injectables" doses={allPeptides} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} cachedScoresMap={cachedScoresMap} />
+          <DoseGroup label="Injectables" doses={allPeptides} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} cachedScoresMap={cachedScoresMap} onScoreDrawerClose={onScoreDrawerClose} />
         )}
         {protocolGroups.map(pg => (
-          <DoseGroup key={pg.label} label={pg.label} doses={pg.doses} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} cachedScoresMap={cachedScoresMap} />
+          <DoseGroup key={pg.label} label={pg.label} doses={pg.doses} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} cachedScoresMap={cachedScoresMap} onScoreDrawerClose={onScoreDrawerClose} />
         ))}
         {ungroupedOrals.length > 0 && (
-          <DoseGroup label="Oral Supplements" doses={ungroupedOrals} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} cachedScoresMap={cachedScoresMap} />
+          <DoseGroup label="Oral Supplements" doses={ungroupedOrals} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} cachedScoresMap={cachedScoresMap} onScoreDrawerClose={onScoreDrawerClose} />
         )}
         {ungroupedPowders.length > 0 && (
-          <DoseGroup label="Powders" doses={ungroupedPowders} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} cachedScoresMap={cachedScoresMap} />
+          <DoseGroup label="Powders" doses={ungroupedPowders} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} cachedScoresMap={cachedScoresMap} onScoreDrawerClose={onScoreDrawerClose} />
         )}
         {ungroupedTopicals.length > 0 && (
-          <DoseGroup label="Topicals" doses={ungroupedTopicals} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} cachedScoresMap={cachedScoresMap} />
+          <DoseGroup label="Topicals" doses={ungroupedTopicals} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} cachedScoresMap={cachedScoresMap} onScoreDrawerClose={onScoreDrawerClose} />
         )}
       </div>
     </div>
@@ -649,6 +656,7 @@ const DoseGroup = ({
   memberCompoundIds,
   flashedIds = new Set(),
   cachedScoresMap = new Map(),
+  onScoreDrawerClose,
 }: {
   label: string;
   doses: DayDose[];
@@ -664,6 +672,7 @@ const DoseGroup = ({
   memberCompoundIds?: Set<string>;
   flashedIds?: Set<string>;
   cachedScoresMap?: Map<string, CompoundScores>;
+  onScoreDrawerClose?: () => void;
 }) => {
   const seenOff = new Set<string>();
   const filteredDoses = doses.filter(d => {
@@ -901,7 +910,7 @@ const DoseGroup = ({
       {scoreDrawerCompound && scoreDrawerScores && (
         <CompoundScoreDrawer
           open={!!scoreDrawerCompound}
-          onOpenChange={(open) => { if (!open) { setScoreDrawerCompound(null); setScoreDrawerScores(null); } }}
+          onOpenChange={(open) => { if (!open) { setScoreDrawerCompound(null); setScoreDrawerScores(null); onScoreDrawerClose?.(); } }}
           compoundName={scoreDrawerCompound.name}
           scores={scoreDrawerScores}
           deliveryMethod={getDeliveryLabel(scoreDrawerCompound.category)}
