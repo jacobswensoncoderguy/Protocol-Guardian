@@ -831,7 +831,7 @@ const DoseGroup = ({
                       setScoreDrawerScores(compoundScores);
                     }
                   }}
-                  className="flex items-center gap-1.5 ml-7 mt-1 cursor-pointer hover:opacity-80 transition-opacity active:scale-[0.98]"
+                  className="flex items-center gap-1.5 ml-7 mt-1 py-1 -my-0.5 cursor-pointer hover:opacity-80 transition-opacity active:scale-[0.98] touch-manipulation"
                 >
                   <span className="inline-flex items-center gap-0.5 text-[8px] font-mono px-1 py-0.5 rounded border border-border/30 bg-secondary/20">
                     <Beaker className="w-2 h-2 text-primary" />
