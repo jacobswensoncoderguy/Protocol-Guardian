@@ -5,7 +5,8 @@ import { getCycleStatus, isPaused } from '@/lib/cycling';
 import { generateScheduleFromCompounds } from '@/lib/scheduleGenerator';
 import { CustomField } from '@/hooks/useCustomFields';
 import { UserProtocol } from '@/hooks/useProtocols';
-import { Sun, Moon, Dumbbell, Info, Syringe, Pause, Check, ArrowLeft, Search, X, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { getCompoundScores } from '@/data/compoundScores';
+import { Sun, Moon, Dumbbell, Info, Syringe, Pause, Check, ArrowLeft, Search, X, ChevronLeft, ChevronRight, Calendar, Beaker, FlaskConical, Target } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarWidget } from '@/components/ui/calendar';
 
@@ -510,13 +511,67 @@ const DoseSection = ({
 
   const totalActive = doses.filter(d => !offCycleIds.has(d.compoundId) && !pausedIds.has(d.compoundId)).length;
 
+  // Compute aggregate stack scores for active compounds in this time slot
+  const stackScores = useMemo(() => {
+    const activeCompoundIds = new Set<string>();
+    doses.forEach(d => {
+      if (!offCycleIds.has(d.compoundId) && !pausedIds.has(d.compoundId)) {
+        activeCompoundIds.add(d.compoundId);
+      }
+    });
+    if (activeCompoundIds.size === 0) return null;
+
+    let bioSum = 0, effSum = 0, ovrSum = 0, count = 0;
+    activeCompoundIds.forEach(id => {
+      const c = compoundMap.get(id);
+      if (!c) return;
+      const s = getCompoundScores(c.name, c.category);
+      if (!s) return;
+      bioSum += s.bioavailability;
+      effSum += s.efficacy;
+      ovrSum += s.effectiveness;
+      count++;
+    });
+    if (count === 0) return null;
+    return {
+      bio: Math.round(bioSum / count),
+      eff: Math.round(effSum / count),
+      ovr: Math.round(ovrSum / count),
+      count,
+    };
+  }, [doses, offCycleIds, pausedIds, compoundMap]);
+
+  const scoreColor = (v: number) =>
+    v >= 80 ? 'text-status-good' : v >= 60 ? 'text-primary' : v >= 40 ? 'text-status-warning' : 'text-status-critical';
+
+  const scoreBg = (v: number) =>
+    v >= 80 ? 'bg-status-good/10' : v >= 60 ? 'bg-primary/10' : v >= 40 ? 'bg-status-warning/10' : 'bg-destructive/10';
+
   return (
     <div className={`rounded-lg border p-3 ${bgAccent}`}>
-      <h3 className={`text-sm font-semibold mb-3 flex items-center gap-2 ${accent}`}>
+      <h3 className={`text-sm font-semibold mb-2 flex items-center gap-2 ${accent}`}>
         {icon}
         {title}
         <span className="text-muted-foreground font-normal">({totalActive} active)</span>
       </h3>
+
+      {/* Stack Score Summary */}
+      {stackScores && (
+        <div className="flex items-center gap-2 mb-3 px-1">
+          {[
+            { label: 'Bio', value: stackScores.bio, Icon: Beaker },
+            { label: 'Eff', value: stackScores.eff, Icon: FlaskConical },
+            { label: 'Ovr', value: stackScores.ovr, Icon: Target },
+          ].map(({ label, value, Icon }) => (
+            <div key={label} className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-mono ${scoreBg(value)}`}>
+              <Icon className={`w-2.5 h-2.5 ${scoreColor(value)}`} />
+              <span className="text-muted-foreground">{label}</span>
+              <span className={`font-bold ${scoreColor(value)}`}>{value}%</span>
+            </div>
+          ))}
+          <span className="text-[9px] text-muted-foreground/50 ml-auto">avg of {stackScores.count}</span>
+        </div>
+      )}
 
       <div className="space-y-3">
         {allPeptides.length > 0 && (
