@@ -5,7 +5,8 @@ import { getCycleStatus, getDaysRemainingWithCycling, isPaused } from '@/lib/cyc
 import { useCompliance } from '@/contexts/ComplianceContext';
 import { UserProtocol } from '@/hooks/useProtocols';
 import { CustomField, CustomFieldValue, PREDEFINED_FIELDS } from '@/hooks/useCustomFields';
-import { Pencil, Check, X, Trash2, Plus, ChevronDown, ChevronUp, GripVertical, Syringe, Clock, SortAsc, Moon as MoonIcon, Sun, Dumbbell, RefreshCcw, Package, PlusCircle, AlertTriangle, Pause, Play, Calendar, TrendingDown } from 'lucide-react';
+import { Pencil, Check, X, Trash2, Plus, ChevronDown, ChevronUp, GripVertical, Syringe, Clock, SortAsc, Moon as MoonIcon, Sun, Dumbbell, RefreshCcw, Package, PlusCircle, AlertTriangle, Pause, Play, Calendar, TrendingDown, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import ToleranceSelector from '@/components/ToleranceSelector';
@@ -61,9 +62,45 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
   const [showToleranceConfirm, setShowToleranceConfirm] = useState(false);
   const [pendingTolerance, setPendingTolerance] = useState<ToleranceLevel | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
+  const [refreshingAll, setRefreshingAll] = useState(false);
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const activeCompounds = compounds.filter(c => !c.notes?.includes('[DORMANT]'));
   const dormantCompounds = compounds.filter(c => c.notes?.includes('[DORMANT]'));
+
+  const refreshAllScores = useCallback(async () => {
+    const toRefresh = activeCompounds.filter(c => !isPaused(c));
+    if (toRefresh.length === 0) { toast.info('No active compounds to refresh'); return; }
+    setRefreshingAll(true);
+    let success = 0;
+    let failed = 0;
+    // Process sequentially to avoid rate-limiting
+    for (const c of toRefresh) {
+      try {
+        const { error } = await supabase.functions.invoke('personalized-scores', {
+          body: {
+            compoundName: c.name,
+            category: c.category,
+            dosePerUse: c.dosePerUse || 0,
+            dosesPerDay: c.dosesPerDay || 1,
+            daysPerWeek: c.daysPerWeek || 7,
+            unitLabel: c.unitLabel || '',
+            doseLabel: c.doseLabel || '',
+            forceRefresh: true,
+          },
+        });
+        if (error) throw error;
+        success++;
+      } catch {
+        failed++;
+      }
+    }
+    setRefreshingAll(false);
+    if (failed === 0) {
+      toast.success(`All ${success} scores refreshed`);
+    } else {
+      toast.warning(`${success} refreshed, ${failed} failed`);
+    }
+  }, [activeCompounds]);
 
   const scrollToCompound = useCallback((id: string) => {
     setHighlightId(id);
@@ -284,16 +321,31 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
         </div>
       </div>
 
-      {/* Add button */}
-      {onAddCompound && (
+      {/* Add button + Refresh All */}
+      <div className="flex gap-2">
+        {onAddCompound && (
+          <button
+            onClick={onAddCompound}
+            className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors text-primary text-sm font-medium"
+          >
+            <Plus className="w-4 h-4" />
+            Add Compound
+          </button>
+        )}
         <button
-          onClick={onAddCompound}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors text-primary text-sm font-medium"
+          onClick={refreshAllScores}
+          disabled={refreshingAll}
+          className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg border border-border/40 bg-secondary/30 hover:bg-secondary/50 transition-colors text-muted-foreground hover:text-foreground text-xs font-medium disabled:opacity-50"
+          title="Recompute all personalized scores"
         >
-          <Plus className="w-4 h-4" />
-          Add Compound from Library
+          {refreshingAll ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <RefreshCcw className="w-3.5 h-3.5" />
+          )}
+          {refreshingAll ? 'Refreshing…' : 'Refresh All Scores'}
         </button>
-      )}
+      </div>
 
       {/* Compound Cards */}
       {groups.map(group => (
