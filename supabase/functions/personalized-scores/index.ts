@@ -123,11 +123,23 @@ serve(async (req) => {
       (cat === "injectable-oil" || cat === "oil" || cat.includes("inject")) ? "IM Injection" :
       (cat === "powder") ? "Oral (Powder)" : "Oral";
 
+    // Reconstitution context for peptides
+    const isPeptideCat = cat === "peptide";
+    const reconContext = isPeptideCat
+      ? `\nRECONSTITUTION RULES (CRITICAL — use these for all potency calculations):
+- Standard peptide reconstitution: 200 IU (2mL) of bacteriostatic water per vial.
+- EXCEPTION: Tesamorelin uses 300 IU (3mL) of bacteriostatic water per vial.
+- The dose in IU is drawn from this reconstituted solution. Do NOT confuse mg content of the vial with the IU dosage.
+- Example: A 10mg vial reconstituted with 200 IU bacstat water. If dose is 10 IU, that equals (10/200)*10mg = 0.5mg per injection.
+- Always factor the vial's mg content and reconstitution volume when assessing dosage adequacy.`
+      : "";
+
     const prompt = `You are a clinical pharmacology advisor computing PERSONALIZED compound scores.
 
 COMPOUND: ${compoundName}
 DELIVERY METHOD: ${deliveryMethod} (category: ${category})
 CURRENT DOSAGE: ${dosePerUse} ${doseLabel || unitLabel} × ${dosesPerDay}x/day × ${daysPerWeek} days/week
+${reconContext}
 
 USER BIOLOGY:
 - Gender: ${profile?.gender || "unknown"}
