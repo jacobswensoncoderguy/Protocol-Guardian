@@ -120,6 +120,34 @@ function extractText(children: React.ReactNode): string {
   return '';
 }
 
+/** Recursively process React children to replace [CONF:XX%|Tier] with styled badges */
+function processConfMarkers(children: React.ReactNode): React.ReactNode {
+  if (typeof children === 'string') {
+    const confMatch = children.match(/\[CONF:(\d+)%\|([^\]]+)\]/);
+    if (confMatch) {
+      const pct = parseInt(confMatch[1]);
+      const tier = confMatch[2];
+      const before = children.slice(0, confMatch.index);
+      const after = children.slice((confMatch.index || 0) + confMatch[0].length);
+      return (
+        <>
+          {before}
+          {renderConfBadge(pct, tier)}
+          {after ? processConfMarkers(after) : null}
+        </>
+      );
+    }
+    return children;
+  }
+  if (Array.isArray(children)) {
+    return children.map((child, i) => <React.Fragment key={i}>{processConfMarkers(child)}</React.Fragment>);
+  }
+  if (React.isValidElement(children) && children.props?.children) {
+    return React.cloneElement(children, {}, processConfMarkers(children.props.children));
+  }
+  return children;
+}
+
 const components: Components = {
   // H2 as prominent section headers with bottom border
   h2: ({ children, ...props }) => {
@@ -147,6 +175,10 @@ const components: Components = {
       </summary>
     );
   },
+  // Process paragraph text for [CONF] markers
+  p: ({ children, ...props }) => {
+    return <p {...props}>{processConfMarkers(children)}</p>;
+  },
   li: ({ children, ...props }) => {
     const text = extractText(children);
     const match = text.match(TAG_REGEX);
@@ -158,14 +190,14 @@ const components: Components = {
           <span className={`flex items-center justify-center w-4 h-4 mt-0.5 rounded-sm ${config.bg} flex-shrink-0`}>
             <Icon className={`w-2.5 h-2.5 ${config.color}`} strokeWidth={2.5} />
           </span>
-          <span className="flex-1">{React.Children.map(children, child => {
+          <span className="flex-1">{processConfMarkers(React.Children.map(children, child => {
             if (typeof child === 'string') return child.replace(TAG_REGEX, '');
             return child;
-          })}</span>
+          }))}</span>
         </li>
       );
     }
-    return <li {...props}>{children}</li>;
+    return <li {...props}>{processConfMarkers(children)}</li>;
   },
   // Style bold text that contains [ACTION] tags
   strong: ({ children, ...props }) => {
@@ -182,7 +214,7 @@ const components: Components = {
         </strong>
       );
     }
-    return <strong {...props}>{children}</strong>;
+    return <strong {...props}>{processConfMarkers(children)}</strong>;
   },
 };
 
