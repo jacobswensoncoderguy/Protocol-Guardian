@@ -11,7 +11,7 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import ToleranceSelector from '@/components/ToleranceSelector';
 import { ToleranceLevel } from '@/hooks/useProtocolAnalysis';
 import CycleTimelineBar from '@/components/CycleTimelineBar';
-import { getCompoundScores, CompoundScores } from '@/data/compoundScores';
+import { getCompoundScores, getDeliveryLabel, CompoundScores } from '@/data/compoundScores';
 import { FlaskConical, Beaker, Target } from 'lucide-react';
 import CompoundScoreDrawer from '@/components/CompoundScoreDrawer';
 
@@ -870,7 +870,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
 
       {/* Compound Scores — bioavailability, efficacy, effectiveness */}
       {!editing && (() => {
-        const scores = getCompoundScores(compound.name);
+        const scores = getCompoundScores(compound.name, compound.category);
         if (!scores) return null;
         const scoreColor = (v: number) =>
           v >= 80 ? 'text-status-good' : v >= 60 ? 'text-primary' : v >= 40 ? 'text-status-warning' : 'text-status-critical';
@@ -908,6 +908,8 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
               onOpenChange={setShowScoreDrawer}
               compoundName={compound.name}
               scores={scores}
+              deliveryMethod={getDeliveryLabel(compound.category)}
+              category={compound.category}
             />
           </>
         );

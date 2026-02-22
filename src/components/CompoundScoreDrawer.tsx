@@ -10,6 +10,8 @@ interface CompoundScoreDrawerProps {
   onOpenChange: (open: boolean) => void;
   compoundName: string;
   scores: CompoundScores;
+  deliveryMethod?: string;
+  category?: string;
 }
 
 const SCORE_META: {
@@ -85,7 +87,7 @@ const scoreColor = (v: number) =>
 const scoreBg = (v: number) =>
   v >= 80 ? 'bg-status-good/10 border-status-good/20' : v >= 60 ? 'bg-primary/10 border-primary/20' : v >= 40 ? 'bg-status-warning/10 border-status-warning/20' : 'bg-destructive/10 border-destructive/20';
 
-const CompoundScoreDrawer = ({ open, onOpenChange, compoundName, scores }: CompoundScoreDrawerProps) => {
+const CompoundScoreDrawer = ({ open, onOpenChange, compoundName, scores, deliveryMethod, category }: CompoundScoreDrawerProps) => {
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
@@ -110,13 +112,17 @@ const CompoundScoreDrawer = ({ open, onOpenChange, compoundName, scores }: Compo
 
     try {
       const systemPrompt = `You are a compound optimization advisor for "${compoundName}".
-Current scores: Bioavailability ${scores.bioavailability}%, Efficacy ${scores.efficacy}%, Effectiveness ${scores.effectiveness}%.
+Current delivery method: ${deliveryMethod || 'Unknown'} (category: ${category || 'Unknown'}).
+Current scores (ALREADY ADJUSTED for ${deliveryMethod || 'current'} delivery): Bioavailability ${scores.bioavailability}%, Efficacy ${scores.efficacy}%, Effectiveness ${scores.effectiveness}%.
 Evidence tier: ${scores.evidenceTier}.
 
+CRITICAL: The bioavailability score ALREADY reflects the user's current delivery method (${deliveryMethod}). Do NOT suggest switching to the delivery method they are already using. If they are injecting, the score already accounts for injectable bioavailability. Only suggest delivery method changes if switching to a DIFFERENT method would improve scores.
+
 Provide concise, actionable advice to improve these scores. Focus on:
-- Delivery method optimization (for bioavailability)
-- Dosing timing and synergistic stacking (for efficacy)
-- Practical compliance and formulation changes (for effectiveness)
+- Timing optimization (fasted vs fed, time of day, proximity to other compounds)
+- Synergistic stacking (compounds that enhance absorption or effect)
+- Dosing protocol adjustments (frequency, splitting doses)
+- Formulation quality (liposomal, micronized, pharmaceutical grade)
 
 Keep responses under 200 words. Use bullet points. Be specific to this compound.`;
 
@@ -148,7 +154,7 @@ Keep responses under 200 words. Use bullet points. Be specific to this compound.
         <SheetHeader className="pb-2">
           <SheetTitle className="text-sm font-bold">{compoundName} — Score Breakdown</SheetTitle>
           <SheetDescription className="text-[10px] text-muted-foreground">
-            Evidence-based compound quality scores
+            Scores adjusted for <span className="text-primary font-semibold">{deliveryMethod || 'default'}</span> delivery
           </SheetDescription>
         </SheetHeader>
 
