@@ -11,8 +11,9 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import ToleranceSelector from '@/components/ToleranceSelector';
 import { ToleranceLevel } from '@/hooks/useProtocolAnalysis';
 import CycleTimelineBar from '@/components/CycleTimelineBar';
-import { getCompoundScores } from '@/data/compoundScores';
+import { getCompoundScores, CompoundScores } from '@/data/compoundScores';
 import { FlaskConical, Beaker, Target } from 'lucide-react';
+import CompoundScoreDrawer from '@/components/CompoundScoreDrawer';
 
 interface InventoryViewProps {
   compounds: Compound[];
@@ -372,6 +373,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
   const [showPauseDialog, setShowPauseDialog] = useState(false);
   const [pauseDate, setPauseDate] = useState('');
   const [doseUnit, setDoseUnit] = useState<'mg' | 'ml' | 'iu'>('mg');
+  const [showScoreDrawer, setShowScoreDrawer] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editState, setEditState] = useState<Record<string, string>>({});
   const [showAddField, setShowAddField] = useState(false);
@@ -877,26 +879,37 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
           Anecdotal: 'text-status-warning', Theoretical: 'text-muted-foreground', Mixed: 'text-primary',
         };
         return (
-          <div className="flex flex-wrap items-center gap-1.5 mb-2">
-            <span className="inline-flex items-center gap-1 text-[9px] font-mono px-1.5 py-0.5 rounded-full border border-border/40 bg-secondary/30" title="Bioavailability — absorption/utilization efficiency">
-              <Beaker className="w-2.5 h-2.5 text-primary" />
-              <span className="text-muted-foreground">Bio</span>
-              <span className={scoreColor(scores.bioavailability)}>{scores.bioavailability}%</span>
-            </span>
-            <span className="inline-flex items-center gap-1 text-[9px] font-mono px-1.5 py-0.5 rounded-full border border-border/40 bg-secondary/30" title="Efficacy — likelihood of statistically significant benefits">
-              <FlaskConical className="w-2.5 h-2.5 text-primary" />
-              <span className="text-muted-foreground">Eff</span>
-              <span className={scoreColor(scores.efficacy)}>{scores.efficacy}%</span>
-            </span>
-            <span className="inline-flex items-center gap-1 text-[9px] font-mono px-1.5 py-0.5 rounded-full border border-border/40 bg-secondary/30" title="Effectiveness — real-world outcome score">
-              <Target className="w-2.5 h-2.5 text-primary" />
-              <span className="text-muted-foreground">Ovr</span>
-              <span className={scoreColor(scores.effectiveness)}>{scores.effectiveness}%</span>
-            </span>
-            <span className={`text-[8px] font-mono ${tierColors[scores.evidenceTier] || 'text-muted-foreground'}`}>
-              {scores.evidenceTier}
-            </span>
-          </div>
+          <>
+            <button
+              onClick={() => setShowScoreDrawer(true)}
+              className="flex flex-wrap items-center gap-1.5 mb-2 cursor-pointer hover:opacity-80 transition-opacity active:scale-[0.98]"
+            >
+              <span className="inline-flex items-center gap-1 text-[9px] font-mono px-1.5 py-0.5 rounded-full border border-border/40 bg-secondary/30" title="Bioavailability — tap for details">
+                <Beaker className="w-2.5 h-2.5 text-primary" />
+                <span className="text-muted-foreground">Bio</span>
+                <span className={scoreColor(scores.bioavailability)}>{scores.bioavailability}%</span>
+              </span>
+              <span className="inline-flex items-center gap-1 text-[9px] font-mono px-1.5 py-0.5 rounded-full border border-border/40 bg-secondary/30" title="Efficacy — tap for details">
+                <FlaskConical className="w-2.5 h-2.5 text-primary" />
+                <span className="text-muted-foreground">Eff</span>
+                <span className={scoreColor(scores.efficacy)}>{scores.efficacy}%</span>
+              </span>
+              <span className="inline-flex items-center gap-1 text-[9px] font-mono px-1.5 py-0.5 rounded-full border border-border/40 bg-secondary/30" title="Effectiveness — tap for details">
+                <Target className="w-2.5 h-2.5 text-primary" />
+                <span className="text-muted-foreground">Ovr</span>
+                <span className={scoreColor(scores.effectiveness)}>{scores.effectiveness}%</span>
+              </span>
+              <span className={`text-[8px] font-mono ${tierColors[scores.evidenceTier] || 'text-muted-foreground'}`}>
+                {scores.evidenceTier}
+              </span>
+            </button>
+            <CompoundScoreDrawer
+              open={showScoreDrawer}
+              onOpenChange={setShowScoreDrawer}
+              compoundName={compound.name}
+              scores={scores}
+            />
+          </>
         );
       })()}
 
