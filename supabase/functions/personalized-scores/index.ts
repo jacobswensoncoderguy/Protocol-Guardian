@@ -1,10 +1,22 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createHash } from "https://deno.land/std@0.168.0/crypto/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+/** Build a deterministic cache key from all inputs that affect scoring */
+function buildCacheKey(parts: Record<string, unknown>): string {
+  const sorted = JSON.stringify(parts, Object.keys(parts).sort());
+  // Simple hash via array reduce
+  let hash = 0;
+  for (let i = 0; i < sorted.length; i++) {
+    hash = ((hash << 5) - hash + sorted.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash).toString(36);
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -22,17 +34,17 @@ serve(async (req) => {
     const { data: { user }, error: authErr } = await supabase.auth.getUser();
     if (authErr || !user) throw new Error("Not authenticated");
 
-    const { compoundName, category, dosePerUse, dosesPerDay, daysPerWeek, unitLabel, doseLabel } = await req.json();
+    const { compoundName, category, dosePerUse, dosesPerDay, daysPerWeek, unitLabel, doseLabel, forceRefresh } = await req.json();
     if (!compoundName) throw new Error("compoundName is required");
 
-    // Fetch user profile
+    // ── 1. Fetch user profile ──
     const { data: profile } = await supabase
       .from("profiles")
       .select("gender, weight_kg, height_cm, body_fat_pct, age, measurement_system")
       .eq("user_id", user.id)
       .single();
 
-    // Fetch recent lab biomarkers (90 days)
+    // ── 2. Fetch recent lab biomarkers (90 days) ──
     const ninetyDaysAgo = new Date(Date.now() - 90 * 86400000).toISOString().split("T")[0];
     const { data: labUploads } = await supabase
       .from("user_goal_uploads")
@@ -42,7 +54,6 @@ serve(async (req) => {
       .order("reading_date", { ascending: false })
       .limit(10);
 
-    // Extract biomarker summaries from lab data
     const recentBiomarkers: { name: string; value: number; unit: string; status: string; date: string }[] = [];
     if (labUploads) {
       for (const upload of labUploads) {
@@ -50,38 +61,68 @@ serve(async (req) => {
         if (extracted?.biomarkers) {
           for (const b of extracted.biomarkers) {
             recentBiomarkers.push({
-              name: b.name,
-              value: b.value,
-              unit: b.unit,
-              status: b.status || "normal",
-              date: upload.reading_date || "",
+              name: b.name, value: b.value, unit: b.unit,
+              status: b.status || "normal", date: upload.reading_date || "",
             });
           }
         }
       }
     }
 
-    // Fetch full active stack for interaction analysis
+    // ── 3. Fetch active stack ──
     const { data: stack } = await supabase
       .from("user_compounds")
-      .select("name, category, dose_per_use, doses_per_day, days_per_week, dose_label, unit_label, paused_at, cycle_on_days, cycle_off_days, cycle_start_date")
+      .select("name, category, dose_per_use, doses_per_day, days_per_week, dose_label, unit_label, paused_at")
       .eq("user_id", user.id)
       .is("paused_at", null);
 
     const activeStack = (stack || []).filter(c => c.name !== compoundName).map(c => ({
-      name: c.name,
-      category: c.category,
+      name: c.name, category: c.category,
       dose: `${c.dose_per_use} ${c.dose_label}`,
       frequency: `${c.doses_per_day}x/day, ${c.days_per_week}d/week`,
     }));
 
-    // Determine delivery method
+    // ── 4. Build cache key from ALL scoring inputs ──
+    const cacheKey = buildCacheKey({
+      compoundName, category,
+      dosePerUse: dosePerUse || 0,
+      dosesPerDay: dosesPerDay || 1,
+      daysPerWeek: daysPerWeek || 7,
+      gender: profile?.gender, age: profile?.age,
+      weight: profile?.weight_kg, height: profile?.height_cm,
+      bf: profile?.body_fat_pct,
+      labHash: recentBiomarkers.map(b => `${b.name}:${b.value}`).join(","),
+      stackHash: activeStack.map(c => c.name).sort().join(","),
+    });
+
+    // ── 5. Check cache (skip if forceRefresh) ──
+    if (!forceRefresh) {
+      const { data: cached } = await supabase
+        .from("personalized_score_cache")
+        .select("scores, context, created_at, cache_key")
+        .eq("user_id", user.id)
+        .eq("compound_name", compoundName)
+        .single();
+
+      if (cached && cached.cache_key === cacheKey) {
+        // Cache hit — key matches, data is still valid
+        return new Response(JSON.stringify({
+          personalized: cached.scores,
+          context: cached.context,
+          cached: true,
+          cachedAt: cached.created_at,
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // ── 6. Cache miss or stale — compute via AI ──
     const cat = (category || "").toLowerCase();
     const deliveryMethod = (cat === "peptide") ? "SubQ Injection" :
       (cat === "injectable-oil" || cat === "oil" || cat.includes("inject")) ? "IM Injection" :
       (cat === "powder") ? "Oral (Powder)" : "Oral";
 
-    // Build AI prompt
     const prompt = `You are a clinical pharmacology advisor computing PERSONALIZED compound scores.
 
 COMPOUND: ${compoundName}
@@ -108,16 +149,11 @@ ${activeStack.length > 0
 TASK: Compute personalized scores for this compound considering ALL the above context.
 
 SCORING RULES:
-1. **Bioavailability (0-100%)**: Adjust for delivery method, user's body weight/composition (higher body fat may affect absorption for lipophilic compounds), and any lab markers indicating absorption issues (e.g., low albumin, gut inflammation markers).
-
-2. **Efficacy (0-100%)**: Adjust for whether the current dosage is in the therapeutic range for this user's weight/age/gender, whether lab biomarkers show the compound is actually working (e.g., testosterone levels rising on TRT, inflammatory markers dropping on anti-inflammatory peptides), and evidence quality.
-
+1. **Bioavailability (0-100%)**: Adjust for delivery method, user's body weight/composition, and any lab markers indicating absorption issues.
+2. **Efficacy (0-100%)**: Adjust for whether the current dosage is in the therapeutic range for this user's weight/age/gender, whether lab biomarkers show the compound is actually working, and evidence quality.
 3. **Effectiveness (0-100%)**: Real-world outcome combining bioavailability, efficacy, dosing adequacy, compliance factors, stack synergies or conflicts, and any lab-indicated contraindications.
-
 4. **Evidence Tier**: One of: RCT, Meta, Clinical, Anecdotal, Theoretical, Mixed.
-
 5. **Dosage Assessment**: Is the current dose optimal, subtherapeutic, or supratherapeutic for this user?
-
 6. **Key Interactions**: Note any significant synergies or conflicts with other compounds in the stack.
 
 RESPOND WITH ONLY THIS JSON (no markdown, no code fences):
@@ -168,8 +204,6 @@ RESPOND WITH ONLY THIS JSON (no markdown, no code fences):
 
     const aiData = await response.json();
     const raw = aiData.choices?.[0]?.message?.content || "";
-
-    // Parse JSON from response, stripping any markdown fences
     const cleaned = raw.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
     let scores;
     try {
@@ -179,15 +213,34 @@ RESPOND WITH ONLY THIS JSON (no markdown, no code fences):
       throw new Error("Failed to parse AI response");
     }
 
+    const contextData = {
+      hasProfile: !!profile,
+      hasLabs: recentBiomarkers.length > 0,
+      labCount: recentBiomarkers.length,
+      stackSize: activeStack.length,
+      deliveryMethod,
+    };
+
+    // ── 7. Upsert cache ──
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const adminClient = createClient(supabaseUrl, serviceKey);
+
+    await adminClient
+      .from("personalized_score_cache")
+      .upsert({
+        user_id: user.id,
+        compound_name: compoundName,
+        cache_key: cacheKey,
+        scores,
+        context: contextData,
+        created_at: new Date().toISOString(),
+        expires_at: new Date(Date.now() + 24 * 3600000).toISOString(),
+      }, { onConflict: "user_id,compound_name" });
+
     return new Response(JSON.stringify({
       personalized: scores,
-      context: {
-        hasProfile: !!profile,
-        hasLabs: recentBiomarkers.length > 0,
-        labCount: recentBiomarkers.length,
-        stackSize: activeStack.length,
-        deliveryMethod,
-      },
+      context: contextData,
+      cached: false,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

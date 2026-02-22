@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import ChatMarkdown from '@/components/ChatMarkdown';
-import { Beaker, FlaskConical, Target, MessageCircle, Send, Loader2, TrendingUp, AlertTriangle, Info, Sparkles, ArrowRight, User, TestTube2, Pill, Layers } from 'lucide-react';
+import { Beaker, FlaskConical, Target, MessageCircle, Send, Loader2, TrendingUp, AlertTriangle, Info, Sparkles, ArrowRight, User, TestTube2, Pill, Layers, RefreshCw, Zap } from 'lucide-react';
 import { CompoundScores } from '@/data/compoundScores';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -93,41 +93,50 @@ const CompoundScoreDrawer = ({ open, onOpenChange, compoundName, scores, deliver
   const [pContext, setPContext] = useState<PersonalizedContext | null>(null);
   const [pLoading, setPLoading] = useState(false);
   const [pError, setPError] = useState<string | null>(null);
+  const [isCached, setIsCached] = useState(false);
+  const [cachedAt, setCachedAt] = useState<string | null>(null);
+
+  const fetchPersonalized = async (forceRefresh = false) => {
+    setPLoading(true);
+    setPError(null);
+    if (forceRefresh) {
+      setIsCached(false);
+      setCachedAt(null);
+    }
+    try {
+      const { data, error } = await supabase.functions.invoke('personalized-scores', {
+        body: {
+          compoundName,
+          category,
+          dosePerUse: dosePerUse || 0,
+          dosesPerDay: dosesPerDay || 1,
+          daysPerWeek: daysPerWeek || 7,
+          unitLabel: unitLabel || '',
+          doseLabel: doseLabel || '',
+          forceRefresh,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setPersonalized(data.personalized);
+      setPContext(data.context);
+      setIsCached(!!data.cached);
+      setCachedAt(data.cachedAt || null);
+    } catch (err: any) {
+      console.error('Personalized scores error:', err);
+      setPError(err.message || 'Failed to compute personalized scores');
+    } finally {
+      setPLoading(false);
+    }
+  };
 
   // Fetch personalized scores when drawer opens
   useEffect(() => {
     if (!open) return;
-    // Reset on each open
     setPersonalized(null);
     setPContext(null);
-    setPError(null);
-    setPLoading(true);
-
-    const fetchPersonalized = async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke('personalized-scores', {
-          body: {
-            compoundName,
-            category,
-            dosePerUse: dosePerUse || 0,
-            dosesPerDay: dosesPerDay || 1,
-            daysPerWeek: daysPerWeek || 7,
-            unitLabel: unitLabel || '',
-            doseLabel: doseLabel || '',
-          },
-        });
-        if (error) throw error;
-        if (data?.error) throw new Error(data.error);
-        setPersonalized(data.personalized);
-        setPContext(data.context);
-      } catch (err: any) {
-        console.error('Personalized scores error:', err);
-        setPError(err.message || 'Failed to compute personalized scores');
-      } finally {
-        setPLoading(false);
-      }
-    };
-
+    setIsCached(false);
+    setCachedAt(null);
     fetchPersonalized();
   }, [open, compoundName]);
 
@@ -200,12 +209,29 @@ Provide concise, actionable advice. Keep responses under 200 words. Use bullet p
             {pLoading ? (
               <span className="inline-flex items-center gap-1">
                 <Loader2 className="w-3 h-3 animate-spin text-primary" />
-                Computing personalized scores…
+                {isCached ? 'Refreshing scores…' : 'Computing personalized scores…'}
               </span>
             ) : personalized ? (
               <span className="inline-flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-primary" />
-                <span className="text-primary font-semibold">Personalized</span> for your biology, dosage & labs
+                {isCached ? (
+                  <>
+                    <Zap className="w-3 h-3 text-primary" />
+                    <span className="text-primary font-semibold">Cached</span>
+                    {cachedAt && <span className="text-muted-foreground">· {new Date(cachedAt).toLocaleDateString()}</span>}
+                    <button
+                      onClick={() => fetchPersonalized(true)}
+                      className="ml-1 inline-flex items-center gap-0.5 text-[9px] text-primary hover:text-primary/80 transition-colors"
+                      title="Recompute scores"
+                    >
+                      <RefreshCw className="w-2.5 h-2.5" /> Refresh
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3 h-3 text-primary" />
+                    <span className="text-primary font-semibold">Personalized</span> for your biology, dosage & labs
+                  </>
+                )}
               </span>
             ) : (
               <span>Scores adjusted for <span className="text-primary font-semibold">{deliveryMethod || 'default'}</span> delivery</span>
