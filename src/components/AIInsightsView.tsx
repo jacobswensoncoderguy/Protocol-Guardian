@@ -258,7 +258,7 @@ const ToleranceComparisonCard = ({
   onCompare: () => void;
   currentLevel: string;
 }) => {
-  const levels = ['conservative', 'moderate', 'aggressive', 'performance'] as const;
+  const levels = ['conservative', 'moderate', 'performance'] as const;
 
   return (
     <div className="bg-card rounded-lg border border-border/50 p-4">
