@@ -824,25 +824,29 @@ const DoseGroup = ({
               {/* Per-compound score badges */}
               {compoundScores && !isChecked && (
                 <button
+                  type="button"
+                  onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => {
+                    e.preventDefault();
                     e.stopPropagation();
                     if (compound) {
                       setScoreDrawerCompound(compound);
                       setScoreDrawerScores(compoundScores);
                     }
                   }}
-                  className="flex items-center gap-1.5 ml-7 mt-1 py-1 -my-0.5 cursor-pointer hover:opacity-80 transition-opacity active:scale-[0.98] touch-manipulation"
+                  className="flex items-center gap-2 ml-7 mt-0.5 py-2 px-1 -mx-1 cursor-pointer hover:opacity-80 transition-opacity active:scale-[0.97] touch-manipulation select-none"
+                  style={{ minHeight: '44px' }}
                 >
-                  <span className="inline-flex items-center gap-0.5 text-[8px] font-mono px-1 py-0.5 rounded border border-border/30 bg-secondary/20">
-                    <Beaker className="w-2 h-2 text-primary" />
+                  <span className="inline-flex items-center gap-1 text-[9px] font-mono px-1.5 py-1 rounded border border-border/30 bg-secondary/20">
+                    <Beaker className="w-2.5 h-2.5 text-primary" />
                     <span className={doseScoreColor(compoundScores.bioavailability)}>{compoundScores.bioavailability}%</span>
                   </span>
-                  <span className="inline-flex items-center gap-0.5 text-[8px] font-mono px-1 py-0.5 rounded border border-border/30 bg-secondary/20">
-                    <FlaskConical className="w-2 h-2 text-primary" />
+                  <span className="inline-flex items-center gap-1 text-[9px] font-mono px-1.5 py-1 rounded border border-border/30 bg-secondary/20">
+                    <FlaskConical className="w-2.5 h-2.5 text-primary" />
                     <span className={doseScoreColor(compoundScores.efficacy)}>{compoundScores.efficacy}%</span>
                   </span>
-                  <span className="inline-flex items-center gap-0.5 text-[8px] font-mono px-1 py-0.5 rounded border border-border/30 bg-secondary/20">
-                    <Target className="w-2 h-2 text-primary" />
+                  <span className="inline-flex items-center gap-1 text-[9px] font-mono px-1.5 py-1 rounded border border-border/30 bg-secondary/20">
+                    <Target className="w-2.5 h-2.5 text-primary" />
                     <span className={doseScoreColor(compoundScores.effectiveness)}>{compoundScores.effectiveness}%</span>
                   </span>
                 </button>
