@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Brain, RefreshCw, ShieldAlert, Beaker, BarChart3, DollarSign, Lightbulb, ChevronDown, GitCompare, AlertTriangle, Zap, MessageSquare, Send, X, ThumbsDown, TrendingUp, Shield, Scale, Rocket } from 'lucide-react';
+import { Brain, RefreshCw, ShieldAlert, Beaker, BarChart3, DollarSign, Lightbulb, ChevronDown, GitCompare, AlertTriangle, Zap, MessageSquare, Send, X, ThumbsDown, TrendingUp, Shield, Scale, Rocket, FlaskConical } from 'lucide-react';
 import ChatMarkdown from '@/components/ChatMarkdown';
 import { StackAnalysis, ToleranceComparison } from '@/hooks/useProtocolAnalysis';
 import { ToleranceLevel } from '@/hooks/useProtocolAnalysis';
@@ -7,6 +7,7 @@ import ToleranceSelector from '@/components/ToleranceSelector';
 import MedicalDisclaimer from '@/components/MedicalDisclaimer';
 import ProtocolChat from '@/components/ProtocolChat';
 import GeminiBadge from '@/components/GeminiBadge';
+import ConfidenceBadge, { RiskSummaryBlock } from '@/components/ConfidenceBadge';
 import { ChatMessage, ChangeProposal, PendingConfirm } from '@/hooks/useProtocolChat';
 import { useConversations } from '@/hooks/useConversations';
 import { Compound } from '@/data/compounds';
@@ -383,13 +384,23 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
                   const key = `contra-${i}`;
                   if (isDismissed(key)) return null;
                   return (
-                    <div key={i} className="p-3 rounded-lg bg-secondary/30 border border-border/30 select-text" style={{ userSelect: 'text', WebkitUserSelect: 'text' }}>
-                      <div className="flex items-center gap-2 mb-1.5">
+                     <div key={i} className="p-3 rounded-lg bg-secondary/30 border border-border/30 select-text" style={{ userSelect: 'text', WebkitUserSelect: 'text' }}>
+                      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                         <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${severityBadge(c.severity)}`}>
                           {c.severity}
                         </span>
                         <span className="text-[10px] text-muted-foreground font-mono">{c.category}</span>
                         <ImpactPercent value={(c as any).impactPercent} label={(c as any).impactLabel} />
+                        {c.confidencePct !== undefined && c.evidenceTier && (
+                          <ConfidenceBadge
+                            data={{
+                              confidencePct: c.confidencePct,
+                              evidenceTier: c.evidenceTier as any,
+                              riskAtTolerance: c.riskAtTolerance,
+                            }}
+                            compact
+                          />
+                        )}
                         <div className="ml-auto"><DismissButton onDismiss={() => dismiss(key)} /></div>
                       </div>
                       <div className="text-xs text-foreground/85 mb-1"><ChatMarkdown content={c.description} /></div>
@@ -400,6 +411,12 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
                         <Lightbulb className="w-3 h-3 flex-shrink-0 mt-0.5" />
                         <ChatMarkdown content={c.recommendation} />
                       </div>
+                      {c.riskAtTolerance && (
+                        <p className="text-[10px] text-status-warning mt-1.5 flex items-center gap-1 font-mono">
+                          <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                          {c.riskAtTolerance}
+                        </p>
+                      )}
                       <InlineReply context={c.description} onSend={handleInlineReply} />
                     </div>
                   );
@@ -426,11 +443,20 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
                   const key = `bio-${i}`;
                   if (isDismissed(key)) return null;
                   return (
-                    <div key={i} className="p-3 rounded-lg bg-secondary/30 border border-border/30 select-text" style={{ userSelect: 'text', WebkitUserSelect: 'text' }}>
-                      <div className="flex items-center justify-between mb-1">
+                     <div key={i} className="p-3 rounded-lg bg-secondary/30 border border-border/30 select-text" style={{ userSelect: 'text', WebkitUserSelect: 'text' }}>
+                      <div className="flex items-center justify-between mb-1 flex-wrap gap-1">
                         <span className="text-xs font-semibold text-foreground">{b.compound}</span>
                         <div className="flex items-center gap-1.5">
                           <span className="text-[10px] font-mono text-muted-foreground">{b.currentMethod}</span>
+                          {b.confidencePct !== undefined && b.evidenceTier && (
+                            <ConfidenceBadge
+                              data={{
+                                confidencePct: b.confidencePct,
+                                evidenceTier: b.evidenceTier as any,
+                              }}
+                              compact
+                            />
+                          )}
                           <DismissButton onDismiss={() => dismiss(key)} />
                         </div>
                       </div>
@@ -504,13 +530,24 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
                 const key = `cost-${i}`;
                 if (isDismissed(key)) return null;
                 return (
-                  <div key={i} className="flex items-start gap-3 p-2 rounded-lg bg-secondary/20 select-text" style={{ userSelect: 'text', WebkitUserSelect: 'text' }}>
+                   <div key={i} className="flex items-start gap-3 p-2 rounded-lg bg-secondary/20 select-text" style={{ userSelect: 'text', WebkitUserSelect: 'text' }}>
                     <span className={`text-[10px] font-mono font-bold mt-0.5 ${verdictColor(c.verdict)}`}>
                       {c.verdict.toUpperCase()}
                     </span>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-foreground">{c.compound}</span>
+                      <div className="flex items-center justify-between flex-wrap gap-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-semibold text-foreground">{c.compound}</span>
+                          {c.confidencePct !== undefined && c.evidenceTier && (
+                            <ConfidenceBadge
+                              data={{
+                                confidencePct: c.confidencePct,
+                                evidenceTier: c.evidenceTier as any,
+                              }}
+                              compact
+                            />
+                          )}
+                        </div>
                         <DismissButton onDismiss={() => dismiss(key)} />
                       </div>
                       <div className="text-[11px] text-muted-foreground"><ChatMarkdown content={c.reasoning} /></div>
@@ -627,13 +664,25 @@ const AIInsightsView = ({ analysis, loading, toleranceLevel, onToleranceChange, 
                 {analysis.overallGrade}
               </div>
               <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <p className="text-sm font-semibold text-foreground">Overall Stack Grade</p>
                   <ToleranceBadge level={toleranceLevel} />
+                  {analysis.overallConfidencePct !== undefined && analysis.overallEvidenceTier && (
+                    <ConfidenceBadge
+                      data={{
+                        confidencePct: analysis.overallConfidencePct,
+                        evidenceTier: analysis.overallEvidenceTier as any,
+                      }}
+                      compact
+                    />
+                  )}
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">{analysis.overallSummary}</p>
               </div>
             </div>
+            {analysis.riskSummary && (
+              <RiskSummaryBlock riskSummary={analysis.riskSummary} toleranceLevel={toleranceLevel} />
+            )}
           </div>
 
           {/* Tolerance Comparison */}

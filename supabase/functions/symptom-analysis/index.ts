@@ -73,17 +73,26 @@ RESPONSE RULES — MANDATORY:
 - suggestions: max 4 items. Each action max 10 words. Each rationale max 15 words.
 - correlations: max 6. Each finding max 15 words.
 - No filler, no hedging, no disclaimers.
+- EVERY correlation and suggestion MUST include a confidencePct (0-100) and evidenceTier.
+
+CONFIDENCE SCORING:
+- confidencePct: 0-100 based on evidence quality. 90+: strong clinical data. 70-89: good evidence. 50-69: limited/mixed. 30-49: anecdotal. <30: theoretical.
+- evidenceTier: "RCT-backed", "Meta-analysis", "Clinical observation", "Anecdotal", "Theoretical", "Mixed"
+- Be honest. A 40% Anecdotal score is better than an inflated 90%.
 
 Return ONLY valid JSON with this exact structure:
 {
   "summary": "1-2 sentence summary — most important finding first, bold key terms",
+  "overallConfidencePct": number_0_to_100,
+  "overallEvidenceTier": "string",
+  "riskSummary": "1-2 sentence overall risk assessment",
   "correlations": [
-    {"finding": "string (max 15 words)", "confidence": "high|medium|low", "type": "positive|negative|neutral", "compound": "compound name or null", "symptom": "symptom name or null", "dayOffset": number_or_null}
+    {"finding": "string (max 15 words)", "confidence": "high|medium|low", "type": "positive|negative|neutral", "compound": "compound name or null", "symptom": "symptom name or null", "dayOffset": number_or_null, "confidencePct": number_0_to_100, "evidenceTier": "string"}
   ],
   "concerning_trends": ["string (max 10 words each)"],
   "positive_trends": ["string (max 10 words each)"],
   "suggestions": [
-    {"action": "string - max 10 words", "rationale": "string - max 15 words", "priority": "high|medium|low", "category": "timing|dose|lifestyle|monitoring|consult"}
+    {"action": "string - max 10 words", "rationale": "string - max 15 words", "priority": "high|medium|low", "category": "timing|dose|lifestyle|monitoring|consult", "confidencePct": number_0_to_100, "evidenceTier": "string"}
   ],
   "wellness_trend": "improving|stable|declining|mixed",
   "key_insight": "Single most important finding in one sentence",

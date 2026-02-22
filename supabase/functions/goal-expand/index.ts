@@ -35,7 +35,9 @@ RESPONSE RULES — MANDATORY:
 - Lead with the single most important finding or question
 - No filler ("Great!", "That's interesting", "Of course!")
 - No hedging language or disclaimers
-- Use bullet points for lists, never dense paragraphs`;
+- Use bullet points for lists, never dense paragraphs
+- End every response with a confidence line: [CONF:XX%|Tier] where XX is 0-100 and Tier is RCT/Meta-analysis/Clinical/Anecdotal/Theoretical/Mixed
+- Before bottom line, add a risk statement: [RISK] Risk at [context] tolerance: [statement]`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

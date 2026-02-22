@@ -4,6 +4,7 @@ import InfoTooltip from '@/components/InfoTooltip';
 import { Shield, Scale, Zap, Rocket } from 'lucide-react';
 import { StackAnalysis } from '@/hooks/useProtocolAnalysis';
 import type { LucideIcon } from 'lucide-react';
+import ConfidenceBadge, { RiskSummaryBlock } from '@/components/ConfidenceBadge';
 
 interface ProtocolIntelligenceCardProps {
   analysis: StackAnalysis | null;
@@ -79,19 +80,30 @@ const ProtocolIntelligenceCard = ({ analysis, loading, needsRefresh, toleranceLe
           <div className="h-3 bg-secondary/50 rounded animate-pulse w-2/3" />
         </div>
       ) : analysis ? (
-        <div className="space-y-3">
+         <div className="space-y-3">
           {/* Grade */}
           <div className="flex items-center gap-3">
             <span className={`text-2xl font-bold font-mono ${gradeColor(analysis.overallGrade)}`}>
               {analysis.overallGrade}
             </span>
             <div className="flex-1">
-              {toleranceLevel && toleranceLabels[toleranceLevel] && (
-                <span className="inline-flex items-center gap-1 text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground mb-1">
-                  {(() => { const { Icon } = toleranceLabels[toleranceLevel]; return <Icon className="w-2.5 h-2.5" />; })()}
-                  {toleranceLabels[toleranceLevel].label}
-                </span>
-              )}
+              <div className="flex items-center gap-2 flex-wrap mb-1">
+                {toleranceLevel && toleranceLabels[toleranceLevel] && (
+                  <span className="inline-flex items-center gap-1 text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground">
+                    {(() => { const { Icon } = toleranceLabels[toleranceLevel]; return <Icon className="w-2.5 h-2.5" />; })()}
+                    {toleranceLabels[toleranceLevel].label}
+                  </span>
+                )}
+                {analysis.overallConfidencePct !== undefined && analysis.overallEvidenceTier && (
+                  <ConfidenceBadge
+                    data={{
+                      confidencePct: analysis.overallConfidencePct,
+                      evidenceTier: analysis.overallEvidenceTier as any,
+                    }}
+                    compact
+                  />
+                )}
+              </div>
               <div className="text-xs text-muted-foreground leading-snug"><ChatMarkdown content={analysis.overallSummary} /></div>
             </div>
           </div>
@@ -114,6 +126,11 @@ const ProtocolIntelligenceCard = ({ analysis, loading, needsRefresh, toleranceLe
               </div>
             ))}
           </div>
+
+          {/* Risk summary */}
+          {analysis.riskSummary && (
+            <RiskSummaryBlock riskSummary={analysis.riskSummary} toleranceLevel={toleranceLevel} />
+          )}
 
           {/* View details */}
           <button

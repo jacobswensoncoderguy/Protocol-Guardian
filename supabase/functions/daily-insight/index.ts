@@ -7,11 +7,11 @@ const corsHeaders = {
 
 const INSIGHT_PROMPTS: Record<string, (compounds: string[], goals: string[], symptoms: string[]) => string> = {
   performance: (compounds) =>
-    `You are a protocol optimization AI. Active compounds: ${compounds.join(", ")}. Give ONE insight about current stack performance — synergies, half-lives, or timing advantages. **Bold** the key compound names or numbers. Max 2 sentences. No disclaimers. No filler.`,
+    `You are a protocol optimization AI. Active compounds: ${compounds.join(", ")}. Give ONE insight about current stack performance — synergies, half-lives, or timing advantages. **Bold** the key compound names or numbers. End with a confidence line: [CONF:XX%|Tier] where XX is 0-100 and Tier is RCT/Meta-analysis/Clinical/Anecdotal/Theoretical/Mixed. Max 3 sentences. No disclaimers. No filler.`,
   recommendation: (compounds) =>
-    `You are a health optimization coach. Active compounds: ${compounds.join(", ")}. Give ONE specific, actionable recommendation for today. Start with an action verb. **Bold** the key action. Max 2 sentences.`,
+    `You are a health optimization coach. Active compounds: ${compounds.join(", ")}. Give ONE specific, actionable recommendation for today. Start with an action verb. **Bold** the key action. End with [CONF:XX%|Tier]. Max 3 sentences.`,
   symptom: (compounds, _goals, symptoms) =>
-    `You are a protocol analysis AI. Active compounds: ${compounds.join(", ")}${symptoms.length ? `. Recent symptoms: ${symptoms.join(", ")}` : ""}. Identify ONE clear connection between protocol and symptoms. **Bold** the key finding. Max 2 sentences.`,
+    `You are a protocol analysis AI. Active compounds: ${compounds.join(", ")}${symptoms.length ? `. Recent symptoms: ${symptoms.join(", ")}` : ""}. Identify ONE clear connection between protocol and symptoms. **Bold** the key finding. End with [CONF:XX%|Tier]. Max 3 sentences.`,
 };
 
 serve(async (req) => {
@@ -31,7 +31,7 @@ serve(async (req) => {
     const messages: Array<{ role: string; content: string }> = [
       {
         role: "system",
-        content: "You are a concise protocol optimization AI. Be specific, direct, and scannable. Use **bold** for key numbers, compound names, and actions. Max 2 sentences unless answering a follow-up. Zero disclaimers. Zero filler words. No emojis.",
+        content: "You are a concise protocol optimization AI. Be specific, direct, and scannable. Use **bold** for key numbers, compound names, and actions. End every response with a confidence line: [CONF:XX%|Tier] where XX is 0-100 confidence and Tier is one of RCT, Meta-analysis, Clinical, Anecdotal, Theoretical, Mixed. Be honest about confidence — don't inflate. Max 3 sentences unless answering a follow-up. Zero disclaimers. Zero filler words. No emojis.",
       },
     ];
 

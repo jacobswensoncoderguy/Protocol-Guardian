@@ -27,11 +27,48 @@ const TAG_CONFIG: Record<string, { icon: React.ElementType; color: string; bg: s
   EVIDENCE: { icon: FlaskConical,   color: 'text-primary',         bg: 'bg-primary/10' },
   DETAIL:   { icon: BookOpen,       color: 'text-muted-foreground',bg: 'bg-secondary/30' },
   ACTION:   { icon: Target,         color: 'text-primary',         bg: 'bg-primary/10' },
+  RISK:     { icon: Shield,         color: 'text-status-warning',  bg: 'bg-accent/10' },
 };
 
 const TAG_REGEX = /\[([A-Z]+)\]\s*/;
+const CONF_REGEX = /\[CONF:(\d+)%\|([^\]]+)\]/g;
+
+function confPctColor(pct: number): string {
+  if (pct >= 80) return 'text-status-good';
+  if (pct >= 60) return 'text-primary';
+  if (pct >= 40) return 'text-status-warning';
+  return 'text-status-critical';
+}
+
+function renderConfBadge(pct: number, tier: string): React.ReactNode {
+  return (
+    <span className={`inline-flex items-center gap-1 text-[9px] font-mono px-1.5 py-0.5 rounded-full border border-primary/20 bg-primary/5 ml-1`}>
+      <FlaskConical className="w-2.5 h-2.5 text-primary" />
+      <span className={confPctColor(pct)}>{pct}%</span>
+      <span className="opacity-50">·</span>
+      <span className="text-muted-foreground">{tier}</span>
+    </span>
+  );
+}
 
 function renderTaggedInline(text: string): React.ReactNode {
+  // Check for [CONF:XX%|Tier] markers first
+  const confMatch = text.match(/\[CONF:(\d+)%\|([^\]]+)\]/);
+  if (confMatch) {
+    const pct = parseInt(confMatch[1]);
+    const tier = confMatch[2];
+    const before = text.slice(0, confMatch.index);
+    const after = text.slice((confMatch.index || 0) + confMatch[0].length);
+    const beforeRendered = before ? renderTaggedInline(before) : null;
+    return (
+      <>
+        {beforeRendered}
+        {renderConfBadge(pct, tier)}
+        {after.trim() ? <span>{after}</span> : null}
+      </>
+    );
+  }
+
   const match = text.match(TAG_REGEX);
   if (!match) return text;
 
