@@ -68,6 +68,38 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
   const activeCompounds = compounds.filter(c => !c.notes?.includes('[DORMANT]'));
   const dormantCompounds = compounds.filter(c => c.notes?.includes('[DORMANT]'));
 
+  // Fetch cached personalized scores for all compounds
+  const [cachedScoresMap, setCachedScoresMap] = useState<Map<string, CompoundScores>>(new Map());
+  const [cacheVersion, setCacheVersion] = useState(0);
+  const refreshCachedScores = useCallback(() => setCacheVersion(v => v + 1), []);
+  useEffect(() => {
+    let cancelled = false;
+    const fetchCached = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || cancelled) return;
+      const { data } = await supabase
+        .from('personalized_score_cache')
+        .select('compound_name, scores')
+        .eq('user_id', user.id);
+      if (cancelled || !data) return;
+      const map = new Map<string, CompoundScores>();
+      for (const row of data) {
+        const s = row.scores as any;
+        if (s && typeof s.bioavailability === 'number') {
+          map.set(row.compound_name, {
+            bioavailability: s.bioavailability,
+            efficacy: s.efficacy,
+            effectiveness: s.effectiveness,
+            evidenceTier: s.evidenceTier || 'Mixed',
+          });
+        }
+      }
+      setCachedScoresMap(map);
+    };
+    fetchCached();
+    return () => { cancelled = true; };
+  }, [compounds, cacheVersion]);
+
   const refreshAllScores = useCallback(async () => {
     const toRefresh = activeCompounds.filter(c => !isPaused(c));
     if (toRefresh.length === 0) { toast.info('No active compounds to refresh'); return; }
@@ -98,12 +130,13 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
     }
     setRefreshingAll(false);
     setRefreshProgress(null);
+    refreshCachedScores();
     if (failed === 0) {
       toast.success(`All ${success} scores refreshed`);
     } else {
       toast.warning(`${success} refreshed, ${failed} failed`);
     }
-  }, [activeCompounds]);
+  }, [activeCompounds, refreshCachedScores]);
 
   const scrollToCompound = useCallback((id: string) => {
     setHighlightId(id);
@@ -371,7 +404,7 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
                   className={`transition-all duration-500 rounded-lg ${highlightId === compound.id ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : ''}`}
                   {...(compoundIdx === 0 && groups.indexOf(group) === 0 ? { 'data-tour': 'compound-card' } : {})}
                 >
-                  <CompoundCard compound={compound} onUpdate={onUpdateCompound} onDelete={onDeleteCompound} customFields={customFields} customFieldValues={customFieldValues.get(compound.id) || new Map()} onAddCustomField={onAddCustomField} onRemoveCustomField={onRemoveCustomField} onReorderCustomField={onReorderCustomField} onSetCustomFieldValue={onSetCustomFieldValue} />
+                  <CompoundCard compound={compound} onUpdate={onUpdateCompound} onDelete={onDeleteCompound} customFields={customFields} customFieldValues={customFieldValues.get(compound.id) || new Map()} onAddCustomField={onAddCustomField} onRemoveCustomField={onRemoveCustomField} onReorderCustomField={onReorderCustomField} onSetCustomFieldValue={onSetCustomFieldValue} cachedScores={cachedScoresMap.get(compound.name)} onScoreDrawerClose={refreshCachedScores} />
                 </div>
               ))}
             </div>
@@ -391,7 +424,7 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
           <CollapsibleContent className="animate-accordion-down data-[state=closed]:animate-accordion-up">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 opacity-60">
               {dormantCompounds.map(compound => (
-                <CompoundCard key={compound.id} compound={compound} onUpdate={onUpdateCompound} onDelete={onDeleteCompound} customFields={customFields} customFieldValues={customFieldValues.get(compound.id) || new Map()} onAddCustomField={onAddCustomField} onRemoveCustomField={onRemoveCustomField} onReorderCustomField={onReorderCustomField} onSetCustomFieldValue={onSetCustomFieldValue} />
+                <CompoundCard key={compound.id} compound={compound} onUpdate={onUpdateCompound} onDelete={onDeleteCompound} customFields={customFields} customFieldValues={customFieldValues.get(compound.id) || new Map()} onAddCustomField={onAddCustomField} onRemoveCustomField={onRemoveCustomField} onReorderCustomField={onReorderCustomField} onSetCustomFieldValue={onSetCustomFieldValue} cachedScores={cachedScoresMap.get(compound.name)} onScoreDrawerClose={refreshCachedScores} />
               ))}
             </div>
           </CollapsibleContent>
@@ -417,13 +450,15 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
 
 // --- Compound Card ---
 
-const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customFieldValues = new Map(), onAddCustomField, onRemoveCustomField, onReorderCustomField, onSetCustomFieldValue }: {
+const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customFieldValues = new Map(), onAddCustomField, onRemoveCustomField, onReorderCustomField, onSetCustomFieldValue, cachedScores, onScoreDrawerClose }: {
   compound: Compound; onUpdate: (id: string, updates: Partial<Compound>) => void; onDelete?: (id: string) => void;
   customFields?: CustomField[]; customFieldValues?: Map<string, string>;
   onAddCustomField?: (field: Partial<CustomField>) => Promise<CustomField | null>;
   onRemoveCustomField?: (fieldId: string) => Promise<void>;
   onReorderCustomField?: (fieldId: string, direction: 'up' | 'down') => Promise<void>;
   onSetCustomFieldValue?: (compoundId: string, fieldId: string, value: string) => Promise<void>;
+  cachedScores?: CompoundScores;
+  onScoreDrawerClose?: () => void;
 }) => {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmDormant, setConfirmDormant] = useState(false);
@@ -927,7 +962,8 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
 
       {/* Compound Scores — bioavailability, efficacy, effectiveness */}
       {!editing && (() => {
-        const scores = getCompoundScores(compound.name, compound.category);
+        const staticScores = getCompoundScores(compound.name, compound.category);
+        const scores = cachedScores || staticScores;
         if (!scores) return null;
         const scoreColor = (v: number) =>
           v >= 80 ? 'text-status-good' : v >= 60 ? 'text-primary' : v >= 40 ? 'text-status-warning' : 'text-status-critical';
@@ -962,9 +998,9 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
             </button>
             <CompoundScoreDrawer
               open={showScoreDrawer}
-              onOpenChange={setShowScoreDrawer}
+              onOpenChange={(open) => { setShowScoreDrawer(open); if (!open) onScoreDrawerClose?.(); }}
               compoundName={compound.name}
-              scores={scores}
+              scores={staticScores || scores}
               deliveryMethod={getDeliveryLabel(compound.category)}
               category={compound.category}
               dosePerUse={compound.dosePerUse}

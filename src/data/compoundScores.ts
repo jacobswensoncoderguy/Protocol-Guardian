@@ -124,6 +124,19 @@ const BASE_SCORES: Record<string, BaseScoreEntry> = {
   'nad+':                 { bio: { injectable: 85, oral: 30, default: 30 }, efficacy: 72, effectiveness: 55, evidenceTier: 'Clinical' },
   'b12':                  { bio: { injectable: 98, oral: 60, default: 95 }, efficacy: 85, effectiveness: 82, evidenceTier: 'RCT' },
   'thymosin-alpha-1':     { bio: { injectable: 85, oral: 20, default: 85 }, efficacy: 82, effectiveness: 78, evidenceTier: 'RCT' },
+
+  // ── Missing / Additional ──
+  'semaglutide':          { bio: { injectable: 89, oral: 30, default: 89 }, efficacy: 95, effectiveness: 92, evidenceTier: 'RCT' },
+  'winstrol':             { bio: { injectable: 95, oral: 85, default: 85 }, efficacy: 82, effectiveness: 78, evidenceTier: 'RCT' },
+  'stanozolol':           { bio: { injectable: 95, oral: 85, default: 85 }, efficacy: 82, effectiveness: 78, evidenceTier: 'RCT' },
+  'hawthorn':             { bio: { injectable: 50, oral: 50, default: 50 }, efficacy: 65, effectiveness: 58, evidenceTier: 'Clinical' },
+  'hawthorn-berry':       { bio: { injectable: 50, oral: 50, default: 50 }, efficacy: 65, effectiveness: 58, evidenceTier: 'Clinical' },
+  'milk-thistle':         { bio: { injectable: 50, oral: 40, default: 40 }, efficacy: 70, effectiveness: 60, evidenceTier: 'Meta' },
+  'silymarin':            { bio: { injectable: 50, oral: 40, default: 40 }, efficacy: 70, effectiveness: 60, evidenceTier: 'Meta' },
+  'magnesium':            { bio: { injectable: 70, oral: 55, default: 55 }, efficacy: 78, effectiveness: 70, evidenceTier: 'RCT' },
+  'magnesium-glycinate':  { bio: { injectable: 70, oral: 65, default: 65 }, efficacy: 78, effectiveness: 72, evidenceTier: 'RCT' },
+  'vitamin-c':            { bio: { injectable: 95, oral: 70, default: 70 }, efficacy: 72, effectiveness: 65, evidenceTier: 'Meta' },
+  'ascorbic-acid':        { bio: { injectable: 95, oral: 70, default: 70 }, efficacy: 72, effectiveness: 65, evidenceTier: 'Meta' },
 };
 
 /** Alias map for common name variations */
