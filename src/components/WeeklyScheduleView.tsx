@@ -7,6 +7,7 @@ import { CustomField } from '@/hooks/useCustomFields';
 import { UserProtocol } from '@/hooks/useProtocols';
 import { getCompoundScores, getDeliveryLabel, CompoundScores } from '@/data/compoundScores';
 import CompoundScoreDrawer from '@/components/CompoundScoreDrawer';
+import { supabase } from '@/integrations/supabase/client';
 import { Sun, Moon, Dumbbell, Info, Syringe, Pause, Check, ArrowLeft, Search, X, ChevronLeft, ChevronRight, Calendar, Beaker, FlaskConical, Target } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarWidget } from '@/components/ui/calendar';
@@ -161,6 +162,36 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
       return next;
     });
   });
+
+  // Fetch cached personalized scores for all compounds
+  const [cachedScoresMap, setCachedScoresMap] = useState<Map<string, CompoundScores>>(new Map());
+  useEffect(() => {
+    let cancelled = false;
+    const fetchCached = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || cancelled) return;
+      const { data } = await supabase
+        .from('personalized_score_cache')
+        .select('compound_name, scores')
+        .eq('user_id', user.id);
+      if (cancelled || !data) return;
+      const map = new Map<string, CompoundScores>();
+      for (const row of data) {
+        const s = row.scores as any;
+        if (s && typeof s.bioavailability === 'number') {
+          map.set(row.compound_name, {
+            bioavailability: s.bioavailability,
+            efficacy: s.efficacy,
+            effectiveness: s.effectiveness,
+            evidenceTier: s.evidenceTier || 'Mixed',
+          });
+        }
+      }
+      setCachedScoresMap(map);
+    };
+    fetchCached();
+    return () => { cancelled = true; };
+  }, [compounds]);
 
   const weeklySchedule = useMemo(() => generateScheduleFromCompounds(compounds, customFields, customFieldValues), [compounds, customFields, customFieldValues]);
   const schedule = weeklySchedule[selectedDay];
@@ -393,6 +424,7 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
           memberInitialsDoses={isViewingToday ? memberInitialsDoses : undefined}
           memberCompoundIds={memberCompoundIds}
           flashedIds={flashedIds}
+          cachedScoresMap={cachedScoresMap}
         />
 
         {/* Afternoon */}
@@ -415,6 +447,7 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
             memberInitialsDoses={isViewingToday ? memberInitialsDoses : undefined}
             memberCompoundIds={memberCompoundIds}
             flashedIds={flashedIds}
+            cachedScoresMap={cachedScoresMap}
           />
         )}
 
@@ -437,6 +470,7 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
           memberInitialsDoses={isViewingToday ? memberInitialsDoses : undefined}
           memberCompoundIds={memberCompoundIds}
           flashedIds={flashedIds}
+          cachedScoresMap={cachedScoresMap}
         />
 
         <CompoundInfoDrawer
@@ -471,6 +505,7 @@ const DoseSection = ({
   memberInitialsDoses,
   memberCompoundIds,
   flashedIds = new Set(),
+  cachedScoresMap = new Map(),
 }: {
   icon: React.ReactNode;
   title: string;
@@ -489,6 +524,7 @@ const DoseSection = ({
   memberInitialsDoses?: Map<string, Set<string>>;
   memberCompoundIds?: Set<string>;
   flashedIds?: Set<string>;
+  cachedScoresMap?: Map<string, CompoundScores>;
 }) => {
   const allPeptides = doses.filter(d => d.category === 'peptide' || d.category === 'injectable-oil');
   const allOrals = doses.filter(d => d.category === 'oral' || d.category === 'prescription' || d.category === 'vitamin' || d.category === 'adaptogen' || d.category === 'nootropic' || d.category === 'holistic' || d.category === 'probiotic' || d.category === 'alternative-medicine');
@@ -513,6 +549,7 @@ const DoseSection = ({
   const totalActive = doses.filter(d => !offCycleIds.has(d.compoundId) && !pausedIds.has(d.compoundId)).length;
 
   // Compute aggregate stack scores for active compounds in this time slot
+  // Prefer cached personalized scores, fall back to static
   const stackScores = useMemo(() => {
     const activeCompoundIds = new Set<string>();
     doses.forEach(d => {
@@ -526,7 +563,9 @@ const DoseSection = ({
     activeCompoundIds.forEach(id => {
       const c = compoundMap.get(id);
       if (!c) return;
-      const s = getCompoundScores(c.name, c.category);
+      // Prefer cached personalized scores
+      const cached = cachedScoresMap.get(c.name);
+      const s = cached || getCompoundScores(c.name, c.category);
       if (!s) return;
       bioSum += s.bioavailability;
       effSum += s.efficacy;
@@ -540,7 +579,7 @@ const DoseSection = ({
       ovr: Math.round(ovrSum / count),
       count,
     };
-  }, [doses, offCycleIds, pausedIds, compoundMap]);
+  }, [doses, offCycleIds, pausedIds, compoundMap, cachedScoresMap]);
 
   const scoreColor = (v: number) =>
     v >= 80 ? 'text-status-good' : v >= 60 ? 'text-primary' : v >= 40 ? 'text-status-warning' : 'text-status-critical';
@@ -576,19 +615,19 @@ const DoseSection = ({
 
       <div className="space-y-3">
         {allPeptides.length > 0 && (
-          <DoseGroup label="Injectables" doses={allPeptides} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} />
+          <DoseGroup label="Injectables" doses={allPeptides} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} cachedScoresMap={cachedScoresMap} />
         )}
         {protocolGroups.map(pg => (
-          <DoseGroup key={pg.label} label={pg.label} doses={pg.doses} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} />
+          <DoseGroup key={pg.label} label={pg.label} doses={pg.doses} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} cachedScoresMap={cachedScoresMap} />
         ))}
         {ungroupedOrals.length > 0 && (
-          <DoseGroup label="Oral Supplements" doses={ungroupedOrals} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} />
+          <DoseGroup label="Oral Supplements" doses={ungroupedOrals} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} cachedScoresMap={cachedScoresMap} />
         )}
         {ungroupedPowders.length > 0 && (
-          <DoseGroup label="Powders" doses={ungroupedPowders} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} />
+          <DoseGroup label="Powders" doses={ungroupedPowders} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} cachedScoresMap={cachedScoresMap} />
         )}
         {ungroupedTopicals.length > 0 && (
-          <DoseGroup label="Topicals" doses={ungroupedTopicals} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} />
+          <DoseGroup label="Topicals" doses={ungroupedTopicals} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} cachedScoresMap={cachedScoresMap} />
         )}
       </div>
     </div>
@@ -609,6 +648,7 @@ const DoseGroup = ({
   memberInitialsDoses,
   memberCompoundIds,
   flashedIds = new Set(),
+  cachedScoresMap = new Map(),
 }: {
   label: string;
   doses: DayDose[];
@@ -623,6 +663,7 @@ const DoseGroup = ({
   memberInitialsDoses?: Map<string, Set<string>>;
   memberCompoundIds?: Set<string>;
   flashedIds?: Set<string>;
+  cachedScoresMap?: Map<string, CompoundScores>;
 }) => {
   const seenOff = new Set<string>();
   const filteredDoses = doses.filter(d => {
@@ -735,8 +776,10 @@ const DoseGroup = ({
 
           const isFlashing = flashedIds.has(dose.compoundId);
 
-          // Score badges for this compound
-          const compoundScores = compound && !isInactive ? getCompoundScores(compound.name, compound.category) : null;
+          // Score badges for this compound — prefer cached personalized, fall back to static
+          const compoundScores = compound && !isInactive
+            ? (cachedScoresMap.get(compound.name) || getCompoundScores(compound.name, compound.category))
+            : null;
 
           const doseScoreColor = (v: number) =>
             v >= 80 ? 'text-status-good' : v >= 60 ? 'text-primary' : v >= 40 ? 'text-status-warning' : 'text-status-critical';
