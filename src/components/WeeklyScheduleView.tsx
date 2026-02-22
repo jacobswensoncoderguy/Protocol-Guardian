@@ -5,7 +5,8 @@ import { getCycleStatus, isPaused } from '@/lib/cycling';
 import { generateScheduleFromCompounds } from '@/lib/scheduleGenerator';
 import { CustomField } from '@/hooks/useCustomFields';
 import { UserProtocol } from '@/hooks/useProtocols';
-import { getCompoundScores } from '@/data/compoundScores';
+import { getCompoundScores, getDeliveryLabel, CompoundScores } from '@/data/compoundScores';
+import CompoundScoreDrawer from '@/components/CompoundScoreDrawer';
 import { Sun, Moon, Dumbbell, Info, Syringe, Pause, Check, ArrowLeft, Search, X, ChevronLeft, ChevronRight, Calendar, Beaker, FlaskConical, Target } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarWidget } from '@/components/ui/calendar';
@@ -686,6 +687,9 @@ const DoseGroup = ({
     return doseStr;
   };
 
+  const [scoreDrawerCompound, setScoreDrawerCompound] = useState<Compound | null>(null);
+  const [scoreDrawerScores, setScoreDrawerScores] = useState<CompoundScores | null>(null);
+
   return (
     <div>
       <div className="flex items-center justify-between mb-1.5">
@@ -731,90 +735,137 @@ const DoseGroup = ({
 
           const isFlashing = flashedIds.has(dose.compoundId);
 
+          // Score badges for this compound
+          const compoundScores = compound && !isInactive ? getCompoundScores(compound.name, compound.category) : null;
+
+          const doseScoreColor = (v: number) =>
+            v >= 80 ? 'text-status-good' : v >= 60 ? 'text-primary' : v >= 40 ? 'text-status-warning' : 'text-status-critical';
+
           return (
             <div
               key={`${dose.compoundId}-${i}-${isFlashing ? 'flash' : 'still'}`}
-              className={`flex items-center gap-2 rounded px-2.5 py-1.5 transition-colors hover:bg-card/80 active:bg-card ${isInactive ? 'bg-card/20 opacity-50' : 'bg-card/50'} ${isFlashing ? 'animate-row-flash' : ''}`}
+              className={`rounded px-2.5 py-1.5 transition-colors hover:bg-card/80 active:bg-card ${isInactive ? 'bg-card/20 opacity-50' : 'bg-card/50'} ${isFlashing ? 'animate-row-flash' : ''}`}
             >
-              {!isInactive && !readOnly && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); onToggleChecked(checkKey); }}
-                  className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+              <div className="flex items-center gap-2">
+                {!isInactive && !readOnly && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onToggleChecked(checkKey); }}
+                    className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                      isChecked
+                        ? 'bg-primary border-primary text-primary-foreground'
+                        : 'border-muted-foreground/40 hover:border-primary/60'
+                    }`}
+                  >
+                    {isChecked && <Check className="w-3 h-3" />}
+                  </button>
+                )}
+                {/* Read-only indicator */}
+                {!isInactive && readOnly && (
+                  <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                     isChecked
-                      ? 'bg-primary border-primary text-primary-foreground'
-                      : 'border-muted-foreground/40 hover:border-primary/60'
-                  }`}
+                      ? 'bg-muted-foreground/30 border-muted-foreground/40'
+                      : 'border-muted-foreground/20'
+                  }`}>
+                    {isChecked && <Check className="w-3 h-3 text-muted-foreground" />}
+                  </div>
+                )}
+                <button
+                  onClick={() => onCompoundClick(dose.compoundId)}
+                  className={`flex items-center justify-between flex-1 min-w-0 text-left ${isChecked ? 'opacity-60' : ''}`}
                 >
-                  {isChecked && <Check className="w-3 h-3" />}
+                  <span className={`flex items-center gap-1 text-xs truncate mr-2 ${isInactive ? 'text-muted-foreground' : isChecked ? 'text-muted-foreground line-through' : 'text-foreground/90'}`}>
+                    {memberCompoundIds && memberCompoundIds.has(dose.compoundId) && (
+                      <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-accent" title="Household member's compound" />
+                    )}
+                    {memberCompoundIds && !memberCompoundIds.has(dose.compoundId) && (
+                      <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-primary" title="Your compound" />
+                    )}
+                    <span className="truncate">
+                      {compound?.name || dose.compoundId}
+                      {compound && !isPausedItem && (
+                        <span className="ml-1.5 text-[10px] text-muted-foreground font-normal">
+                          ({getFrequencyLabel(compound)})
+                        </span>
+                      )}
+                    </span>
+                  </span>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    {checkedByInitials.map((initial, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-accent/20 text-accent border border-accent/30 text-[9px] font-bold"
+                        title={`Checked by ${initial}`}
+                      >
+                        {initial}
+                      </span>
+                    ))}
+                    <div className="flex items-center gap-1.5">
+                      {isPausedItem && (
+                        <span className="flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+                          <Pause className="w-3 h-3" />
+                          {pauseRestart ? `→ ${pauseRestart}` : 'Paused'}
+                        </span>
+                      )}
+                      {!isPausedItem && isOff && status?.hasCycle && (
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-status-warning/15 text-status-warning" title={`OFF phase — resumes ${getResumeDate(status.daysLeftInPhase)}`}>
+                          OFF {status.daysLeftInPhase}d → {getResumeDate(status.daysLeftInPhase)}
+                        </span>
+                      )}
+                      {showCycleDays && (
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-status-good/15 text-status-good" title={`ON phase — ${status.daysLeftInPhase} days remaining`}>
+                          ON {status.daysLeftInPhase}d
+                        </span>
+                      )}
+                      {!isOff && !isPausedItem && <span className={`text-xs font-mono text-primary ${isChecked ? 'line-through opacity-60' : ''}`}>{displayDose}</span>}
+                    </div>
+                  </div>
+                </button>
+              </div>
+              {/* Per-compound score badges */}
+              {compoundScores && !isChecked && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (compound) {
+                      setScoreDrawerCompound(compound);
+                      setScoreDrawerScores(compoundScores);
+                    }
+                  }}
+                  className="flex items-center gap-1.5 ml-7 mt-1 cursor-pointer hover:opacity-80 transition-opacity active:scale-[0.98]"
+                >
+                  <span className="inline-flex items-center gap-0.5 text-[8px] font-mono px-1 py-0.5 rounded border border-border/30 bg-secondary/20">
+                    <Beaker className="w-2 h-2 text-primary" />
+                    <span className={doseScoreColor(compoundScores.bioavailability)}>{compoundScores.bioavailability}%</span>
+                  </span>
+                  <span className="inline-flex items-center gap-0.5 text-[8px] font-mono px-1 py-0.5 rounded border border-border/30 bg-secondary/20">
+                    <FlaskConical className="w-2 h-2 text-primary" />
+                    <span className={doseScoreColor(compoundScores.efficacy)}>{compoundScores.efficacy}%</span>
+                  </span>
+                  <span className="inline-flex items-center gap-0.5 text-[8px] font-mono px-1 py-0.5 rounded border border-border/30 bg-secondary/20">
+                    <Target className="w-2 h-2 text-primary" />
+                    <span className={doseScoreColor(compoundScores.effectiveness)}>{compoundScores.effectiveness}%</span>
+                  </span>
                 </button>
               )}
-              {/* Read-only indicator: show a dimmed eye-like dot for member views */}
-              {!isInactive && readOnly && (
-                <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                  isChecked
-                    ? 'bg-muted-foreground/30 border-muted-foreground/40'
-                    : 'border-muted-foreground/20'
-                }`}>
-                  {isChecked && <Check className="w-3 h-3 text-muted-foreground" />}
-                </div>
-              )}
-              <button
-                onClick={() => onCompoundClick(dose.compoundId)}
-                className={`flex items-center justify-between flex-1 min-w-0 text-left ${isChecked ? 'opacity-60' : ''}`}
-              >
-                <span className={`flex items-center gap-1 text-xs truncate mr-2 ${isInactive ? 'text-muted-foreground' : isChecked ? 'text-muted-foreground line-through' : 'text-foreground/90'}`}>
-                  {/* Member ownership dot in combined view */}
-                  {memberCompoundIds && memberCompoundIds.has(dose.compoundId) && (
-                    <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-accent" title="Household member's compound" />
-                  )}
-                  {memberCompoundIds && !memberCompoundIds.has(dose.compoundId) && (
-                    <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-primary" title="Your compound" />
-                  )}
-                  <span className="truncate">
-                    {compound?.name || dose.compoundId}
-                    {compound && !isPausedItem && (
-                      <span className="ml-1.5 text-[10px] text-muted-foreground font-normal">
-                        ({getFrequencyLabel(compound)})
-                      </span>
-                    )}
-                  </span>
-                </span>
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  {/* Member initials badges for combined view */}
-                  {checkedByInitials.map((initial, idx) => (
-                    <span
-                      key={idx}
-                      className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-accent/20 text-accent border border-accent/30 text-[9px] font-bold"
-                      title={`Checked by ${initial}`}
-                    >
-                      {initial}
-                    </span>
-                  ))}
-                  <div className="flex items-center gap-1.5">
-                    {isPausedItem && (
-                      <span className="flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
-                        <Pause className="w-3 h-3" />
-                        {pauseRestart ? `→ ${pauseRestart}` : 'Paused'}
-                      </span>
-                    )}
-                    {!isPausedItem && isOff && status?.hasCycle && (
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-status-warning/15 text-status-warning" title={`OFF phase — resumes ${getResumeDate(status.daysLeftInPhase)}`}>
-                        OFF {status.daysLeftInPhase}d → {getResumeDate(status.daysLeftInPhase)}
-                      </span>
-                    )}
-                    {showCycleDays && (
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-status-good/15 text-status-good" title={`ON phase — ${status.daysLeftInPhase} days remaining`}>
-                        ON {status.daysLeftInPhase}d
-                      </span>
-                    )}
-                    {!isOff && !isPausedItem && <span className={`text-xs font-mono text-primary ${isChecked ? 'line-through opacity-60' : ''}`}>{displayDose}</span>}
-                  </div>
-                </div>
-              </button>
             </div>
           );
         })}
       </div>
+      {scoreDrawerCompound && scoreDrawerScores && (
+        <CompoundScoreDrawer
+          open={!!scoreDrawerCompound}
+          onOpenChange={(open) => { if (!open) { setScoreDrawerCompound(null); setScoreDrawerScores(null); } }}
+          compoundName={scoreDrawerCompound.name}
+          scores={scoreDrawerScores}
+          deliveryMethod={getDeliveryLabel(scoreDrawerCompound.category)}
+          category={scoreDrawerCompound.category}
+          dosePerUse={scoreDrawerCompound.dosePerUse}
+          dosesPerDay={scoreDrawerCompound.dosesPerDay}
+          daysPerWeek={scoreDrawerCompound.daysPerWeek}
+          unitLabel={scoreDrawerCompound.unitLabel}
+          doseLabel={scoreDrawerCompound.doseLabel}
+        />
+      )}
     </div>
   );
 };
