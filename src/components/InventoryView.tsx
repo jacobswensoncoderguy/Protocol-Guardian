@@ -63,6 +63,7 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
   const [pendingTolerance, setPendingTolerance] = useState<ToleranceLevel | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [refreshingAll, setRefreshingAll] = useState(false);
+  const [refreshProgress, setRefreshProgress] = useState<{ current: number; total: number; name: string } | null>(null);
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const activeCompounds = compounds.filter(c => !c.notes?.includes('[DORMANT]'));
   const dormantCompounds = compounds.filter(c => c.notes?.includes('[DORMANT]'));
@@ -73,8 +74,9 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
     setRefreshingAll(true);
     let success = 0;
     let failed = 0;
-    // Process sequentially to avoid rate-limiting
-    for (const c of toRefresh) {
+    for (let i = 0; i < toRefresh.length; i++) {
+      const c = toRefresh[i];
+      setRefreshProgress({ current: i + 1, total: toRefresh.length, name: c.name });
       try {
         const { error } = await supabase.functions.invoke('personalized-scores', {
           body: {
@@ -95,6 +97,7 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
       }
     }
     setRefreshingAll(false);
+    setRefreshProgress(null);
     if (failed === 0) {
       toast.success(`All ${success} scores refreshed`);
     } else {
@@ -343,7 +346,9 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
           ) : (
             <RefreshCcw className="w-3.5 h-3.5" />
           )}
-          {refreshingAll ? 'Refreshing…' : 'Refresh All Scores'}
+          {refreshingAll && refreshProgress
+            ? <span className="truncate max-w-[120px]">{refreshProgress.current}/{refreshProgress.total} {refreshProgress.name}</span>
+            : 'Refresh All Scores'}
         </button>
       </div>
 
