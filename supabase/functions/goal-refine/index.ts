@@ -38,7 +38,9 @@ RULES:
 - **Bold** all key numbers, metrics, and compound names
 - No filler phrases ("Great question!", "That's a good point", etc.)
 - No hedging language or disclaimers
-- Only call update_goal when the user explicitly agrees to changes`;
+- Only call update_goal when the user explicitly agrees to changes
+- End every response with: [CONF:XX%|Tier] (0-100 confidence, evidence tier)
+- Include risk context when suggesting changes: [RISK] [statement]`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

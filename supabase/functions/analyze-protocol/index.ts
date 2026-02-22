@@ -19,6 +19,35 @@ async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 2)
   throw new Error("AI gateway unreachable after retries");
 }
 
+const CONFIDENCE_INSTRUCTION = `
+CONFIDENCE SCORING — MANDATORY FOR EVERY CLAIM:
+Every finding, interaction, recommendation, and suggestion MUST include a confidence score.
+
+- confidencePct: integer 0-100 representing how confident you are in this claim based on available evidence.
+  - 90-100: Strong RCT data, multiple meta-analyses, well-established pharmacology
+  - 70-89: Good clinical data, consistent practitioner observations, strong mechanistic basis
+  - 50-69: Limited clinical data, mixed results, or primarily anecdotal with some mechanistic support
+  - 30-49: Primarily anecdotal, theoretical extrapolation, limited evidence
+  - 0-29: Speculative, no direct evidence, theoretical only
+
+- evidenceTier: One of "RCT-backed", "Meta-analysis", "Clinical observation", "Anecdotal", "Theoretical", "Mixed"
+
+- riskAtTolerance: A brief risk statement calibrated to the user's tolerance level. Format: "[Risk level] at [tolerance] tolerance — [specific risk]"
+  Examples:
+  - "Low risk at performance tolerance — well-supported combination"
+  - "Moderate risk at conservative tolerance — limited long-term safety data"
+  - "High risk at any tolerance — known hepatotoxic interaction"
+
+EVIDENCE HIERARCHY (use to determine tier):
+1. RCT-backed: Randomized controlled trials directly testing this claim
+2. Meta-analysis: Systematic reviews aggregating multiple studies
+3. Clinical observation: Published case studies, clinical practice patterns, practitioner reports
+4. Anecdotal: Community consensus, user reports, forum data without clinical backing
+5. Theoretical: Mechanistic reasoning from known pharmacology without direct testing
+6. Mixed: Combination of tiers with no clear dominant source
+
+BE HONEST about confidence. Do NOT inflate scores. A 45% confidence claim labeled "Anecdotal" is MORE useful than a false 90% claim.`;
+
 const SYSTEM_PROMPT = `You are an advanced pharmacology and supplement intelligence engine for a biohacker's protocol tracker. Your job is to analyze a user's complete compound/supplement stack and provide detailed, practical analysis.
 
 You MUST cross-reference multiple sources to produce trustworthy, balanced analysis. Consider:
@@ -40,6 +69,8 @@ EVIDENCE APPROACH:
 - Do NOT add disclaimers about compounds being "not FDA approved" or "unregulated" — this is patronizing and unhelpful
 - Focus on practical risk/benefit analysis, not regulatory gatekeeping
 - Treat the user as an informed adult making autonomous decisions
+
+${CONFIDENCE_INSTRUCTION}
 
 CRITICAL — GRADING MUST BE CALIBRATED TO THE USER'S TOLERANCE LEVEL:
 The tolerance level is NOT just a suggestion filter — it fundamentally changes how you GRADE the stack.
@@ -88,7 +119,11 @@ NEVER use emoji. Use plain text markers only.
    - [CYCLE] Cycling insights
    - [DATA] Evidence-based points
 
-3. **Themed Detail Sections** — H3 headers with EXACT prefixes. Keep paragraphs to 1-2 sentences MAX:
+3. **Confidence & Evidence** — After key takeaways, add a confidence line:
+   - [CONF:XX%|Tier] where XX is 0-100 confidence and Tier is one of: RCT, Meta-analysis, Clinical, Anecdotal, Theoretical, Mixed
+   Example: [CONF:85%|RCT] or [CONF:45%|Anecdotal]
+
+4. **Themed Detail Sections** — H3 headers with EXACT prefixes. Keep paragraphs to 1-2 sentences MAX:
    - ### [SCIENCE] Mechanism & Science
    - ### [SYNERGY] Synergies & Interactions
    - ### [SAFETY] Safety & Risk Profile
@@ -99,14 +134,17 @@ NEVER use emoji. Use plain text markers only.
    - ### [EVIDENCE] Evidence & Research
    **Bold** compound names and key values. No dense paragraphs.
 
-4. **Collapsible Deep Dives** — wrap detailed clinical data in:
+5. **Collapsible Deep Dives** — wrap detailed clinical data in:
    <details>
    <summary>[DETAIL] Deep Dive: [Topic]</summary>
    [Detailed content]
    </details>
 
-5. **Bottom Line** — end with:
+6. **Risk Assessment** — MANDATORY before bottom line:
    ---
+   **[RISK] Risk at [tolerance level] tolerance:** [1-2 sentences — calibrated risk statement for this specific tolerance level]
+
+7. **Bottom Line** — end with:
    **[ACTION] Bottom Line:** [1 sentence — what to DO next]
 
 ═══════════════════════════════════════════
@@ -121,13 +159,21 @@ CONCISENESS RULES — NON-NEGOTIABLE
 - Lead every section with the most important information
 
 ═══════════════════════════════════════════
+CONFIDENCE SCORING — MANDATORY
+═══════════════════════════════════════════
+- Every claim, finding, or recommendation MUST include a [CONF:XX%|Tier] marker
+- Place it inline after the claim or as a separate line after a group of related claims
+- Be HONEST about confidence — a 40% Anecdotal rating is more useful than inflated 90%
+- Evidence tiers: RCT (randomized trials), Meta-analysis, Clinical (practitioner data), Anecdotal (community), Theoretical (mechanism only), Mixed
+
+═══════════════════════════════════════════
 TOLERANCE-AWARE FRAMING
 ═══════════════════════════════════════════
 
-- "conservative": Lead with safety. Cautious language. Clinical-grade dosing. Reference as "your conservative profile."
-- "moderate": Balanced. Flag clear dangers. Reference as "your moderate profile."
-- "aggressive": Optimize, don't reduce. Flag only genuinely dangerous combos. Reference as "your aggressive profile."
-- "performance": Maximum outcomes. Synergy and support focus. Only flag truly reckless combos. Reference as "your performance profile."
+- "conservative": Lead with safety. Cautious language. Clinical-grade dosing. Reference as "your conservative profile." Risk statements should highlight ANY departure from clinical dosing.
+- "moderate": Balanced. Flag clear dangers. Reference as "your moderate profile." Risk statements should focus on genuinely concerning combinations.
+- "aggressive": Optimize, don't reduce. Flag only genuinely dangerous combos. Reference as "your aggressive profile." Risk statements focus on organ-level concerns.
+- "performance": Maximum outcomes. Synergy and support focus. Only flag truly reckless combos. Reference as "your performance profile." Risk statements only for life-threatening combinations.
 
 ═══════════════════════════════════════════
 CONTENT RULES
@@ -526,9 +572,12 @@ Rules:
                     withCompound: { type: "string" },
                     type: { type: "string", enum: ["synergy", "conflict", "caution", "neutral"] },
                     description: { type: "string" },
-                    severity: { type: "string", enum: ["info", "warning", "danger"] }
+                    severity: { type: "string", enum: ["info", "warning", "danger"] },
+                    confidencePct: { type: "number", description: "0-100 confidence score based on evidence quality" },
+                    evidenceTier: { type: "string", enum: ["RCT-backed", "Meta-analysis", "Clinical observation", "Anecdotal", "Theoretical", "Mixed"] },
+                    riskAtTolerance: { type: "string", description: "Risk statement calibrated to user's tolerance level" }
                   },
-                  required: ["withCompound", "type", "description", "severity"],
+                  required: ["withCompound", "type", "description", "severity", "confidencePct", "evidenceTier", "riskAtTolerance"],
                   additionalProperties: false
                 }
               },
@@ -537,6 +586,8 @@ Rules:
                 properties: {
                   currentMethod: { type: "string" },
                   absorptionRate: { type: "string" },
+                  confidencePct: { type: "number", description: "0-100 confidence in absorption rate claim" },
+                  evidenceTier: { type: "string", enum: ["RCT-backed", "Meta-analysis", "Clinical observation", "Anecdotal", "Theoretical", "Mixed"] },
                   alternatives: {
                     type: "array",
                     items: {
@@ -551,15 +602,16 @@ Rules:
                     }
                   }
                 },
-                required: ["currentMethod", "absorptionRate", "alternatives"],
+                required: ["currentMethod", "absorptionRate", "confidencePct", "evidenceTier", "alternatives"],
                 additionalProperties: false
               },
               suggestions: {
                 type: "array",
                 items: { type: "string" }
-              }
+              },
+              riskSummary: { type: "string", description: "Overall risk summary for this compound at user's tolerance level" }
             },
-            required: ["interactions", "bioavailability", "suggestions"],
+            required: ["interactions", "bioavailability", "suggestions", "riskSummary"],
             additionalProperties: false
           }
         }
@@ -601,6 +653,9 @@ Rules:
             properties: {
               overallGrade: { type: "string", enum: ["A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D", "F"], description: `Grade calibrated to tolerance level: ${toleranceLevel}` },
               overallSummary: { type: "string" },
+              overallConfidencePct: { type: "number", description: "0-100 overall confidence in this analysis based on evidence quality across the stack" },
+              overallEvidenceTier: { type: "string", enum: ["RCT-backed", "Meta-analysis", "Clinical observation", "Anecdotal", "Theoretical", "Mixed"], description: "Dominant evidence tier across the analysis" },
+              riskSummary: { type: "string", description: "2-3 sentence overall risk assessment calibrated to the user's tolerance level. Start with risk level (Low/Moderate/High/Critical) and explain what to watch for." },
               contraindications: {
                 type: "array",
                 items: {
@@ -612,9 +667,12 @@ Rules:
                     description: { type: "string" },
                     recommendation: { type: "string" },
                     impactPercent: { type: "number", description: "Estimated % impact on overall stack efficacy or health risk (0-100)" },
-                    impactLabel: { type: "string", description: "Brief label like 'efficacy', 'health risk', 'organ stress'" }
+                    impactLabel: { type: "string", description: "Brief label like 'efficacy', 'health risk', 'organ stress'" },
+                    confidencePct: { type: "number", description: "0-100 confidence in this finding" },
+                    evidenceTier: { type: "string", enum: ["RCT-backed", "Meta-analysis", "Clinical observation", "Anecdotal", "Theoretical", "Mixed"] },
+                    riskAtTolerance: { type: "string", description: "Risk statement for this finding at user's tolerance level" }
                   },
-                  required: ["compounds", "severity", "category", "description", "recommendation", "impactPercent", "impactLabel"],
+                  required: ["compounds", "severity", "category", "description", "recommendation", "impactPercent", "impactLabel", "confidencePct", "evidenceTier", "riskAtTolerance"],
                   additionalProperties: false
                 }
               },
@@ -627,9 +685,11 @@ Rules:
                     currentMethod: { type: "string" },
                     issue: { type: "string" },
                     suggestion: { type: "string" },
-                    improvementEstimate: { type: "string" }
+                    improvementEstimate: { type: "string" },
+                    confidencePct: { type: "number", description: "0-100 confidence in this bioavailability claim" },
+                    evidenceTier: { type: "string", enum: ["RCT-backed", "Meta-analysis", "Clinical observation", "Anecdotal", "Theoretical", "Mixed"] }
                   },
-                  required: ["compound", "currentMethod", "issue", "suggestion", "improvementEstimate"],
+                  required: ["compound", "currentMethod", "issue", "suggestion", "improvementEstimate", "confidencePct", "evidenceTier"],
                   additionalProperties: false
                 }
               },
@@ -656,9 +716,11 @@ Rules:
                     compound: { type: "string" },
                     verdict: { type: "string", enum: ["excellent", "good", "fair", "poor"] },
                     reasoning: { type: "string" },
-                    alternative: { type: "string" }
+                    alternative: { type: "string" },
+                    confidencePct: { type: "number", description: "0-100 confidence in this cost assessment" },
+                    evidenceTier: { type: "string", enum: ["RCT-backed", "Meta-analysis", "Clinical observation", "Anecdotal", "Theoretical", "Mixed"] }
                   },
-                  required: ["compound", "verdict", "reasoning", "alternative"],
+                  required: ["compound", "verdict", "reasoning", "alternative", "confidencePct", "evidenceTier"],
                   additionalProperties: false
                 }
               },
@@ -667,7 +729,7 @@ Rules:
                 items: { type: "string" }
               }
             },
-            required: ["overallGrade", "overallSummary", "contraindications", "bioavailabilityIssues", "protocolGrades", "costEfficiency", "topRecommendations"],
+            required: ["overallGrade", "overallSummary", "overallConfidencePct", "overallEvidenceTier", "riskSummary", "contraindications", "bioavailabilityIssues", "protocolGrades", "costEfficiency", "topRecommendations"],
             additionalProperties: false
           }
         }

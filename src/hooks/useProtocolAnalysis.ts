@@ -13,6 +13,9 @@ export interface Contraindication {
   category: string;
   description: string;
   recommendation: string;
+  confidencePct?: number;
+  evidenceTier?: string;
+  riskAtTolerance?: string;
 }
 
 export interface BioavailabilityIssue {
@@ -21,6 +24,8 @@ export interface BioavailabilityIssue {
   issue: string;
   suggestion: string;
   improvementEstimate: string;
+  confidencePct?: number;
+  evidenceTier?: string;
 }
 
 export interface ProtocolGrade {
@@ -36,6 +41,8 @@ export interface CostEfficiencyItem {
   verdict: 'excellent' | 'good' | 'fair' | 'poor';
   reasoning: string;
   alternative: string;
+  confidencePct?: number;
+  evidenceTier?: string;
 }
 
 export interface StackAnalysis {
@@ -46,6 +53,9 @@ export interface StackAnalysis {
   protocolGrades: ProtocolGrade[];
   costEfficiency: CostEfficiencyItem[];
   topRecommendations: string[];
+  overallConfidencePct?: number;
+  overallEvidenceTier?: string;
+  riskSummary?: string;
 }
 
 export interface ToleranceComparison {
@@ -60,10 +70,15 @@ export interface CompoundAnalysis {
     type: 'synergy' | 'conflict' | 'caution' | 'neutral';
     description: string;
     severity: 'info' | 'warning' | 'danger';
+    confidencePct?: number;
+    evidenceTier?: string;
+    riskAtTolerance?: string;
   }[];
   bioavailability: {
     currentMethod: string;
     absorptionRate: string;
+    confidencePct?: number;
+    evidenceTier?: string;
     alternatives: {
       method: string;
       improvement: string;
@@ -71,6 +86,7 @@ export interface CompoundAnalysis {
     }[];
   };
   suggestions: string[];
+  riskSummary?: string;
 }
 
 /** Serialize a compound's live state for AI analysis, including pause and cycle phase context */

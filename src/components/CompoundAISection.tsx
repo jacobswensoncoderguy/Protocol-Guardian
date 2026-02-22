@@ -1,5 +1,6 @@
 import { Brain, Loader2, Lightbulb, RefreshCw } from 'lucide-react';
 import GeminiBadge from '@/components/GeminiBadge';
+import ConfidenceBadge, { RiskSummaryBlock } from '@/components/ConfidenceBadge';
 import { CompoundAnalysis } from '@/hooks/useProtocolAnalysis';
 
 interface CompoundAISectionProps {
@@ -56,11 +57,26 @@ const CompoundAISection = ({ analysis, loading, onAnalyze }: CompoundAISectionPr
             const label = typeLabel(int.type);
             return (
               <div key={i} className="p-2 rounded-lg bg-secondary/30 border border-border/30">
-                <div className="flex items-center gap-2 mb-0.5">
+                <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                   <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-full ${label.color}`}>{label.text}</span>
                   <span className="text-[11px] font-semibold text-foreground/80">↔ {int.withCompound}</span>
+                  {int.confidencePct !== undefined && int.evidenceTier && (
+                    <ConfidenceBadge
+                      data={{
+                        confidencePct: int.confidencePct,
+                        evidenceTier: int.evidenceTier as any,
+                        riskAtTolerance: int.riskAtTolerance,
+                      }}
+                      compact
+                    />
+                  )}
                 </div>
                 <p className="text-[11px] text-muted-foreground leading-snug">{int.description}</p>
+                {int.riskAtTolerance && (
+                  <p className="text-[10px] text-status-warning mt-1 flex items-center gap-1">
+                    <span className="font-mono">⚠</span> {int.riskAtTolerance}
+                  </p>
+                )}
               </div>
             );
           })}
@@ -69,9 +85,20 @@ const CompoundAISection = ({ analysis, loading, onAnalyze }: CompoundAISectionPr
 
       {/* Bioavailability */}
       <div className="p-2 rounded-lg bg-secondary/30 border border-border/30">
-        <p className="text-[10px] text-muted-foreground">
-          <span className="font-semibold text-foreground/70">Delivery:</span> {analysis.bioavailability.currentMethod} — {analysis.bioavailability.absorptionRate}
-        </p>
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="text-[10px] text-muted-foreground">
+            <span className="font-semibold text-foreground/70">Delivery:</span> {analysis.bioavailability.currentMethod} — {analysis.bioavailability.absorptionRate}
+          </p>
+          {analysis.bioavailability.confidencePct !== undefined && analysis.bioavailability.evidenceTier && (
+            <ConfidenceBadge
+              data={{
+                confidencePct: analysis.bioavailability.confidencePct,
+                evidenceTier: analysis.bioavailability.evidenceTier as any,
+              }}
+              compact
+            />
+          )}
+        </div>
         {analysis.bioavailability.alternatives.length > 0 && (
           <div className="mt-1.5 space-y-1">
             {analysis.bioavailability.alternatives.map((alt, i) => (
@@ -94,6 +121,10 @@ const CompoundAISection = ({ analysis, loading, onAnalyze }: CompoundAISectionPr
             </p>
           ))}
         </div>
+      )}
+      {/* Risk Summary */}
+      {analysis.riskSummary && (
+        <RiskSummaryBlock riskSummary={analysis.riskSummary} />
       )}
       <GeminiBadge />
     </div>
