@@ -561,6 +561,39 @@ export type Database = {
         }
         Relationships: []
       }
+      personalized_score_cache: {
+        Row: {
+          cache_key: string
+          compound_name: string
+          context: Json | null
+          created_at: string
+          expires_at: string
+          id: string
+          scores: Json
+          user_id: string
+        }
+        Insert: {
+          cache_key: string
+          compound_name: string
+          context?: Json | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          scores: Json
+          user_id: string
+        }
+        Update: {
+          cache_key?: string
+          compound_name?: string
+          context?: Json | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          scores?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           age: number | null
