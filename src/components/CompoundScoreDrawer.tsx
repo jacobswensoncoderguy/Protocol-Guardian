@@ -144,10 +144,16 @@ const CompoundScoreDrawer = ({ open, onOpenChange, compoundName, scores, deliver
     fetchPersonalized();
   }, [open, compoundName]);
 
+  // Guard against non-numeric values from AI responses
+  const toNum = (v: unknown): number => {
+    const n = typeof v === 'number' ? v : parseFloat(v as string);
+    return Number.isFinite(n) ? n : 0;
+  };
+
   const activeScores = personalized ? {
-    bioavailability: personalized.bioavailability,
-    efficacy: personalized.efficacy,
-    effectiveness: personalized.effectiveness,
+    bioavailability: toNum(personalized.bioavailability),
+    efficacy: toNum(personalized.efficacy),
+    effectiveness: toNum(personalized.effectiveness),
   } : scores;
 
   const hasLowScore = activeScores.bioavailability < 60 || activeScores.efficacy < 60 || activeScores.effectiveness < 60;
@@ -276,6 +282,11 @@ Provide concise, actionable advice. Keep responses under 200 words. Use bullet p
             const delta = personalValue != null ? personalValue - baseValue : null;
             const note = personalized?.[noteKey];
 
+            // If the AI returned text instead of a number, extract it as a note
+            const rawPersonalValue = personalized?.[key];
+            const isTextValue = rawPersonalValue != null && typeof rawPersonalValue !== 'number' && isNaN(parseFloat(rawPersonalValue as string));
+            const extraNote = isTextValue ? String(rawPersonalValue) : null;
+
             return (
               <div key={key} className={`rounded-lg border p-3 ${scoreBg(displayValue)}`}>
                 <div className="flex items-center justify-between mb-1.5">
@@ -299,6 +310,8 @@ Provide concise, actionable advice. Keep responses under 200 words. Use bullet p
                   <div className="h-3 w-3/4 bg-secondary/40 rounded animate-pulse" />
                 ) : note ? (
                   <p className="text-[10px] text-muted-foreground leading-relaxed">{note}</p>
+                ) : extraNote ? (
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">{extraNote}</p>
                 ) : null}
               </div>
             );
