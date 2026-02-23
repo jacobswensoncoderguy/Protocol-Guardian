@@ -17,6 +17,8 @@ export interface CompoundScores {
   efficacy: number;
   effectiveness: number;
   evidenceTier: 'RCT' | 'Meta' | 'Clinical' | 'Anecdotal' | 'Theoretical' | 'Mixed';
+  confidencePct?: number;
+  confidenceNote?: string;
 }
 
 /** Base scores keyed by delivery method: injectable, oral, default */

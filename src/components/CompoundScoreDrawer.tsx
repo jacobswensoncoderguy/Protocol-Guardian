@@ -16,6 +16,8 @@ interface PersonalizedScores {
   effNote: string;
   ovrNote: string;
   interactions: string;
+  confidencePct?: number;
+  confidenceNote?: string;
 }
 
 interface PersonalizedContext {
@@ -334,6 +336,29 @@ Provide concise, actionable advice. Keep responses under 200 words. Use bullet p
           </div>
           <span className={`text-sm font-bold font-mono ${tier.color}`}>{tier.label}</span>
         </div>
+
+        {/* AI Confidence Score */}
+        {personalized && typeof personalized.confidencePct === 'number' && (
+          <div className={`mt-3 rounded-lg border p-3 ${
+            personalized.confidencePct >= 80 ? 'border-status-good/20 bg-status-good/5' :
+            personalized.confidencePct >= 60 ? 'border-primary/20 bg-primary/5' :
+            personalized.confidencePct >= 40 ? 'border-status-warning/20 bg-status-warning/5' :
+            'border-destructive/20 bg-destructive/5'
+          }`}>
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-1.5">
+                <Sparkles className="w-3 h-3 text-muted-foreground" />
+                <span className="text-[10px] font-semibold text-foreground uppercase tracking-wider">AI Confidence</span>
+              </div>
+              <span className={`text-sm font-bold font-mono ${scoreColor(personalized.confidencePct)}`}>
+                {personalized.confidencePct}%
+              </span>
+            </div>
+            <p className="text-[10px] text-muted-foreground leading-relaxed">
+              {personalized.confidenceNote || 'How reliable this AI evaluation is based on available data, evidence quality, and compound research depth.'}
+            </p>
+          </div>
+        )}
 
         {/* Error state */}
         {pError && !pLoading && (
