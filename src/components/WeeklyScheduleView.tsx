@@ -9,6 +9,7 @@ import { getCompoundScores, getDeliveryLabel, CompoundScores } from '@/data/comp
 import CompoundScoreDrawer from '@/components/CompoundScoreDrawer';
 import { supabase } from '@/integrations/supabase/client';
 import { Sun, Moon, Dumbbell, Info, Syringe, Pause, Check, ArrowLeft, Search, X, ChevronLeft, ChevronRight, Calendar, Beaker, FlaskConical, Target } from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarWidget } from '@/components/ui/calendar';
 
@@ -596,6 +597,25 @@ const DoseSection = ({
   const scoreBg = (v: number) =>
     v >= 80 ? 'bg-status-good/10' : v >= 60 ? 'bg-primary/10' : v >= 40 ? 'bg-status-warning/10' : 'bg-destructive/10';
 
+  // Build per-compound score details for the breakdown sheet
+  const compoundScoreDetails = useMemo(() => {
+    const details: { name: string; bio: number; eff: number; ovr: number }[] = [];
+    doses.forEach(d => {
+      if (offCycleIds.has(d.compoundId) || pausedIds.has(d.compoundId)) return;
+      const c = compoundMap.get(d.compoundId);
+      if (!c) return;
+      // Deduplicate by compound ID
+      if (details.some(x => x.name === c.name)) return;
+      const cached = cachedScoresMap.get(c.name);
+      const s = cached || getCompoundScores(c.name, c.category);
+      if (!s) return;
+      details.push({ name: c.name, bio: s.bioavailability, eff: s.efficacy, ovr: s.effectiveness });
+    });
+    return details;
+  }, [doses, offCycleIds, pausedIds, compoundMap, cachedScoresMap]);
+
+  const [stackBreakdownOpen, setStackBreakdownOpen] = useState(false);
+
   return (
     <div className={`rounded-lg border p-3 ${bgAccent}`}>
       <h3 className={`text-sm font-semibold mb-2 flex items-center gap-2 ${accent}`}>
@@ -604,9 +624,12 @@ const DoseSection = ({
         <span className="text-muted-foreground font-normal">({totalActive} active)</span>
       </h3>
 
-      {/* Stack Score Summary */}
+      {/* Stack Score Summary — clickable */}
       {stackScores && (
-        <div className="flex items-center gap-2 mb-3 px-1">
+        <button
+          onClick={() => setStackBreakdownOpen(true)}
+          className="flex items-center gap-2 mb-3 px-1 w-full text-left hover:opacity-80 transition-opacity active:scale-[0.98]"
+        >
           {[
             { label: 'Bio', value: stackScores.bio, Icon: Beaker },
             { label: 'Eff', value: stackScores.eff, Icon: FlaskConical },
@@ -619,8 +642,46 @@ const DoseSection = ({
             </div>
           ))}
           <span className="text-[9px] text-muted-foreground/50 ml-auto">avg of {stackScores.count}</span>
-        </div>
+        </button>
       )}
+
+      {/* Stack Score Breakdown Sheet */}
+      <Sheet open={stackBreakdownOpen} onOpenChange={setStackBreakdownOpen}>
+        <SheetContent side="bottom" className="max-h-[70vh] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              {icon}
+              {title} — Score Breakdown
+            </SheetTitle>
+          </SheetHeader>
+          <div className="mt-4 space-y-1">
+            {/* Header row */}
+            <div className="grid grid-cols-4 gap-2 text-[10px] font-mono text-muted-foreground px-2 pb-1 border-b border-border/40">
+              <span className="col-span-1">Compound</span>
+              <span className="text-center">Bio</span>
+              <span className="text-center">Eff</span>
+              <span className="text-center">Ovr</span>
+            </div>
+            {compoundScoreDetails.map(d => (
+              <div key={d.name} className="grid grid-cols-4 gap-2 items-center px-2 py-1.5 rounded-md hover:bg-secondary/30">
+                <span className="text-xs font-medium text-foreground/80 truncate">{d.name}</span>
+                <span className={`text-center text-xs font-mono font-bold ${scoreColor(d.bio)}`}>{d.bio}%</span>
+                <span className={`text-center text-xs font-mono font-bold ${scoreColor(d.eff)}`}>{d.eff}%</span>
+                <span className={`text-center text-xs font-mono font-bold ${scoreColor(d.ovr)}`}>{d.ovr}%</span>
+              </div>
+            ))}
+            {/* Average row */}
+            {stackScores && (
+              <div className="grid grid-cols-4 gap-2 items-center px-2 py-2 mt-1 border-t border-border/40 font-semibold">
+                <span className="text-xs text-muted-foreground">Average</span>
+                <span className={`text-center text-xs font-mono font-bold ${scoreColor(stackScores.bio)}`}>{stackScores.bio}%</span>
+                <span className={`text-center text-xs font-mono font-bold ${scoreColor(stackScores.eff)}`}>{stackScores.eff}%</span>
+                <span className={`text-center text-xs font-mono font-bold ${scoreColor(stackScores.ovr)}`}>{stackScores.ovr}%</span>
+              </div>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <div className="space-y-3">
         {allPeptides.length > 0 && (
