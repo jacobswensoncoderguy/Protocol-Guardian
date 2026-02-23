@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { createHash } from "https://deno.land/std@0.168.0/crypto/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,7 +9,6 @@ const corsHeaders = {
 /** Build a deterministic cache key from all inputs that affect scoring */
 function buildCacheKey(parts: Record<string, unknown>): string {
   const sorted = JSON.stringify(parts, Object.keys(parts).sort());
-  // Simple hash via array reduce
   let hash = 0;
   for (let i = 0; i < sorted.length; i++) {
     hash = ((hash << 5) - hash + sorted.charCodeAt(i)) | 0;
@@ -105,7 +103,6 @@ serve(async (req) => {
         .single();
 
       if (cached && cached.cache_key === cacheKey) {
-        // Cache hit — key matches, data is still valid
         return new Response(JSON.stringify({
           personalized: cached.scores,
           context: cached.context,
@@ -167,6 +164,12 @@ SCORING RULES:
 4. **Evidence Tier**: One of: RCT, Meta, Clinical, Anecdotal, Theoretical, Mixed.
 5. **Dosage Assessment**: Is the current dose optimal, subtherapeutic, or supratherapeutic for this user?
 6. **Key Interactions**: Note any significant synergies or conflicts with other compounds in the stack.
+7. **AI Confidence (0-100%)**: How confident are you in the ACCURACY of these scores? Factor in:
+   - Data completeness: Does the user have labs, profile data, stack info? More data = higher confidence.
+   - Evidence quality: RCT-backed compounds get higher confidence than anecdotal ones.
+   - Specificity: Generic dosage ranges vs. well-studied exact dosages.
+   - Compound research depth: Well-studied compounds (e.g. creatine, testosterone) get higher confidence than novel peptides.
+   Score this honestly — if data is sparse, confidence should be low (40-60%). If data is rich and evidence is strong, confidence can be high (80-95%). Never output 100%.
 
 RESPOND WITH ONLY THIS JSON (no markdown, no code fences):
 {
@@ -179,7 +182,9 @@ RESPOND WITH ONLY THIS JSON (no markdown, no code fences):
   "bioNote": "<1 sentence on what's driving the bioavailability score>",
   "effNote": "<1 sentence on what's driving the efficacy score>",
   "ovrNote": "<1 sentence on what's driving the effectiveness score>",
-  "interactions": "<1-2 sentences on key stack interactions or 'No significant interactions detected.'>"
+  "interactions": "<1-2 sentences on key stack interactions or 'No significant interactions detected.'>",
+  "confidencePct": <number 0-100>,
+  "confidenceNote": "<1 sentence explaining what's driving the confidence level>"
 }`;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");

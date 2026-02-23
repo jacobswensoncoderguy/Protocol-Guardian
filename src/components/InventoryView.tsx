@@ -91,6 +91,8 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
             efficacy: s.efficacy,
             effectiveness: s.effectiveness,
             evidenceTier: s.evidenceTier || 'Mixed',
+            confidencePct: s.confidencePct,
+            confidenceNote: s.confidenceNote,
           });
         }
       }
@@ -995,6 +997,13 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
               <span className={`text-[8px] font-mono ${tierColors[scores.evidenceTier] || 'text-muted-foreground'}`}>
                 {scores.evidenceTier}
               </span>
+              {typeof scores.confidencePct === 'number' && (
+                <span className={`text-[8px] font-mono px-1 py-0.5 rounded-full border border-border/30 bg-secondary/20 ${
+                  scores.confidencePct >= 80 ? 'text-status-good' : scores.confidencePct >= 60 ? 'text-primary' : scores.confidencePct >= 40 ? 'text-status-warning' : 'text-status-critical'
+                }`} title="AI confidence in score accuracy">
+                  {scores.confidencePct}% conf
+                </span>
+              )}
             </button>
             <CompoundScoreDrawer
               open={showScoreDrawer}

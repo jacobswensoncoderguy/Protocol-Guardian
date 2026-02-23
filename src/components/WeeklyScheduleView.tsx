@@ -186,6 +186,8 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
             efficacy: s.efficacy,
             effectiveness: s.effectiveness,
             evidenceTier: s.evidenceTier || 'Mixed',
+            confidencePct: s.confidencePct,
+            confidenceNote: s.confidenceNote,
           });
         }
       }
