@@ -18,6 +18,8 @@ interface PersonalizedScores {
   interactions: string;
   confidencePct?: number;
   confidenceNote?: string;
+  evidenceSources?: string[];
+  dataFactors?: string;
 }
 
 interface PersonalizedContext {
@@ -357,6 +359,28 @@ Provide concise, actionable advice. Keep responses under 200 words. Use bullet p
             <p className="text-[10px] text-muted-foreground leading-relaxed">
               {personalized.confidenceNote || 'How reliable this AI evaluation is based on available data, evidence quality, and compound research depth.'}
             </p>
+
+            {/* Evidence Sources */}
+            {personalized.evidenceSources && personalized.evidenceSources.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-border/30">
+                <span className="text-[9px] font-semibold text-foreground/70 uppercase tracking-wider">Evidence Sources</span>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {personalized.evidenceSources.map((source, i) => (
+                    <span key={i} className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-secondary/50 border border-border/30 text-muted-foreground">
+                      {source}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Data Factors */}
+            {personalized.dataFactors && (
+              <div className="mt-2 pt-2 border-t border-border/30">
+                <span className="text-[9px] font-semibold text-foreground/70 uppercase tracking-wider">Data Used</span>
+                <p className="text-[9px] text-muted-foreground leading-relaxed mt-0.5">{personalized.dataFactors}</p>
+              </div>
+            )}
           </div>
         )}
 
