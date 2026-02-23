@@ -558,6 +558,12 @@ const DoseSection = ({
 
   const totalActive = doses.filter(d => !offCycleIds.has(d.compoundId) && !pausedIds.has(d.compoundId)).length;
 
+  // Guard against non-numeric cached values (e.g. text stored instead of a number)
+  const toNum = (v: unknown): number => {
+    const n = typeof v === 'number' ? v : parseFloat(v as string);
+    return Number.isFinite(n) ? n : 0;
+  };
+
   // Compute aggregate stack scores for active compounds in this time slot
   // Prefer cached personalized scores, fall back to static
   const stackScores = useMemo(() => {
@@ -573,13 +579,12 @@ const DoseSection = ({
     activeCompoundIds.forEach(id => {
       const c = compoundMap.get(id);
       if (!c) return;
-      // Prefer cached personalized scores
       const cached = cachedScoresMap.get(c.name);
       const s = cached || getCompoundScores(c.name, c.category);
       if (!s) return;
-      bioSum += s.bioavailability;
-      effSum += s.efficacy;
-      ovrSum += s.effectiveness;
+      bioSum += toNum(s.bioavailability);
+      effSum += toNum(s.efficacy);
+      ovrSum += toNum(s.effectiveness);
       count++;
     });
     if (count === 0) return null;
@@ -598,6 +603,7 @@ const DoseSection = ({
     v >= 80 ? 'bg-status-good/10' : v >= 60 ? 'bg-primary/10' : v >= 40 ? 'bg-status-warning/10' : 'bg-destructive/10';
 
   // Build per-compound score details for the breakdown sheet
+
   const compoundScoreDetails = useMemo(() => {
     const details: { name: string; bio: number; eff: number; ovr: number }[] = [];
     doses.forEach(d => {
@@ -609,7 +615,7 @@ const DoseSection = ({
       const cached = cachedScoresMap.get(c.name);
       const s = cached || getCompoundScores(c.name, c.category);
       if (!s) return;
-      details.push({ name: c.name, bio: s.bioavailability, eff: s.efficacy, ovr: s.effectiveness });
+      details.push({ name: c.name, bio: toNum(s.bioavailability), eff: toNum(s.efficacy), ovr: toNum(s.effectiveness) });
     });
     return details;
   }, [doses, offCycleIds, pausedIds, compoundMap, cachedScoresMap]);
