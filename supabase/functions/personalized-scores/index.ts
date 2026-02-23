@@ -170,6 +170,15 @@ SCORING RULES:
    - Specificity: Generic dosage ranges vs. well-studied exact dosages.
    - Compound research depth: Well-studied compounds (e.g. creatine, testosterone) get higher confidence than novel peptides.
    Score this honestly — if data is sparse, confidence should be low (40-60%). If data is rich and evidence is strong, confidence can be high (80-95%). Never output 100%.
+8. **Evidence Sources**: Cite the specific types of evidence underpinning your scores. Be explicit about WHERE your knowledge comes from. Examples:
+   - "Published RCTs in peer-reviewed journals (e.g., JAMA, NEJM, Lancet)"
+   - "Meta-analyses from Cochrane reviews"
+   - "Clinical pharmacology references (Goodman & Gilman's, FDA prescribing information)"
+   - "Observational/cohort studies"
+   - "Case reports and clinical observations"
+   - "Manufacturer data / pharmacokinetic studies"
+   - "Anecdotal community reports (no peer-reviewed data available)"
+   List 2-4 most relevant source types for this specific compound. Be honest — if evidence is primarily anecdotal, say so.
 
 RESPOND WITH ONLY THIS JSON (no markdown, no code fences):
 {
@@ -184,7 +193,9 @@ RESPOND WITH ONLY THIS JSON (no markdown, no code fences):
   "ovrNote": "<1 sentence on what's driving the effectiveness score>",
   "interactions": "<1-2 sentences on key stack interactions or 'No significant interactions detected.'>",
   "confidencePct": <number 0-100>,
-  "confidenceNote": "<1 sentence explaining what's driving the confidence level>"
+  "confidenceNote": "<1 sentence explaining what's driving the confidence level>",
+  "evidenceSources": ["<source type 1>", "<source type 2>", "<up to 4 sources>"],
+  "dataFactors": "<1-2 sentences: which user data (labs, profile, stack) was available vs missing and how that affected scoring accuracy>"
 }`;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
