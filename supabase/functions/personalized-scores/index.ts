@@ -170,7 +170,8 @@ SCORING RULES:
    - Specificity: Generic dosage ranges vs. well-studied exact dosages.
    - Compound research depth: Well-studied compounds (e.g. creatine, testosterone) get higher confidence than novel peptides.
    Score this honestly — if data is sparse, confidence should be low (40-60%). If data is rich and evidence is strong, confidence can be high (80-95%). Never output 100%.
-8. **Evidence Sources**: Cite the specific types of evidence underpinning your scores. Be explicit about WHERE your knowledge comes from. Examples:
+8. **Evidence Sources**: Cite the specific types of evidence underpinning your scores. Be explicit about WHERE your knowledge comes from. PRIORITIZE UpToDate clinical monographs as the gold-standard reference for drug dosing, interactions, and clinical efficacy when available. Examples:
+   - "UpToDate clinical monographs" (PREFERRED — use whenever the compound has an UpToDate entry)
    - "Published RCTs in peer-reviewed journals (e.g., JAMA, NEJM, Lancet)"
    - "Meta-analyses from Cochrane reviews"
    - "Clinical pharmacology references (Goodman & Gilman's, FDA prescribing information)"
@@ -178,7 +179,7 @@ SCORING RULES:
    - "Case reports and clinical observations"
    - "Manufacturer data / pharmacokinetic studies"
    - "Anecdotal community reports (no peer-reviewed data available)"
-   List 2-4 most relevant source types for this specific compound. Be honest — if evidence is primarily anecdotal, say so.
+   List 2-4 most relevant source types for this specific compound. Always include "UpToDate clinical monographs" for pharmaceutical compounds with established clinical use. Be honest — if evidence is primarily anecdotal, say so.
 
 RESPOND WITH ONLY THIS JSON (no markdown, no code fences):
 {
