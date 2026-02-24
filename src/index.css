@@ -414,3 +414,18 @@
   border: 1px solid rgba(245, 158, 11, 0.4) !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
+
+/* Celebration checkmark animation */
+@keyframes celebration-check {
+  0% { transform: scale(0.3); opacity: 0; }
+  50% { transform: scale(1.2); }
+  70% { transform: scale(0.9); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* 100% compliance green border glow */
+.daily-complete-border {
+  box-shadow: inset 0 0 0 2px hsl(142 71% 45% / 0.5), 0 0 20px hsl(142 71% 45% / 0.15);
+  border-color: hsl(142 71% 45% / 0.4) !important;
+  transition: box-shadow 0.5s ease, border-color 0.5s ease;
+}
