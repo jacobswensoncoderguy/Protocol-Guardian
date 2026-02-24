@@ -86,10 +86,7 @@ export function useConversations(userId: string | undefined) {
 
         setConversations(nonEmpty);
 
-        // Auto-select most recent if none active
-        if (!activeConversationId && nonEmpty.length > 0) {
-          setActiveConversationId(nonEmpty[0].id);
-        }
+        // Do NOT auto-select — default to chat history view
       }
       setLoading(false);
     };
@@ -193,6 +190,48 @@ export function useConversations(userId: string | undefined) {
     ).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
   }, []);
 
+  // Backfill titles for conversations still named "New Chat"
+  const backfillTitles = useCallback(async () => {
+    if (!userId) return;
+    const needsTitle = conversations.filter(c => c.title === 'New Chat' && (c.message_count ?? 0) > 0);
+    if (needsTitle.length === 0) return;
+
+    for (const conv of needsTitle) {
+      try {
+        // Fetch first user + assistant message for this conversation
+        const { data: msgs } = await supabase
+          .from('protocol_chat_messages')
+          .select('role, content')
+          .eq('conversation_id', conv.id)
+          .order('created_at', { ascending: true })
+          .limit(4);
+
+        const userMsg = msgs?.find(m => m.role === 'user')?.content || '';
+        const assistantMsg = msgs?.find(m => m.role === 'assistant')?.content || '';
+        if (!userMsg) continue;
+
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+        const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-title`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({ userMessage: userMsg, assistantMessage: assistantMsg }),
+        });
+        if (resp.ok) {
+          const { title } = await resp.json();
+          if (title) {
+            await supabase.from('chat_conversations').update({ title }).eq('id', conv.id);
+            setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, title } : c));
+          }
+        }
+      } catch (e) { console.error('Backfill title failed for', conv.id, e); }
+    }
+  }, [userId, conversations]);
+
   return {
     projects, conversations, activeConversationId, loading,
     searchQuery, searchResults,
@@ -200,6 +239,6 @@ export function useConversations(userId: string | undefined) {
     createProject, deleteProject,
     createConversation, deleteConversation, renameConversation, moveConversation,
     deleteEmptyConversations,
-    searchMessages, refreshConversation,
+    searchMessages, refreshConversation, backfillTitles,
   };
 }

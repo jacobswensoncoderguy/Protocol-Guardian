@@ -315,8 +315,17 @@ const ProtocolChat = ({
     setActiveConversationId,
     createProject, deleteProject,
     createConversation, deleteConversation, renameConversation, moveConversation,
-    searchMessages,
+    searchMessages, backfillTitles,
   } = conversationManager;
+
+  // Backfill titles for existing conversations named "New Chat"
+  const backfillRan = useRef(false);
+  useEffect(() => {
+    if (isExpanded && !backfillRan.current && conversations.length > 0) {
+      backfillRan.current = true;
+      backfillTitles();
+    }
+  }, [isExpanded, conversations.length, backfillTitles]);
 
   // Auto-collapse sidebar on mobile when a conversation is selected
   useEffect(() => {

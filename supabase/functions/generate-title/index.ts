@@ -24,7 +24,7 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: "Generate a short, descriptive title (3-6 words max) for this conversation between a user and a protocol advisor AI. Return ONLY the title text, nothing else. No quotes, no punctuation at the end. Examples: 'BPC-157 Tendon Healing Evidence', 'Optimizing GH Stack Timing', 'Deca Cycling Safety Review'",
+            content: "Generate a short, descriptive title (2-5 words, no more) for this conversation between a user and a protocol advisor AI. Return ONLY the title text, nothing else. No quotes, no punctuation at the end. Examples: 'BPC-157 Tendon Healing', 'GH Stack Timing', 'Deca Cycling Review', 'Liver Stress Reduction'",
           },
           {
             role: "user",
