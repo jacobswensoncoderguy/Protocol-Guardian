@@ -168,6 +168,7 @@ export function useProtocolChat(
     let assistantContent = '';
     let toolCallBuffer = '';
     let toolCallActive = false;
+    let parsedProposal: ChangeProposal | undefined;
     const assistantId = crypto.randomUUID();
 
     try {
@@ -246,13 +247,13 @@ export function useProtocolChat(
                   changes: proposalData.changes.map((c: any) => ({ ...c, status: 'pending' as const })),
                   summary: proposalData.summary,
                 };
+                parsedProposal = proposal;
                 setProposals(prev => [...prev, proposal]);
                 setMessages(prev => {
                   const exists = prev.some(m => m.id === assistantId);
                   if (exists) return prev.map(m => m.id === assistantId ? { ...m, proposal } : m);
                   return [...prev, { id: assistantId, role: 'assistant' as const, content: '', proposal, timestamp: Date.now() }];
                 });
-                updatePersistedMessage(assistantId, { content: assistantContent, proposal });
               } catch (parseErr) { console.error('Failed to parse proposal:', parseErr); }
               toolCallBuffer = '';
               toolCallActive = false;
@@ -281,7 +282,7 @@ export function useProtocolChat(
         }
       }
 
-      persistMessage({ id: assistantId, role: 'assistant', content: assistantContent, timestamp: Date.now() });
+      persistMessage({ id: assistantId, role: 'assistant', content: assistantContent, proposal: parsedProposal, timestamp: Date.now() });
       onConversationUpdate?.(conversationId, assistantContent);
 
       // Auto-title: if this is the first exchange (only user + assistant), generate a title
