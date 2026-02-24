@@ -231,12 +231,11 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
   const eveningDoses = filterDoses(schedule.doses.filter(d => d.timing === 'evening'));
 
   // Compute daily completion: all active doses across all timings
-  const allDayDoses = schedule.doses;
+  // Must replicate DoseSection→DoseGroup sub-grouping so indexes match checkKeys
   const { allActiveDoseKeys, isDayComplete } = useMemo(() => {
-    // Build keys the same way DoseGroup does: filter by group, index within filteredDoses
-    const buildKeys = (doses: DayDose[]) => {
+    const buildGroupKeys = (groupDoses: DayDose[]) => {
       const seenOff = new Set<string>();
-      const filtered = doses.filter(d => {
+      const filtered = groupDoses.filter(d => {
         if (offCycleIds.has(d.compoundId)) {
           if (seenOff.has(d.compoundId)) return false;
           seenOff.add(d.compoundId);
@@ -249,15 +248,47 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
         .map(({ dose, i }) => `${dose.compoundId}-${dose.timing}-${i}`);
     };
 
-    // We need keys per timing group matching DoseSection→DoseGroup's indexing
+    // Split doses exactly like DoseSection does
+    const splitIntoGroups = (doses: DayDose[]): DayDose[][] => {
+      const peptides = doses.filter(d => d.category === 'peptide' || d.category === 'injectable-oil');
+      const orals = doses.filter(d => d.category === 'oral' || d.category === 'prescription' || d.category === 'vitamin' || d.category === 'adaptogen' || d.category === 'nootropic' || d.category === 'holistic' || d.category === 'probiotic' || d.category === 'alternative-medicine');
+      const powders = doses.filter(d => d.category === 'powder');
+      const topicals = doses.filter(d => d.category === 'topical' || d.category === 'essential-oil');
+
+      const protocolCompoundIds = new Set<string>();
+      const protocolDoseGroups: DayDose[][] = [];
+      protocols.forEach(p => {
+        const pDoses = doses.filter(d => p.compoundIds.includes(d.compoundId));
+        if (pDoses.length > 0) {
+          protocolDoseGroups.push(pDoses);
+          pDoses.forEach(d => protocolCompoundIds.add(d.compoundId));
+        }
+      });
+
+      const ungroupedOrals = orals.filter(d => !protocolCompoundIds.has(d.compoundId));
+      const ungroupedPowders = powders.filter(d => !protocolCompoundIds.has(d.compoundId));
+      const ungroupedTopicals = topicals.filter(d => !protocolCompoundIds.has(d.compoundId));
+
+      const groups: DayDose[][] = [];
+      if (peptides.length > 0) groups.push(peptides);
+      protocolDoseGroups.forEach(g => groups.push(g));
+      if (ungroupedOrals.length > 0) groups.push(ungroupedOrals);
+      if (ungroupedPowders.length > 0) groups.push(ungroupedPowders);
+      if (ungroupedTopicals.length > 0) groups.push(ungroupedTopicals);
+      return groups;
+    };
+
     const keys: string[] = [];
-    [morningDoses, afternoonDoses, eveningDoses].forEach(doses => {
-      keys.push(...buildKeys(doses));
+    [morningDoses, afternoonDoses, eveningDoses].forEach(timingDoses => {
+      const groups = splitIntoGroups(timingDoses);
+      groups.forEach(group => {
+        keys.push(...buildGroupKeys(group));
+      });
     });
 
     const complete = keys.length > 0 && keys.every(k => checkedDoses.has(k));
     return { allActiveDoseKeys: keys, isDayComplete: complete };
-  }, [allDayDoses, morningDoses, afternoonDoses, eveningDoses, offCycleIds, pausedIds, checkedDoses]);
+  }, [morningDoses, afternoonDoses, eveningDoses, offCycleIds, pausedIds, checkedDoses, protocols]);
 
   // Celebration: show once when transitioning to 100%
   const [showCelebration, setShowCelebration] = useState(false);
