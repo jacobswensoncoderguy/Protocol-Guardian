@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import {
   Check, Package, PackageCheck, ShoppingCart, Undo2, Trash2, ChevronDown,
   AlertTriangle, TrendingUp, ExternalLink, ShoppingBag, Info, Calendar,
-  Clock, Truck, CalendarIcon, Store, Pencil,
+  Clock, Truck, CalendarIcon, Store, Pencil, Plus,
 } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -139,6 +139,9 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
   const [editDosesPerDay, setEditDosesPerDay] = useState('');
   const [editWeightPerUnit, setEditWeightPerUnit] = useState('');
   const [editWeightUnit, setEditWeightUnit] = useState('mg');
+
+  // Force reorder state
+  const [forceReorderOpen, setForceReorderOpen] = useState(false);
 
   // Edit existing order state
   const [editOrderDialog, setEditOrderDialog] = useState<OrderItem | null>(null);
@@ -504,20 +507,30 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
               <Calendar className="w-3 h-3" />
               <span>Reorder horizon</span>
             </div>
-            <div className="flex gap-0.5 bg-secondary/50 rounded-md p-0.5 border border-border/40">
-              {HORIZON_OPTIONS.map(opt => (
-                <button
-                  key={opt.value}
-                  onClick={() => onHorizonChange?.(opt.value)}
-                  className={`px-2.5 py-1 rounded text-[10px] font-medium transition-all touch-manipulation ${
-                    horizon === opt.value
-                      ? 'bg-primary/15 text-primary border border-primary/30'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setForceReorderOpen(true)}
+                className="flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 text-primary text-[10px] font-medium border border-primary/20 active:bg-primary/20 touch-manipulation"
+                title="Force reorder any compound"
+              >
+                <Plus className="w-3 h-3" />
+                Force Reorder
+              </button>
+              <div className="flex gap-0.5 bg-secondary/50 rounded-md p-0.5 border border-border/40">
+                {HORIZON_OPTIONS.map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => onHorizonChange?.(opt.value)}
+                    className={`px-2.5 py-1 rounded text-[10px] font-medium transition-all touch-manipulation ${
+                      horizon === opt.value
+                        ? 'bg-primary/15 text-primary border border-primary/30'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -1301,6 +1314,59 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
         )}
       </SheetContent>
     </Sheet>
+
+    {/* Force Reorder Dialog */}
+    <Dialog open={forceReorderOpen} onOpenChange={setForceReorderOpen}>
+      <DialogContent className="max-w-sm max-h-[70vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-base">Force Reorder</DialogTitle>
+          <p className="text-xs text-muted-foreground">Select a compound to add to your order list, even if it's not due yet.</p>
+        </DialogHeader>
+        <div className="space-y-1.5 mt-2">
+          {(() => {
+            const neededIds = new Set(neededItems.map(n => n.compound_id));
+            const orderedIds = new Set(orderedItems.map(o => o.compound_id));
+            const available = compounds.filter(c =>
+              !c.notes?.includes('[DORMANT]') &&
+              !neededIds.has(c.id) &&
+              !orderedIds.has(c.id)
+            );
+            if (available.length === 0) {
+              return (
+                <div className="text-center py-4">
+                  <PackageCheck className="w-6 h-6 text-muted-foreground mx-auto mb-1.5" />
+                  <p className="text-xs text-muted-foreground">All compounds are already on the needed or ordered list.</p>
+                </div>
+              );
+            }
+            return available.map(compound => {
+              const cost = getReorderCost(compound);
+              const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+              const now = new Date();
+              const monthLabel = `${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
+              return (
+                <button
+                  key={compound.id}
+                  onClick={() => {
+                    setForceReorderOpen(false);
+                    handleMarkOrdered(compound.id, compound.reorderQuantity, cost, monthLabel);
+                  }}
+                  className="w-full flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border/40 hover:bg-secondary/60 active:bg-secondary/80 transition-colors touch-manipulation text-left"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground truncate">{compound.name}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {getDisplayQty(compound.id, compound.reorderQuantity)} · <span className="font-mono">${cost}</span>
+                    </p>
+                  </div>
+                  <ShoppingCart className="w-4 h-4 text-primary flex-shrink-0 ml-2" />
+                </button>
+              );
+            });
+          })()}
+        </div>
+      </DialogContent>
+    </Dialog>
     </>
   );
 };
