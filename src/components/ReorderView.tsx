@@ -1339,7 +1339,7 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
                 </div>
               );
             }
-            return available.map(compound => {
+            return available.sort((a, b) => a.name.localeCompare(b.name)).map(compound => {
               const cost = getReorderCost(compound);
               const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
               const now = new Date();
