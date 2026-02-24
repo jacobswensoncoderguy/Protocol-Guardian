@@ -1,4 +1,5 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import DailyCompletionCelebration from '@/components/DailyCompletionCelebration';
 import { DayDose } from '@/data/schedule';
 import { Compound } from '@/data/compounds';
 import { getCycleStatus, isPaused } from '@/lib/cycling';
@@ -229,6 +230,58 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
   const afternoonDoses = filterDoses(schedule.doses.filter(d => d.timing === 'afternoon'));
   const eveningDoses = filterDoses(schedule.doses.filter(d => d.timing === 'evening'));
 
+  // Compute daily completion: all active doses across all timings
+  const allDayDoses = schedule.doses;
+  const { allActiveDoseKeys, isDayComplete } = useMemo(() => {
+    // Build keys the same way DoseGroup does: filter by group, index within filteredDoses
+    const buildKeys = (doses: DayDose[]) => {
+      const seenOff = new Set<string>();
+      const filtered = doses.filter(d => {
+        if (offCycleIds.has(d.compoundId)) {
+          if (seenOff.has(d.compoundId)) return false;
+          seenOff.add(d.compoundId);
+        }
+        return true;
+      });
+      return filtered
+        .map((dose, i) => ({ dose, i }))
+        .filter(({ dose }) => !offCycleIds.has(dose.compoundId) && !pausedIds.has(dose.compoundId))
+        .map(({ dose, i }) => `${dose.compoundId}-${dose.timing}-${i}`);
+    };
+
+    // We need keys per timing group matching DoseSection→DoseGroup's indexing
+    const keys: string[] = [];
+    [morningDoses, afternoonDoses, eveningDoses].forEach(doses => {
+      keys.push(...buildKeys(doses));
+    });
+
+    const complete = keys.length > 0 && keys.every(k => checkedDoses.has(k));
+    return { allActiveDoseKeys: keys, isDayComplete: complete };
+  }, [allDayDoses, morningDoses, afternoonDoses, eveningDoses, offCycleIds, pausedIds, checkedDoses]);
+
+  // Celebration: show once when transitioning to 100%
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationDismissed, setCelebrationDismissed] = useState(false);
+  const prevCompleteRef = useRef(false);
+
+  useEffect(() => {
+    if (isDayComplete && !prevCompleteRef.current && !celebrationDismissed && !readOnly) {
+      setShowCelebration(true);
+    }
+    prevCompleteRef.current = isDayComplete;
+  }, [isDayComplete, celebrationDismissed, readOnly]);
+
+  const handleDismissCelebration = useCallback(() => {
+    setShowCelebration(false);
+    setCelebrationDismissed(true);
+  }, []);
+
+  // Reset celebration dismissed state when switching days
+  useEffect(() => {
+    setCelebrationDismissed(false);
+    prevCompleteRef.current = false;
+  }, [selectedDay, weekOffset]);
+
   const handleCompoundClick = (compoundId: string) => {
     const compound = compoundMap.get(compoundId);
     if (compound) {
@@ -239,7 +292,8 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
 
   return (
     <TooltipProvider>
-      <div className="space-y-4">
+      <DailyCompletionCelebration show={showCelebration} onDismiss={handleDismissCelebration} />
+      <div className={`space-y-4 rounded-xl transition-all duration-500 ${isDayComplete ? 'daily-complete-border border p-3 -m-1' : ''}`}>
         {/* Read-only member banner */}
         {readOnly && readOnlyMemberName && (
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/20 text-xs">
