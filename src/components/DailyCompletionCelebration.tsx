@@ -77,7 +77,7 @@ const DailyCompletionCelebration = ({ show, onDismiss }: DailyCompletionCelebrat
 
         <div>
           <h2 className="text-xl font-black text-foreground tracking-tight">100% COMPLETE!</h2>
-          <p className="text-sm text-muted-foreground mt-1">Every dose taken today. Keep it up! 💪</p>
+          <p className="text-sm text-muted-foreground mt-1">Every dose taken today. Keep it up! 💪🏼</p>
         </div>
       </div>
     </div>

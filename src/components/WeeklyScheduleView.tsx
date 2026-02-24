@@ -1,6 +1,8 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import DailyCompletionCelebration from '@/components/DailyCompletionCelebration';
 import { DayDose } from '@/data/schedule';
+import { weekDayToDateStr } from '@/hooks/useDoseCheckOffs';
+import { useAuth } from '@/hooks/useAuth';
 import { Compound } from '@/data/compounds';
 import { getCycleStatus, isPaused } from '@/lib/cycling';
 import { generateScheduleFromCompounds } from '@/lib/scheduleGenerator';
@@ -290,6 +292,101 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
     return { allActiveDoseKeys: keys, isDayComplete: complete };
   }, [morningDoses, afternoonDoses, eveningDoses, offCycleIds, pausedIds, checkedDoses, protocols]);
 
+  // Helper to compute active dose keys for any day's schedule
+  const computeDayKeys = useCallback((daySchedule: typeof schedule) => {
+    const buildGroupKeys = (groupDoses: DayDose[]) => {
+      const seenOff = new Set<string>();
+      const filtered = groupDoses.filter(d => {
+        if (offCycleIds.has(d.compoundId)) {
+          if (seenOff.has(d.compoundId)) return false;
+          seenOff.add(d.compoundId);
+        }
+        return true;
+      });
+      return filtered
+        .map((dose, i) => ({ dose, i }))
+        .filter(({ dose }) => !offCycleIds.has(dose.compoundId) && !pausedIds.has(dose.compoundId))
+        .map(({ dose, i }) => `${dose.compoundId}-${dose.timing}-${i}`);
+    };
+    const splitIntoGroups = (doses: DayDose[]): DayDose[][] => {
+      const peptides = doses.filter(d => d.category === 'peptide' || d.category === 'injectable-oil');
+      const orals = doses.filter(d => d.category === 'oral' || d.category === 'prescription' || d.category === 'vitamin' || d.category === 'adaptogen' || d.category === 'nootropic' || d.category === 'holistic' || d.category === 'probiotic' || d.category === 'alternative-medicine');
+      const powders = doses.filter(d => d.category === 'powder');
+      const topicals = doses.filter(d => d.category === 'topical' || d.category === 'essential-oil');
+      const pCompoundIds = new Set<string>();
+      const pGroups: DayDose[][] = [];
+      protocols.forEach(p => {
+        const pDoses = doses.filter(d => p.compoundIds.includes(d.compoundId));
+        if (pDoses.length > 0) { pGroups.push(pDoses); pDoses.forEach(d => pCompoundIds.add(d.compoundId)); }
+      });
+      const groups: DayDose[][] = [];
+      if (peptides.length > 0) groups.push(peptides);
+      pGroups.forEach(g => groups.push(g));
+      const uOrals = orals.filter(d => !pCompoundIds.has(d.compoundId));
+      const uPowders = powders.filter(d => !pCompoundIds.has(d.compoundId));
+      const uTopicals = topicals.filter(d => !pCompoundIds.has(d.compoundId));
+      if (uOrals.length > 0) groups.push(uOrals);
+      if (uPowders.length > 0) groups.push(uPowders);
+      if (uTopicals.length > 0) groups.push(uTopicals);
+      return groups;
+    };
+    const keys: string[] = [];
+    ['morning', 'afternoon', 'evening'].forEach(timing => {
+      const timingDoses = daySchedule.doses.filter(d => d.timing === timing);
+      splitIntoGroups(timingDoses).forEach(group => keys.push(...buildGroupKeys(group)));
+    });
+    return keys;
+  }, [offCycleIds, pausedIds, protocols]);
+
+  // Load check-offs for all 7 days to show completion badges on day selector
+  const { user } = useAuth();
+  const [weekCompletedDays, setWeekCompletedDays] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    if (!user) { setWeekCompletedDays(new Set()); return; }
+    let cancelled = false;
+    const dates = Array.from({ length: 7 }, (_, i) => weekDayToDateStr(i, weekOffset));
+    const load = async () => {
+      const { data } = await supabase
+        .from('dose_check_offs')
+        .select('compound_id, timing, dose_index, check_date')
+        .eq('user_id', user.id)
+        .in('check_date', dates);
+      if (cancelled || !data) return;
+
+      // Group check-offs by date
+      const byDate = new Map<string, Set<string>>();
+      data.forEach(r => {
+        const key = `${r.compound_id}-${r.timing}-${r.dose_index}`;
+        if (!byDate.has(r.check_date)) byDate.set(r.check_date, new Set());
+        byDate.get(r.check_date)!.add(key);
+      });
+
+      const completed = new Set<number>();
+      for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
+        const dateStr = dates[dayIdx];
+        const dayChecks = byDate.get(dateStr) || new Set();
+        const dayKeys = computeDayKeys(weeklySchedule[dayIdx]);
+        if (dayKeys.length > 0 && dayKeys.every(k => dayChecks.has(k))) {
+          completed.add(dayIdx);
+        }
+      }
+      setWeekCompletedDays(completed);
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [user, weekOffset, weeklySchedule, computeDayKeys]);
+
+  // Also update when current day's checkedDoses change (optimistic)
+  useEffect(() => {
+    setWeekCompletedDays(prev => {
+      const next = new Set(prev);
+      if (isDayComplete) next.add(selectedDay);
+      else next.delete(selectedDay);
+      return next;
+    });
+  }, [isDayComplete, selectedDay]);
+
   // Celebration: show once when transitioning to 100%
   const [showCelebration, setShowCelebration] = useState(false);
   const [celebrationDismissed, setCelebrationDismissed] = useState(false);
@@ -401,12 +498,13 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
           {weeklySchedule.map((day) => {
             const dayDate = getDateForDayIndex(day.dayIndex);
             const isToday = isCurrentWeek && day.dayIndex === today;
+            const isDayDone = weekCompletedDays.has(day.dayIndex);
             return (
             <Tooltip key={day.dayIndex}>
               <TooltipTrigger asChild>
                 <button
                   onClick={() => setSelectedDay(day.dayIndex)}
-                  className={`flex-shrink-0 px-3 py-2.5 sm:py-2 rounded-lg text-xs font-medium transition-all touch-manipulation ${
+                  className={`relative flex-shrink-0 px-3 py-2.5 sm:py-2 rounded-lg text-xs font-medium transition-all touch-manipulation ${
                     selectedDay === day.dayIndex
                       ? 'bg-primary text-primary-foreground glow-cyan'
                       : isToday
@@ -415,6 +513,11 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
                   }`}
                 >
                   {day.shortName}
+                  {isDayDone && (
+                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-status-good flex items-center justify-center ring-2 ring-background">
+                      <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                    </span>
+                  )}
                 </button>
               </TooltipTrigger>
           {isToday && (
