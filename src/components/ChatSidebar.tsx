@@ -100,15 +100,17 @@ const ChatSidebar = ({
             >
               <FolderPlus className="w-3.5 h-3.5" />
             </button>
-            <button
-              onClick={() => onNewConversation()}
-              className="p-1 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-              title="New chat"
-            >
-              <Plus className="w-3.5 h-3.5" />
-            </button>
           </div>
         </div>
+
+        {/* Prominent New Chat button */}
+        <button
+          onClick={() => onNewConversation()}
+          className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-sm font-medium shadow-sm"
+        >
+          <Plus className="w-4 h-4" />
+          New Chat
+        </button>
 
         {/* Search */}
         <div className="relative">
