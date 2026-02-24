@@ -559,7 +559,7 @@ const Index = () => {
                   )}
                 </TabsTrigger>
               </TabsList>
-              <div key={inventorySubTab} className={inventorySwipe.slideClass} onAnimationEnd={inventorySwipe.onAnimationEnd} onTouchStart={inventorySwipe.onTouchStart} onTouchEnd={inventorySwipe.onTouchEnd}>
+              <div>
                 <TabsContent value="stock" forceMount={inventorySubTab === 'stock' ? true : undefined}>
                   {inventorySubTab === 'stock' && <InventoryView
                     compounds={viewCompounds}
