@@ -1048,34 +1048,30 @@ ${summaries}`;
       if (data?.status === 429) throw new Error('Rate limit reached. Please try again in a moment.');
       if (data?.status === 402) throw new Error('AI usage limit reached. Add credits in workspace settings.');
       const raw = data?.analysis || data?.response || '';
-      // Try to parse as JSON — strip ALL code fences aggressively
-      try {
-        let cleaned = typeof raw === 'string' ? raw : JSON.stringify(raw);
-        // Remove all markdown code fences (```json, ```, etc.) anywhere in the string
-        cleaned = cleaned.replace(/```[a-z]*\s*/gi, '').replace(/```/g, '').trim();
-        // If it still doesn't start with {, try to find the first { and last }
-        if (!cleaned.startsWith('{')) {
-          const firstBrace = cleaned.indexOf('{');
-          const lastBrace = cleaned.lastIndexOf('}');
-          if (firstBrace !== -1 && lastBrace > firstBrace) {
-            cleaned = cleaned.slice(firstBrace, lastBrace + 1);
-          }
-        }
-        const parsed = JSON.parse(cleaned);
-        setAiResult(JSON.stringify(parsed));
-      } catch {
-        // Last resort: try to find JSON object in the raw string
-        try {
-          const rawStr = typeof raw === 'string' ? raw : JSON.stringify(raw);
-          const match = rawStr.match(/\{[\s\S]*"insights"[\s\S]*\}/);
-          if (match) {
-            const parsed = JSON.parse(match[0]);
-            setAiResult(JSON.stringify(parsed));
-          } else {
+      // If raw is already an object with insights, store directly
+      if (typeof raw === 'object' && raw !== null && (raw as any).insights) {
+        setAiResult(JSON.stringify(raw));
+      } else {
+        const rawStr = typeof raw === 'string' ? raw : JSON.stringify(raw);
+        // Strip every line that is purely backtick fences
+        const lines = rawStr.split('\n').filter(l => !/^\s*```/.test(l));
+        const stripped = lines.join('\n').trim();
+        const fb = stripped.indexOf('{');
+        const lb = stripped.lastIndexOf('}');
+        if (fb !== -1 && lb > fb) {
+          try {
+            const parsed = JSON.parse(stripped.slice(fb, lb + 1));
+            if (parsed?.insights || parsed?.summary) {
+              setAiResult(JSON.stringify(parsed));
+            } else {
+              setAiResult(rawStr);
+            }
+          } catch (parseErr) {
+            console.warn('[Lab Compare] JSON parse failed after fence strip:', parseErr, 'Cleaned substring:', stripped.slice(fb, Math.min(fb + 200, lb + 1)), '... last 100:', stripped.slice(Math.max(fb, lb - 100), lb + 1));
             setAiResult(rawStr);
           }
-        } catch {
-          setAiResult(typeof raw === 'string' ? raw : JSON.stringify(raw));
+        } else {
+          setAiResult(rawStr);
         }
       }
     } catch (e: any) {
@@ -1536,21 +1532,16 @@ ${summaries}`;
           {aiResult && !loading && (() => {
             // Try to parse structured JSON response — aggressively strip code fences
             let parsed: { summary?: string; insights?: { category: string; title: string; description: string; metric?: string; severity: string }[] } | null = null;
-            try {
-              let cleaned = aiResult.replace(/```[a-z]*\s*/gi, '').replace(/```/g, '').trim();
-              if (!cleaned.startsWith('{')) {
-                const fb = cleaned.indexOf('{');
-                const lb = cleaned.lastIndexOf('}');
-                if (fb !== -1 && lb > fb) cleaned = cleaned.slice(fb, lb + 1);
-              }
-              parsed = JSON.parse(cleaned);
-            } catch {
-              // Last resort: regex extract
-              try {
-                const m = aiResult.match(/\{[^{}]*"insights"\s*:\s*\[[\s\S]*?\]\s*\}/);
-                if (m) parsed = JSON.parse(m[0]);
-              } catch { /* fallback below */ }
-            }
+             try {
+               const lines = aiResult.split('\n').filter((l: string) => !/^\s*```/.test(l));
+               const stripped = lines.join('\n').trim();
+               const fb = stripped.indexOf('{');
+               const lb = stripped.lastIndexOf('}');
+               if (fb !== -1 && lb > fb) {
+                 const p = JSON.parse(stripped.slice(fb, lb + 1));
+                 if (p?.insights || p?.summary) parsed = p;
+               }
+             } catch { /* fallback below */ }
 
             const INSIGHT_STYLES: Record<string, { icon: typeof TrendingUp; bgClass: string; borderColor: string; iconColor: string }> = {
               trend: { icon: TrendingUp, bgClass: 'bg-primary/5', borderColor: 'hsl(var(--primary) / 0.2)', iconColor: 'hsl(var(--primary))' },
