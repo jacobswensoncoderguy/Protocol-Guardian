@@ -1678,20 +1678,18 @@ ${summaries}`;
                           className={cn("rounded-xl border p-3 space-y-1.5", style.bgClass)}
                           style={{ borderColor: style.borderColor }}
                         >
-                          <div className="flex items-start gap-2">
-                            <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5" style={{ backgroundColor: `color-mix(in srgb, ${style.iconColor} 12%, transparent)` }}>
+                          {/* Title row with icon and optional metric */}
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `color-mix(in srgb, ${style.iconColor} 12%, transparent)` }}>
                               <InsightIcon className="w-3 h-3" style={{ color: style.iconColor }} />
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5">
-                                <div className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", dotColor)} />
-                                <span className="text-[10px] font-bold text-foreground uppercase tracking-wide">{insight.title}</span>
-                              </div>
-                              <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">{insight.description}</p>
+                            <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                              <div className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", dotColor)} />
+                              <span className="text-[10px] font-bold text-foreground uppercase tracking-wide truncate">{insight.title}</span>
                             </div>
                             {insight.metric && (
                               <span
-                                className="text-xs font-bold font-mono flex-shrink-0 px-2 py-1 rounded-lg"
+                                className="text-[10px] font-bold font-mono flex-shrink-0 px-2 py-1 rounded-lg whitespace-nowrap"
                                 style={{
                                   color: style.iconColor,
                                   backgroundColor: `color-mix(in srgb, ${style.iconColor} 10%, transparent)`,
@@ -1701,6 +1699,8 @@ ${summaries}`;
                               </span>
                             )}
                           </div>
+                          {/* Description on its own line — full width */}
+                          <p className="text-[11px] text-muted-foreground leading-relaxed pl-8">{insight.description}</p>
                         </div>
                       );
                     })}
