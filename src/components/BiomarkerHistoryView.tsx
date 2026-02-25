@@ -4,7 +4,7 @@ import {
   X, Trash2, RefreshCw, Loader2, Upload, AlertTriangle, FlaskConical,
   AlertCircle, Droplets, Bone, Zap, Syringe, Heart, Bug, ClipboardList,
   Link2, Pencil, Check, GitCompare, BookMarked, Info, Sparkles,
-  ArrowRightLeft, TrendingUp, ExternalLink, Paperclip,
+  ArrowRightLeft, TrendingUp, TrendingDown, ExternalLink, Paperclip, ArrowUpRight, ArrowDownRight, Minus, Activity, Target, BarChart3, ShieldAlert,
 } from 'lucide-react';
 import { getReferenceRange, formatRange } from '@/lib/biomarkerReferenceRanges';
 import { LineChart, Line, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid, ReferenceArea } from 'recharts';
@@ -990,14 +990,28 @@ function ComparisonSheet({
 
       const prompt = `You are an expert health data analyst reviewing multiple lab uploads from the same person over time.
 
-Analyze these ${sorted.length} lab uploads and provide a structured report covering:
-1. **Key Trends** — what's improving or worsening over the time period
-2. **Correlations** — biomarkers that appear to move together (e.g., inflammatory markers trending together)
-3. **Contradictions** — unexpected findings or biomarkers moving in opposite directions from what's expected
-4. **Notable Changes** — the most clinically significant status changes (normal→flagged or flagged→normal)
-5. **Overall Assessment** — one-line summary of overall health trajectory
+Analyze these ${sorted.length} lab uploads and respond ONLY with valid JSON (no markdown, no code fences). Use this exact structure:
+{
+  "summary": "One sentence overall health trajectory assessment",
+  "insights": [
+    {
+      "category": "trend|correlation|concern|improvement|notable",
+      "title": "Short 3-6 word title",
+      "description": "1-2 sentence explanation",
+      "metric": "key number or percentage if relevant, e.g. '-10.9%' or '142 → 98'",
+      "severity": "positive|neutral|warning|critical"
+    }
+  ]
+}
 
-Be specific with numbers. Keep under 300 words. Use plain text with no markdown symbols.
+Categories:
+- "trend": markers consistently moving in one direction
+- "correlation": markers that appear to move together
+- "concern": worsening biomarkers or red flags
+- "improvement": biomarkers trending toward normal
+- "notable": interesting observations or contradictions
+
+Include 4-8 insights. Be specific with numbers. metric field should highlight the most impactful number.
 
 Lab Data:
 ${summaries}`;
@@ -1008,7 +1022,14 @@ ${summaries}`;
       if (error) throw error;
       if (data?.status === 429) throw new Error('Rate limit reached. Please try again in a moment.');
       if (data?.status === 402) throw new Error('AI usage limit reached. Add credits in workspace settings.');
-      setAiResult(data?.analysis || data?.response || 'Analysis complete.');
+      const raw = data?.analysis || data?.response || '';
+      // Try to parse as JSON, fallback to legacy string
+      try {
+        const parsed = JSON.parse(typeof raw === 'string' ? raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim() : JSON.stringify(raw));
+        setAiResult(JSON.stringify(parsed));
+      } catch {
+        setAiResult(raw);
+      }
     } catch (e: any) {
       toast.error(e.message || 'Failed to generate comparison');
     } finally {
@@ -1106,123 +1127,70 @@ ${summaries}`;
             })}
           </div>
 
-          {/* Cross-category trend LineChart — each shared marker as a colored line */}
+          {/* ── Marker Trend Tiles ── */}
           {sharedMarkerTrends.length > 0 && (
-            <div className="rounded-xl border border-border/30 bg-secondary/10 p-3 space-y-3">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                <TrendingUp className="w-3 h-3 text-primary" />
-                Shared Marker Trends
-                <span className="text-[9px] font-normal text-muted-foreground/60">{sharedMarkerTrends.length} markers across all uploads</span>
+            <div className="space-y-2">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 px-1">
+                <Activity className="w-3 h-3 text-primary" />
+                Marker Trends
+                <span className="text-[9px] font-normal text-muted-foreground/60">across {uploads.length} uploads</span>
               </p>
-
-              {/* Full recharts LineChart — X = upload date, each marker = a colored line.
-                  Build a merged dataset: each row is a date, each marker has its own key */}
-              {(() => {
-                const HUE_STEPS = [200, 150, 30, 270, 0, 60];
-                // Merge all marker values into rows keyed by date
-                const dateSet = new Set<string>();
-                sharedMarkerTrends.forEach(m => m.points.forEach(p => dateSet.add(p.date)));
-                const dates = Array.from(dateSet);
-                const mergedData = dates.map(date => {
-                  const row: Record<string, any> = { date };
-                  sharedMarkerTrends.forEach(m => {
-                    const pt = m.points.find(p => p.date === date);
-                    if (pt) row[m.name] = pt.value;
-                  });
-                  return row;
-                });
-                return (
-                  <div className="h-44">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={mergedData} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.3)" />
-                        <XAxis
-                          dataKey="date"
-                          tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
-                          tickLine={false}
-                          axisLine={false}
-                        />
-                        <YAxis
-                          tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
-                          tickLine={false}
-                          axisLine={false}
-                          width={30}
-                          tickFormatter={(v: number) => v.toFixed(0)}
-                        />
-                        <RechartsTooltip
-                          contentStyle={{
-                            background: 'hsl(var(--card))',
-                            border: '1px solid hsl(var(--border))',
-                            borderRadius: '8px',
-                            fontSize: '11px',
-                            color: 'hsl(var(--foreground))',
-                          }}
-                          labelStyle={{ color: 'hsl(var(--muted-foreground))', fontSize: '10px' }}
-                        />
-                        {sharedMarkerTrends.map((marker, idx) => {
-                          const hue = HUE_STEPS[idx % HUE_STEPS.length];
-                          const color = `hsl(${hue}, 80%, 55%)`;
-                          return (
-                            <Line
-                              key={marker.name}
-                              dataKey={marker.name}
-                              stroke={color}
-                              strokeWidth={2}
-                              dot={{ r: 3, fill: color, strokeWidth: 0 }}
-                              activeDot={{ r: 5 }}
-                              type="monotone"
-                              connectNulls
-                            />
-                          );
-                        })}
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                );
-              })()}
-
-              {/* Legend */}
-              <div className="flex flex-wrap gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 {sharedMarkerTrends.map((marker, idx) => {
                   const HUE_STEPS = [200, 150, 30, 270, 0, 60];
                   const hue = HUE_STEPS[idx % HUE_STEPS.length];
                   const color = `hsl(${hue}, 80%, 55%)`;
                   const values = marker.points.map(p => p.value);
-                  const delta = values[values.length - 1] - values[0];
+                  const first = values[0];
+                  const last = values[values.length - 1];
+                  const delta = last - first;
+                  const pctChange = first !== 0 ? ((delta / Math.abs(first)) * 100) : 0;
+                  const isUp = delta > 0;
+                  const isFlat = Math.abs(delta) < 0.01;
+                  const DirIcon = isFlat ? Minus : isUp ? ArrowUpRight : ArrowDownRight;
+                  
                   return (
-                    <div key={marker.name} className="flex items-center gap-1.5">
-                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-                      <span className="text-[9px] text-muted-foreground">{marker.name}</span>
-                      {delta !== 0 && (
-                        <span className={`text-[9px] font-mono font-semibold ${delta > 0 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                          {delta > 0 ? '+' : ''}{delta.toFixed(1)}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Mini sparkline tiles below */}
-              <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border/20">
-                {sharedMarkerTrends.map(marker => {
-                  const values = marker.points.map(p => p.value);
-                  const delta = values[values.length - 1] - values[0];
-                  const isGood = Math.abs(delta) < 0.01 ? null : delta > 0;
-                  return (
-                    <div key={marker.name} className="bg-card rounded-lg p-2 border border-border/20 space-y-1">
+                    <div
+                      key={marker.name}
+                      className="rounded-xl border border-border/30 p-2.5 space-y-1.5 relative overflow-hidden"
+                      style={{ backgroundColor: `hsl(${hue}, 80%, 55%, 0.04)`, borderColor: `hsl(${hue}, 80%, 55%, 0.15)` }}
+                    >
+                      {/* Accent stripe */}
+                      <div className="absolute top-0 left-0 w-full h-0.5" style={{ backgroundColor: color }} />
+                      
+                      {/* Header: name + direction */}
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-[10px] font-semibold text-foreground truncate flex-1">{marker.name}</span>
+                        <DirIcon className="w-3 h-3 flex-shrink-0" style={{ color }} />
+                      </div>
+                      
+                      {/* Values: first → last with unit */}
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-[9px] text-muted-foreground font-mono">{first.toFixed(1)}</span>
+                        <span className="text-[8px] text-muted-foreground/50">→</span>
+                        <span className="text-xs font-bold font-mono text-foreground">{last.toFixed(1)}</span>
+                        <span className="text-[8px] text-muted-foreground">{marker.unit}</span>
+                      </div>
+                      
+                      {/* Sparkline */}
+                      <MiniSparkline values={values} width={100} height={22} className="w-full" />
+                      
+                      {/* Footer: date range + % change */}
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-medium text-foreground truncate flex-1">{marker.name}</span>
-                        {delta !== 0 && (
-                          <span className={`text-[9px] font-mono font-semibold flex-shrink-0 ml-1 ${isGood === null ? 'text-muted-foreground' : isGood ? 'text-emerald-400' : 'text-amber-400'}`}>
-                            {delta > 0 ? '+' : ''}{delta.toFixed(1)}
+                        <span className="text-[8px] text-muted-foreground/50">
+                          {marker.points[0].date} – {marker.points[marker.points.length - 1].date}
+                        </span>
+                        {!isFlat && (
+                          <span
+                            className="text-[9px] font-bold font-mono px-1 py-0.5 rounded"
+                            style={{
+                              color,
+                              backgroundColor: `hsl(${hue}, 80%, 55%, 0.1)`,
+                            }}
+                          >
+                            {isUp ? '+' : ''}{pctChange.toFixed(1)}%
                           </span>
                         )}
-                      </div>
-                      <MiniSparkline values={values} width={100} height={20} className="w-full" />
-                      <div className="flex items-center justify-between text-[9px] text-muted-foreground/60">
-                        <span>{marker.points[0].date}</span>
-                        <span>{marker.points[marker.points.length - 1].date}</span>
                       </div>
                     </div>
                   );
@@ -1264,25 +1232,114 @@ ${summaries}`;
             </div>
           )}
 
-          {aiResult && !loading && (
-            <div className="bg-secondary/20 rounded-xl p-3.5 border border-border/30 space-y-3">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                <Sparkles className="w-3 h-3 text-primary" /> AI Analysis
-              </p>
-              {/* Render structured sections if they appear */}
-              <div className="space-y-2">
-                {aiResult.split(/\n(?=\d\.)/).map((section, i) => (
-                  <p key={i} className="text-xs text-foreground leading-relaxed whitespace-pre-line">{section.trim()}</p>
-                ))}
+          {aiResult && !loading && (() => {
+            // Try to parse structured JSON response
+            let parsed: { summary?: string; insights?: { category: string; title: string; description: string; metric?: string; severity: string }[] } | null = null;
+            try { parsed = JSON.parse(aiResult); } catch { /* fallback below */ }
+
+            const INSIGHT_STYLES: Record<string, { icon: typeof TrendingUp; bgClass: string; borderColor: string; iconColor: string }> = {
+              trend: { icon: TrendingUp, bgClass: 'bg-primary/5', borderColor: 'hsl(var(--primary) / 0.2)', iconColor: 'hsl(var(--primary))' },
+              correlation: { icon: BarChart3, bgClass: 'bg-chart-2/5', borderColor: 'hsl(var(--chart-2) / 0.2)', iconColor: 'hsl(var(--chart-2))' },
+              concern: { icon: ShieldAlert, bgClass: 'bg-destructive/5', borderColor: 'hsl(var(--destructive) / 0.2)', iconColor: 'hsl(var(--destructive))' },
+              improvement: { icon: TrendingUp, bgClass: 'bg-emerald-500/5', borderColor: 'hsl(142 80% 50% / 0.2)', iconColor: 'hsl(142 80% 50%)' },
+              notable: { icon: Sparkles, bgClass: 'bg-chart-5/5', borderColor: 'hsl(var(--chart-5) / 0.2)', iconColor: 'hsl(var(--chart-5))' },
+            };
+
+            const SEVERITY_DOT: Record<string, string> = {
+              positive: 'bg-emerald-400',
+              neutral: 'bg-muted-foreground/40',
+              warning: 'bg-amber-400',
+              critical: 'bg-destructive',
+            };
+
+            if (parsed?.insights && parsed.insights.length > 0) {
+              return (
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <Sparkles className="w-3 h-3 text-primary" /> AI Insights
+                    </p>
+                    <button
+                      onClick={generateComparison}
+                      className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      <RefreshCw className="w-3 h-3" /> Refresh
+                    </button>
+                  </div>
+
+                  {/* Summary banner */}
+                  {parsed.summary && (
+                    <div className="rounded-xl bg-primary/5 border border-primary/15 px-3 py-2.5">
+                      <p className="text-[11px] text-foreground font-medium leading-relaxed">{parsed.summary}</p>
+                    </div>
+                  )}
+
+                  {/* Insight tiles */}
+                  <div className="space-y-2">
+                    {parsed.insights.map((insight, i) => {
+                      const style = INSIGHT_STYLES[insight.category] || INSIGHT_STYLES.notable;
+                      const InsightIcon = style.icon;
+                      const dotColor = SEVERITY_DOT[insight.severity] || SEVERITY_DOT.neutral;
+
+                      return (
+                        <div
+                          key={i}
+                          className={cn("rounded-xl border p-3 space-y-1.5", style.bgClass)}
+                          style={{ borderColor: style.borderColor }}
+                        >
+                          <div className="flex items-start gap-2">
+                            <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5" style={{ backgroundColor: `color-mix(in srgb, ${style.iconColor} 12%, transparent)` }}>
+                              <InsightIcon className="w-3 h-3" style={{ color: style.iconColor }} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <div className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", dotColor)} />
+                                <span className="text-[10px] font-bold text-foreground uppercase tracking-wide">{insight.title}</span>
+                              </div>
+                              <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">{insight.description}</p>
+                            </div>
+                            {insight.metric && (
+                              <span
+                                className="text-xs font-bold font-mono flex-shrink-0 px-2 py-1 rounded-lg"
+                                style={{
+                                  color: style.iconColor,
+                                  backgroundColor: `color-mix(in srgb, ${style.iconColor} 10%, transparent)`,
+                                }}
+                              >
+                                {insight.metric}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            }
+
+            // Fallback: legacy plain text
+            return (
+              <div className="bg-secondary/20 rounded-xl p-3.5 border border-border/30 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Sparkles className="w-3 h-3 text-primary" /> AI Analysis
+                  </p>
+                  <button
+                    onClick={generateComparison}
+                    className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    <RefreshCw className="w-3 h-3" /> Refresh
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {aiResult.split(/\n(?=\d\.)/).map((section, i) => (
+                    <p key={i} className="text-xs text-foreground leading-relaxed whitespace-pre-line">{section.trim()}</p>
+                  ))}
+                </div>
               </div>
-              <button
-                onClick={generateComparison}
-                className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-colors"
-              >
-                <RefreshCw className="w-3 h-3" /> Re-analyze
-              </button>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Key Changes diff table — shown after analysis if any markers changed status */}
           {keyChanges.length > 0 && !loading && (
