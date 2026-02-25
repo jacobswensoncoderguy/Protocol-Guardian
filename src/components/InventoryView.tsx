@@ -641,6 +641,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
       state.unitPrice = compound.unitPrice.toString();
     }
     state.purchaseDate = compound.purchaseDate;
+    state.dosesPerDay = compound.dosesPerDay.toString();
     setEditState(state);
     setEditing(true);
   };
@@ -795,6 +796,13 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
       const dpw = parseInt(editState.daysPerWeek);
       if (!isNaN(dpw) && dpw >= 0 && dpw <= 7) {
         updates.daysPerWeek = dpw;
+      }
+    }
+
+    if (editState.dosesPerDay !== undefined) {
+      const dpd = parseFloat(editState.dosesPerDay);
+      if (!isNaN(dpd) && dpd > 0) {
+        updates.dosesPerDay = dpd;
       }
     }
 
@@ -1456,8 +1464,10 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                 <option value="pills">pills</option>
                 <option value="scoop">scoop</option>
               </select>
-            </div>
+           </div>
           </div>
+          <EditRow label="Doses/Day" value={editState.dosesPerDay || '1'}
+            onChange={v => setEditState(s => ({ ...s, dosesPerDay: v }))} type="number" />
           {isPeptide ? (
             editState.reorderType === 'single' ? (
               <EditRow label="Unit Price" value={editState.unitPrice || (parseFloat(editState.kitPrice || '0') / 10).toString()} prefix="$" suffix="/vial"
