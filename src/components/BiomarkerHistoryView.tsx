@@ -924,6 +924,24 @@ function ComparisonSheet({
   const [saved, setSaved] = useState(false);
   const [showNormalized, setShowNormalized] = useState(false);
 
+  // Normalize body composition values that appear to be in grams but labeled as lbs/kg
+  const normalizeBodyCompValue = (name: string, value: number, unit: string): { value: number; unit: string } => {
+    const lowerName = name.toLowerCase();
+    const isBodyComp = ['lean mass', 'fat mass', 'total mass', 'total body mass', 'fat-free mass', 'lean body mass', 'bone mass'].some(k => lowerName.includes(k));
+    if (!isBodyComp) return { value, unit };
+    const lowerUnit = unit.toLowerCase();
+    if (lowerUnit === 'lbs' || lowerUnit === 'lb') {
+      if (value > 500) return { value: Math.round((value / 453.592) * 10) / 10, unit: 'lbs' };
+    }
+    if (lowerUnit === 'kg') {
+      if (value > 250) return { value: Math.round((value / 1000) * 10) / 10, unit: 'kg' };
+    }
+    if (lowerUnit === 'g' || lowerUnit === 'grams') {
+      return { value: Math.round((value / 453.592) * 10) / 10, unit: 'lbs' };
+    }
+    return { value, unit };
+  };
+
   // Key Changes diff: markers that moved normal↔flagged between first and last upload
   const keyChanges = useMemo(() => {
     if (uploads.length < 2) return [];
@@ -932,8 +950,8 @@ function ComparisonSheet({
     const latest = sorted[sorted.length - 1];
     const oldMap = new Map<string, { value: any; unit: string; status: string }>();
     const newMap = new Map<string, { value: any; unit: string; status: string }>();
-    (earliest.ai_extracted_data?.biomarkers || []).forEach((b: any) => oldMap.set(b.name, { value: b.value, unit: b.unit, status: b.status }));
-    (latest.ai_extracted_data?.biomarkers || []).forEach((b: any) => newMap.set(b.name, { value: b.value, unit: b.unit, status: b.status }));
+    (earliest.ai_extracted_data?.biomarkers || []).forEach((b: any) => { const n = normalizeBodyCompValue(b.name, b.value, b.unit || ''); oldMap.set(b.name, { value: n.value, unit: n.unit, status: b.status }); });
+    (latest.ai_extracted_data?.biomarkers || []).forEach((b: any) => { const n = normalizeBodyCompValue(b.name, b.value, b.unit || ''); newMap.set(b.name, { value: n.value, unit: n.unit, status: b.status }); });
 
     const changes: { name: string; from: string; to: string; oldValue: any; value: any; unit: string; direction: 'improved' | 'worsened' | 'changed' }[] = [];
     newMap.forEach((curr, name) => {
@@ -956,8 +974,9 @@ function ComparisonSheet({
       const d = parseRecordDate(u).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       (u.ai_extracted_data?.biomarkers || []).forEach((b: any) => {
         if (typeof b.value !== 'number') return;
+        const normalized = normalizeBodyCompValue(b.name, b.value, b.unit || '');
         if (!markerValues.has(b.name)) markerValues.set(b.name, []);
-        markerValues.get(b.name)!.push({ date: d, value: b.value, unit: b.unit });
+        markerValues.get(b.name)!.push({ date: d, value: normalized.value, unit: normalized.unit });
       });
     });
     // Keep only markers present in every upload with numeric values
@@ -1030,10 +1049,13 @@ ${summaries}`;
       const raw = data?.analysis || data?.response || '';
       // Try to parse as JSON, fallback to legacy string
       try {
-        const parsed = JSON.parse(typeof raw === 'string' ? raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim() : JSON.stringify(raw));
+        let cleaned = typeof raw === 'string' ? raw : JSON.stringify(raw);
+        // Strip markdown code fences robustly (handles ```json, ``` with various whitespace)
+        cleaned = cleaned.replace(/^\s*```[a-z]*\s*\n?/gi, '').replace(/\n?\s*```\s*$/gi, '').trim();
+        const parsed = JSON.parse(cleaned);
         setAiResult(JSON.stringify(parsed));
       } catch {
-        setAiResult(raw);
+        setAiResult(typeof raw === 'string' ? raw : JSON.stringify(raw));
       }
     } catch (e: any) {
       toast.error(e.message || 'Failed to generate comparison');
