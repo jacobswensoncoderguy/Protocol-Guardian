@@ -1250,8 +1250,8 @@ ${summaries}`;
                         <span className="text-[8px] text-muted-foreground">{marker.unit}</span>
                       </div>
                       
-                      {/* Sparkline */}
-                      <MiniSparkline values={values} width={100} height={22} className="w-full" />
+                      {/* Sparkline with reference range band */}
+                      <MiniSparkline values={values} width={100} height={22} className="w-full" refLow={refRange?.low} refHigh={refRange?.high} />
 
                       {/* Reference range indicator */}
                       {refRange && (
