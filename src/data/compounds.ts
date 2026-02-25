@@ -208,10 +208,14 @@ export function getDaysRemaining(
   compound: Compound,
   compliance?: { checkedDoses: number; firstCheckDate: string | null; lastCheckDate: string | null }
 ): number {
-  const dosePerActiveDay = compound.dosePerUse * compound.dosesPerDay;
-  if (dosePerActiveDay === 0) return 999;
+  // Use getNormalizedDailyConsumption which correctly converts weight-based doses
+  // to container units (pills) for oral/powder compounds
+  const normalizedDaily = getNormalizedDailyConsumption(compound);
+  if (normalizedDaily <= 0) return 999;
   const daysPerWeek = Math.min(7, Math.max(0, compound.daysPerWeek || 0));
   if (daysPerWeek === 0) return 999;
+
+  const dosePerActiveDay = normalizedDaily * (7 / daysPerWeek);
 
   const effectiveQty = getEffectiveQuantity(compound, compliance);
   const totalSupply = totalSupplyInDoseUnits(compound, effectiveQty);
