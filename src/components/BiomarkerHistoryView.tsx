@@ -76,6 +76,121 @@ const CATEGORY_LABELS: Record<string, string> = {
   other: 'Lab Results',
 };
 
+type AiComparisonInsight = {
+  category: string;
+  title: string;
+  description: string;
+  metric?: string;
+  severity: string;
+};
+
+type ParsedAiComparison = {
+  summary?: string;
+  insights?: AiComparisonInsight[];
+};
+
+function parseLabComparisonInsights(rawInput: unknown): ParsedAiComparison | null {
+  if (rawInput === null || rawInput === undefined) return null;
+
+  const toText = (val: unknown): string => {
+    if (typeof val === 'string') return val;
+    try { return JSON.stringify(val); } catch { return String(val); }
+  };
+
+  const unescapeJsonString = (val: string) => {
+    let out = val.trim();
+    if (out.startsWith('"') && out.endsWith('"')) {
+      try {
+        const parsed = JSON.parse(out);
+        if (typeof parsed === 'string') out = parsed;
+      } catch {
+        // noop
+      }
+    }
+    return out.replace(/\\n/g, '\n').replace(/\\r/g, '\r').replace(/\\t/g, '\t').replace(/\\"/g, '"');
+  };
+
+  const tryParseWithRepair = (source: string): ParsedAiComparison | null => {
+    const candidates = [source];
+    const lastBrace = source.lastIndexOf('}');
+    if (lastBrace > 0) candidates.push(source.slice(0, lastBrace + 1));
+
+    for (const candidate of candidates) {
+      try {
+        const p = JSON.parse(candidate);
+        if (p?.summary || (Array.isArray(p?.insights) && p.insights.length > 0)) return p;
+      } catch {
+        // try repair below
+      }
+
+      let openBraces = 0;
+      let openBrackets = 0;
+      let inString = false;
+      let escape = false;
+      for (const ch of candidate) {
+        if (escape) { escape = false; continue; }
+        if (ch === '\\' && inString) { escape = true; continue; }
+        if (ch === '"') { inString = !inString; continue; }
+        if (inString) continue;
+        if (ch === '{') openBraces++;
+        else if (ch === '}') openBraces--;
+        else if (ch === '[') openBrackets++;
+        else if (ch === ']') openBrackets--;
+      }
+
+      let repaired = candidate
+        .replace(/,\s*([}\]])/g, '$1')
+        .replace(/\u0000/g, '')
+        .trim();
+      if (inString) repaired += '"';
+      repaired = repaired.replace(/,\s*$/, '');
+      for (let i = 0; i < openBrackets; i++) repaired += ']';
+      for (let i = 0; i < openBraces; i++) repaired += '}';
+
+      try {
+        const p = JSON.parse(repaired);
+        if (p?.summary || (Array.isArray(p?.insights) && p.insights.length > 0)) return p;
+      } catch {
+        // continue
+      }
+    }
+
+    return null;
+  };
+
+  const raw = unescapeJsonString(toText(rawInput));
+  const cleaned = raw
+    .split('\n')
+    .filter((line) => !/^\s*```/.test(line))
+    .join('\n')
+    .trim();
+  const firstBrace = cleaned.indexOf('{');
+  if (firstBrace === -1) return null;
+
+  const parsed = tryParseWithRepair(cleaned.slice(firstBrace));
+  if (parsed) return parsed;
+
+  // Last-resort salvage for truncated payloads: recover summary and any complete insight tuples.
+  const summaryMatch = cleaned.match(/"summary"\s*:\s*"([\s\S]*?)(?<!\\)"/);
+  const summary = summaryMatch?.[1]?.replace(/\\"/g, '"').replace(/\\n/g, ' ').trim();
+
+  const insightRegex = /"category"\s*:\s*"(.*?)"[\s\S]*?"title"\s*:\s*"(.*?)"[\s\S]*?"description"\s*:\s*"(.*?)"[\s\S]*?(?:"metric"\s*:\s*"(.*?)")?[\s\S]*?(?:"severity"\s*:\s*"(.*?)")?/g;
+  const insights: AiComparisonInsight[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = insightRegex.exec(cleaned)) !== null && insights.length < 8) {
+    insights.push({
+      category: (match[1] || 'notable').replace(/\\"/g, '"').trim(),
+      title: (match[2] || 'Insight').replace(/\\"/g, '"').trim(),
+      description: (match[3] || '').replace(/\\"/g, '"').replace(/\\n/g, ' ').trim(),
+      metric: (match[4] || '').replace(/\\"/g, '"').trim() || undefined,
+      severity: (match[5] || 'neutral').replace(/\\"/g, '"').trim(),
+    });
+  }
+
+  if (summary || insights.length > 0) return { summary, insights };
+  return null;
+}
+
 function parseRecordDate(upload: UploadRecord): Date {
   const raw = upload.reading_date || upload.created_at;
   const d = new Date(raw);
@@ -1052,48 +1167,8 @@ ${summaries}`;
       if (typeof raw === 'object' && raw !== null && (raw as any).insights) {
         setAiResult(JSON.stringify(raw));
       } else {
-        const rawStr = typeof raw === 'string' ? raw : JSON.stringify(raw);
-        // Strip every line that is purely backtick fences
-        const strippedLines = rawStr.split('\n').filter((l: string) => !/^\s*```/.test(l));
-        let cleaned = strippedLines.join('\n').trim();
-        const fb = cleaned.indexOf('{');
-        if (fb !== -1) {
-          cleaned = cleaned.slice(fb);
-          // Attempt repair of truncated JSON by closing unclosed brackets
-          const tryParseOrRepair = (s: string): any => {
-            try { return JSON.parse(s); } catch { /* continue */ }
-            // Count unclosed brackets and braces, try to close them
-            let openBraces = 0, openBrackets = 0;
-            let inString = false, escape = false;
-            for (const ch of s) {
-              if (escape) { escape = false; continue; }
-              if (ch === '\\' && inString) { escape = true; continue; }
-              if (ch === '"') { inString = !inString; continue; }
-              if (inString) continue;
-              if (ch === '{') openBraces++;
-              else if (ch === '}') openBraces--;
-              else if (ch === '[') openBrackets++;
-              else if (ch === ']') openBrackets--;
-            }
-            // If we're inside a string (truncated mid-value), close it
-            let repaired = s;
-            if (inString) repaired += '"';
-            // Remove trailing comma before closing
-            repaired = repaired.replace(/,\s*$/, '');
-            // Close any unclosed brackets/braces
-            for (let i = 0; i < openBrackets; i++) repaired += ']';
-            for (let i = 0; i < openBraces; i++) repaired += '}';
-            try { return JSON.parse(repaired); } catch { return null; }
-          };
-          const parsed = tryParseOrRepair(cleaned);
-          if (parsed?.insights || parsed?.summary) {
-            setAiResult(JSON.stringify(parsed));
-          } else {
-            setAiResult(rawStr);
-          }
-        } else {
-          setAiResult(rawStr);
-        }
+        const parsed = parseLabComparisonInsights(raw);
+        setAiResult(parsed ? JSON.stringify(parsed) : (typeof raw === 'string' ? raw : JSON.stringify(raw)));
       }
     } catch (e: any) {
       toast.error(e.message || 'Failed to generate comparison');
@@ -1551,35 +1626,7 @@ ${summaries}`;
           )}
 
           {aiResult && !loading && (() => {
-            // Try to parse structured JSON response — aggressively strip code fences
-            let parsed: { summary?: string; insights?: { category: string; title: string; description: string; metric?: string; severity: string }[] } | null = null;
-             try {
-               const rLines = aiResult.split('\n').filter((l: string) => !/^\s*```/.test(l));
-               let cleaned = rLines.join('\n').trim();
-               const fb = cleaned.indexOf('{');
-               if (fb !== -1) {
-                 cleaned = cleaned.slice(fb);
-                 // Try direct parse first
-                 try { const p = JSON.parse(cleaned); if (p?.insights || p?.summary) parsed = p; } catch {
-                   // Repair truncated JSON
-                   let openBraces = 0, openBrackets = 0, inStr = false, esc = false;
-                   for (const ch of cleaned) {
-                     if (esc) { esc = false; continue; }
-                     if (ch === '\\' && inStr) { esc = true; continue; }
-                     if (ch === '"') { inStr = !inStr; continue; }
-                     if (inStr) continue;
-                     if (ch === '{') openBraces++; else if (ch === '}') openBraces--;
-                     else if (ch === '[') openBrackets++; else if (ch === ']') openBrackets--;
-                   }
-                   let repaired = cleaned;
-                   if (inStr) repaired += '"';
-                   repaired = repaired.replace(/,\s*$/, '');
-                   for (let i = 0; i < openBrackets; i++) repaired += ']';
-                   for (let i = 0; i < openBraces; i++) repaired += '}';
-                   try { const p = JSON.parse(repaired); if (p?.insights || p?.summary) parsed = p; } catch { /* fallback */ }
-                 }
-               }
-             } catch { /* fallback below */ }
+            const parsed = parseLabComparisonInsights(aiResult);
 
             const INSIGHT_STYLES: Record<string, { icon: typeof TrendingUp; bgClass: string; borderColor: string; iconColor: string }> = {
               trend: { icon: TrendingUp, bgClass: 'bg-primary/5', borderColor: 'hsl(var(--primary) / 0.2)', iconColor: 'hsl(var(--primary))' },
