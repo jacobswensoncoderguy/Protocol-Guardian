@@ -906,11 +906,15 @@ function ComparisonSheet({
   allUploads,
   onClose,
   userId,
+  userGender,
+  userAge,
 }: {
   uploads: UploadRecord[];
   allUploads: UploadRecord[];
   onClose: () => void;
   userId?: string;
+  userGender?: string | null;
+  userAge?: number | null;
 }) {
   const [loading, setLoading] = useState(false);
   const [aiResult, setAiResult] = useState<string>('');
@@ -918,6 +922,7 @@ function ComparisonSheet({
   const [saveLabel, setSaveLabel] = useState('');
   const [showSaveForm, setShowSaveForm] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [showNormalized, setShowNormalized] = useState(false);
 
   // Key Changes diff: markers that moved normal↔flagged between first and last upload
   const keyChanges = useMemo(() => {
@@ -1129,12 +1134,83 @@ ${summaries}`;
 
           {/* ── Marker Trend Tiles ── */}
           {sharedMarkerTrends.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 px-1">
-                <Activity className="w-3 h-3 text-primary" />
-                Marker Trends
-                <span className="text-[9px] font-normal text-muted-foreground/60">across {uploads.length} uploads</span>
-              </p>
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between px-1">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <Activity className="w-3 h-3 text-primary" />
+                  Marker Trends
+                  <span className="text-[9px] font-normal text-muted-foreground/60">across {uploads.length} uploads</span>
+                </p>
+                {sharedMarkerTrends.length >= 2 && (
+                  <button
+                    onClick={() => setShowNormalized(!showNormalized)}
+                    className={cn(
+                      "text-[9px] px-2 py-1 rounded-lg border font-semibold transition-colors",
+                      showNormalized
+                        ? "bg-primary/10 text-primary border-primary/20"
+                        : "bg-secondary/30 text-muted-foreground border-border/50 hover:bg-secondary/50"
+                    )}
+                  >
+                    {showNormalized ? '% Normalized' : 'Normalize %'}
+                  </button>
+                )}
+              </div>
+
+              {/* Normalized overlay chart */}
+              {showNormalized && (() => {
+                const HUE_STEPS = [200, 150, 30, 270, 0, 60];
+                const dateSet = new Set<string>();
+                sharedMarkerTrends.forEach(m => m.points.forEach(p => dateSet.add(p.date)));
+                const dates = Array.from(dateSet);
+                const firstValues: Record<string, number> = {};
+                sharedMarkerTrends.forEach(m => { if (m.points[0]) firstValues[m.name] = m.points[0].value; });
+                const mergedData = dates.map(date => {
+                  const row: Record<string, any> = { date };
+                  sharedMarkerTrends.forEach(m => {
+                    const pt = m.points.find(p => p.date === date);
+                    if (pt && firstValues[m.name]) row[m.name] = ((pt.value / firstValues[m.name]) * 100) - 100;
+                  });
+                  return row;
+                });
+                return (
+                  <div className="rounded-xl border border-border/30 bg-secondary/10 p-3 space-y-2">
+                    <p className="text-[9px] text-muted-foreground">% change from first reading — all markers on same scale</p>
+                    <div className="h-44">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={mergedData} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.3)" />
+                          <XAxis dataKey="date" tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} />
+                          <YAxis tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} width={35} tickFormatter={(v: number) => `${v > 0 ? '+' : ''}${v.toFixed(0)}%`} />
+                          <RechartsTooltip
+                            contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '11px', color: 'hsl(var(--foreground))' }}
+                            formatter={(value: number, name: string) => [`${value > 0 ? '+' : ''}${value.toFixed(1)}%`, name]}
+                          />
+                          {sharedMarkerTrends.map((marker, idx) => {
+                            const hue = HUE_STEPS[idx % HUE_STEPS.length];
+                            const color = `hsl(${hue}, 80%, 55%)`;
+                            return (
+                              <Line key={marker.name} dataKey={marker.name} stroke={color} strokeWidth={2} dot={{ r: 3, fill: color, strokeWidth: 0 }} activeDot={{ r: 5 }} type="monotone" connectNulls />
+                            );
+                          })}
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {sharedMarkerTrends.map((marker, idx) => {
+                        const hue = HUE_STEPS[idx % HUE_STEPS.length];
+                        return (
+                          <div key={marker.name} className="flex items-center gap-1">
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: `hsl(${hue}, 80%, 55%)` }} />
+                            <span className="text-[9px] text-muted-foreground">{marker.name}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Individual marker tiles */}
               <div className="grid grid-cols-2 gap-2">
                 {sharedMarkerTrends.map((marker, idx) => {
                   const HUE_STEPS = [200, 150, 30, 270, 0, 60];
@@ -1148,6 +1224,8 @@ ${summaries}`;
                   const isUp = delta > 0;
                   const isFlat = Math.abs(delta) < 0.01;
                   const DirIcon = isFlat ? Minus : isUp ? ArrowUpRight : ArrowDownRight;
+                  const refRange = getReferenceRange(marker.name, userGender, userAge);
+                  const lastInRange = refRange ? last >= refRange.low && last <= refRange.high : null;
                   
                   return (
                     <div
@@ -1174,6 +1252,19 @@ ${summaries}`;
                       
                       {/* Sparkline */}
                       <MiniSparkline values={values} width={100} height={22} className="w-full" />
+
+                      {/* Reference range indicator */}
+                      {refRange && (
+                        <div className="flex items-center gap-1">
+                          <div className={cn(
+                            "w-1.5 h-1.5 rounded-full flex-shrink-0",
+                            lastInRange ? "bg-emerald-400" : "bg-amber-400"
+                          )} />
+                          <span className="text-[8px] text-muted-foreground font-mono">
+                            Ref: {refRange.low}–{refRange.high} {refRange.unit}
+                          </span>
+                        </div>
+                      )}
                       
                       {/* Footer: date range + % change */}
                       <div className="flex items-center justify-between">
@@ -2300,6 +2391,8 @@ export default function BiomarkerHistoryView({
           allUploads={uploads}
           onClose={() => { setShowComparisonSheet(false); setCompareMode(false); setCompareModeCategory(null); setSelectedIds(new Set()); }}
           userId={userId}
+          userGender={profile?.gender}
+          userAge={profile?.age}
         />
       )}
     </div>
