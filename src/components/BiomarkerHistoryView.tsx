@@ -88,6 +88,29 @@ type ParsedAiComparison = {
   summary?: string;
   insights?: AiComparisonInsight[];
 };
+/**
+ * Convert a reference range to match the marker's display unit.
+ * E.g., if ref range is in kg but marker values are in lbs, convert bounds.
+ */
+function adjustRefRangeToUnit(refRange: { low: number; high: number; unit: string } | null, markerUnit: string): { low: number; high: number; unit: string } | null {
+  if (!refRange) return null;
+  const ru = refRange.unit.toLowerCase().replace(/\s/g, '');
+  const mu = markerUnit.toLowerCase().replace(/\s/g, '');
+  // kg → lbs
+  if ((ru === 'kg') && (mu === 'lbs' || mu === 'lb')) {
+    return { low: +(refRange.low * 2.20462).toFixed(1), high: +(refRange.high * 2.20462).toFixed(1), unit: markerUnit };
+  }
+  // lbs → kg
+  if ((ru === 'lbs' || ru === 'lb') && ru !== mu && mu === 'kg') {
+    return { low: +(refRange.low / 2.20462).toFixed(1), high: +(refRange.high / 2.20462).toFixed(1), unit: markerUnit };
+  }
+  // g → lbs (large body comp values stored in grams)
+  if (ru === 'g' && (mu === 'lbs' || mu === 'lb')) {
+    return { low: +(refRange.low / 453.592).toFixed(1), high: +(refRange.high / 453.592).toFixed(1), unit: markerUnit };
+  }
+  return refRange;
+}
+
 
 function parseLabComparisonInsights(rawInput: unknown): ParsedAiComparison | null {
   if (rawInput === null || rawInput === undefined) return null;
@@ -1359,7 +1382,8 @@ ${summaries}`;
                   const isUp = delta > 0;
                   const isFlat = Math.abs(delta) < 0.01;
                   const DirIcon = isFlat ? Minus : isUp ? ArrowUpRight : ArrowDownRight;
-                  const refRange = getReferenceRange(marker.name, userGender, userAge);
+                  const rawRefRange = getReferenceRange(marker.name, userGender, userAge);
+                  const refRange = adjustRefRangeToUnit(rawRefRange, marker.unit);
                   const lastInRange = refRange ? last >= refRange.low && last <= refRange.high : null;
                   const isSelected = selectedTileIdx === idx;
                   
@@ -1442,7 +1466,8 @@ ${summaries}`;
                 const min = Math.min(...values);
                 const max = Math.max(...values);
                 const avg = values.reduce((a, b) => a + b, 0) / values.length;
-                const refRange = getReferenceRange(marker.name, userGender, userAge);
+                const rawRefRange = getReferenceRange(marker.name, userGender, userAge);
+                const refRange = adjustRefRangeToUnit(rawRefRange, marker.unit);
                 const lastInRange = refRange ? last >= refRange.low && last <= refRange.high : null;
 
                 // Build chart data

@@ -113,15 +113,21 @@ export function getEffectiveDailyConsumption(compound: Compound, compliance?: Co
 export function getDaysRemainingWithCycling(compound: Compound, compliance?: ComplianceInfo): number {
   if (isPaused(compound)) return 999;
 
-  const dosePerActiveDay = compound.dosePerUse * compound.dosesPerDay;
-  if (dosePerActiveDay === 0) return 999;
+  // Use getNormalizedDailyConsumption which correctly converts weight-based doses
+  // to container units (pills) for oral/powder compounds
+  const normalizedDaily = getNormalizedDailyConsumption(compound); // avg daily in container units
+  if (normalizedDaily <= 0) return 999;
+
   const daysPerWeek = Math.min(7, Math.max(0, compound.daysPerWeek || 0));
   if (daysPerWeek === 0) return 999;
+
+  // dosePerActiveDay in container units (undo the weekly averaging from getNormalizedDailyConsumption)
+  const dosePerActiveDay = normalizedDaily * (7 / daysPerWeek);
 
   // Use effective quantity (adjusted for actual usage via compliance data)
   const effectiveQty = getEffectiveQuantity(compound, compliance);
 
-  // Total supply in raw dose units
+  // Total supply in the same container units as normalizedDaily
   const totalSupply = compound.category === 'peptide' && compound.bacstatPerVial
     ? effectiveQty * compound.bacstatPerVial
     : compound.category === 'injectable-oil' && compound.vialSizeMl
