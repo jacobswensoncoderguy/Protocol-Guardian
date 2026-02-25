@@ -206,6 +206,34 @@ const RANGES: Record<string, RangeEntry[]> = {
     { gender: 'male', range: { low: 1.0, high: 1.4, unit: 'g/cm²' } },
     { gender: 'female', range: { low: 0.9, high: 1.3, unit: 'g/cm²' } },
   ],
+  // ─── Additional DEXA / Body Comp ──────────────────────────────
+  bmi: [{ range: { low: 18.5, high: 24.9, unit: 'kg/m²' } }],
+  bodymassindex: [{ range: { low: 18.5, high: 24.9, unit: 'kg/m²' } }],
+  leanmass: [
+    { gender: 'male', range: { low: 56, high: 80, unit: 'kg', label: 'Varies by height' } },
+    { gender: 'female', range: { low: 36, high: 56, unit: 'kg', label: 'Varies by height' } },
+  ],
+  leanbodymass: [
+    { gender: 'male', range: { low: 56, high: 80, unit: 'kg', label: 'Varies by height' } },
+    { gender: 'female', range: { low: 36, high: 56, unit: 'kg', label: 'Varies by height' } },
+  ],
+  fatmass: [
+    { gender: 'male', range: { low: 6, high: 20, unit: 'kg' } },
+    { gender: 'female', range: { low: 12, high: 28, unit: 'kg' } },
+  ],
+  androidgynoidratio: [
+    { gender: 'male', range: { low: 0.8, high: 1.0, unit: '' } },
+    { gender: 'female', range: { low: 0.6, high: 0.8, unit: '' } },
+  ],
+  agratio: [
+    { gender: 'male', range: { low: 0.8, high: 1.0, unit: '' } },
+    { gender: 'female', range: { low: 0.6, high: 0.8, unit: '' } },
+  ],
+  vat: [{ range: { low: 0, high: 100, unit: 'cm²', label: '<100 optimal' } }],
+  visceraladipsetissue: [{ range: { low: 0, high: 100, unit: 'cm²', label: '<100 optimal' } }],
+  visceralfat: [{ range: { low: 0, high: 100, unit: 'cm²', label: '<100 optimal' } }],
+  tscore: [{ range: { low: -1.0, high: 2.0, unit: '', label: '>-1 normal' } }],
+  zscore: [{ range: { low: -2.0, high: 2.0, unit: '' } }],
 };
 
 /**
