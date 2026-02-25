@@ -923,6 +923,7 @@ function ComparisonSheet({
   const [showSaveForm, setShowSaveForm] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showNormalized, setShowNormalized] = useState(false);
+  const [selectedTileIdx, setSelectedTileIdx] = useState<number | null>(null);
 
   // Normalize body composition values that appear to be in grams but labeled as lbs/kg
   const normalizeBodyCompValue = (name: string, value: number, unit: string): { value: number; unit: string } => {
@@ -1047,15 +1048,35 @@ ${summaries}`;
       if (data?.status === 429) throw new Error('Rate limit reached. Please try again in a moment.');
       if (data?.status === 402) throw new Error('AI usage limit reached. Add credits in workspace settings.');
       const raw = data?.analysis || data?.response || '';
-      // Try to parse as JSON, fallback to legacy string
+      // Try to parse as JSON — strip ALL code fences aggressively
       try {
         let cleaned = typeof raw === 'string' ? raw : JSON.stringify(raw);
-        // Strip markdown code fences robustly (handles ```json, ``` with various whitespace)
-        cleaned = cleaned.replace(/^\s*```[a-z]*\s*\n?/gi, '').replace(/\n?\s*```\s*$/gi, '').trim();
+        // Remove all markdown code fences (```json, ```, etc.) anywhere in the string
+        cleaned = cleaned.replace(/```[a-z]*\s*/gi, '').replace(/```/g, '').trim();
+        // If it still doesn't start with {, try to find the first { and last }
+        if (!cleaned.startsWith('{')) {
+          const firstBrace = cleaned.indexOf('{');
+          const lastBrace = cleaned.lastIndexOf('}');
+          if (firstBrace !== -1 && lastBrace > firstBrace) {
+            cleaned = cleaned.slice(firstBrace, lastBrace + 1);
+          }
+        }
         const parsed = JSON.parse(cleaned);
         setAiResult(JSON.stringify(parsed));
       } catch {
-        setAiResult(typeof raw === 'string' ? raw : JSON.stringify(raw));
+        // Last resort: try to find JSON object in the raw string
+        try {
+          const rawStr = typeof raw === 'string' ? raw : JSON.stringify(raw);
+          const match = rawStr.match(/\{[\s\S]*"insights"[\s\S]*\}/);
+          if (match) {
+            const parsed = JSON.parse(match[0]);
+            setAiResult(JSON.stringify(parsed));
+          } else {
+            setAiResult(rawStr);
+          }
+        } catch {
+          setAiResult(typeof raw === 'string' ? raw : JSON.stringify(raw));
+        }
       }
     } catch (e: any) {
       toast.error(e.message || 'Failed to generate comparison');
@@ -1248,12 +1269,17 @@ ${summaries}`;
                   const DirIcon = isFlat ? Minus : isUp ? ArrowUpRight : ArrowDownRight;
                   const refRange = getReferenceRange(marker.name, userGender, userAge);
                   const lastInRange = refRange ? last >= refRange.low && last <= refRange.high : null;
+                  const isSelected = selectedTileIdx === idx;
                   
                   return (
-                    <div
+                    <button
                       key={marker.name}
-                      className="rounded-xl border border-border/30 p-2.5 space-y-1.5 relative overflow-hidden"
-                      style={{ backgroundColor: `hsl(${hue}, 80%, 55%, 0.04)`, borderColor: `hsl(${hue}, 80%, 55%, 0.15)` }}
+                      onClick={() => setSelectedTileIdx(isSelected ? null : idx)}
+                      className={cn(
+                        "rounded-xl border p-2.5 space-y-1.5 relative overflow-hidden text-left transition-all",
+                        isSelected ? "ring-1 ring-primary/50" : "hover:brightness-110"
+                      )}
+                      style={{ backgroundColor: `hsl(${hue}, 80%, 55%, 0.04)`, borderColor: isSelected ? color : `hsl(${hue}, 80%, 55%, 0.15)` }}
                     >
                       {/* Accent stripe */}
                       <div className="absolute top-0 left-0 w-full h-0.5" style={{ backgroundColor: color }} />
@@ -1305,10 +1331,172 @@ ${summaries}`;
                           </span>
                         )}
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
+
+              {/* ── Expanded Tile Detail Drawer ── */}
+              {selectedTileIdx !== null && sharedMarkerTrends[selectedTileIdx] && (() => {
+                const marker = sharedMarkerTrends[selectedTileIdx];
+                const HUE_STEPS_D = [200, 150, 30, 270, 0, 60];
+                const hue = HUE_STEPS_D[selectedTileIdx % HUE_STEPS_D.length];
+                const color = `hsl(${hue}, 80%, 55%)`;
+                const values = marker.points.map(p => p.value);
+                const first = values[0];
+                const last = values[values.length - 1];
+                const delta = last - first;
+                const pctChange = first !== 0 ? ((delta / Math.abs(first)) * 100) : 0;
+                const min = Math.min(...values);
+                const max = Math.max(...values);
+                const avg = values.reduce((a, b) => a + b, 0) / values.length;
+                const refRange = getReferenceRange(marker.name, userGender, userAge);
+                const lastInRange = refRange ? last >= refRange.low && last <= refRange.high : null;
+
+                // Build chart data
+                const chartData = marker.points.map(p => ({
+                  date: p.date,
+                  value: p.value,
+                }));
+
+                // Determine progress context
+                const isImproving = refRange
+                  ? (Math.abs(last - ((refRange.low + refRange.high) / 2)) < Math.abs(first - ((refRange.low + refRange.high) / 2)))
+                  : null;
+
+                return (
+                  <div className="rounded-xl border border-border/30 bg-card p-3 space-y-3 animate-in slide-in-from-top-2 duration-200">
+                    {/* Header */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
+                        <span className="text-xs font-bold text-foreground">{marker.name}</span>
+                        <span className="text-[9px] text-muted-foreground">({marker.unit})</span>
+                      </div>
+                      <button onClick={() => setSelectedTileIdx(null)} className="p-1 rounded-md hover:bg-secondary/40 text-muted-foreground hover:text-foreground transition-colors">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    {/* Full trend chart */}
+                    <div className="h-36">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={chartData} margin={{ top: 8, right: 8, bottom: 4, left: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.3)" />
+                          <XAxis dataKey="date" tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} />
+                          <YAxis
+                            tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
+                            tickLine={false} axisLine={false} width={40}
+                            domain={[
+                              (dataMin: number) => Math.min(dataMin, refRange?.low ?? dataMin) * 0.95,
+                              (dataMax: number) => Math.max(dataMax, refRange?.high ?? dataMax) * 1.05,
+                            ]}
+                          />
+                          {/* Reference range band */}
+                          {refRange && (
+                            <ReferenceArea y1={refRange.low} y2={refRange.high} fill="hsl(142, 70%, 50%)" fillOpacity={0.08} />
+                          )}
+                          <RechartsTooltip
+                            contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '11px', color: 'hsl(var(--foreground))' }}
+                            formatter={(value: number) => [`${value.toFixed(1)} ${marker.unit}`, marker.name]}
+                          />
+                          <Line type="monotone" dataKey="value" stroke={color} strokeWidth={2.5} dot={{ r: 4, fill: color, strokeWidth: 0 }} activeDot={{ r: 6 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    {/* Stats row */}
+                    <div className="grid grid-cols-4 gap-2">
+                      {[
+                        { label: 'Start', val: first.toFixed(1) },
+                        { label: 'Current', val: last.toFixed(1) },
+                        { label: 'Min', val: min.toFixed(1) },
+                        { label: 'Max', val: max.toFixed(1) },
+                      ].map(s => (
+                        <div key={s.label} className="text-center">
+                          <p className="text-[8px] text-muted-foreground uppercase tracking-wider">{s.label}</p>
+                          <p className="text-[11px] font-bold font-mono text-foreground">{s.val}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Context info boxes */}
+                    <div className="space-y-1.5">
+                      {/* Change summary */}
+                      <div className={cn(
+                        "rounded-lg px-3 py-2 flex items-start gap-2 border",
+                        pctChange > 0 ? "bg-emerald-500/5 border-emerald-500/15" : pctChange < 0 ? "bg-amber-500/5 border-amber-500/15" : "bg-secondary/20 border-border/30"
+                      )}>
+                        {pctChange > 0 ? <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400 mt-0.5 flex-shrink-0" /> :
+                         pctChange < 0 ? <ArrowDownRight className="w-3.5 h-3.5 text-amber-400 mt-0.5 flex-shrink-0" /> :
+                         <Minus className="w-3.5 h-3.5 text-muted-foreground mt-0.5 flex-shrink-0" />}
+                        <div>
+                          <p className="text-[10px] font-semibold text-foreground">
+                            {Math.abs(pctChange).toFixed(1)}% {pctChange > 0 ? 'increase' : pctChange < 0 ? 'decrease' : 'unchanged'}
+                          </p>
+                          <p className="text-[9px] text-muted-foreground">
+                            {first.toFixed(1)} → {last.toFixed(1)} {marker.unit} across {marker.points.length} readings
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Reference range context */}
+                      {refRange && (
+                        <div className={cn(
+                          "rounded-lg px-3 py-2 flex items-start gap-2 border",
+                          lastInRange ? "bg-emerald-500/5 border-emerald-500/15" : "bg-destructive/5 border-destructive/15"
+                        )}>
+                          <Target className={cn("w-3.5 h-3.5 mt-0.5 flex-shrink-0", lastInRange ? "text-emerald-400" : "text-destructive")} />
+                          <div>
+                            <p className="text-[10px] font-semibold text-foreground">
+                              {lastInRange ? 'Within reference range' : 'Outside reference range'}
+                            </p>
+                            <p className="text-[9px] text-muted-foreground">
+                              Target: {refRange.low}–{refRange.high} {refRange.unit}
+                              {isImproving !== null && (
+                                <> · {isImproving ? 'Trending toward target ✓' : 'Moving away from target'}</>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Individual readings table */}
+                      <div className="rounded-lg bg-secondary/10 border border-border/20 overflow-hidden">
+                        <div className="px-2.5 py-1.5 border-b border-border/20">
+                          <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">All Readings</p>
+                        </div>
+                        <div className="divide-y divide-border/10">
+                          {marker.points.map((pt, i) => {
+                            const prev = i > 0 ? marker.points[i - 1].value : null;
+                            const ptDelta = prev !== null ? pt.value - prev : null;
+                            const ptPct = prev !== null && prev !== 0 ? ((ptDelta! / Math.abs(prev)) * 100) : null;
+                            const inRange = refRange ? pt.value >= refRange.low && pt.value <= refRange.high : null;
+                            return (
+                              <div key={i} className="flex items-center justify-between px-2.5 py-1.5">
+                                <div className="flex items-center gap-1.5">
+                                  {inRange !== null && (
+                                    <div className={cn("w-1.5 h-1.5 rounded-full", inRange ? "bg-emerald-400" : "bg-amber-400")} />
+                                  )}
+                                  <span className="text-[10px] text-muted-foreground">{pt.date}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[11px] font-bold font-mono text-foreground">{pt.value.toFixed(1)}</span>
+                                  {ptPct !== null && (
+                                    <span className={cn("text-[9px] font-mono font-semibold", ptPct > 0 ? "text-emerald-400" : ptPct < 0 ? "text-amber-400" : "text-muted-foreground")}>
+                                      {ptPct > 0 ? '+' : ''}{ptPct.toFixed(1)}%
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
 
@@ -1346,9 +1534,23 @@ ${summaries}`;
           )}
 
           {aiResult && !loading && (() => {
-            // Try to parse structured JSON response
+            // Try to parse structured JSON response — aggressively strip code fences
             let parsed: { summary?: string; insights?: { category: string; title: string; description: string; metric?: string; severity: string }[] } | null = null;
-            try { parsed = JSON.parse(aiResult); } catch { /* fallback below */ }
+            try {
+              let cleaned = aiResult.replace(/```[a-z]*\s*/gi, '').replace(/```/g, '').trim();
+              if (!cleaned.startsWith('{')) {
+                const fb = cleaned.indexOf('{');
+                const lb = cleaned.lastIndexOf('}');
+                if (fb !== -1 && lb > fb) cleaned = cleaned.slice(fb, lb + 1);
+              }
+              parsed = JSON.parse(cleaned);
+            } catch {
+              // Last resort: regex extract
+              try {
+                const m = aiResult.match(/\{[^{}]*"insights"\s*:\s*\[[\s\S]*?\]\s*\}/);
+                if (m) parsed = JSON.parse(m[0]);
+              } catch { /* fallback below */ }
+            }
 
             const INSIGHT_STYLES: Record<string, { icon: typeof TrendingUp; bgClass: string; borderColor: string; iconColor: string }> = {
               trend: { icon: TrendingUp, bgClass: 'bg-primary/5', borderColor: 'hsl(var(--primary) / 0.2)', iconColor: 'hsl(var(--primary))' },
