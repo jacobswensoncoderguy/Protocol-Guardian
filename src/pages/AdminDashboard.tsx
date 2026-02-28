@@ -9,6 +9,7 @@ import { ArrowLeft, Users, Activity, UserPlus, Clock, ChevronRight } from 'lucid
 import { useNavigate } from 'react-router-dom';
 import { format, formatDistanceToNow } from 'date-fns';
 import AdminUserDrawer from '@/components/AdminUserDrawer';
+import DauChart from '@/components/DauChart';
 
 interface UserProfile {
   user_id: string;
@@ -179,6 +180,9 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* DAU Chart */}
+        <DauChart sessions={sessions} />
 
         {/* Signup sources breakdown */}
         <Card>
