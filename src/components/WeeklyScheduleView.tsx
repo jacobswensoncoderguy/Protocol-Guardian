@@ -1043,17 +1043,23 @@ const DoseGroup = ({
           const isFlashing = flashedIds.has(dose.compoundId);
 
           // Score badges for this compound — prefer cached personalized, fall back to static
-          const rawScores = compound && !isInactive
-            ? (cachedScoresMap.get(compound.name) || getCompoundScores(compound.name, compound.category))
-            : null;
+          const cachedScores = compound && !isInactive ? cachedScoresMap.get(compound.name) : null;
+          const staticScores = compound && !isInactive ? getCompoundScores(compound.name, compound.category) : null;
+          const rawScores = cachedScores || staticScores;
 
-          // Coerce score values to numbers — AI sometimes returns text instead of a number
-          const toNum = (v: unknown): number => { const n = Number(v); return isNaN(n) ? 0 : n; };
+          // Coerce score values to numbers — AI sometimes returns text instead of a number.
+          // When cached value is text, fall back to the static score for that metric.
+          const safeNum = (cached: unknown, fallback: unknown): number => {
+            const n = Number(cached);
+            if (!isNaN(n)) return n;
+            const fb = Number(fallback);
+            return !isNaN(fb) ? fb : 0;
+          };
           const compoundScores = rawScores ? {
             ...rawScores,
-            bioavailability: toNum(rawScores.bioavailability),
-            efficacy: toNum(rawScores.efficacy),
-            effectiveness: toNum(rawScores.effectiveness),
+            bioavailability: safeNum(rawScores.bioavailability, staticScores?.bioavailability),
+            efficacy: safeNum(rawScores.efficacy, staticScores?.efficacy),
+            effectiveness: safeNum(rawScores.effectiveness, staticScores?.effectiveness),
           } : null;
 
           const doseScoreColor = (v: number) =>
