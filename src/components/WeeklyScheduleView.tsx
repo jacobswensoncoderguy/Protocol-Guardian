@@ -1043,9 +1043,18 @@ const DoseGroup = ({
           const isFlashing = flashedIds.has(dose.compoundId);
 
           // Score badges for this compound — prefer cached personalized, fall back to static
-          const compoundScores = compound && !isInactive
+          const rawScores = compound && !isInactive
             ? (cachedScoresMap.get(compound.name) || getCompoundScores(compound.name, compound.category))
             : null;
+
+          // Coerce score values to numbers — AI sometimes returns text instead of a number
+          const toNum = (v: unknown): number => { const n = Number(v); return isNaN(n) ? 0 : n; };
+          const compoundScores = rawScores ? {
+            ...rawScores,
+            bioavailability: toNum(rawScores.bioavailability),
+            efficacy: toNum(rawScores.efficacy),
+            effectiveness: toNum(rawScores.effectiveness),
+          } : null;
 
           const doseScoreColor = (v: number) =>
             v >= 80 ? 'text-status-good' : v >= 60 ? 'text-primary' : v >= 40 ? 'text-status-warning' : 'text-status-critical';
