@@ -60,6 +60,8 @@ function buildNeededItems(compounds: Compound[], horizon: Horizon, getCI?: Reord
 
   const activeCompounds = compounds.filter(c => {
     if (c.notes?.includes('[DORMANT]') || c.currentQuantity <= 0) return false;
+    // Skip compounds that will auto-pause or go dormant on depletion — no reorder needed
+    if (c.depletionAction === 'pause' || c.depletionAction === 'dormant') return false;
     const isPeptideOrOil = c.category === 'peptide' || c.category === 'injectable-oil';
     if (isPeptideOrOil) return true;
     return !!(c.purchaseDate && c.purchaseDate.trim() !== '');
@@ -629,6 +631,24 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
                               >
                                 <ShoppingCart className="w-2.5 h-2.5" />Google<ExternalLink className="w-2 h-2 opacity-60" />
                               </a>
+                            </div>
+                          )}
+                          {/* Depletion Action on reorder card */}
+                          {compound && (
+                            <div className="flex items-center gap-2 pt-2 border-t border-border/20">
+                              <span className="text-[9px] uppercase tracking-wider text-muted-foreground">On depletion:</span>
+                              <select
+                                value={compound.depletionAction || ''}
+                                onChange={e => {
+                                  const val = e.target.value || null;
+                                  onUpdateCompound(compound.id, { depletionAction: val as 'pause' | 'dormant' | null });
+                                }}
+                                className="bg-secondary border border-border/50 rounded px-2 py-0.5 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 cursor-pointer"
+                              >
+                                <option value="">Continue (reorder)</option>
+                                <option value="pause">Auto-pause</option>
+                                <option value="dormant">Go dormant</option>
+                              </select>
                             </div>
                           )}
                         </div>

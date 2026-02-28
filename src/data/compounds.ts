@@ -39,6 +39,7 @@ export interface Compound {
   weightPerUnit?: number; // mg per individual unit (pill, cap, tab, scoop) for non-injectable compounds
   weightUnit?: string; // display unit for weightPerUnit ('g', 'mg', 'mcg', 'oz', 'lb')
   complianceDoseOffset?: number; // check-offs already accounted for before current stock period
+  depletionAction?: 'pause' | 'dormant' | null; // action to take when stock runs out
 }
 
 /**

@@ -932,6 +932,7 @@ export type Database = {
           cycle_start_date: string | null
           cycling_note: string | null
           days_per_week: number
+          depletion_action: string | null
           dose_label: string
           dose_per_use: number
           doses_per_day: number
@@ -967,6 +968,7 @@ export type Database = {
           cycle_start_date?: string | null
           cycling_note?: string | null
           days_per_week: number
+          depletion_action?: string | null
           dose_label: string
           dose_per_use: number
           doses_per_day: number
@@ -1002,6 +1004,7 @@ export type Database = {
           cycle_start_date?: string | null
           cycling_note?: string | null
           days_per_week?: number
+          depletion_action?: string | null
           dose_label?: string
           dose_per_use?: number
           doses_per_day?: number

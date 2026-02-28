@@ -33,6 +33,7 @@ interface DbUserCompound {
   weight_unit: string | null;
   paused_at: string | null;
   pause_restart_date: string | null;
+  depletion_action: string | null;
 }
 
 function dbToCompound(row: DbUserCompound): Compound {
@@ -66,6 +67,7 @@ function dbToCompound(row: DbUserCompound): Compound {
     pausedAt: row.paused_at ?? undefined,
     pauseRestartDate: row.pause_restart_date ?? undefined,
     complianceDoseOffset: (row as any).compliance_dose_offset ?? 0,
+    depletionAction: (row.depletion_action as 'pause' | 'dormant' | null) ?? null,
   };
 }
 
@@ -163,6 +165,7 @@ export function useCompounds(userId: string | undefined) {
     if ('pausedAt' in updates) dbUpdates.paused_at = updates.pausedAt ?? null;
     if ('pauseRestartDate' in updates) dbUpdates.pause_restart_date = updates.pauseRestartDate ?? null;
     if (updates.complianceDoseOffset !== undefined) dbUpdates.compliance_dose_offset = updates.complianceDoseOffset;
+    if ('depletionAction' in updates) dbUpdates.depletion_action = updates.depletionAction ?? null;
 
     const { error } = await supabase
       .from('user_compounds')
