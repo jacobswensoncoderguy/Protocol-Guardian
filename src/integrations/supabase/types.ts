@@ -606,9 +606,13 @@ export type Database = {
           gender: string | null
           height_cm: number | null
           id: string
+          last_active_at: string | null
+          last_sign_in_at: string | null
           measurement_system: string
           referred_by: string | null
           reorder_horizon: number
+          sign_in_count: number
+          signup_source: string | null
           updated_at: string
           user_id: string
           weight_kg: number | null
@@ -624,9 +628,13 @@ export type Database = {
           gender?: string | null
           height_cm?: number | null
           id?: string
+          last_active_at?: string | null
+          last_sign_in_at?: string | null
           measurement_system?: string
           referred_by?: string | null
           reorder_horizon?: number
+          sign_in_count?: number
+          signup_source?: string | null
           updated_at?: string
           user_id: string
           weight_kg?: number | null
@@ -642,9 +650,13 @@ export type Database = {
           gender?: string | null
           height_cm?: number | null
           id?: string
+          last_active_at?: string | null
+          last_sign_in_at?: string | null
           measurement_system?: string
           referred_by?: string | null
           reorder_horizon?: number
+          sign_in_count?: number
+          signup_source?: string | null
           updated_at?: string
           user_id?: string
           weight_kg?: number | null
@@ -1331,6 +1343,10 @@ export type Database = {
           first_check_date: string
           last_check_date: string
         }[]
+      }
+      increment_sign_in_count: {
+        Args: { p_user_id: string }
+        Returns: undefined
       }
       is_household_linked: {
         Args: { user_a: string; user_b: string }
