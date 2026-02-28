@@ -5,7 +5,7 @@ import { getCycleStatus, getDaysRemainingWithCycling, isPaused } from '@/lib/cyc
 import { useCompliance } from '@/contexts/ComplianceContext';
 import { UserProtocol } from '@/hooks/useProtocols';
 import { CustomField, CustomFieldValue, PREDEFINED_FIELDS } from '@/hooks/useCustomFields';
-import { Pencil, Check, X, Trash2, Plus, ChevronDown, ChevronUp, GripVertical, Syringe, Clock, SortAsc, Moon as MoonIcon, Sun, Dumbbell, RefreshCcw, Package, PlusCircle, AlertTriangle, Pause, Play, Calendar, TrendingDown, Loader2 } from 'lucide-react';
+import { Pencil, Check, X, Trash2, Plus, ChevronDown, ChevronUp, GripVertical, Syringe, Clock, SortAsc, Moon as MoonIcon, Sun, Dumbbell, RefreshCcw, Package, PlusCircle, AlertTriangle, Pause, Play, Calendar, TrendingDown, Loader2, TrendingUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import ConfirmDialog from '@/components/ConfirmDialog';
@@ -15,6 +15,14 @@ import CycleTimelineBar from '@/components/CycleTimelineBar';
 import { getCompoundScores, getDeliveryLabel, CompoundScores } from '@/data/compoundScores';
 import { FlaskConical, Beaker, Target } from 'lucide-react';
 import CompoundScoreDrawer from '@/components/CompoundScoreDrawer';
+
+interface TitrationBadgeInfo {
+  currentStep: number;
+  totalSteps: number;
+  currentDose: number;
+  doseUnit: string;
+  status: 'active' | 'paused' | 'completed' | 'cancelled';
+}
 
 interface InventoryViewProps {
   compounds: Compound[];
@@ -34,6 +42,8 @@ interface InventoryViewProps {
   scrollToCompoundId?: string | null;
   /** Called after the scroll has been triggered so parent can clear the value */
   onScrollToCompoundDone?: () => void;
+  /** Titration info per compound ID */
+  titrationInfo?: Map<string, TitrationBadgeInfo>;
 }
 
 const categoryLabels: Record<string, string> = {
@@ -54,7 +64,7 @@ const categoryLabels: Record<string, string> = {
 
 const categoryOrder: string[] = ['peptide', 'injectable-oil', 'prescription', 'oral', 'powder', 'vitamin', 'holistic', 'adaptogen', 'nootropic', 'essential-oil', 'alternative-medicine', 'probiotic', 'topical'];
 
-const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCompound, protocols = [], toleranceLevel, onToleranceChange, customFields = [], customFieldValues = new Map(), onAddCustomField, onRemoveCustomField, onReorderCustomField, onSetCustomFieldValue, scrollToCompoundId, onScrollToCompoundDone }: InventoryViewProps) => {
+const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCompound, protocols = [], toleranceLevel, onToleranceChange, customFields = [], customFieldValues = new Map(), onAddCustomField, onRemoveCustomField, onReorderCustomField, onSetCustomFieldValue, scrollToCompoundId, onScrollToCompoundDone, titrationInfo }: InventoryViewProps) => {
   const { getDaysRemainingAdjusted, getEffectiveQtyAdjusted, getConsumedAdjusted, getComplianceInfo } = useCompliance();
   const [filter, setFilter] = useState<string>('all');
   const [showOffOnly, setShowOffOnly] = useState(false);
@@ -430,7 +440,7 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
                   className={`transition-all duration-500 rounded-lg ${highlightId === compound.id ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : ''}`}
                   {...(compoundIdx === 0 && groups.indexOf(group) === 0 ? { 'data-tour': 'compound-card' } : {})}
                 >
-                  <CompoundCard compound={compound} onUpdate={onUpdateCompound} onDelete={onDeleteCompound} customFields={customFields} customFieldValues={customFieldValues.get(compound.id) || new Map()} onAddCustomField={onAddCustomField} onRemoveCustomField={onRemoveCustomField} onReorderCustomField={onReorderCustomField} onSetCustomFieldValue={onSetCustomFieldValue} cachedScores={cachedScoresMap.get(compound.name)} onScoreDrawerClose={refreshCachedScores} />
+                  <CompoundCard compound={compound} onUpdate={onUpdateCompound} onDelete={onDeleteCompound} customFields={customFields} customFieldValues={customFieldValues.get(compound.id) || new Map()} onAddCustomField={onAddCustomField} onRemoveCustomField={onRemoveCustomField} onReorderCustomField={onReorderCustomField} onSetCustomFieldValue={onSetCustomFieldValue} cachedScores={cachedScoresMap.get(compound.name)} onScoreDrawerClose={refreshCachedScores} titrationBadge={titrationInfo?.get(compound.id)} />
                 </div>
               ))}
             </div>
@@ -476,7 +486,7 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
 
 // --- Compound Card ---
 
-const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customFieldValues = new Map(), onAddCustomField, onRemoveCustomField, onReorderCustomField, onSetCustomFieldValue, cachedScores, onScoreDrawerClose }: {
+const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customFieldValues = new Map(), onAddCustomField, onRemoveCustomField, onReorderCustomField, onSetCustomFieldValue, cachedScores, onScoreDrawerClose, titrationBadge }: {
   compound: Compound; onUpdate: (id: string, updates: Partial<Compound>) => void; onDelete?: (id: string) => void;
   customFields?: CustomField[]; customFieldValues?: Map<string, string>;
   onAddCustomField?: (field: Partial<CustomField>) => Promise<CustomField | null>;
@@ -485,6 +495,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
   onSetCustomFieldValue?: (compoundId: string, fieldId: string, value: string) => Promise<void>;
   cachedScores?: CompoundScores;
   onScoreDrawerClose?: () => void;
+  titrationBadge?: TitrationBadgeInfo;
 }) => {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmDormant, setConfirmDormant] = useState(false);
@@ -1003,6 +1014,13 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
             </span>
           );
         })()}
+        {/* Titration badge */}
+        {titrationBadge && titrationBadge.status === 'active' && (
+          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full inline-flex items-center gap-1 bg-primary/10 text-primary border border-primary/20" title={`Titration: Step ${titrationBadge.currentStep}/${titrationBadge.totalSteps} — ${titrationBadge.currentDose} ${titrationBadge.doseUnit}`}>
+            <TrendingUp className="w-2.5 h-2.5" />
+            {titrationBadge.currentStep}/{titrationBadge.totalSteps}
+          </span>
+        )}
       </div>
 
       {/* Compound Scores — bioavailability, efficacy, effectiveness */}

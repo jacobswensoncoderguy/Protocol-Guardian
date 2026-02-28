@@ -5,11 +5,14 @@ import { getCycleStatus } from '@/lib/cycling';
 import { getDaysRemainingWithCycling } from '@/lib/cycling';
 import { getStatus } from '@/data/compounds';
 import { useCompliance } from '@/contexts/ComplianceContext';
-import { Info, Clock, Pill, BarChart3 } from 'lucide-react';
+import { Info, Clock, Pill, BarChart3, TrendingUp } from 'lucide-react';
 import { getCompoundIcon } from '@/lib/iconMap';
 import CompoundAISection from '@/components/CompoundAISection';
 import CycleTimelineBar from '@/components/CycleTimelineBar';
 import { CompoundAnalysis } from '@/hooks/useProtocolAnalysis';
+import TitrationTimelineSection from '@/components/TitrationTimelineSection';
+import { TitrationSchedule } from '@/hooks/useTitration';
+import { Button } from '@/components/ui/button';
 
 interface CompoundInfoDrawerProps {
   compound: Compound | null;
@@ -18,6 +21,12 @@ interface CompoundInfoDrawerProps {
   compoundAnalysis?: CompoundAnalysis | null;
   compoundLoading?: boolean;
   onAnalyzeCompound?: (compoundId: string) => void;
+  titrationSchedule?: TitrationSchedule | null;
+  onConfirmTitrationStep?: (stepId: string, scheduleId: string) => void;
+  onSkipTitrationStep?: (stepId: string) => void;
+  onCancelTitration?: (scheduleId: string) => void;
+  onDeleteTitration?: (scheduleId: string) => void;
+  onAddTitration?: (compoundId: string) => void;
 }
 
 const TimelineViz = ({ events }: { events: TimelineEvent[] }) => {
@@ -127,7 +136,7 @@ function toBenefitKey(name: string): string {
   return stripped.replace(/\s+/g, '-');
 }
 
-const CompoundInfoDrawer = ({ compound, open, onOpenChange, compoundAnalysis, compoundLoading, onAnalyzeCompound }: CompoundInfoDrawerProps) => {
+const CompoundInfoDrawer = ({ compound, open, onOpenChange, compoundAnalysis, compoundLoading, onAnalyzeCompound, titrationSchedule, onConfirmTitrationStep, onSkipTitrationStep, onCancelTitration, onDeleteTitration, onAddTitration }: CompoundInfoDrawerProps) => {
   const { getDaysRemainingAdjusted } = useCompliance();
   if (!compound) return null;
 
@@ -243,6 +252,29 @@ const CompoundInfoDrawer = ({ compound, open, onOpenChange, compoundAnalysis, co
             </p>
           </div>
         )}
+
+        {/* Titration Schedule */}
+        {titrationSchedule && onConfirmTitrationStep && onSkipTitrationStep && onCancelTitration && onDeleteTitration ? (
+          <TitrationTimelineSection
+            schedule={titrationSchedule}
+            onConfirm={onConfirmTitrationStep}
+            onSkip={onSkipTitrationStep}
+            onCancel={onCancelTitration}
+            onDelete={onDeleteTitration}
+          />
+        ) : !titrationSchedule && onAddTitration ? (
+          <div className="mt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onAddTitration(compound.id)}
+              className="w-full text-xs gap-1.5"
+            >
+              <TrendingUp className="w-3.5 h-3.5" />
+              Add Titration Schedule
+            </Button>
+          </div>
+        ) : null}
 
         {/* AI Stack Analysis */}
         <CompoundAISection
