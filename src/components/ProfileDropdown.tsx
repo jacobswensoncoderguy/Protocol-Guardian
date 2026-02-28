@@ -1,4 +1,6 @@
-import { Settings, Target, FileText, LogOut, Sun, Moon, Plus, Share2, MessageSquare, Mail, Link } from 'lucide-react';
+import { Settings, Target, FileText, LogOut, Sun, Moon, Plus, Share2, MessageSquare, Mail, Link, ShieldCheck } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAdminRole } from '@/hooks/useAdminRole';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,6 +39,8 @@ const ProfileDropdown = ({
   pendingInviteCount = 0,
 }: ProfileDropdownProps) => {
   const { user } = useAuth();
+  const { isAdmin } = useAdminRole(user?.id);
+  const navigate = useNavigate();
   const initials = displayName
     ? displayName.slice(0, 2).toUpperCase()
     : user?.email
@@ -72,6 +76,12 @@ const ProfileDropdown = ({
           <Settings className="w-4 h-4" />
           Account Settings
         </DropdownMenuItem>
+        {isAdmin && (
+          <DropdownMenuItem onClick={() => navigate('/admin')} className="gap-2 cursor-pointer">
+            <ShieldCheck className="w-4 h-4" />
+            User Intel Dashboard
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem onClick={onFeatureManager} className="gap-2 cursor-pointer">
           <Plus className="w-4 h-4" />
           Manage Features
