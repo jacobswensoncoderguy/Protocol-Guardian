@@ -1319,6 +1319,33 @@ export type Database = {
         }
         Relationships: []
       }
+      user_sessions: {
+        Row: {
+          created_at: string
+          duration_seconds: number | null
+          id: string
+          session_end: string | null
+          session_start: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          session_end?: string | null
+          session_start?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          session_end?: string | null
+          session_start?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       weekly_schedule_snapshots: {
         Row: {
           compound_snapshots: Json
