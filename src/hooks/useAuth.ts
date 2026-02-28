@@ -8,11 +8,32 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Track sign-in intel on the profiles table
+    const trackSignIn = async (userId: string, provider: string) => {
+      try {
+        await (supabase as any).from('profiles').upsert({
+          user_id: userId,
+          last_sign_in_at: new Date().toISOString(),
+          sign_in_count: 1, // will be incremented by the raw SQL below
+          signup_source: provider,
+          last_active_at: new Date().toISOString(),
+        }, { onConflict: 'user_id', ignoreDuplicates: false });
+        // Increment sign_in_count atomically
+        await supabase.rpc('increment_sign_in_count' as any, { p_user_id: userId });
+      } catch (e) {
+        console.error('Failed to track sign-in:', e);
+      }
+    };
+
     // Set up listener FIRST (before getSession) per Supabase best practices
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      if (event === 'SIGNED_IN' && session?.user) {
+        const provider = session.user.app_metadata?.provider || 'email';
+        trackSignIn(session.user.id, provider);
+      }
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
