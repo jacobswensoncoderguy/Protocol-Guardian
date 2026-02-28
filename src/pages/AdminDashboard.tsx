@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { format, formatDistanceToNow } from 'date-fns';
 import AdminUserDrawer from '@/components/AdminUserDrawer';
 import DauChart from '@/components/DauChart';
+import AvgSessionChart from '@/components/AvgSessionChart';
 
 interface UserProfile {
   user_id: string;
@@ -181,8 +182,11 @@ export default function AdminDashboard() {
           </Card>
         </div>
 
-        {/* DAU Chart */}
-        <DauChart sessions={sessions} />
+        {/* Charts */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <DauChart sessions={sessions} />
+          <AvgSessionChart sessions={sessions} />
+        </div>
 
         {/* Signup sources breakdown */}
         <Card>
