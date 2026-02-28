@@ -87,6 +87,9 @@ function buildProjection(compounds: Compound[], getModifiers: (compoundId: strin
   endDate.setFullYear(endDate.getFullYear() + 1);
 
   effectiveCompounds.forEach(compound => {
+    // Skip future projections for compounds that will pause/go dormant on depletion
+    if (compound.depletionAction === 'pause' || compound.depletionAction === 'dormant') return;
+
     const daysLeft = getDaysRemainingWithCycling(compound, getCI?.(compound.id));
     const baseCost = getReorderCost(compound);
     const mods = getModifiers(compound.id);

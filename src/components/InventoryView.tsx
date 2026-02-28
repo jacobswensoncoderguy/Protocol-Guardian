@@ -68,6 +68,30 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
   const activeCompounds = compounds.filter(c => !c.notes?.includes('[DORMANT]'));
   const dormantCompounds = compounds.filter(c => c.notes?.includes('[DORMANT]'));
 
+  // Auto-trigger depletion action when stock hits 0
+  useEffect(() => {
+    activeCompounds.forEach(compound => {
+      if (!compound.depletionAction || isPaused(compound)) return;
+      const days = getDaysRemainingAdjusted(compound);
+      if (days > 0) return;
+      // Stock is depleted — apply action
+      if (compound.depletionAction === 'pause') {
+        onUpdateCompound(compound.id, {
+          pausedAt: new Date().toISOString(),
+          depletionAction: null, // clear so it doesn't re-trigger
+        });
+        toast.info(`${compound.name} auto-paused (stock depleted)`);
+      } else if (compound.depletionAction === 'dormant') {
+        const newNotes = `[DORMANT] ${compound.notes || ''}`.trim();
+        onUpdateCompound(compound.id, {
+          notes: newNotes,
+          depletionAction: null,
+        });
+        toast.info(`${compound.name} set dormant (stock depleted)`);
+      }
+    });
+  }, [activeCompounds, getDaysRemainingAdjusted, onUpdateCompound]);
+
   // Fetch cached personalized scores for all compounds
   const [cachedScoresMap, setCachedScoresMap] = useState<Map<string, CompoundScores>>(new Map());
   const [cacheVersion, setCacheVersion] = useState(0);
@@ -938,6 +962,17 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
             no date
           </span>
         )}
+        {/* Depletion action badge */}
+        {!compoundIsPaused && compound.depletionAction && (
+          <span
+            className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
+              compound.depletionAction === 'pause' ? 'bg-accent/15 text-status-warning' : 'bg-muted text-muted-foreground'
+            }`}
+            title={compound.depletionAction === 'pause' ? 'Will auto-pause when depleted' : 'Will go dormant when depleted'}
+          >
+            {compound.depletionAction === 'pause' ? '⏸ on empty' : '💤 on empty'}
+          </span>
+        )}
         {!compoundIsPaused && (compound.purchaseDate || isPeptide || isOil) && (
           <span
             className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full cursor-help ${
@@ -1119,6 +1154,31 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
               Cancel
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Depletion Action selector — what happens when stock runs out */}
+      {!editing && !compoundIsPaused && !compound.notes?.includes('[DORMANT]') && (
+        <div className="mb-2 flex items-center gap-2 bg-secondary/30 border border-border/30 rounded-lg px-2.5 py-1.5">
+          <TrendingDown className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+          <span className="text-[10px] text-muted-foreground flex-1">When depleted:</span>
+          <select
+            value={compound.depletionAction || ''}
+            onChange={e => {
+              const val = e.target.value || null;
+              onUpdate(compound.id, { depletionAction: val as 'pause' | 'dormant' | null });
+              toast.success(
+                val === 'pause' ? `${compound.name} will auto-pause on depletion`
+                : val === 'dormant' ? `${compound.name} will go dormant on depletion`
+                : `${compound.name} depletion action cleared`
+              );
+            }}
+            className="bg-secondary border border-border/50 rounded px-2 py-0.5 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 cursor-pointer"
+          >
+            <option value="">Continue (reorder)</option>
+            <option value="pause">Auto-pause</option>
+            <option value="dormant">Go dormant</option>
+          </select>
         </div>
       )}
 
