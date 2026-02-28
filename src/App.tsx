@@ -9,6 +9,7 @@ import Auth from "./pages/Auth";
 import Invite from "./pages/Invite";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
+import AdminDashboard from "./pages/AdminDashboard";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -52,6 +53,7 @@ const App = () => (
               </AuthGuard>
             }
           />
+          <Route path="/admin" element={<AuthGuard><AdminDashboard /></AuthGuard>} />
           <Route path="*" element={<AuthGuard><NotFound /></AuthGuard>} />
         </Routes>
       </BrowserRouter>
