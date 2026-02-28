@@ -242,6 +242,16 @@ RESPOND WITH ONLY THIS JSON (no markdown, no code fences):
       throw new Error("Failed to parse AI response");
     }
 
+    // Ensure critical score fields are always numeric (AI sometimes returns text)
+    const forceNum = (v: unknown, fallback = 50): number => {
+      const n = Number(v);
+      return isNaN(n) ? fallback : Math.max(0, Math.min(100, Math.round(n)));
+    };
+    scores.bioavailability = forceNum(scores.bioavailability);
+    scores.efficacy = forceNum(scores.efficacy);
+    scores.effectiveness = forceNum(scores.effectiveness);
+    scores.confidencePct = forceNum(scores.confidencePct, 50);
+
     const contextData = {
       hasProfile: !!profile,
       hasLabs: recentBiomarkers.length > 0,
