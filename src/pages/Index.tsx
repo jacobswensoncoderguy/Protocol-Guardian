@@ -51,6 +51,10 @@ import BiomarkerHistoryView from '@/components/BiomarkerHistoryView';
 import { useScheduleSnapshots } from '@/hooks/useScheduleSnapshots';
 import { useHistoricalCheckOffs } from '@/hooks/useHistoricalCheckOffs';
 import { useSwipeTabs } from '@/hooks/useSwipeTabs';
+import { useTitration } from '@/hooks/useTitration';
+import TitrationView from '@/components/TitrationView';
+import TitrationScheduleDialog from '@/components/TitrationScheduleDialog';
+import TitrationBanner from '@/components/TitrationBanner';
 import { useHousehold, useHouseholdMemberCompounds } from '@/hooks/useHousehold';
 import { useHouseholdDoseCheckOffs } from '@/hooks/useHouseholdDoseCheckOffs';
 import HouseholdMemberToggle, { HouseholdViewOption } from '@/components/HouseholdMemberToggle';
@@ -138,6 +142,9 @@ const Index = () => {
   const { checkedDoses, toggleChecked: toggleDoseCheck } = useDoseCheckOffs(scheduleSelectedDay, scheduleWeekOffset);
   const { snapshots: scheduleSnapshots, loading: snapshotsLoading } = useScheduleSnapshots(compounds);
   const { checkedDosesMap: historicalCheckOffs } = useHistoricalCheckOffs();
+  const titration = useTitration(user?.id);
+  const [showTitrationDialog, setShowTitrationDialog] = useState(false);
+  const [titrationCompoundId, setTitrationCompoundId] = useState<string | null>(null);
 
   // Merge self + member checked doses for combined view display (after checkedDoses is declared)
   const combinedCheckedDoses = useMemo(() => {
@@ -216,7 +223,7 @@ const Index = () => {
   const [scrollToCompoundId, setScrollToCompoundId] = useState<string | null>(null);
   const [labsFlaggedCount, setLabsFlaggedCount] = useState(0);
 
-  const scheduleSwipe = useSwipeTabs({ tabs: ['this-week', 'history', 'ai-changes'], currentTab: scheduleSubTab, onTabChange: setScheduleSubTab });
+  const scheduleSwipe = useSwipeTabs({ tabs: ['this-week', 'titration', 'history', 'ai-changes'], currentTab: scheduleSubTab, onTabChange: setScheduleSubTab });
   const inventorySwipe = useSwipeTabs({ tabs: ['stock', 'costs', 'reorder'], currentTab: inventorySubTab, onTabChange: setInventorySubTab });
   const trackingSwipe = useSwipeTabs({ tabs: ['food', 'symptoms', 'labs'], currentTab: trackingSubTab, onTabChange: setTrackingSubTab });
 
@@ -497,12 +504,29 @@ const Index = () => {
             <Tabs value={scheduleSubTab} onValueChange={setScheduleSubTab} className="w-full">
               <TabsList className="w-full bg-card/80 border border-border/60 mb-3 h-10 p-1 gap-1 logging-tabs">
                 <TabsTrigger value="this-week" className="flex-1 text-xs font-semibold rounded-md data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">This Week</TabsTrigger>
+                <TabsTrigger value="titration" className="relative flex-1 text-xs font-semibold rounded-md data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">
+                  Titration
+                  {titration.dueCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[14px] h-3.5 px-0.5 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center">
+                      {titration.dueCount}
+                    </span>
+                  )}
+                </TabsTrigger>
                 <TabsTrigger value="history" className="flex-1 text-xs font-semibold rounded-md data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">History</TabsTrigger>
                 <TabsTrigger value="ai-changes" className="flex-1 text-xs font-semibold rounded-md data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">AI Changes</TabsTrigger>
               </TabsList>
               <div key={scheduleSubTab} className={scheduleSwipe.slideClass} onAnimationEnd={scheduleSwipe.onAnimationEnd} onTouchStart={scheduleSwipe.onTouchStart} onTouchEnd={scheduleSwipe.onTouchEnd}>
                 <TabsContent value="this-week" forceMount={scheduleSubTab === 'this-week' ? true : undefined}>
-                  {scheduleSubTab === 'this-week' && <WeeklyScheduleView
+                  {scheduleSubTab === 'this-week' && <>
+                    {/* Titration step-due banners on schedule view */}
+                    <TitrationBanner
+                      notifications={titration.notifications}
+                      schedules={titration.schedules}
+                      onConfirm={titration.confirmStep}
+                      onSkip={titration.skipStep}
+                      compoundNames={new Map(compounds.map(c => [c.id, c.name]))}
+                    />
+                    <WeeklyScheduleView
                     compounds={viewCompounds}
                     protocols={protocols}
                     compoundAnalyses={compoundAnalyses}
@@ -521,6 +545,20 @@ const Index = () => {
                     onSelectedDayChange={setScheduleSelectedDay}
                     weekOffset={scheduleWeekOffset}
                     onWeekOffsetChange={setScheduleWeekOffset}
+                  /></>}
+                </TabsContent>
+                <TabsContent value="titration" forceMount={scheduleSubTab === 'titration' ? true : undefined}>
+                  {scheduleSubTab === 'titration' && <TitrationView
+                    schedules={titration.schedules}
+                    compounds={compounds}
+                    onConfirm={titration.confirmStep}
+                    onSkip={titration.skipStep}
+                    onCancel={titration.cancelSchedule}
+                    onDelete={titration.deleteSchedule}
+                    onAddTitration={(compoundId) => {
+                      setTitrationCompoundId(compoundId);
+                      setShowTitrationDialog(true);
+                    }}
                   />}
                 </TabsContent>
                 <TabsContent value="history" forceMount={scheduleSubTab === 'history' ? true : undefined}>
@@ -579,6 +617,23 @@ const Index = () => {
                     onSetCustomFieldValue={householdViewId === 'self' ? setCustomFieldValue : undefined}
                     scrollToCompoundId={scrollToCompoundId}
                     onScrollToCompoundDone={() => setScrollToCompoundId(null)}
+                    titrationInfo={(() => {
+                      const map = new Map<string, { currentStep: number; totalSteps: number; currentDose: number; doseUnit: string; status: 'active' | 'paused' | 'completed' | 'cancelled' }>();
+                      titration.schedules.forEach(s => {
+                        if (s.status !== 'active') return;
+                        const activeStep = s.steps.find(st => st.status === 'active') || s.steps.find(st => st.status === 'pending');
+                        if (activeStep) {
+                          map.set(s.user_compound_id, {
+                            currentStep: activeStep.step_number,
+                            totalSteps: s.steps.length,
+                            currentDose: activeStep.dose_amount,
+                            doseUnit: activeStep.dose_unit,
+                            status: s.status,
+                          });
+                        }
+                      });
+                      return map;
+                    })()}
                   />}
                 </TabsContent>
                 <TabsContent value="costs" forceMount={inventorySubTab === 'costs' ? true : undefined}>
@@ -773,6 +828,25 @@ const Index = () => {
           onOpenChange={setShowQuickInvite}
           onSendInvite={household.sendInvite}
         />
+
+        {/* Titration Schedule Dialog */}
+        {titrationCompoundId && (() => {
+          const compound = compounds.find(c => c.id === titrationCompoundId);
+          if (!compound) return null;
+          return (
+            <TitrationScheduleDialog
+              open={showTitrationDialog}
+              onOpenChange={(open) => { setShowTitrationDialog(open); if (!open) setTitrationCompoundId(null); }}
+              compoundName={compound.name}
+              compoundId={compound.id}
+              currentDose={compound.dosePerUse}
+              doseUnit={compound.doseLabel || compound.unitLabel || 'IU'}
+              onSave={async (compId, name, startDate, steps, notes) => {
+                return titration.createSchedule(compId, name, startDate, steps, notes);
+              }}
+            />
+          );
+        })()}
       </main>
       <WhatsNewOverlay />
       {showTourPrompt && (

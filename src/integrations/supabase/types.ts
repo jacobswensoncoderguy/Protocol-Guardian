@@ -874,6 +874,154 @@ export type Database = {
           },
         ]
       }
+      titration_notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_actioned: boolean
+          is_read: boolean
+          notification_type: string
+          schedule_id: string
+          step_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_actioned?: boolean
+          is_read?: boolean
+          notification_type?: string
+          schedule_id: string
+          step_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_actioned?: boolean
+          is_read?: boolean
+          notification_type?: string
+          schedule_id?: string
+          step_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "titration_notifications_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "titration_schedules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "titration_notifications_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "titration_steps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      titration_schedules: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          start_date: string
+          status: string
+          updated_at: string
+          user_compound_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          start_date?: string
+          status?: string
+          updated_at?: string
+          user_compound_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          start_date?: string
+          status?: string
+          updated_at?: string
+          user_compound_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "titration_schedules_user_compound_id_fkey"
+            columns: ["user_compound_id"]
+            isOneToOne: false
+            referencedRelation: "user_compounds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      titration_steps: {
+        Row: {
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          dose_amount: number
+          dose_unit: string
+          duration_days: number | null
+          end_date: string | null
+          id: string
+          notes: string | null
+          schedule_id: string
+          start_date: string
+          status: string
+          step_number: number
+        }
+        Insert: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          dose_amount: number
+          dose_unit?: string
+          duration_days?: number | null
+          end_date?: string | null
+          id?: string
+          notes?: string | null
+          schedule_id: string
+          start_date: string
+          status?: string
+          step_number: number
+        }
+        Update: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          dose_amount?: number
+          dose_unit?: string
+          duration_days?: number | null
+          end_date?: string | null
+          id?: string
+          notes?: string | null
+          schedule_id?: string
+          start_date?: string
+          status?: string
+          step_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "titration_steps_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "titration_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tolerance_history: {
         Row: {
           created_at: string
