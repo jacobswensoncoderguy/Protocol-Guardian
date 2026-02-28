@@ -352,24 +352,24 @@ const GoalInterview = ({ onComplete, gender }: GoalInterviewProps) => {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col h-full max-h-[80vh]">
       {/* Progress dots */}
-      <div className="flex items-center justify-center gap-1.5 mb-2">
+      <div className="flex items-center justify-center gap-1.5 mb-2 shrink-0">
         {STEPS.map((_, i) => (
           <div key={i} className={`h-1.5 rounded-full transition-all ${i === step ? 'w-6 bg-primary' : i < step ? 'w-1.5 bg-primary/50' : 'w-1.5 bg-border'}`} />
         ))}
       </div>
 
-      <div className="text-center mb-4">
+      <div className="text-center mb-4 shrink-0">
         <h2 className="text-lg font-bold text-foreground">{STEPS[step].title}</h2>
         <p className="text-sm text-muted-foreground">{STEPS[step].subtitle}</p>
       </div>
 
-      <div className="max-h-[50vh] overflow-y-auto pb-2 scrollbar-thin">
+      <div className="flex-1 min-h-0 overflow-y-auto pb-2 scrollbar-thin">
         {renderStep()}
       </div>
 
-      <div className="flex items-center justify-between pt-2">
+      <div className="flex items-center justify-between pt-3 shrink-0 border-t border-border/30 mt-2">
         <button onClick={prev} disabled={step === 0}
           className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors">
           <ChevronLeft className="w-4 h-4" /> Back
