@@ -55,6 +55,7 @@ import { useHousehold, useHouseholdMemberCompounds } from '@/hooks/useHousehold'
 import { useHouseholdDoseCheckOffs } from '@/hooks/useHouseholdDoseCheckOffs';
 import HouseholdMemberToggle, { HouseholdViewOption } from '@/components/HouseholdMemberToggle';
 import BackToTopButton from '@/components/BackToTopButton';
+import { useActivityTracker } from '@/hooks/useActivityTracker';
 
 const LoadingSkeleton = () => (
   <div className="min-h-screen bg-background" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
@@ -84,6 +85,7 @@ const LoadingSkeleton = () => (
 const Index = () => {
   const { user, signOut } = useAuth();
   const { profile, currentTolerance, setTolerance, toleranceHistory, updateProfile, measurementSystem, doseUnitPreference, appFeatures, updateAppFeatures, reorderHorizon, updateReorderHorizon } = useProfile(user?.id);
+  useActivityTracker(user?.id);
   const { compounds, loading, hasCompounds, updateCompound, addCompound, deleteCompound, refetch } = useCompounds(user?.id);
   const household = useHousehold(user?.id);
 
