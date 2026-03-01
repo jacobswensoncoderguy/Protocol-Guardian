@@ -174,6 +174,10 @@ export function useTitration(userId?: string) {
   const confirmStep = useCallback(async (stepId: string, scheduleId: string) => {
     if (!userId) return;
 
+    // Find the step being confirmed to get its dose
+    const schedule = schedules.find(s => s.id === scheduleId);
+    const confirmedStep = schedule?.steps.find(s => s.id === stepId);
+
     // Mark step as completed
     await supabase.from('titration_steps').update({
       status: 'completed',
@@ -186,8 +190,14 @@ export function useTitration(userId?: string) {
       is_actioned: true,
     }).eq('step_id', stepId).eq('user_id', userId);
 
+    // Update the compound's dose_per_use to match the confirmed step
+    if (schedule && confirmedStep) {
+      await supabase.from('user_compounds').update({
+        dose_per_use: confirmedStep.dose_amount,
+      }).eq('id', schedule.user_compound_id);
+    }
+
     // Activate next pending step
-    const schedule = schedules.find(s => s.id === scheduleId);
     if (schedule) {
       const nextStep = schedule.steps.find(s => s.status === 'pending');
       if (nextStep) {
