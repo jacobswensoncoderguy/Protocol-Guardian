@@ -484,6 +484,10 @@ const Index = () => {
               appFeatures={appFeatures}
               onEnableFeature={handleToggleFeature}
               onAddCompound={() => setShowAddDialog(true)}
+              titrationNotifications={titration.notifications}
+              titrationSchedules={titration.schedules}
+              onTitrationConfirm={titration.confirmStep}
+              onTitrationSkip={titration.skipStep}
             />
             </TabErrorBoundary>
           </TabsContent>

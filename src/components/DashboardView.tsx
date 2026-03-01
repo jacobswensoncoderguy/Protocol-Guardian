@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import ChatMarkdown from '@/components/ChatMarkdown';
+import TitrationBanner from '@/components/TitrationBanner';
+import { TitrationSchedule, TitrationNotification } from '@/hooks/useTitration';
 import { Compound } from '@/data/compounds';
 import { Target, Plus, Shield, Scale, Rocket, Ruler, Weight, Percent, Calendar as CalendarIcon, Check, ToggleLeft, ChevronRight, Sparkles, Package, AlertTriangle, TrendingUp, TrendingDown, Zap, Info, Brain, Heart, Dumbbell, Flame, Activity, History, LayoutGrid, Pause, Play, Send, MessageCircle } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -56,6 +58,10 @@ interface DashboardViewProps {
   appFeatures?: AppFeatures;
   onEnableFeature?: (key: keyof AppFeatures) => void;
   onAddCompound?: () => void;
+  titrationNotifications?: TitrationNotification[];
+  titrationSchedules?: TitrationSchedule[];
+  onTitrationConfirm?: (stepId: string, scheduleId: string) => void;
+  onTitrationSkip?: (stepId: string) => void;
 }
 
 const toleranceMeta: Record<string, { Icon: typeof Shield; label: string; color: string }> = {
@@ -1195,7 +1201,7 @@ const ProfileToleranceBar = ({ profile, toleranceLevel, toleranceHistory, onUpda
   );
 };
 
-const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, toleranceLevel, onAnalyzeStack, onViewAIInsights, onViewOutcomes, goals = [], userId, profile, toleranceHistory = [], onUpdateProfile, onToleranceChange, measurementSystem = 'metric', doseUnitPreference = 'mg', onNavigateToInventory, conversationManager, appFeatures, onEnableFeature, onAddCompound }: DashboardViewProps) => {
+const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, toleranceLevel, onAnalyzeStack, onViewAIInsights, onViewOutcomes, goals = [], userId, profile, toleranceHistory = [], onUpdateProfile, onToleranceChange, measurementSystem = 'metric', doseUnitPreference = 'mg', onNavigateToInventory, conversationManager, appFeatures, onEnableFeature, onAddCompound, titrationNotifications = [], titrationSchedules = [], onTitrationConfirm, onTitrationSkip }: DashboardViewProps) => {
   const { readings, fetchReadings, addReading } = useGoalReadings(userId);
   const { snapshots } = useScheduleSnapshots(compounds);
   const [selectedZone, setSelectedZone] = useState<BodyZone | null>(null);
@@ -1315,8 +1321,26 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
 
   const f = appFeatures || { goal_tracking: true, supplementation: true, inventory_tracking: true, dosing_reorder: true, medical_records: true };
 
+  // Build compound name map for titration banner
+  const titrationCompoundNames = useMemo(() => {
+    const map = new Map<string, string>();
+    compounds.forEach(c => map.set(c.id, c.name));
+    return map;
+  }, [compounds]);
+
   return (
     <div className="space-y-3">
+      {/* Titration Step-Due Banner */}
+      {titrationNotifications.length > 0 && onTitrationConfirm && onTitrationSkip && (
+        <TitrationBanner
+          notifications={titrationNotifications}
+          schedules={titrationSchedules}
+          onConfirm={onTitrationConfirm}
+          onSkip={onTitrationSkip}
+          compoundNames={titrationCompoundNames}
+        />
+      )}
+
       {/* Profile & Tolerance Info Bar */}
       <ProfileToleranceBar
         profile={{ ...profile, gender: displayGender }}
