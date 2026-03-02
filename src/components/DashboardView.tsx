@@ -1,10 +1,12 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import HealthRings, { RingMetric } from '@/components/HealthRings';
+import { useHealthData } from '@/hooks/useHealthData';
+
 import ChatMarkdown from '@/components/ChatMarkdown';
 import TitrationBanner from '@/components/TitrationBanner';
 import { TitrationSchedule, TitrationNotification } from '@/hooks/useTitration';
 import { Compound } from '@/data/compounds';
-import { Target, Plus, Shield, Scale, Rocket, Ruler, Weight, Percent, Calendar as CalendarIcon, Check, ToggleLeft, ChevronRight, Sparkles, Package, AlertTriangle, TrendingUp, TrendingDown, Zap, Info, Brain, Heart, Dumbbell, Flame, Activity, History, LayoutGrid, Pause, Play, Send, MessageCircle } from 'lucide-react';
+import { Target, Plus, Shield, Scale, Rocket, Ruler, Weight, Percent, Calendar as CalendarIcon, Check, ToggleLeft, ChevronRight, Sparkles, Package, AlertTriangle, TrendingUp, TrendingDown, Zap, Info, Brain, Heart, Dumbbell, Flame, Activity, History, LayoutGrid, Pause, Play, Send, MessageCircle, Footprints } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import bodyMaleImg from '@/assets/body-male.png';
 import bodyFemaleImg from '@/assets/body-female.png';
@@ -624,6 +626,7 @@ const ProtocolCoverageCard = ({ activeCompounds, zoneIntensities, bodyCoverage, 
   const [showExplainer, setShowExplainer] = useState(false);
   const [layout, setLayout] = useState<LayoutStyle>('insight');
   const [showLayoutPicker, setShowLayoutPicker] = useState(false);
+  const healthData = useHealthData();
 
   const zoneEntries = useMemo(() =>
     (Object.entries(zoneIntensities) as Array<[BodyZone, number]>).sort((a, b) => b[1] - a[1]),
@@ -762,10 +765,30 @@ const ProtocolCoverageCard = ({ activeCompounds, zoneIntensities, bodyCoverage, 
 
     // ── Layout 6: Insight — Apple Health-style rings + AI daily insight ──────────────
     if (layout === 'insight') {
+      const stepsGoal = 10000;
+      const calsGoal = 600;
+      const stepsPct = healthData.available ? Math.min(100, Math.round((healthData.steps / stepsGoal) * 100)) : 0;
+      const calsPct = healthData.available ? Math.min(100, Math.round((healthData.calories / calsGoal) * 100)) : 0;
+
       const healthMetrics: RingMetric[] = [
-        { id: 'coverage', label: 'Coverage', value: bodyCoverage, color: 'hsl(2, 100%, 64%)', icon: Activity },
-        { id: 'protocol', label: 'Protocol', value: protocolScore, color: 'hsl(142, 76%, 50%)', icon: Zap },
-        { id: 'goals', label: 'Goals', value: goalProgress, color: 'hsl(195, 100%, 50%)', icon: Target },
+        { id: 'coverage', label: 'Coverage', value: bodyCoverage, color: 'hsl(2, 100%, 64%)', icon: Activity,
+          detail: `${activeCompounds.length} compounds covering ${activeZoneCount}/7 body systems.`,
+          advice: bodyCoverage >= 90 ? 'Outstanding coverage — review for redundancy.' : 'Add compounds targeting uncovered systems.' },
+        { id: 'protocol', label: 'Protocol', value: protocolScore, color: 'hsl(142, 76%, 50%)', icon: Zap,
+          detail: 'Measures how consistently you take your scheduled doses.',
+          advice: protocolScore >= 80 ? 'Great compliance — keep up the routine!' : 'Check off doses daily to improve your score.' },
+        { id: 'goals', label: 'Goals', value: goalProgress, color: 'hsl(195, 100%, 50%)', icon: Target,
+          detail: 'Aggregate progress across all active health goals.',
+          advice: goalProgress >= 80 ? 'Almost there — stay consistent!' : 'Log readings regularly to track progress.' },
+        // Native health data (show regardless — 0% on web is fine as motivation)
+        { id: 'steps', label: 'Steps', value: stepsPct, color: 'hsl(39, 100%, 50%)', icon: Footprints,
+          rawValue: healthData.available ? `${healthData.steps.toLocaleString()} / ${stepsGoal.toLocaleString()}` : 'Connect a wearable',
+          detail: healthData.available ? `${healthData.steps.toLocaleString()} steps today toward ${stepsGoal.toLocaleString()} goal.` : 'Syncs from Apple Health or Google Health Connect on native.',
+          advice: stepsPct >= 80 ? 'Almost at your step goal!' : 'A 20-minute walk adds ~2,000 steps.' },
+        { id: 'calories', label: 'Calories', value: calsPct, color: 'hsl(330, 100%, 60%)', icon: Flame,
+          rawValue: healthData.available ? `${healthData.calories.toLocaleString()} / ${calsGoal} kcal` : 'Connect a wearable',
+          detail: healthData.available ? `${healthData.calories} active calories burned today.` : 'Syncs from Apple Health or Google Health Connect on native.',
+          advice: calsPct >= 80 ? 'Great burn rate today!' : 'Try adding a short HIIT session for a boost.' },
         // Zone-level metrics for customization
         ...Object.entries(BODY_ZONES).map(([zone, info]) => ({
           id: `zone-${zone}`,
@@ -773,6 +796,7 @@ const ProtocolCoverageCard = ({ activeCompounds, zoneIntensities, bodyCoverage, 
           value: Math.round((zoneIntensities[zone as BodyZone] ?? 0) * 100),
           color: info.color,
           icon: ZONE_ICONS_MAP[zone as BodyZone],
+          detail: `Intensity based on compounds targeting the ${info.label.toLowerCase()} system.`,
         })),
       ];
 

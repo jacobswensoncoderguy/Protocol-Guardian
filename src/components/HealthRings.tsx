@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react';
-import { Activity, Target, Zap, Settings2, Check } from 'lucide-react';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { Activity, Target, Zap, Settings2, Check, TrendingUp, Lightbulb, ChevronRight } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 // ── Ring metric definitions ──────────────────────────────────────
 export interface RingMetric {
@@ -8,6 +9,10 @@ export interface RingMetric {
   value: number; // 0-100
   color: string; // HSL
   icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
+  /** Optional extra details for the popover */
+  detail?: string;
+  advice?: string;
+  rawValue?: string; // e.g. "8,421 steps"
 }
 
 const RING_COLORS = [
@@ -20,23 +25,38 @@ const RING_COLORS = [
 ];
 
 interface HealthRingsProps {
-  /** Available metrics the user can pick from */
   availableMetrics: RingMetric[];
-  /** Which metric IDs are currently selected (max 3) */
   selectedIds?: string[];
   onSelectionChange?: (ids: string[]) => void;
   size?: number;
   className?: string;
 }
 
-// ── Single arc ring (Apple Health style) ──────────────────────────
-const ArcRing = ({ radius, progress, color, strokeWidth, size }: {
-  radius: number; progress: number; color: string; strokeWidth: number; size: number;
+// ── Single arc ring with entrance animation ──────────────────────
+const ArcRing = ({ radius, progress, color, strokeWidth, size, delay }: {
+  radius: number; progress: number; color: string; strokeWidth: number; size: number; delay: number;
 }) => {
   const center = size / 2;
   const circumference = 2 * Math.PI * radius;
   const clampedProgress = Math.min(100, Math.max(0, progress));
   const dashLength = (clampedProgress / 100) * circumference;
+
+  const [animatedDash, setAnimatedDash] = useState(0);
+  const mounted = useRef(false);
+
+  useEffect(() => {
+    if (mounted.current) {
+      // Subsequent value changes — animate immediately
+      setAnimatedDash(dashLength);
+      return;
+    }
+    // First mount — staggered entrance from 0
+    const timer = setTimeout(() => {
+      setAnimatedDash(dashLength);
+      mounted.current = true;
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [dashLength, delay]);
 
   return (
     <g>
@@ -44,26 +64,24 @@ const ArcRing = ({ radius, progress, color, strokeWidth, size }: {
       <circle
         cx={center} cy={center} r={radius}
         fill="none"
-        stroke={`${color}`}
+        stroke={color}
         strokeWidth={strokeWidth}
         opacity={0.15}
       />
       {/* Progress arc */}
-      {clampedProgress > 0 && (
-        <circle
-          cx={center} cy={center} r={radius}
-          fill="none"
-          stroke={color}
-          strokeWidth={strokeWidth}
-          strokeLinecap="round"
-          strokeDasharray={`${dashLength} ${circumference}`}
-          transform={`rotate(-90 ${center} ${center})`}
-          className="transition-all duration-1000 ease-out"
-          style={{ filter: `drop-shadow(0 0 6px ${color}90)` }}
-        />
-      )}
-      {/* End-cap glow when >2% */}
-      {clampedProgress > 2 && (
+      <circle
+        cx={center} cy={center} r={radius}
+        fill="none"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeDasharray={`${animatedDash} ${circumference}`}
+        transform={`rotate(-90 ${center} ${center})`}
+        className="transition-all duration-[1200ms] ease-out"
+        style={{ filter: `drop-shadow(0 0 6px ${color}90)` }}
+      />
+      {/* End-cap glow */}
+      {animatedDash > 2 && (
         <circle
           cx={center} cy={center} r={radius}
           fill="none"
@@ -71,8 +89,9 @@ const ArcRing = ({ radius, progress, color, strokeWidth, size }: {
           strokeWidth={strokeWidth + 2}
           strokeLinecap="round"
           strokeDasharray={`1 ${circumference}`}
-          transform={`rotate(${-90 + (clampedProgress / 100) * 360} ${center} ${center})`}
+          transform={`rotate(${-90 + (animatedDash / circumference) * 360} ${center} ${center})`}
           opacity={0.5}
+          className="transition-all duration-[1200ms] ease-out"
           style={{ filter: `blur(3px)` }}
         />
       )}
@@ -80,6 +99,100 @@ const ArcRing = ({ radius, progress, color, strokeWidth, size }: {
   );
 };
 
+// ── Ring Detail Popover ──────────────────────────────────────────
+const RingDetailPopover = ({ ring, children }: {
+  ring: RingMetric & { color: string };
+  children: React.ReactNode;
+}) => {
+  const getDefaultAdvice = (id: string, value: number): string => {
+    if (value >= 90) return 'Excellent! Maintain this consistency.';
+    if (id === 'coverage') return 'Add compounds targeting uncovered body systems to improve coverage.';
+    if (id === 'protocol') return 'Check off your daily doses consistently to raise your protocol score.';
+    if (id === 'goals') return 'Log more readings toward your goals to track progress.';
+    if (id.startsWith('zone-')) return 'Add compounds that target this body zone.';
+    if (id === 'steps') return 'Take a walk or use stairs to hit your step goal.';
+    if (id === 'calories') return 'Stay active throughout the day to burn more calories.';
+    return value < 50 ? 'Focus on improving this metric for better results.' : 'Good progress — keep it up!';
+  };
+
+  const Icon = ring.icon;
+  const advice = ring.advice || getDefaultAdvice(ring.id, ring.value);
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>{children}</PopoverTrigger>
+      <PopoverContent className="w-64 p-0 overflow-hidden" align="center" sideOffset={8}>
+        {/* Header */}
+        <div className="px-4 py-3 border-b border-border/30" style={{ background: `${ring.color}10` }}>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: `${ring.color}20` }}>
+              <Icon className="w-4 h-4" style={{ color: ring.color }} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">{ring.label}</p>
+              {ring.rawValue && (
+                <p className="text-[10px] text-muted-foreground font-mono">{ring.rawValue}</p>
+              )}
+            </div>
+            <span className="ml-auto text-xl font-black font-mono" style={{ color: ring.color }}>
+              {ring.value}%
+            </span>
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div className="px-4 pt-3 pb-2">
+          <div className="h-2 bg-secondary/50 rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-700"
+              style={{ width: `${ring.value}%`, backgroundColor: ring.color }}
+            />
+          </div>
+        </div>
+
+        {/* Detail */}
+        {ring.detail && (
+          <div className="px-4 pb-2">
+            <div className="flex items-start gap-1.5">
+              <TrendingUp className="w-3 h-3 mt-0.5 text-muted-foreground/60 flex-shrink-0" />
+              <p className="text-[11px] text-muted-foreground leading-relaxed">{ring.detail}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Advice */}
+        <div className="px-4 pb-3">
+          <div className="flex items-start gap-1.5 bg-primary/5 rounded-lg p-2 border border-primary/10">
+            <Lightbulb className="w-3 h-3 mt-0.5 text-primary flex-shrink-0" />
+            <p className="text-[11px] text-primary/80 leading-relaxed">{advice}</p>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
+
+// ── Clickable ring hit area (invisible arc sector) ───────────────
+const RingHitArea = ({ radius, strokeWidth, size, ring }: {
+  radius: number; strokeWidth: number; size: number;
+  ring: RingMetric & { color: string };
+}) => {
+  const center = size / 2;
+  return (
+    <RingDetailPopover ring={ring}>
+      <circle
+        cx={center} cy={center} r={radius}
+        fill="none"
+        stroke="transparent"
+        strokeWidth={strokeWidth + 12}
+        className="cursor-pointer"
+        style={{ pointerEvents: 'stroke' }}
+      />
+    </RingDetailPopover>
+  );
+};
+
+// ── Main HealthRings component ───────────────────────────────────
 const HealthRings = ({
   availableMetrics,
   selectedIds: externalSelectedIds,
@@ -114,7 +227,7 @@ const HealthRings = ({
       next = selectedIds.filter(s => s !== id);
     } else {
       if (selectedIds.length >= 3) {
-        next = [...selectedIds.slice(1), id]; // drop oldest, add new
+        next = [...selectedIds.slice(1), id];
       } else {
         next = [...selectedIds, id];
       }
@@ -123,12 +236,11 @@ const HealthRings = ({
     else setInternalSelected(next);
   };
 
-  // Calculate the primary (outermost) ring value for center display
   const primaryRing = activeRings[0];
 
   return (
     <div className={`flex flex-col items-center ${className}`}>
-      {/* Rings SVG */}
+      {/* Rings SVG — clickable */}
       <div className="relative" style={{ width: size, height: size }}>
         <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size}>
           {activeRings.map((ring, i) => (
@@ -139,44 +251,59 @@ const HealthRings = ({
               color={ring.color}
               strokeWidth={strokeWidth}
               size={size}
+              delay={i * 250} // staggered entrance
+            />
+          ))}
+          {/* Invisible click targets on top */}
+          {activeRings.map((ring, i) => (
+            <RingHitArea
+              key={`hit-${ring.id}`}
+              radius={outerRadius - i * gap}
+              strokeWidth={strokeWidth}
+              size={size}
+              ring={ring}
             />
           ))}
         </svg>
 
-        {/* Center content */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+        {/* Center content — also clickable for primary ring */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
           {primaryRing && (
-            <>
-              <span
-                className="text-2xl font-black font-mono leading-none"
-                style={{ color: primaryRing.color, textShadow: `0 0 16px ${primaryRing.color}40` }}
-              >
-                {primaryRing.value}%
-              </span>
-              <span className="text-[8px] uppercase tracking-[0.15em] text-muted-foreground/60 mt-0.5 font-semibold">
-                {primaryRing.label}
-              </span>
-            </>
+            <RingDetailPopover ring={primaryRing}>
+              <button className="flex flex-col items-center cursor-pointer hover:scale-105 transition-transform">
+                <span
+                  className="text-2xl font-black font-mono leading-none"
+                  style={{ color: primaryRing.color, textShadow: `0 0 16px ${primaryRing.color}40` }}
+                >
+                  {primaryRing.value}%
+                </span>
+                <span className="text-[8px] uppercase tracking-[0.15em] text-muted-foreground/60 mt-0.5 font-semibold">
+                  {primaryRing.label}
+                </span>
+              </button>
+            </RingDetailPopover>
           )}
         </div>
       </div>
 
-      {/* Ring legends */}
+      {/* Ring legends — clickable */}
       <div className="flex items-center justify-center gap-4 mt-2">
         {activeRings.map(ring => {
           const Icon = ring.icon;
           return (
-            <div key={ring.id} className="flex items-center gap-1.5">
-              <div
-                className="w-2.5 h-2.5 rounded-full"
-                style={{ backgroundColor: ring.color, boxShadow: `0 0 8px ${ring.color}60` }}
-              />
-              <Icon className="w-3 h-3" style={{ color: ring.color }} />
-              <span className="text-[9px] font-semibold" style={{ color: ring.color }}>
-                {ring.value}%
-              </span>
-              <span className="text-[8px] text-muted-foreground/50">{ring.label}</span>
-            </div>
+            <RingDetailPopover key={ring.id} ring={ring}>
+              <button className="flex items-center gap-1.5 hover:opacity-80 transition-opacity cursor-pointer">
+                <div
+                  className="w-2.5 h-2.5 rounded-full"
+                  style={{ backgroundColor: ring.color, boxShadow: `0 0 8px ${ring.color}60` }}
+                />
+                <Icon className="w-3 h-3" style={{ color: ring.color }} />
+                <span className="text-[9px] font-semibold" style={{ color: ring.color }}>
+                  {ring.value}%
+                </span>
+                <span className="text-[8px] text-muted-foreground/50">{ring.label}</span>
+              </button>
+            </RingDetailPopover>
           );
         })}
       </div>
