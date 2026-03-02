@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import HealthRings, { RingMetric } from '@/components/HealthRings';
 import { useHealthData } from '@/hooks/useHealthData';
 
@@ -221,6 +222,9 @@ interface ProtocolCoverageCardProps {
   onAddCompound?: () => void;
   goalProgress?: number;
   protocolScore?: number;
+  userId?: string;
+  savedRingSelection?: string[];
+  onSaveRingSelection?: (ids: string[]) => void;
 }
 
 type LayoutStyle = 'classic' | 'hero' | 'split' | 'compact' | 'immersive' | 'insight';
@@ -622,12 +626,24 @@ const ScoreBlock = ({ bodyCoverage, activeCount, activeZones, coverageGrade }: {
   </div>
 );
 
-const ProtocolCoverageCard = ({ activeCompounds, zoneIntensities, bodyCoverage, displayGender, onZoneTap, onAddCompound, goalProgress = 0, protocolScore = 50 }: ProtocolCoverageCardProps) => {
+const ProtocolCoverageCard = ({ activeCompounds, zoneIntensities, bodyCoverage, displayGender, onZoneTap, onAddCompound, goalProgress = 0, protocolScore = 50, userId, savedRingSelection, onSaveRingSelection }: ProtocolCoverageCardProps) => {
   const [showExplainer, setShowExplainer] = useState(false);
   const [layout, setLayout] = useState<LayoutStyle>('insight');
   const [showLayoutPicker, setShowLayoutPicker] = useState(false);
-  const [ringSelection, setRingSelection] = useState<string[]>(['coverage', 'protocol', 'goals']);
+  const [ringSelection, setRingSelection] = useState<string[]>(savedRingSelection || ['coverage', 'protocol', 'goals']);
   const healthData = useHealthData();
+
+  // Sync from saved selection when it loads
+  useEffect(() => {
+    if (savedRingSelection && savedRingSelection.length > 0) {
+      setRingSelection(savedRingSelection);
+    }
+  }, [savedRingSelection]);
+
+  const handleRingSelectionChange = useCallback((ids: string[]) => {
+    setRingSelection(ids);
+    onSaveRingSelection?.(ids);
+  }, [onSaveRingSelection]);
 
   const zoneEntries = useMemo(() =>
     (Object.entries(zoneIntensities) as Array<[BodyZone, number]>).sort((a, b) => b[1] - a[1]),
@@ -845,7 +861,7 @@ const ProtocolCoverageCard = ({ activeCompounds, zoneIntensities, bodyCoverage, 
             <HealthRings
               availableMetrics={healthMetrics}
               selectedIds={ringSelection}
-              onSelectionChange={setRingSelection}
+              onSelectionChange={handleRingSelectionChange}
               size={180}
             />
           </div>
@@ -1277,6 +1293,14 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
   const [zoneDrawerOpen, setZoneDrawerOpen] = useState(false);
   const [tempGender, setTempGender] = useState<string | null>(null);
 
+  const handleSaveRingSelection = useCallback(async (ids: string[]) => {
+    if (!userId) return;
+    const { data: profileData } = await supabase.from('profiles').select('app_features').eq('user_id', userId).single();
+    await supabase.from('profiles').update({
+      app_features: { ...(profileData?.app_features as any || {}), ring_selection: ids },
+    }).eq('user_id', userId);
+  }, [userId]);
+
   const handleGenderChange = async (gender: string, temporary: boolean) => {
     if (temporary) {
       setTempGender(gender);
@@ -1434,6 +1458,9 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
           onAddCompound={onAddCompound}
           goalProgress={overallProgress}
           protocolScore={protocolScore}
+          userId={userId}
+          savedRingSelection={(appFeatures as any)?.ring_selection}
+          onSaveRingSelection={handleSaveRingSelection}
         />
       ) : (
         <FeatureTeaserCard featureKey="supplementation" onEnable={() => onEnableFeature?.('supplementation')} />
