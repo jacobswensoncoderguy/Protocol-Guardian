@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import HealthRings, { RingMetric } from '@/components/HealthRings';
+import WeeklyRingHistory from '@/components/WeeklyRingHistory';
 import { useHealthData } from '@/hooks/useHealthData';
 
 import ChatMarkdown from '@/components/ChatMarkdown';
@@ -865,6 +866,14 @@ const ProtocolCoverageCard = ({ activeCompounds, zoneIntensities, bodyCoverage, 
               size={180}
             />
           </div>
+
+          {/* Weekly Ring History */}
+          <WeeklyRingHistory
+            selectedIds={ringSelection}
+            availableMetrics={healthMetrics}
+            userId={userId}
+            compoundCount={activeCompounds.length}
+          />
 
           {/* Divider */}
           <div className="border-t border-border/20 mx-4" />
