@@ -6,7 +6,7 @@ import ChatMarkdown from '@/components/ChatMarkdown';
 import TitrationBanner from '@/components/TitrationBanner';
 import { TitrationSchedule, TitrationNotification } from '@/hooks/useTitration';
 import { Compound } from '@/data/compounds';
-import { Target, Plus, Shield, Scale, Rocket, Ruler, Weight, Percent, Calendar as CalendarIcon, Check, ToggleLeft, ChevronRight, Sparkles, Package, AlertTriangle, TrendingUp, TrendingDown, Zap, Info, Brain, Heart, Dumbbell, Flame, Activity, History, LayoutGrid, Pause, Play, Send, MessageCircle, Footprints } from 'lucide-react';
+import { Target, Plus, Shield, Scale, Rocket, Ruler, Weight, Percent, Calendar as CalendarIcon, Check, ToggleLeft, ChevronRight, Sparkles, Package, AlertTriangle, TrendingUp, TrendingDown, Zap, Info, Brain, Heart, Dumbbell, Flame, Activity, History, LayoutGrid, Pause, Play, Send, MessageCircle, Footprints, Moon, Timer } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import bodyMaleImg from '@/assets/body-male.png';
 import bodyFemaleImg from '@/assets/body-female.png';
@@ -768,8 +768,16 @@ const ProtocolCoverageCard = ({ activeCompounds, zoneIntensities, bodyCoverage, 
     if (layout === 'insight') {
       const stepsGoal = 10000;
       const calsGoal = 600;
+      const hrGoal = 120; // resting HR target zone (lower is better, but we show as % of "healthy range")
+      const sleepGoal = 480; // 8 hours in minutes
+      const activeMinGoal = 30;
       const stepsPct = healthData.available ? Math.min(100, Math.round((healthData.steps / stepsGoal) * 100)) : 0;
       const calsPct = healthData.available ? Math.min(100, Math.round((healthData.calories / calsGoal) * 100)) : 0;
+      const hrPct = healthData.available && healthData.heartRate > 0 ? Math.min(100, Math.round(Math.max(0, (1 - Math.abs(healthData.heartRate - 70) / 50)) * 100)) : 0;
+      const sleepPct = healthData.available ? Math.min(100, Math.round((healthData.sleepMinutes / sleepGoal) * 100)) : 0;
+      const activeMinPct = healthData.available ? Math.min(100, Math.round((healthData.activeMinutes / activeMinGoal) * 100)) : 0;
+      const sleepHrs = Math.floor(healthData.sleepMinutes / 60);
+      const sleepMins = healthData.sleepMinutes % 60;
 
       const healthMetrics: RingMetric[] = [
         { id: 'coverage', label: 'Coverage', value: bodyCoverage, color: 'hsl(2, 100%, 64%)', icon: Activity,
@@ -781,7 +789,7 @@ const ProtocolCoverageCard = ({ activeCompounds, zoneIntensities, bodyCoverage, 
         { id: 'goals', label: 'Goals', value: goalProgress, color: 'hsl(195, 100%, 50%)', icon: Target,
           detail: 'Aggregate progress across all active health goals.',
           advice: goalProgress >= 80 ? 'Almost there — stay consistent!' : 'Log readings regularly to track progress.' },
-        // Native health data (show regardless — 0% on web is fine as motivation)
+        // Native health data
         { id: 'steps', label: 'Steps', value: stepsPct, color: 'hsl(39, 100%, 50%)', icon: Footprints,
           rawValue: healthData.available ? `${healthData.steps.toLocaleString()} / ${stepsGoal.toLocaleString()}` : 'Connect a wearable',
           detail: healthData.available ? `${healthData.steps.toLocaleString()} steps today toward ${stepsGoal.toLocaleString()} goal.` : 'Syncs from Apple Health or Google Health Connect on native.',
@@ -790,6 +798,18 @@ const ProtocolCoverageCard = ({ activeCompounds, zoneIntensities, bodyCoverage, 
           rawValue: healthData.available ? `${healthData.calories.toLocaleString()} / ${calsGoal} kcal` : 'Connect a wearable',
           detail: healthData.available ? `${healthData.calories} active calories burned today.` : 'Syncs from Apple Health or Google Health Connect on native.',
           advice: calsPct >= 80 ? 'Great burn rate today!' : 'Try adding a short HIIT session for a boost.' },
+        { id: 'heartRate', label: 'Heart Rate', value: hrPct, color: 'hsl(0, 85%, 55%)', icon: Heart,
+          rawValue: healthData.available && healthData.heartRate > 0 ? `${healthData.heartRate} bpm` : 'Connect a wearable',
+          detail: healthData.available && healthData.heartRate > 0 ? `Latest resting heart rate: ${healthData.heartRate} bpm.` : 'Syncs resting heart rate from your wearable.',
+          advice: hrPct >= 80 ? 'Heart rate is in a healthy zone!' : healthData.heartRate > 90 ? 'Elevated HR — consider stress management or more cardio.' : 'Regular cardio training helps lower resting heart rate.' },
+        { id: 'sleep', label: 'Sleep', value: sleepPct, color: 'hsl(250, 80%, 65%)', icon: Moon,
+          rawValue: healthData.available ? `${sleepHrs}h ${sleepMins}m / 8h` : 'Connect a wearable',
+          detail: healthData.available ? `${sleepHrs}h ${sleepMins}m of sleep logged last night.` : 'Syncs sleep data from your wearable.',
+          advice: sleepPct >= 90 ? 'Excellent sleep — recovery is on point!' : sleepPct >= 60 ? 'Decent rest. Aim for 7-9 hours consistently.' : 'Prioritize sleep hygiene — dim lights 1h before bed.' },
+        { id: 'activeMin', label: 'Active Min', value: activeMinPct, color: 'hsl(160, 70%, 45%)', icon: Timer,
+          rawValue: healthData.available ? `${healthData.activeMinutes} / ${activeMinGoal} min` : 'Connect a wearable',
+          detail: healthData.available ? `${healthData.activeMinutes} active minutes today toward ${activeMinGoal}-min goal.` : 'Syncs exercise minutes from your wearable.',
+          advice: activeMinPct >= 100 ? 'Goal hit — outstanding effort!' : 'Even a brisk 10-min walk counts toward your goal.' },
         // Zone-level metrics for customization
         ...Object.entries(BODY_ZONES).map(([zone, info]) => ({
           id: `zone-${zone}`,
