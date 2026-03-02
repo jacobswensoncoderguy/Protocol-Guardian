@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Activity, Target, Zap, Settings2, Check, TrendingUp, Lightbulb, ChevronRight } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Activity, Target, Zap, Settings2, Check, TrendingUp, Lightbulb, ChevronRight, ArrowUpRight } from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
 // ── Ring metric definitions ──────────────────────────────────────
 export interface RingMetric {
@@ -9,19 +9,19 @@ export interface RingMetric {
   value: number; // 0-100
   color: string; // HSL
   icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
-  /** Optional extra details for the popover */
   detail?: string;
   advice?: string;
-  rawValue?: string; // e.g. "8,421 steps"
+  rawValue?: string;
+  weeklyTips?: string[]; // actionable tips for closing the ring this week
 }
 
 const RING_COLORS = [
-  'hsl(2, 100%, 64%)',    // Red — Move ring
-  'hsl(142, 76%, 50%)',   // Green — Exercise ring
-  'hsl(195, 100%, 50%)',  // Cyan — Stand ring
-  'hsl(270, 100%, 65%)',  // Purple
-  'hsl(45, 100%, 55%)',   // Gold
-  'hsl(330, 100%, 60%)',  // Pink
+  'hsl(2, 100%, 64%)',
+  'hsl(142, 76%, 50%)',
+  'hsl(195, 100%, 50%)',
+  'hsl(270, 100%, 65%)',
+  'hsl(45, 100%, 55%)',
+  'hsl(330, 100%, 60%)',
 ];
 
 interface HealthRingsProps {
@@ -46,11 +46,9 @@ const ArcRing = ({ radius, progress, color, strokeWidth, size, delay }: {
 
   useEffect(() => {
     if (mounted.current) {
-      // Subsequent value changes — animate immediately
       setAnimatedDash(dashLength);
       return;
     }
-    // First mount — staggered entrance from 0
     const timer = setTimeout(() => {
       setAnimatedDash(dashLength);
       mounted.current = true;
@@ -60,33 +58,23 @@ const ArcRing = ({ radius, progress, color, strokeWidth, size, delay }: {
 
   return (
     <g>
-      {/* Track */}
       <circle
         cx={center} cy={center} r={radius}
-        fill="none"
-        stroke={color}
-        strokeWidth={strokeWidth}
-        opacity={0.15}
+        fill="none" stroke={color} strokeWidth={strokeWidth} opacity={0.15}
       />
-      {/* Progress arc */}
       <circle
         cx={center} cy={center} r={radius}
-        fill="none"
-        stroke={color}
-        strokeWidth={strokeWidth}
+        fill="none" stroke={color} strokeWidth={strokeWidth}
         strokeLinecap="round"
         strokeDasharray={`${animatedDash} ${circumference}`}
         transform={`rotate(-90 ${center} ${center})`}
         className="transition-all duration-[1200ms] ease-out"
         style={{ filter: `drop-shadow(0 0 6px ${color}90)` }}
       />
-      {/* End-cap glow */}
       {animatedDash > 2 && (
         <circle
           cx={center} cy={center} r={radius}
-          fill="none"
-          stroke={color}
-          strokeWidth={strokeWidth + 2}
+          fill="none" stroke={color} strokeWidth={strokeWidth + 2}
           strokeLinecap="round"
           strokeDasharray={`1 ${circumference}`}
           transform={`rotate(${-90 + (animatedDash / circumference) * 360} ${center} ${center})`}
@@ -99,96 +87,143 @@ const ArcRing = ({ radius, progress, color, strokeWidth, size, delay }: {
   );
 };
 
-// ── Ring Detail Popover ──────────────────────────────────────────
-const RingDetailPopover = ({ ring, children }: {
-  ring: RingMetric & { color: string };
-  children: React.ReactNode;
-}) => {
-  const getDefaultAdvice = (id: string, value: number): string => {
-    if (value >= 90) return 'Excellent! Maintain this consistency.';
-    if (id === 'coverage') return 'Add compounds targeting uncovered body systems to improve coverage.';
-    if (id === 'protocol') return 'Check off your daily doses consistently to raise your protocol score.';
-    if (id === 'goals') return 'Log more readings toward your goals to track progress.';
-    if (id.startsWith('zone-')) return 'Add compounds that target this body zone.';
-    if (id === 'steps') return 'Take a walk or use stairs to hit your step goal.';
-    if (id === 'calories') return 'Stay active throughout the day to burn more calories.';
-    return value < 50 ? 'Focus on improving this metric for better results.' : 'Good progress — keep it up!';
-  };
+// ── Weekly closing advice generator ──────────────────────────────
+function getWeeklyClosingAdvice(id: string, value: number): string[] {
+  if (value >= 90) return ['You\'re on track — maintain your current routine.'];
+  
+  const tips: string[] = [];
+  const remaining = 100 - value;
+  const daysLeft = Math.max(1, 7 - new Date().getDay()); // days left in week
 
+  switch (id) {
+    case 'coverage':
+      tips.push(`${remaining}% gap remaining — add 1-2 compounds targeting uncovered body systems.`);
+      tips.push('Review your "uncovered zones" list and pick the highest-impact one.');
+      if (value < 50) tips.push('Focus on the 3 major systems first: Neurological, Cardiovascular, Musculoskeletal.');
+      break;
+    case 'protocol':
+      tips.push(`Check off all doses for the next ${daysLeft} days to close this ring.`);
+      tips.push('Set a daily alarm 30 min before your first dose window.');
+      if (value < 60) tips.push('Missed doses hurt the most — even 1 catch-up day helps significantly.');
+      break;
+    case 'goals':
+      tips.push(`Log ${Math.ceil(remaining / 20)} more readings this week to show progress.`);
+      tips.push('Focus on goals closest to their target — quick wins boost your score.');
+      if (value < 40) tips.push('Set a reminder to log one reading each morning.');
+      break;
+    case 'steps':
+      tips.push(`Aim for ${Math.ceil(remaining * 100)} more steps/day over the next ${daysLeft} days.`);
+      tips.push('Take a 15-minute walk after each meal for an easy 3,000+ step boost.');
+      if (value < 50) tips.push('Park farther away or take stairs — small changes add up fast.');
+      break;
+    case 'calories':
+      tips.push(`Burn ~${Math.ceil(remaining * 6)} more active calories/day to close this ring.`);
+      tips.push('A 20-min HIIT session burns ~200 active calories.');
+      if (value < 50) tips.push('Even brisk walking for 30 min adds ~150 active calories.');
+      break;
+    case 'heartRate':
+      tips.push('Consistent cardio 3x/week lowers resting HR over time.');
+      tips.push('Practice box breathing (4-4-4-4) for 5 min daily to improve HRV.');
+      if (value < 50) tips.push('Reduce caffeine and prioritize 7+ hours of sleep.');
+      break;
+    case 'sleep':
+      tips.push(`Aim for ${Math.ceil(remaining * 0.05 * 60)} more minutes of sleep tonight.`);
+      tips.push('Dim screens 1 hour before bed and keep the room cool (65-68°F).');
+      if (value < 50) tips.push('Set a hard bedtime alarm — consistency matters more than one long night.');
+      break;
+    case 'activeMin':
+      tips.push(`Add ${Math.ceil(remaining * 0.3)} more active minutes/day this week.`);
+      tips.push('A 10-min walk counts — break it into 2-3 short movement snacks.');
+      if (value < 50) tips.push('Try standing meetings or desk stretches every hour.');
+      break;
+    default:
+      if (id.startsWith('zone-')) {
+        tips.push('Add a compound that targets this body zone to increase intensity.');
+        tips.push('Check the compound library for options in this category.');
+      } else {
+        tips.push('Stay consistent with your routine to improve this metric.');
+      }
+  }
+  return tips;
+}
+
+function getStatusLabel(value: number): { text: string; className: string } {
+  if (value >= 90) return { text: 'On Track', className: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' };
+  if (value >= 70) return { text: 'Good', className: 'text-primary bg-primary/10 border-primary/20' };
+  if (value >= 40) return { text: 'Needs Work', className: 'text-amber-400 bg-amber-500/10 border-amber-500/20' };
+  return { text: 'At Risk', className: 'text-rose-400 bg-rose-500/10 border-rose-500/20' };
+}
+
+// ── Ring Detail Sheet ────────────────────────────────────────────
+const RingDetailSheet = ({ ring, open, onOpenChange }: {
+  ring: (RingMetric & { color: string }) | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) => {
+  if (!ring) return null;
   const Icon = ring.icon;
-  const advice = ring.advice || getDefaultAdvice(ring.id, ring.value);
+  const tips = ring.weeklyTips || getWeeklyClosingAdvice(ring.id, ring.value);
+  const status = getStatusLabel(ring.value);
 
   return (
-    <Popover>
-      <PopoverTrigger asChild>{children}</PopoverTrigger>
-      <PopoverContent className="w-64 p-0 overflow-hidden" align="center" sideOffset={8}>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="bottom" className="rounded-t-2xl max-h-[70vh]">
+        <SheetHeader className="pb-0">
+          <SheetTitle className="sr-only">{ring.label} Details</SheetTitle>
+        </SheetHeader>
         {/* Header */}
-        <div className="px-4 py-3 border-b border-border/30" style={{ background: `${ring.color}10` }}>
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: `${ring.color}20` }}>
-              <Icon className="w-4 h-4" style={{ color: ring.color }} />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-foreground">{ring.label}</p>
-              {ring.rawValue && (
-                <p className="text-[10px] text-muted-foreground font-mono">{ring.rawValue}</p>
-              )}
-            </div>
-            <span className="ml-auto text-xl font-black font-mono" style={{ color: ring.color }}>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${ring.color}15` }}>
+            <Icon className="w-5 h-5" style={{ color: ring.color }} />
+          </div>
+          <div className="flex-1">
+            <p className="text-base font-bold text-foreground">{ring.label}</p>
+            {ring.rawValue && (
+              <p className="text-xs text-muted-foreground font-mono">{ring.rawValue}</p>
+            )}
+          </div>
+          <div className="text-right">
+            <span className="text-3xl font-black font-mono" style={{ color: ring.color }}>
               {ring.value}%
             </span>
           </div>
         </div>
 
         {/* Progress bar */}
-        <div className="px-4 pt-3 pb-2">
-          <div className="h-2 bg-secondary/50 rounded-full overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all duration-700"
-              style={{ width: `${ring.value}%`, backgroundColor: ring.color }}
-            />
-          </div>
+        <div className="h-3 bg-secondary/50 rounded-full overflow-hidden mb-3">
+          <div
+            className="h-full rounded-full transition-all duration-700"
+            style={{ width: `${ring.value}%`, backgroundColor: ring.color }}
+          />
         </div>
 
-        {/* Detail */}
-        {ring.detail && (
-          <div className="px-4 pb-2">
-            <div className="flex items-start gap-1.5">
-              <TrendingUp className="w-3 h-3 mt-0.5 text-muted-foreground/60 flex-shrink-0" />
-              <p className="text-[11px] text-muted-foreground leading-relaxed">{ring.detail}</p>
-            </div>
-          </div>
-        )}
+        {/* Status badge */}
+        <div className="flex items-center gap-2 mb-4">
+          <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border ${status.className}`}>
+            {status.text}
+          </span>
+          {ring.detail && (
+            <span className="text-xs text-muted-foreground">{ring.detail}</span>
+          )}
+        </div>
 
-        {/* Advice */}
-        <div className="px-4 pb-3">
-          <div className="flex items-start gap-1.5 bg-primary/5 rounded-lg p-2 border border-primary/10">
-            <Lightbulb className="w-3 h-3 mt-0.5 text-primary flex-shrink-0" />
-            <p className="text-[11px] text-primary/80 leading-relaxed">{advice}</p>
+        {/* Weekly closing plan */}
+        <div className="rounded-xl border border-border/40 bg-secondary/20 p-3.5 space-y-3">
+          <div className="flex items-center gap-2">
+            <Lightbulb className="w-4 h-4 text-primary flex-shrink-0" />
+            <p className="text-sm font-semibold text-foreground">How to Close This Ring</p>
+          </div>
+          <div className="space-y-2">
+            {tips.map((tip, i) => (
+              <div key={i} className="flex items-start gap-2">
+                <ArrowUpRight className="w-3.5 h-3.5 mt-0.5 text-primary/60 flex-shrink-0" />
+                <p className="text-xs text-muted-foreground leading-relaxed">{tip}</p>
+              </div>
+            ))}
           </div>
         </div>
-      </PopoverContent>
-    </Popover>
-  );
-};
-
-// ── Clickable ring hit area (invisible arc sector) ───────────────
-const RingHitArea = ({ radius, strokeWidth, size, ring }: {
-  radius: number; strokeWidth: number; size: number;
-  ring: RingMetric & { color: string };
-}) => {
-  const center = size / 2;
-  return (
-    <RingDetailPopover ring={ring}>
-      <circle
-        cx={center} cy={center} r={radius}
-        fill="none"
-        stroke="transparent"
-        strokeWidth={strokeWidth + 12}
-        className="cursor-pointer"
-        style={{ pointerEvents: 'stroke' }}
-      />
-    </RingDetailPopover>
+      </SheetContent>
+    </Sheet>
   );
 };
 
@@ -204,6 +239,8 @@ const HealthRings = ({
   const [internalSelected, setInternalSelected] = useState<string[]>(
     () => externalSelectedIds || availableMetrics.slice(0, 3).map(m => m.id)
   );
+  const [selectedRing, setSelectedRing] = useState<(RingMetric & { color: string }) | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   const selectedIds = externalSelectedIds || internalSelected;
 
@@ -220,6 +257,11 @@ const HealthRings = ({
   const strokeWidth = size > 140 ? 14 : 10;
   const gap = strokeWidth + 4;
   const outerRadius = (size / 2) - strokeWidth / 2 - 2;
+
+  const handleRingTap = (ring: RingMetric & { color: string }) => {
+    setSelectedRing(ring);
+    setSheetOpen(true);
+  };
 
   const toggleMetric = (id: string) => {
     let next: string[];
@@ -238,11 +280,44 @@ const HealthRings = ({
 
   const primaryRing = activeRings[0];
 
+  // Calculate hit zones for click detection on SVG
+  const handleSvgClick = (e: React.MouseEvent<SVGSVGElement> | React.TouchEvent<SVGSVGElement>) => {
+    const svg = e.currentTarget;
+    const rect = svg.getBoundingClientRect();
+    const clientX = 'touches' in e ? e.changedTouches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.changedTouches[0].clientY : e.clientY;
+    const x = ((clientX - rect.left) / rect.width) * size;
+    const y = ((clientY - rect.top) / rect.height) * size;
+    const center = size / 2;
+    const dist = Math.sqrt((x - center) ** 2 + (y - center) ** 2);
+
+    // Find which ring was tapped (check from innermost to outermost)
+    for (let i = activeRings.length - 1; i >= 0; i--) {
+      const r = outerRadius - i * gap;
+      if (Math.abs(dist - r) <= strokeWidth + 6) {
+        handleRingTap(activeRings[i]);
+        return;
+      }
+    }
+    // Tapped center — open primary ring
+    if (dist < outerRadius - (activeRings.length - 1) * gap - strokeWidth && primaryRing) {
+      handleRingTap(primaryRing);
+    }
+  };
+
   return (
     <div className={`flex flex-col items-center ${className}`}>
-      {/* Rings SVG — clickable */}
+      {/* Rings SVG — clickable via coordinate detection */}
       <div className="relative" style={{ width: size, height: size }}>
-        <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size}>
+        <svg
+          viewBox={`0 0 ${size} ${size}`}
+          width={size}
+          height={size}
+          onClick={handleSvgClick}
+          className="cursor-pointer"
+          role="button"
+          aria-label="Tap a ring for details"
+        >
           {activeRings.map((ring, i) => (
             <ArcRing
               key={ring.id}
@@ -251,37 +326,28 @@ const HealthRings = ({
               color={ring.color}
               strokeWidth={strokeWidth}
               size={size}
-              delay={i * 250} // staggered entrance
-            />
-          ))}
-          {/* Invisible click targets on top */}
-          {activeRings.map((ring, i) => (
-            <RingHitArea
-              key={`hit-${ring.id}`}
-              radius={outerRadius - i * gap}
-              strokeWidth={strokeWidth}
-              size={size}
-              ring={ring}
+              delay={i * 250}
             />
           ))}
         </svg>
 
-        {/* Center content — also clickable for primary ring */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
+        {/* Center content */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
           {primaryRing && (
-            <RingDetailPopover ring={primaryRing}>
-              <button className="flex flex-col items-center cursor-pointer hover:scale-105 transition-transform">
-                <span
-                  className="text-2xl font-black font-mono leading-none"
-                  style={{ color: primaryRing.color, textShadow: `0 0 16px ${primaryRing.color}40` }}
-                >
-                  {primaryRing.value}%
-                </span>
-                <span className="text-[8px] uppercase tracking-[0.15em] text-muted-foreground/60 mt-0.5 font-semibold">
-                  {primaryRing.label}
-                </span>
-              </button>
-            </RingDetailPopover>
+            <button
+              onClick={() => handleRingTap(primaryRing)}
+              className="flex flex-col items-center cursor-pointer hover:scale-105 transition-transform pointer-events-auto"
+            >
+              <span
+                className="text-2xl font-black font-mono leading-none"
+                style={{ color: primaryRing.color, textShadow: `0 0 16px ${primaryRing.color}40` }}
+              >
+                {primaryRing.value}%
+              </span>
+              <span className="text-[8px] uppercase tracking-[0.15em] text-muted-foreground/60 mt-0.5 font-semibold">
+                {primaryRing.label}
+              </span>
+            </button>
           )}
         </div>
       </div>
@@ -291,19 +357,21 @@ const HealthRings = ({
         {activeRings.map(ring => {
           const Icon = ring.icon;
           return (
-            <RingDetailPopover key={ring.id} ring={ring}>
-              <button className="flex items-center gap-1.5 hover:opacity-80 transition-opacity cursor-pointer">
-                <div
-                  className="w-2.5 h-2.5 rounded-full"
-                  style={{ backgroundColor: ring.color, boxShadow: `0 0 8px ${ring.color}60` }}
-                />
-                <Icon className="w-3 h-3" style={{ color: ring.color }} />
-                <span className="text-[9px] font-semibold" style={{ color: ring.color }}>
-                  {ring.value}%
-                </span>
-                <span className="text-[8px] text-muted-foreground/50">{ring.label}</span>
-              </button>
-            </RingDetailPopover>
+            <button
+              key={ring.id}
+              onClick={() => handleRingTap(ring)}
+              className="flex items-center gap-1.5 hover:opacity-80 transition-opacity cursor-pointer active:scale-95"
+            >
+              <div
+                className="w-2.5 h-2.5 rounded-full"
+                style={{ backgroundColor: ring.color, boxShadow: `0 0 8px ${ring.color}60` }}
+              />
+              <Icon className="w-3 h-3" style={{ color: ring.color }} />
+              <span className="text-[9px] font-semibold" style={{ color: ring.color }}>
+                {ring.value}%
+              </span>
+              <span className="text-[8px] text-muted-foreground/50">{ring.label}</span>
+            </button>
           );
         })}
       </div>
@@ -347,6 +415,9 @@ const HealthRings = ({
           })}
         </div>
       )}
+
+      {/* Detail sheet */}
+      <RingDetailSheet ring={selectedRing} open={sheetOpen} onOpenChange={setSheetOpen} />
     </div>
   );
 };
