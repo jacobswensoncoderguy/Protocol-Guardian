@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import HealthRings, { RingMetric } from '@/components/HealthRings';
 import ChatMarkdown from '@/components/ChatMarkdown';
 import TitrationBanner from '@/components/TitrationBanner';
 import { TitrationSchedule, TitrationNotification } from '@/hooks/useTitration';
@@ -216,6 +217,8 @@ interface ProtocolCoverageCardProps {
   displayGender?: string | null;
   onZoneTap: (zone: BodyZone) => void;
   onAddCompound?: () => void;
+  goalProgress?: number;
+  protocolScore?: number;
 }
 
 type LayoutStyle = 'classic' | 'hero' | 'split' | 'compact' | 'immersive' | 'insight';
@@ -617,7 +620,7 @@ const ScoreBlock = ({ bodyCoverage, activeCount, activeZones, coverageGrade }: {
   </div>
 );
 
-const ProtocolCoverageCard = ({ activeCompounds, zoneIntensities, bodyCoverage, displayGender, onZoneTap, onAddCompound }: ProtocolCoverageCardProps) => {
+const ProtocolCoverageCard = ({ activeCompounds, zoneIntensities, bodyCoverage, displayGender, onZoneTap, onAddCompound, goalProgress = 0, protocolScore = 50 }: ProtocolCoverageCardProps) => {
   const [showExplainer, setShowExplainer] = useState(false);
   const [layout, setLayout] = useState<LayoutStyle>('insight');
   const [showLayoutPicker, setShowLayoutPicker] = useState(false);
@@ -757,42 +760,62 @@ const ProtocolCoverageCard = ({ activeCompounds, zoneIntensities, bodyCoverage, 
       </div>
     );
 
-    // ── Layout 6: Insight — AI daily insight + radial coverage rings ──────────────
-    if (layout === 'insight') return (
-      <div className="space-y-1">
-        {/* Score strip */}
-        <div className="flex items-center justify-between px-4 pt-4 pb-2">
-          <div>
-            <p className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground/50 font-semibold mb-0.5">Protocol Coverage</p>
-            <div className="flex items-baseline gap-2">
-              <span className={`text-3xl font-black font-mono leading-none ${coverageGrade.color}`} style={{ textShadow: `0 0 20px ${coverageGrade.glow}50` }}>
-                {bodyCoverage}%
-              </span>
-              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${coverageGrade.border} ${coverageGrade.color}`}>{coverageGrade.label}</span>
+    // ── Layout 6: Insight — Apple Health-style rings + AI daily insight ──────────────
+    if (layout === 'insight') {
+      const healthMetrics: RingMetric[] = [
+        { id: 'coverage', label: 'Coverage', value: bodyCoverage, color: 'hsl(2, 100%, 64%)', icon: Activity },
+        { id: 'protocol', label: 'Protocol', value: protocolScore, color: 'hsl(142, 76%, 50%)', icon: Zap },
+        { id: 'goals', label: 'Goals', value: goalProgress, color: 'hsl(195, 100%, 50%)', icon: Target },
+        // Zone-level metrics for customization
+        ...Object.entries(BODY_ZONES).map(([zone, info]) => ({
+          id: `zone-${zone}`,
+          label: info.label,
+          value: Math.round((zoneIntensities[zone as BodyZone] ?? 0) * 100),
+          color: info.color,
+          icon: ZONE_ICONS_MAP[zone as BodyZone],
+        })),
+      ];
+
+      return (
+        <div className="space-y-1">
+          {/* Score strip */}
+          <div className="flex items-center justify-between px-4 pt-4 pb-2">
+            <div>
+              <p className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground/50 font-semibold mb-0.5">Protocol Coverage</p>
+              <div className="flex items-baseline gap-2">
+                <span className={`text-3xl font-black font-mono leading-none ${coverageGrade.color}`} style={{ textShadow: `0 0 20px ${coverageGrade.glow}50` }}>
+                  {bodyCoverage}%
+                </span>
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${coverageGrade.border} ${coverageGrade.color}`}>{coverageGrade.label}</span>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-[9px] text-muted-foreground/40">{activeCompounds.length} compounds</p>
+              <p className="text-[9px] text-muted-foreground/40">{activeZoneCount}/7 systems</p>
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-[9px] text-muted-foreground/40">{activeCompounds.length} compounds</p>
-            <p className="text-[9px] text-muted-foreground/40">{activeZoneCount}/7 systems</p>
+
+          {/* Apple Health-style Rings */}
+          <div className="px-4 pb-3 flex justify-center">
+            <HealthRings
+              availableMetrics={healthMetrics}
+              selectedIds={['coverage', 'protocol', 'goals']}
+              size={180}
+            />
           </div>
-        </div>
 
-        {/* Coverage Rings */}
-        <div className="px-4 pb-3">
-          <CoverageRings zoneIntensities={zoneIntensities} onZoneTap={onZoneTap} />
-        </div>
+          {/* Divider */}
+          <div className="border-t border-border/20 mx-4" />
 
-        {/* Divider */}
-        <div className="border-t border-border/20 mx-4" />
-
-        {/* AI Insight Panel */}
-        <div className="flex items-center gap-1.5 px-4 pt-3 pb-0">
-          <Sparkles className="w-3 h-3 text-primary/60" />
-          <p className="text-[9px] uppercase tracking-[0.18em] text-muted-foreground/50 font-semibold">AI Daily Insight</p>
+          {/* AI Insight Panel */}
+          <div className="flex items-center gap-1.5 px-4 pt-3 pb-0">
+            <Sparkles className="w-3 h-3 text-primary/60" />
+            <p className="text-[9px] uppercase tracking-[0.18em] text-muted-foreground/50 font-semibold">AI Daily Insight</p>
+          </div>
+          <AIInsightPanel activeCompounds={activeCompounds} goals={[]} />
         </div>
-        <AIInsightPanel activeCompounds={activeCompounds} goals={[]} />
-      </div>
-    );
+      );
+    }
 
     return null;
   };
@@ -1363,6 +1386,8 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
           displayGender={displayGender}
           onZoneTap={handleZoneTap}
           onAddCompound={onAddCompound}
+          goalProgress={overallProgress}
+          protocolScore={protocolScore}
         />
       ) : (
         <FeatureTeaserCard featureKey="supplementation" onEnable={() => onEnableFeature?.('supplementation')} />
