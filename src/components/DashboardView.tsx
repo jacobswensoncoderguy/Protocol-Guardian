@@ -626,6 +626,7 @@ const ProtocolCoverageCard = ({ activeCompounds, zoneIntensities, bodyCoverage, 
   const [showExplainer, setShowExplainer] = useState(false);
   const [layout, setLayout] = useState<LayoutStyle>('insight');
   const [showLayoutPicker, setShowLayoutPicker] = useState(false);
+  const [ringSelection, setRingSelection] = useState<string[]>(['coverage', 'protocol', 'goals']);
   const healthData = useHealthData();
 
   const zoneEntries = useMemo(() =>
@@ -823,7 +824,8 @@ const ProtocolCoverageCard = ({ activeCompounds, zoneIntensities, bodyCoverage, 
           <div className="px-4 pb-3 flex justify-center">
             <HealthRings
               availableMetrics={healthMetrics}
-              selectedIds={['coverage', 'protocol', 'goals']}
+              selectedIds={ringSelection}
+              onSelectionChange={setRingSelection}
               size={180}
             />
           </div>
