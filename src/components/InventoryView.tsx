@@ -599,9 +599,17 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
     let storedUnit: string;
     if (dl.includes('iu')) storedUnit = 'iu';
     else if (dl.includes('mcg') || dl.includes('µg')) storedUnit = 'mcg';
+    else if (dl === 'drops' || dl === 'drop') storedUnit = 'drops';
+    else if (dl === 'spray' || dl === 'sprays') storedUnit = 'spray';
+    else if (dl === 'patch' || dl === 'patches') storedUnit = 'patch';
+    else if (dl === 'tbsp') storedUnit = 'tbsp';
+    else if (dl === 'tsp') storedUnit = 'tsp';
+    else if (dl === 'oz') storedUnit = 'oz';
+    else if (dl === 'units' || dl === 'unit') storedUnit = 'units';
     else if (dl.includes('scoop') || (compound.category === 'powder' && dl.includes('serving'))) storedUnit = 'scoop';
     else if (dl.includes('pill') || dl.includes('cap') || dl.includes('softgel') || dl.includes('tab') || dl.includes('serving')) storedUnit = 'pills';
     else if (dl.includes('ml')) storedUnit = 'ml';
+    else if (dl === 'g') storedUnit = 'g';
     else storedUnit = compound.category === 'powder' ? 'scoop' : 'mg';
 
     // Use the stored unit as the edit unit so overview and edit match
@@ -705,9 +713,17 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
     let storedUnit: string;
     if (dl.includes('iu')) storedUnit = 'iu';
     else if (dl.includes('mcg') || dl.includes('µg')) storedUnit = 'mcg';
+    else if (dl === 'drops' || dl === 'drop') storedUnit = 'drops';
+    else if (dl === 'spray' || dl === 'sprays') storedUnit = 'spray';
+    else if (dl === 'patch' || dl === 'patches') storedUnit = 'patch';
+    else if (dl === 'tbsp') storedUnit = 'tbsp';
+    else if (dl === 'tsp') storedUnit = 'tsp';
+    else if (dl === 'oz') storedUnit = 'oz';
+    else if (dl === 'units' || dl === 'unit') storedUnit = 'units';
     else if (dl.includes('scoop') || (editCat === 'powder' && dl.includes('serving'))) storedUnit = 'scoop';
     else if (dl.includes('pill') || dl.includes('cap') || dl.includes('softgel') || dl.includes('tab') || dl.includes('serving')) storedUnit = 'pills';
     else if (dl.includes('ml')) storedUnit = 'ml';
+    else if (dl === 'g') storedUnit = 'g';
     else storedUnit = editCat === 'powder' ? 'scoop' : 'mg';
 
     // If edit unit matches stored unit, no conversion needed
