@@ -223,7 +223,7 @@ export function getEffectiveQuantity(
  * Handles volume-to-drops conversion when unitLabel is a volume (mL, fl oz, oz)
  * and doseLabel is drops (standard: 20 drops per mL).
  */
-function totalSupplyInDoseUnits(compound: Compound, effectiveQty: number): number {
+export function totalSupplyInDoseUnits(compound: Compound, effectiveQty: number): number {
   if (compound.category === 'peptide' && compound.bacstatPerVial) {
     return effectiveQty * compound.bacstatPerVial;
   }
