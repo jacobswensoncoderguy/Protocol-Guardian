@@ -40,6 +40,14 @@ export interface Compound {
   weightUnit?: string; // display unit for weightPerUnit ('g', 'mg', 'mcg', 'oz', 'lb')
   complianceDoseOffset?: number; // check-offs already accounted for before current stock period
   depletionAction?: 'pause' | 'dormant' | null; // action to take when stock runs out
+  // Dilution / reconstitution
+  solventType?: string;        // e.g. "Bacteriostatic Water", "RO Water"
+  solventVolume?: number;      // e.g. 2
+  solventUnit?: string;        // e.g. "mL", "oz"
+  resultingConcentration?: number;
+  concentrationUnit?: string;  // e.g. "mg/mL"
+  storageInstructions?: string;
+  prepNotes?: string;
 }
 
 /**
