@@ -26,6 +26,11 @@ const DEFAULT_METRICS: HealthMetrics = {
 /**
  * Hook that reads today's health data from Apple HealthKit / Google Health Connect
  * via the `capacitor-health` plugin. Falls back gracefully on web.
+ *
+ * Supported by the plugin's queryAggregated:
+ *   - steps, active-calories (dataType enum)
+ * Heart rate is fetched from today's workouts (queryWorkouts with includeHeartRate).
+ * Sleep and active minutes are NOT supported by this plugin — they stay at 0.
  */
 export function useHealthData() {
   const [metrics, setMetrics] = useState<HealthMetrics>(DEFAULT_METRICS);
@@ -49,32 +54,32 @@ export function useHealthData() {
         return;
       }
 
+      // Only request permissions the plugin actually supports
       await Health.requestHealthPermissions({
         permissions: [
           'READ_STEPS',
           'READ_ACTIVE_CALORIES',
-          'READ_HEART_RATE' as any,
-          'READ_SLEEP' as any,
-          'READ_ACTIVE_MINUTES' as any,
+          'READ_HEART_RATE',
         ],
       });
 
       const now = new Date();
       const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-      const queryOpts = (dataType: string) => ({
-        dataType: dataType as any,
-        startDate: startOfDay.toISOString(),
-        endDate: now.toISOString(),
-        bucket: 'day' as const,
-      });
-
-      const [stepsRes, caloriesRes, heartRateRes, sleepRes, activeMinRes] = await Promise.allSettled([
-        Health.queryAggregated(queryOpts('steps')),
-        Health.queryAggregated(queryOpts('active-calories')),
-        Health.queryAggregated(queryOpts('heart-rate')),
-        Health.queryAggregated(queryOpts('sleep')),
-        Health.queryAggregated(queryOpts('active-minutes')),
+      // Query steps and active calories (the only two supported aggregated types)
+      const [stepsRes, caloriesRes] = await Promise.allSettled([
+        Health.queryAggregated({
+          startDate: startOfDay.toISOString(),
+          endDate: now.toISOString(),
+          dataType: 'steps',
+          bucket: 'day',
+        }),
+        Health.queryAggregated({
+          startDate: startOfDay.toISOString(),
+          endDate: now.toISOString(),
+          dataType: 'active-calories',
+          bucket: 'day',
+        }),
       ]);
 
       const stepsVal = stepsRes.status === 'fulfilled'
@@ -83,22 +88,40 @@ export function useHealthData() {
       const calsVal = caloriesRes.status === 'fulfilled'
         ? caloriesRes.value.aggregatedData.reduce((s, d) => s + d.value, 0)
         : 0;
-      const hrVal = heartRateRes.status === 'fulfilled' && heartRateRes.value.aggregatedData.length > 0
-        ? heartRateRes.value.aggregatedData[heartRateRes.value.aggregatedData.length - 1].value
-        : 0;
-      const sleepVal = sleepRes.status === 'fulfilled'
-        ? sleepRes.value.aggregatedData.reduce((s, d) => s + d.value, 0)
-        : 0;
-      const activeMinVal = activeMinRes.status === 'fulfilled'
-        ? activeMinRes.value.aggregatedData.reduce((s, d) => s + d.value, 0)
-        : 0;
+
+      // Get heart rate from today's workouts (best available source via this plugin)
+      let hrVal = 0;
+      let activeMinVal = 0;
+      try {
+        const workoutsRes = await Health.queryWorkouts({
+          startDate: startOfDay.toISOString(),
+          endDate: now.toISOString(),
+          includeHeartRate: true,
+          includeRoute: false,
+          includeSteps: false,
+        });
+        if (workoutsRes.workouts && workoutsRes.workouts.length > 0) {
+          // Sum workout durations for active minutes
+          activeMinVal = workoutsRes.workouts.reduce(
+            (sum, w) => sum + Math.round((w.duration || 0) / 60),
+            0
+          );
+          // Get latest heart rate sample from the most recent workout
+          const lastWorkout = workoutsRes.workouts[workoutsRes.workouts.length - 1];
+          if (lastWorkout.heartRate && lastWorkout.heartRate.length > 0) {
+            hrVal = lastWorkout.heartRate[lastWorkout.heartRate.length - 1].bpm;
+          }
+        }
+      } catch (e) {
+        console.warn('[useHealthData] workout query failed:', e);
+      }
 
       setMetrics({
         steps: Math.round(stepsVal),
         calories: Math.round(calsVal),
         heartRate: Math.round(hrVal),
-        sleepMinutes: Math.round(sleepVal),
-        activeMinutes: Math.round(activeMinVal),
+        sleepMinutes: 0, // not supported by this plugin
+        activeMinutes: activeMinVal,
         available: true,
         loading: false,
         error: null,
