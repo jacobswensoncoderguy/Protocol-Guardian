@@ -2145,10 +2145,12 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                     <span className="font-mono text-foreground">{compound.purchaseDate}</span>
                   </div>
                 )}
+                {!compoundIsPaused && !compound.notes?.includes('[DORMANT]') && (
                 <div>
                   <span className="text-muted-foreground">Reorder by:</span>{' '}
                   <span className="font-mono text-accent">{reorderDate}</span>
                 </div>
+                )}
               </div>
             );
           })() : (
@@ -2275,10 +2277,12 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                   <span className="font-mono text-foreground">{compound.purchaseDate}</span>
                 </div>
               )}
+              {!compoundIsPaused && !compound.notes?.includes('[DORMANT]') && (
               <div>
                 <span className="text-muted-foreground">Reorder by:</span>{' '}
                 <span className="font-mono text-accent">{reorderDate}</span>
               </div>
+              )}
             </div>
           )}
 
@@ -2345,7 +2349,8 @@ const InlineQuantityEditor = ({ compound, status, isOil, isPeptide, onUpdate }: 
     return `${Math.round(qty * 100) / 100} ${container}${qty !== 1 ? 's' : ''}`;
   };
 
-  const displayValue = formatQty(effectiveQty);
+  const isFrozenForDisplay = isPaused(compound) || (compound.notes || '').includes('[DORMANT]');
+  const displayValue = formatQty(isFrozenForDisplay ? compound.currentQuantity : effectiveQty);
 
   const saveInline = () => {
     const val = parseFloat(inlineValue);
@@ -2400,9 +2405,12 @@ const InlineQuantityEditor = ({ compound, status, isOil, isPeptide, onUpdate }: 
     );
   }
 
+  // For paused/dormant compounds, freeze depletion — no consumption
+  const isFrozen = isPaused(compound) || (compound.notes || '').includes('[DORMANT]');
+
   // Calculate units remaining for depletion bar
   const totalUnitsInStock = compound.currentQuantity * compound.unitSize;
-  const effectiveUnitsRemaining = effectiveQty * compound.unitSize;
+  const effectiveUnitsRemaining = isFrozen ? totalUnitsInStock : effectiveQty * compound.unitSize;
   const pctRemaining = totalUnitsInStock > 0 ? Math.max(0, Math.min(100, (effectiveUnitsRemaining / totalUnitsInStock) * 100)) : 100;
   const unitsConsumed = Math.round((totalUnitsInStock - effectiveUnitsRemaining) * 10) / 10;
   const unitsLeft = Math.round(effectiveUnitsRemaining * 10) / 10;
@@ -2447,7 +2455,7 @@ const InlineQuantityEditor = ({ compound, status, isOil, isPeptide, onUpdate }: 
           >
             {displayValue}
           </button>
-          {hasDepletion && (
+          {hasDepletion && !isFrozen && (
             <span className="text-[9px] text-muted-foreground/60 ml-1">
               (of {compound.currentQuantity} purchased)
             </span>
