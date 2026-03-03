@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { UserProfile } from '@/hooks/useProfile';
 import { MeasurementSystem, displayHeight, displayWeight } from '@/lib/measurements';
 import BiomarkerHistoryView from './BiomarkerHistoryView';
+import DatePickerInput from '@/components/DatePickerInput';
 import ComplianceTrendChart from './ComplianceTrendChart';
 import AddGoalDialog from './AddGoalDialog';
 import ConfirmDialog from './ConfirmDialog';
@@ -486,15 +487,15 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
                             <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block mb-0.5 flex items-center gap-1">
                               <CalendarIcon className="w-3 h-3" /> Baseline Date
                             </label>
-                            <input type="date" value={editForm.baseline_date} onChange={e => setEditForm(f => ({ ...f, baseline_date: e.target.value }))}
-                              className="w-full px-2.5 py-1.5 rounded-lg border border-border/50 bg-secondary text-sm text-foreground focus:outline-none focus:border-primary/50" />
+                            <DatePickerInput value={editForm.baseline_date} onChange={v => setEditForm(f => ({ ...f, baseline_date: v }))}
+                              className="w-full text-sm" />
                           </div>
                           <div>
                             <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block mb-0.5 flex items-center gap-1">
                               <CalendarIcon className="w-3 h-3" /> Achievement Date
                             </label>
-                            <input type="date" value={editForm.target_date} onChange={e => setEditForm(f => ({ ...f, target_date: e.target.value }))}
-                              className="w-full px-2.5 py-1.5 rounded-lg border border-border/50 bg-secondary text-sm text-foreground focus:outline-none focus:border-primary/50" />
+                            <DatePickerInput value={editForm.target_date} onChange={v => setEditForm(f => ({ ...f, target_date: v }))}
+                              className="w-full text-sm" />
                           </div>
                           <div>
                             <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block mb-0.5">Notes</label>
@@ -636,9 +637,9 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
                                     <div className="grid grid-cols-3 gap-2">
                                       <div>
                                         <label className="text-[8px] text-muted-foreground uppercase">Date</label>
-                                        <input type="date" value={editReadingForm.reading_date}
-                                          onChange={e => setEditReadingForm(f => ({ ...f, reading_date: e.target.value }))}
-                                          className="w-full px-1.5 py-1 rounded border border-border/50 bg-secondary text-[11px] text-foreground focus:outline-none focus:border-primary/50" />
+                                        <DatePickerInput value={editReadingForm.reading_date}
+                                          onChange={v => setEditReadingForm(f => ({ ...f, reading_date: v }))}
+                                          className="w-full text-[11px]" />
                                       </div>
                                       <div>
                                         <label className="text-[8px] text-muted-foreground uppercase">Value</label>
@@ -712,9 +713,9 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
                           <div className="flex items-center gap-2">
                             <div className="flex-1">
                               <label className="text-[10px] text-muted-foreground mb-0.5 block">Date (optional, defaults to today)</label>
-                              <input type="date" value={newReadingDate} onChange={e => setNewReadingDate(e.target.value)}
+                              <DatePickerInput value={newReadingDate} onChange={setNewReadingDate}
                                 max={new Date().toISOString().split('T')[0]}
-                                className="w-full px-2.5 py-2 rounded-lg border border-border/50 bg-secondary text-sm text-foreground focus:outline-none focus:border-primary/50" />
+                                className="w-full text-sm" />
                             </div>
                             <button onClick={() => handleAddReading(goal.id!)} disabled={!newReadingValue}
                               className="px-3 py-2 rounded-lg text-xs font-medium disabled:opacity-40 transition-all mt-4"

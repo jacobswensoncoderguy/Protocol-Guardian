@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import DatePickerInput from '@/components/DatePickerInput';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -810,10 +811,9 @@ const FoodTrackerView = () => {
               <button onClick={() => setShowTargets(true)} className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
                 <Settings className="w-4 h-4" />
               </button>
-              <Input
-                type="date"
+              <DatePickerInput
                 value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
+                onChange={setSelectedDate}
                 className="w-auto h-8 text-xs"
               />
             </div>

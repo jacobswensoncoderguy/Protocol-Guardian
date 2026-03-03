@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import DatePickerInput from '@/components/DatePickerInput';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -269,10 +270,9 @@ const SymptomsTrackerView = () => {
       {/* Date selector */}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold text-foreground">{dateLabel}</h2>
-        <Input
-          type="date"
+        <DatePickerInput
           value={selectedDate}
-          onChange={(e) => setSelectedDate(e.target.value)}
+          onChange={setSelectedDate}
           className="w-auto h-8 text-xs"
         />
       </div>
@@ -881,10 +881,9 @@ const SymptomsTrackerView = () => {
               </Select>
             </div>
 
-            <Input
-              type="date"
+            <DatePickerInput
               value={changeDate}
-              onChange={e => setChangeDate(e.target.value)}
+              onChange={setChangeDate}
             />
 
             <Textarea

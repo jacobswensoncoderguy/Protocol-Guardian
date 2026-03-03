@@ -6,6 +6,7 @@ import {
   Link2, Pencil, Check, GitCompare, BookMarked, Info, Sparkles,
   ArrowRightLeft, TrendingUp, TrendingDown, ExternalLink, Paperclip, ArrowUpRight, ArrowDownRight, Minus, Activity, Target, BarChart3, ShieldAlert,
 } from 'lucide-react';
+import DatePickerInput from '@/components/DatePickerInput';
 import { getReferenceRange, formatRange } from '@/lib/biomarkerReferenceRanges';
 import { LineChart, Line, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid, ReferenceArea } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
@@ -253,11 +254,10 @@ function InlineEditForm({
         autoFocus
         className="w-full px-2 py-1.5 rounded-lg border border-border/50 bg-secondary/30 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50"
       />
-      <input
-        type="date"
+      <DatePickerInput
         value={date}
-        onChange={e => setDate(e.target.value)}
-        className="w-full px-2 py-1.5 rounded-lg border border-border/50 bg-secondary/30 text-xs text-foreground focus:outline-none focus:border-primary/50"
+        onChange={setDate}
+        className="w-full text-xs"
       />
       <div className="flex gap-1.5 mt-auto">
         <button

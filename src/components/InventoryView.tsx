@@ -20,6 +20,7 @@ import { Droplets, Thermometer, Calculator } from 'lucide-react';
 import InfoTooltip from '@/components/InfoTooltip';
 import CompoundingCalculator from '@/components/CompoundingCalculator';
 import type { CalculatorResult } from '@/components/CompoundingCalculator';
+import DatePickerInput from '@/components/DatePickerInput';
 
 interface TitrationBadgeInfo {
   currentStep: number;
@@ -1194,12 +1195,11 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
           <div className="flex items-center gap-2">
             <Calendar className="w-3 h-3 text-muted-foreground flex-shrink-0" />
             <span className="text-[10px] text-muted-foreground">Restart date (optional):</span>
-            <input
-              type="date"
+            <DatePickerInput
               value={pauseDate}
+              onChange={setPauseDate}
               min={new Date().toISOString().split('T')[0]}
-              onChange={e => setPauseDate(e.target.value)}
-              className="flex-1 bg-secondary border border-border/50 rounded px-2 py-1 text-[11px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+              className="flex-1 text-[11px] py-1"
             />
           </div>
           <div className="flex items-center gap-2 pt-1">
@@ -1259,15 +1259,14 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
         <div className="mb-2 flex items-center gap-2 bg-primary/5 border border-primary/20 rounded-lg px-2.5 py-1.5">
           <Calendar className="w-3 h-3 text-primary/70 flex-shrink-0" />
           <span className="text-[10px] text-muted-foreground flex-1">Set purchase date to track pills remaining</span>
-          <input
-            type="date"
-            max={new Date().toISOString().split('T')[0]}
-            className="bg-transparent border-0 text-[10px] text-primary font-mono cursor-pointer focus:outline-none w-24"
-            onChange={e => {
-              if (e.target.value) {
-                onUpdate(compound.id, { purchaseDate: e.target.value });
-              }
+          <DatePickerInput
+            value=""
+            onChange={v => {
+              if (v) onUpdate(compound.id, { purchaseDate: v });
             }}
+            max={new Date().toISOString().split('T')[0]}
+            placeholder="Set date"
+            className="text-[10px] py-1 w-28 bg-transparent border-0"
           />
         </div>
       )}
@@ -1724,11 +1723,10 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
           <div className="flex items-center gap-2 text-[11px]">
             <span className="text-muted-foreground w-16 flex-shrink-0">Purchased</span>
             <div className="flex items-center gap-1 flex-1">
-              <input
-                type="date"
+              <DatePickerInput
                 value={editState.purchaseDate || ''}
-                onChange={e => setEditState(s => ({ ...s, purchaseDate: e.target.value }))}
-                className="w-full bg-secondary border border-border/50 rounded px-2 py-1 text-foreground font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50"
+                onChange={v => setEditState(s => ({ ...s, purchaseDate: v }))}
+                className="text-[11px] py-1"
               />
               {editState.purchaseDate && (
                 <button
@@ -2522,12 +2520,20 @@ const EditRow = ({ label, value, onChange, type, prefix, suffix }: {
     <span className="text-muted-foreground w-16 flex-shrink-0">{label}</span>
     <div className="flex items-center gap-1 flex-1">
       {prefix && <span className="text-muted-foreground">{prefix}</span>}
-      <input
-        type={type}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        className="w-full bg-secondary border border-border/50 rounded px-2 py-1 text-foreground font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50"
-      />
+      {type === 'date' ? (
+        <DatePickerInput
+          value={value}
+          onChange={onChange}
+          className="text-[11px] py-1"
+        />
+      ) : (
+        <input
+          type={type}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          className="w-full bg-secondary border border-border/50 rounded px-2 py-1 text-foreground font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50"
+        />
+      )}
       {suffix && <span className="text-muted-foreground text-[10px] whitespace-nowrap">{suffix}</span>}
     </div>
   </div>
