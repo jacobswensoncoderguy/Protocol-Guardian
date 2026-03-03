@@ -994,7 +994,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
           </span>
         )}
         {/* OUT OF STOCK badge for paused/dormant compounds with no supply */}
-        {(compoundIsPaused || compound.notes?.includes('[DORMANT]')) && days <= 0 && (
+        {(compoundIsPaused || compound.notes?.includes('[DORMANT]')) && compound.currentQuantity <= 0 && (
           <span className="text-[11px] font-bold font-mono px-2 py-0.5 rounded-full bg-destructive/25 text-status-critical border border-destructive/40 uppercase tracking-wider">
             Out of Stock
           </span>
