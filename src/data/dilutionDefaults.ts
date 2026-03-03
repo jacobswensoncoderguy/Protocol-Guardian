@@ -45,6 +45,169 @@ const COMPOUND_DILUTION_MAP: Record<string, DilutionDefault> = {
     storageInstructions: 'Refrigerate. Use within 14 days.',
     prepNotes: 'Dissolve lyophilized BPC-157 in RO water for oral dosing. Take sublingually for best absorption.',
   },
+
+  // ═══ NAD+ variants ═══
+  'nad+': {
+    solventType: 'Bacteriostatic Water',
+    solventVolume: 2,
+    solventUnit: 'mL',
+    storageInstructions: 'Refrigerate. Use within 28 days.',
+    prepNotes: 'Inject bac water slowly along vial wall. Swirl gently. Allow to fully dissolve before drawing. SubQ injection.',
+  },
+  'nad+ iv': {
+    solventType: 'Sterile Normal Saline',
+    solventVolume: 250,
+    solventUnit: 'mL',
+    storageInstructions: 'Use immediately after preparation.',
+    prepNotes: 'Dissolve NAD+ in 250mL normal saline IV bag. Infuse slowly over 2-4 hours to minimize flushing.',
+  },
+
+  // ═══ Glutathione variants ═══
+  'glutathione': {
+    solventType: 'Bacteriostatic Water',
+    solventVolume: 2,
+    solventUnit: 'mL',
+    storageInstructions: 'Refrigerate. Protect from light. Use within 14 days.',
+    prepNotes: 'Inject bac water along vial wall. Swirl gently — do not shake. Solution should be clear and colorless.',
+  },
+  'glutathione iv': {
+    solventType: 'Sterile Normal Saline',
+    solventVolume: 50,
+    solventUnit: 'mL',
+    storageInstructions: 'Use immediately after preparation.',
+    prepNotes: 'Dissolve in 50mL normal saline. IV push over 10-15 minutes.',
+  },
+
+  // ═══ GH Peptides ═══
+  'cjc-1295': {
+    solventType: 'Bacteriostatic Water',
+    solventVolume: 2,
+    solventUnit: 'mL',
+    storageInstructions: 'Refrigerate. Use within 28 days.',
+    prepNotes: 'Inject 2mL bac water along vial wall. Swirl gently. SubQ abdomen or thigh.',
+  },
+  'ipamorelin': {
+    solventType: 'Bacteriostatic Water',
+    solventVolume: 2,
+    solventUnit: 'mL',
+    storageInstructions: 'Refrigerate. Use within 28 days.',
+    prepNotes: 'Inject 2mL bac water along vial wall. Swirl gently. SubQ abdomen. Best on empty stomach.',
+  },
+  'tesamorelin': {
+    solventType: 'Bacteriostatic Water',
+    solventVolume: 2,
+    solventUnit: 'mL',
+    storageInstructions: 'Refrigerate. Use within 28 days.',
+    prepNotes: 'Reconstitute with 2mL bac water. Swirl gently. SubQ abdomen injection.',
+  },
+
+  // ═══ GLP-1 / Weight management ═══
+  'semaglutide': {
+    solventType: 'Bacteriostatic Water',
+    solventVolume: 2,
+    solventUnit: 'mL',
+    storageInstructions: 'Refrigerate. Use within 28 days.',
+    prepNotes: 'Inject bac water slowly. Swirl gently — never shake. SubQ abdomen. Titrate dose weekly.',
+  },
+  'retatrutide': {
+    solventType: 'Bacteriostatic Water',
+    solventVolume: 3,
+    solventUnit: 'mL',
+    storageInstructions: 'Refrigerate. Use within 28 days.',
+    prepNotes: 'Reconstitute with 3mL bac water for easier dose measurement. Swirl gently. SubQ abdomen.',
+  },
+  'tirzepatide': {
+    solventType: 'Bacteriostatic Water',
+    solventVolume: 2,
+    solventUnit: 'mL',
+    storageInstructions: 'Refrigerate. Use within 28 days.',
+    prepNotes: 'Inject bac water slowly. Swirl gently. SubQ abdomen or thigh.',
+  },
+
+  // ═══ Healing / Repair peptides ═══
+  'bpc-157': {
+    solventType: 'Bacteriostatic Water',
+    solventVolume: 2,
+    solventUnit: 'mL',
+    storageInstructions: 'Refrigerate. Use within 28 days.',
+    prepNotes: 'Inject 2mL bac water along vial wall. Swirl gently. SubQ near injury site for best results.',
+  },
+  'tb-500': {
+    solventType: 'Bacteriostatic Water',
+    solventVolume: 2,
+    solventUnit: 'mL',
+    storageInstructions: 'Refrigerate. Use within 28 days.',
+    prepNotes: 'Reconstitute with 2mL bac water. Swirl gently. SubQ injection.',
+  },
+  'thymosin alpha-1': {
+    solventType: 'Bacteriostatic Water',
+    solventVolume: 1,
+    solventUnit: 'mL',
+    storageInstructions: 'Refrigerate. Use within 21 days.',
+    prepNotes: 'Reconstitute with 1mL bac water. Swirl gently. SubQ injection.',
+  },
+
+  // ═══ Nootropic peptides ═══
+  'semax': {
+    solventType: 'Bacteriostatic Water',
+    solventVolume: 2,
+    solventUnit: 'mL',
+    storageInstructions: 'Refrigerate. Use within 28 days.',
+    prepNotes: 'Reconstitute with 2mL bac water. Transfer to nasal spray bottle or use SubQ.',
+  },
+  'selank': {
+    solventType: 'Bacteriostatic Water',
+    solventVolume: 2,
+    solventUnit: 'mL',
+    storageInstructions: 'Refrigerate. Use within 28 days.',
+    prepNotes: 'Reconstitute with 2mL bac water. Can be used SubQ or intranasal.',
+  },
+
+  // ═══ Longevity peptides ═══
+  'mots-c': {
+    solventType: 'Bacteriostatic Water',
+    solventVolume: 2,
+    solventUnit: 'mL',
+    storageInstructions: 'Refrigerate. Use within 28 days.',
+    prepNotes: 'Reconstitute with 2mL bac water. Swirl gently. SubQ injection.',
+  },
+  'epithalon': {
+    solventType: 'Bacteriostatic Water',
+    solventVolume: 2,
+    solventUnit: 'mL',
+    storageInstructions: 'Refrigerate. Use within 28 days.',
+    prepNotes: 'Reconstitute with 2mL bac water. SubQ injection. Typically cycled 10-20 days.',
+  },
+  '5-amino-1mq': {
+    solventType: 'N/A (Oral Capsule)',
+    solventVolume: 0,
+    solventUnit: 'mL',
+    storageInstructions: 'Store at room temperature. Keep dry.',
+    prepNotes: 'Oral capsule — no reconstitution needed. Take with or without food.',
+  },
+
+  // ═══ Other injectables ═══
+  'pt-141': {
+    solventType: 'Bacteriostatic Water',
+    solventVolume: 2,
+    solventUnit: 'mL',
+    storageInstructions: 'Refrigerate. Use within 28 days.',
+    prepNotes: 'Reconstitute with 2mL bac water. SubQ injection 30-60 min before desired effect.',
+  },
+  'hcg': {
+    solventType: 'Bacteriostatic Water',
+    solventVolume: 5,
+    solventUnit: 'mL',
+    storageInstructions: 'Refrigerate. Use within 30 days.',
+    prepNotes: 'Reconstitute with 5mL bac water (5000 IU vial → 1000 IU/mL). SubQ or IM injection.',
+  },
+  'igf-1 lr3': {
+    solventType: 'Bacteriostatic Water',
+    solventVolume: 1,
+    solventUnit: 'mL',
+    storageInstructions: 'Refrigerate. Use within 28 days. Extremely fragile — avoid shaking.',
+    prepNotes: 'Inject 1mL bac water very slowly along vial wall. Never shake. SubQ or IM post-workout.',
+  },
 };
 
 /** Category-level defaults */
