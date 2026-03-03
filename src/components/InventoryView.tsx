@@ -2023,7 +2023,12 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                     >
                       <option value="mg/mL">mg/mL</option>
                       <option value="mcg/mL">mcg/mL</option>
+                      <option value="g/mL">g/mL</option>
                       <option value="IU/mL">IU/mL</option>
+                      <option value="mg/fl oz">mg/fl oz</option>
+                      <option value="g/fl oz">g/fl oz</option>
+                      <option value="mg/L">mg/L</option>
+                      <option value="%">% (w/v)</option>
                     </select>
                   </div>
                 </div>
