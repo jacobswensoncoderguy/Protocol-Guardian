@@ -15,6 +15,8 @@ import CycleTimelineBar from '@/components/CycleTimelineBar';
 import { getCompoundScores, getDeliveryLabel, CompoundScores } from '@/data/compoundScores';
 import { FlaskConical, Beaker, Target } from 'lucide-react';
 import CompoundScoreDrawer from '@/components/CompoundScoreDrawer';
+import { buildPrepGuide } from '@/data/dilutionDefaults';
+import { Droplets, Thermometer } from 'lucide-react';
 
 interface TitrationBadgeInfo {
   currentStep: number;
@@ -1221,31 +1223,60 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
       )}
 
 
-      {/* Peptide reconstitution math — inline helper for syringe fills */}
-      {isPeptide && !editing && compound.bacstatPerVial && compound.reconVolume && (
-        <div className="mb-2 flex flex-wrap items-center gap-1.5 bg-primary/5 border border-primary/15 rounded-lg px-2.5 py-1.5">
-          <Syringe className="w-3 h-3 text-primary/60 flex-shrink-0" />
-          <span className="text-[10px] text-muted-foreground">
-            {compound.reconVolume}mL BacWat
-          </span>
-          <span className="text-[10px] text-muted-foreground/50">→</span>
-          <span className="text-[10px] font-mono text-foreground/80">
-            {compound.bacstatPerVial / compound.reconVolume} IU/mL
-          </span>
-          <span className="text-[10px] text-muted-foreground/50">·</span>
-          <span className="text-[10px] font-mono text-foreground/80">
-            {compound.dosePerUse > 0 ? Math.round(compound.bacstatPerVial / compound.dosePerUse) : '—'} doses/vial
-          </span>
-          {compound.dosePerUse > 0 && (
-            <>
-              <span className="text-[10px] text-muted-foreground/50">·</span>
-              <span className="text-[10px] font-mono text-foreground/80">
-                {(compound.dosePerUse / (compound.bacstatPerVial / compound.reconVolume)).toFixed(2)} mL/dose
-              </span>
-            </>
-          )}
-        </div>
-      )}
+      {/* Dilution / Reconstitution Prep Guide */}
+      {!editing && (() => {
+        const guide = buildPrepGuide(compound);
+        if (!guide) return null;
+        return (
+          <div className="mb-2 bg-primary/5 border border-primary/15 rounded-lg px-2.5 py-2 space-y-1.5">
+            {/* Header row: solvent info + concentration */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Droplets className="w-3 h-3 text-primary/60 flex-shrink-0" />
+              <span className="text-[10px] font-semibold text-foreground/80">Prep Guide</span>
+              {guide.solventVolume > 0 && (
+                <>
+                  <span className="text-[10px] text-muted-foreground/50">·</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {guide.solventVolume}{guide.solventUnit} {guide.solventType}
+                  </span>
+                </>
+              )}
+              {guide.concentration && (
+                <>
+                  <span className="text-[10px] text-muted-foreground/50">→</span>
+                  <span className="text-[10px] font-mono text-foreground/80">{guide.concentration}</span>
+                </>
+              )}
+            </div>
+            {/* Dose math row */}
+            {(guide.doseVolume || guide.dosesPerVial) && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Syringe className="w-3 h-3 text-primary/40 flex-shrink-0" />
+                {guide.doseVolume && (
+                  <span className="text-[10px] font-mono text-foreground/70">{guide.doseVolume}</span>
+                )}
+                {guide.doseVolume && guide.dosesPerVial && (
+                  <span className="text-[10px] text-muted-foreground/50">·</span>
+                )}
+                {guide.dosesPerVial && (
+                  <span className="text-[10px] font-mono text-foreground/70">{guide.dosesPerVial} doses/vial</span>
+                )}
+              </div>
+            )}
+            {/* Prep notes */}
+            {guide.prepNotes && (
+              <p className="text-[9px] text-muted-foreground leading-relaxed">{guide.prepNotes}</p>
+            )}
+            {/* Storage */}
+            {guide.storageInstructions && (
+              <div className="flex items-start gap-1">
+                <Thermometer className="w-2.5 h-2.5 text-muted-foreground/50 flex-shrink-0 mt-0.5" />
+                <p className="text-[9px] text-muted-foreground/70 leading-relaxed">{guide.storageInstructions}</p>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {editing ? (
         <div className="space-y-1.5">

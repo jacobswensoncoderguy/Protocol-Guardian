@@ -1085,6 +1085,7 @@ export type Database = {
           category: string
           compliance_dose_offset: number
           compound_id: string
+          concentration_unit: string | null
           created_at: string
           current_quantity: number
           cycle_off_days: number | null
@@ -1102,10 +1103,16 @@ export type Database = {
           notes: string | null
           pause_restart_date: string | null
           paused_at: string | null
+          prep_notes: string | null
           purchase_date: string | null
           recon_volume: number | null
           reorder_quantity: number
           reorder_type: string
+          resulting_concentration: number | null
+          solvent_type: string | null
+          solvent_unit: string | null
+          solvent_volume: number | null
+          storage_instructions: string | null
           timing_note: string | null
           unit_label: string
           unit_price: number
@@ -1121,6 +1128,7 @@ export type Database = {
           category: string
           compliance_dose_offset?: number
           compound_id: string
+          concentration_unit?: string | null
           created_at?: string
           current_quantity?: number
           cycle_off_days?: number | null
@@ -1138,10 +1146,16 @@ export type Database = {
           notes?: string | null
           pause_restart_date?: string | null
           paused_at?: string | null
+          prep_notes?: string | null
           purchase_date?: string | null
           recon_volume?: number | null
           reorder_quantity?: number
           reorder_type?: string
+          resulting_concentration?: number | null
+          solvent_type?: string | null
+          solvent_unit?: string | null
+          solvent_volume?: number | null
+          storage_instructions?: string | null
           timing_note?: string | null
           unit_label: string
           unit_price: number
@@ -1157,6 +1171,7 @@ export type Database = {
           category?: string
           compliance_dose_offset?: number
           compound_id?: string
+          concentration_unit?: string | null
           created_at?: string
           current_quantity?: number
           cycle_off_days?: number | null
@@ -1174,10 +1189,16 @@ export type Database = {
           notes?: string | null
           pause_restart_date?: string | null
           paused_at?: string | null
+          prep_notes?: string | null
           purchase_date?: string | null
           recon_volume?: number | null
           reorder_quantity?: number
           reorder_type?: string
+          resulting_concentration?: number | null
+          solvent_type?: string | null
+          solvent_unit?: string | null
+          solvent_volume?: number | null
+          storage_instructions?: string | null
           timing_note?: string | null
           unit_label?: string
           unit_price?: number

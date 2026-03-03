@@ -34,6 +34,13 @@ interface DbUserCompound {
   paused_at: string | null;
   pause_restart_date: string | null;
   depletion_action: string | null;
+  solvent_type: string | null;
+  solvent_volume: number | null;
+  solvent_unit: string | null;
+  resulting_concentration: number | null;
+  concentration_unit: string | null;
+  storage_instructions: string | null;
+  prep_notes: string | null;
 }
 
 function dbToCompound(row: DbUserCompound): Compound {
@@ -68,6 +75,13 @@ function dbToCompound(row: DbUserCompound): Compound {
     pauseRestartDate: row.pause_restart_date ?? undefined,
     complianceDoseOffset: (row as any).compliance_dose_offset ?? 0,
     depletionAction: (row.depletion_action as 'pause' | 'dormant' | null) ?? null,
+    solventType: row.solvent_type ?? undefined,
+    solventVolume: row.solvent_volume ?? undefined,
+    solventUnit: row.solvent_unit ?? undefined,
+    resultingConcentration: row.resulting_concentration ?? undefined,
+    concentrationUnit: row.concentration_unit ?? undefined,
+    storageInstructions: row.storage_instructions ?? undefined,
+    prepNotes: row.prep_notes ?? undefined,
   };
 }
 
@@ -166,6 +180,13 @@ export function useCompounds(userId: string | undefined) {
     if ('pauseRestartDate' in updates) dbUpdates.pause_restart_date = updates.pauseRestartDate ?? null;
     if (updates.complianceDoseOffset !== undefined) dbUpdates.compliance_dose_offset = updates.complianceDoseOffset;
     if ('depletionAction' in updates) dbUpdates.depletion_action = updates.depletionAction ?? null;
+    if ('solventType' in updates) dbUpdates.solvent_type = updates.solventType ?? null;
+    if ('solventVolume' in updates) dbUpdates.solvent_volume = updates.solventVolume ?? null;
+    if ('solventUnit' in updates) dbUpdates.solvent_unit = updates.solventUnit ?? null;
+    if ('resultingConcentration' in updates) dbUpdates.resulting_concentration = updates.resultingConcentration ?? null;
+    if ('concentrationUnit' in updates) dbUpdates.concentration_unit = updates.concentrationUnit ?? null;
+    if ('storageInstructions' in updates) dbUpdates.storage_instructions = updates.storageInstructions ?? null;
+    if ('prepNotes' in updates) dbUpdates.prep_notes = updates.prepNotes ?? null;
 
     const { error } = await supabase
       .from('user_compounds')
