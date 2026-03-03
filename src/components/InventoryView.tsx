@@ -1516,16 +1516,22 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                   <option value="caps">caps</option>
                   <option value="tabs">tabs</option>
                   <option value="softgels">softgels</option>
+                  <option value="drops">drops</option>
                   <option value="servings">servings</option>
                   <option value="scoops">scoops</option>
                   <option value="pills">pills</option>
+                  <option value="spray">spray</option>
+                  <option value="patch">patch</option>
                   <option value="mg">mg</option>
                   <option value="mcg">mcg</option>
+                  <option value="g">g</option>
                   <option value="mL">mL</option>
                   <option value="mg/mL">mg/mL</option>
-                  <option value="g">g</option>
+                  <option value="tbsp">tbsp</option>
+                  <option value="tsp">tsp</option>
                   <option value="oz">oz</option>
                   <option value="IU">IU</option>
+                  <option value="units">units</option>
                 </select>
               </div>
             </div>
