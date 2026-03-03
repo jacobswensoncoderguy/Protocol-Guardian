@@ -222,6 +222,7 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
   // Compounds with stock alerts
   const alertCompounds = useMemo(() => {
     return activeCompounds
+      .filter(c => !c.depletionAction) // Skip compounds set to auto-pause/dormant on depletion
       .map(c => ({ compound: c, days: getDaysRemainingAdjusted(c), status: getStatus(getDaysRemainingAdjusted(c)) }))
       .filter(a => a.status === 'critical' || a.status === 'warning')
       .sort((a, b) => a.days - b.days);
@@ -990,6 +991,12 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
             PAUSED{compound.pauseRestartDate
               ? ` → ${new Date(compound.pauseRestartDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
               : ''}
+          </span>
+        )}
+        {/* OUT OF STOCK badge for paused/dormant compounds with no supply */}
+        {(compoundIsPaused || compound.notes?.includes('[DORMANT]')) && days <= 0 && (
+          <span className="text-[11px] font-bold font-mono px-2 py-0.5 rounded-full bg-destructive/25 text-status-critical border border-destructive/40 uppercase tracking-wider">
+            Out of Stock
           </span>
         )}
         {!compoundIsPaused && cycleStatus.hasCycle && compound.cycleOnDays && compound.cycleOnDays > 0 && compound.cycleOffDays && compound.cycleOffDays > 0 && (
