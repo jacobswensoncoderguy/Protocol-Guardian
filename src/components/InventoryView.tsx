@@ -679,6 +679,14 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
     }
     state.purchaseDate = compound.purchaseDate;
     state.dosesPerDay = compound.dosesPerDay.toString();
+    // Dilution fields
+    state.solventType = compound.solventType || '';
+    state.solventVolume = compound.solventVolume?.toString() || '';
+    state.solventUnit = compound.solventUnit || 'mL';
+    state.resultingConcentration = compound.resultingConcentration?.toString() || '';
+    state.concentrationUnit = compound.concentrationUnit || 'mg/mL';
+    state.storageInstructions = compound.storageInstructions || '';
+    state.prepNotes = compound.prepNotes || '';
     setEditState(state);
     setEditing(true);
   };
@@ -850,6 +858,17 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
       const tag = editState.containerType === 'bottles' ? '[CONTAINER:bottle]' : '[CONTAINER:bag]';
       updates.notes = currentNotes ? `${tag} ${currentNotes}` : tag;
     }
+
+    // Dilution fields
+    updates.solventType = editState.solventType?.trim() || undefined;
+    const sv = parseFloat(editState.solventVolume || '');
+    updates.solventVolume = isNaN(sv) || sv <= 0 ? undefined : sv;
+    updates.solventUnit = editState.solventUnit || undefined;
+    const rc = parseFloat(editState.resultingConcentration || '');
+    updates.resultingConcentration = isNaN(rc) || rc <= 0 ? undefined : rc;
+    updates.concentrationUnit = editState.concentrationUnit || undefined;
+    updates.storageInstructions = editState.storageInstructions?.trim() || undefined;
+    updates.prepNotes = editState.prepNotes?.trim() || undefined;
 
     onUpdate(compound.id, updates);
     setEditing(false);
@@ -1861,6 +1880,96 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
               )}
             </div>
           )}
+          {/* Dilution / Reconstitution Fields */}
+          <div className="border-t border-border/30 pt-1.5 mt-1.5 space-y-1">
+            <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1">
+              <Droplets className="w-3 h-3" /> Dilution / Reconstitution
+            </span>
+            <div className="flex items-center gap-2 text-[11px]">
+              <span className="text-muted-foreground w-16 flex-shrink-0">Solvent</span>
+              <select
+                value={editState.solventType || ''}
+                onChange={e => setEditState(s => ({ ...s, solventType: e.target.value }))}
+                className="flex-1 bg-secondary border border-border/50 rounded px-2 py-1 text-foreground font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50"
+              >
+                <option value="">None</option>
+                <option value="Bacteriostatic Water">Bacteriostatic Water</option>
+                <option value="Sterile Water">Sterile Water</option>
+                <option value="Reverse Osmosis Water">Reverse Osmosis Water</option>
+                <option value="Sterile Saline">Sterile Saline</option>
+                <option value="MCT Oil">MCT Oil</option>
+                <option value="DMSO">DMSO</option>
+                <option value="Propylene Glycol">Propylene Glycol</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            {editState.solventType && editState.solventType !== '' && (
+              <>
+                <div className="flex items-center gap-2 text-[11px]">
+                  <span className="text-muted-foreground w-16 flex-shrink-0">Volume</span>
+                  <div className="flex items-center gap-1 flex-1">
+                    <input
+                      type="number"
+                      value={editState.solventVolume || ''}
+                      onChange={e => setEditState(s => ({ ...s, solventVolume: e.target.value }))}
+                      placeholder="e.g. 2"
+                      className="w-full bg-secondary border border-border/50 rounded px-2 py-1 text-foreground font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50"
+                    />
+                    <select
+                      value={editState.solventUnit || 'mL'}
+                      onChange={e => setEditState(s => ({ ...s, solventUnit: e.target.value }))}
+                      className="bg-secondary border border-border/50 rounded px-1.5 py-1 text-foreground font-mono text-[10px] focus:outline-none focus:ring-1 focus:ring-primary/50 min-w-[48px]"
+                    >
+                      <option value="mL">mL</option>
+                      <option value="oz">oz</option>
+                      <option value="L">L</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-[11px]">
+                  <span className="text-muted-foreground w-16 flex-shrink-0">Conc.</span>
+                  <div className="flex items-center gap-1 flex-1">
+                    <input
+                      type="number"
+                      value={editState.resultingConcentration || ''}
+                      onChange={e => setEditState(s => ({ ...s, resultingConcentration: e.target.value }))}
+                      placeholder="auto"
+                      className="w-full bg-secondary border border-border/50 rounded px-2 py-1 text-foreground font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50"
+                    />
+                    <select
+                      value={editState.concentrationUnit || 'mg/mL'}
+                      onChange={e => setEditState(s => ({ ...s, concentrationUnit: e.target.value }))}
+                      className="bg-secondary border border-border/50 rounded px-1.5 py-1 text-foreground font-mono text-[10px] focus:outline-none focus:ring-1 focus:ring-primary/50 min-w-[56px]"
+                    >
+                      <option value="mg/mL">mg/mL</option>
+                      <option value="mcg/mL">mcg/mL</option>
+                      <option value="IU/mL">IU/mL</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-[11px]">
+                  <span className="text-muted-foreground w-16 flex-shrink-0">Storage</span>
+                  <input
+                    type="text"
+                    value={editState.storageInstructions || ''}
+                    onChange={e => setEditState(s => ({ ...s, storageInstructions: e.target.value }))}
+                    placeholder="e.g. Refrigerate after reconstitution"
+                    className="flex-1 bg-secondary border border-border/50 rounded px-2 py-1 text-foreground font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50"
+                  />
+                </div>
+                <div className="flex items-center gap-2 text-[11px]">
+                  <span className="text-muted-foreground w-16 flex-shrink-0">Prep Notes</span>
+                  <textarea
+                    value={editState.prepNotes || ''}
+                    onChange={e => setEditState(s => ({ ...s, prepNotes: e.target.value }))}
+                    placeholder="Reconstitution instructions..."
+                    rows={2}
+                    className="flex-1 bg-secondary border border-border/50 rounded px-2 py-1 text-foreground font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50 resize-none"
+                  />
+                </div>
+              </>
+            )}
+          </div>
           <div className="flex justify-end gap-1 pt-1">
             <button onClick={cancelEdit} className="p-1 rounded bg-secondary hover:bg-secondary/80 text-muted-foreground">
               <X className="w-3.5 h-3.5" />
