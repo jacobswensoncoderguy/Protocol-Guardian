@@ -163,13 +163,24 @@ function getTheoreticalConsumption(compound: Compound, dayCount: number, fromDat
 }
 
 /**
- * Convert a consumed-supply amount (in native dose units) back to container units
- * (vials, bottles, bags) so we can subtract from currentQuantity.
+ * Standard conversion: 20 drops per mL (standard dropper).
  */
+const DROPS_PER_ML = 20;
+
+function isVolumeUnit(unit: string): boolean {
+  return ['ml', 'floz', 'fl oz', 'oz'].includes(unit.toLowerCase().replace(/\s+/g, ''));
+}
+
+function toMl(value: number, unit: string): number {
+  const u = unit.toLowerCase().replace(/\s+/g, '');
+  if (u === 'floz' || u === 'fl oz') return value * 29.5735;
+  if (u === 'oz') return value * 29.5735; // treat oz as fl oz for liquids
+  return value; // already mL
+}
+
 /**
  * Convert consumed dose units back to container units (vials, bottles).
- * For orals/powders the "consumed" value from getConsumedSinceDate is in
- * raw dose units (caps, mg, etc.), so we divide by unitSize (units per container).
+ * Handles volume-to-drops conversion when unitLabel is a volume and doseLabel is drops.
  */
 export function consumedToContainerUnits(compound: Compound, consumed: number): number {
   if (compound.category === 'peptide' && compound.bacstatPerVial) {
@@ -177,6 +188,14 @@ export function consumedToContainerUnits(compound: Compound, consumed: number): 
   }
   if (compound.category === 'injectable-oil' && compound.vialSizeMl) {
     return consumed / (compound.unitSize * compound.vialSizeMl);
+  }
+  // Volume container with drop dosing
+  const ul = compound.unitLabel.toLowerCase().replace(/\s+/g, '');
+  const dl = compound.doseLabel.toLowerCase();
+  if ((dl === 'drops' || dl === 'drop') && isVolumeUnit(ul)) {
+    const mlPerContainer = toMl(compound.unitSize, ul);
+    const dropsPerContainer = mlPerContainer * DROPS_PER_ML;
+    return dropsPerContainer > 0 ? consumed / dropsPerContainer : 0;
   }
   // For orals/powders: consumed is in raw dose units; unitSize = doses per container
   if (compound.unitSize > 0) {
@@ -201,6 +220,8 @@ export function getEffectiveQuantity(
 
 /**
  * Get total supply in raw dose units (IU, mg, caps) from effective quantity.
+ * Handles volume-to-drops conversion when unitLabel is a volume (mL, fl oz, oz)
+ * and doseLabel is drops (standard: 20 drops per mL).
  */
 function totalSupplyInDoseUnits(compound: Compound, effectiveQty: number): number {
   if (compound.category === 'peptide' && compound.bacstatPerVial) {
@@ -208,6 +229,13 @@ function totalSupplyInDoseUnits(compound: Compound, effectiveQty: number): numbe
   }
   if (compound.category === 'injectable-oil' && compound.vialSizeMl) {
     return effectiveQty * compound.unitSize * compound.vialSizeMl;
+  }
+  // Volume container with drop dosing: convert volume to drops
+  const ul = compound.unitLabel.toLowerCase().replace(/\s+/g, '');
+  const dl = compound.doseLabel.toLowerCase();
+  if ((dl === 'drops' || dl === 'drop') && isVolumeUnit(ul)) {
+    const mlPerContainer = toMl(compound.unitSize, ul);
+    return effectiveQty * mlPerContainer * DROPS_PER_ML;
   }
   // orals/powders: effectiveQty is in containers, unitSize = units per container
   return effectiveQty * compound.unitSize;

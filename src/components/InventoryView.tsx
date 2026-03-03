@@ -609,6 +609,8 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
     else if (dl === 'tbsp') storedUnit = 'tbsp';
     else if (dl === 'tsp') storedUnit = 'tsp';
     else if (dl === 'oz') storedUnit = 'oz';
+    else if (dl === 'fl oz' || dl === 'floz') storedUnit = 'floz';
+    else if (dl === 'softgel' || dl === 'softgels') storedUnit = 'softgels';
     else if (dl === 'units' || dl === 'unit') storedUnit = 'units';
     else if (dl.includes('scoop') || (compound.category === 'powder' && dl.includes('serving'))) storedUnit = 'scoop';
     else if (dl.includes('pill') || dl.includes('cap') || dl.includes('softgel') || dl.includes('tab') || dl.includes('serving')) storedUnit = 'pills';
@@ -723,6 +725,8 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
     else if (dl === 'tbsp') storedUnit = 'tbsp';
     else if (dl === 'tsp') storedUnit = 'tsp';
     else if (dl === 'oz') storedUnit = 'oz';
+    else if (dl === 'fl oz' || dl === 'floz') storedUnit = 'floz';
+    else if (dl === 'softgel' || dl === 'softgels') storedUnit = 'softgels';
     else if (dl === 'units' || dl === 'unit') storedUnit = 'units';
     else if (dl.includes('scoop') || (editCat === 'powder' && dl.includes('serving'))) storedUnit = 'scoop';
     else if (dl.includes('pill') || dl.includes('cap') || dl.includes('softgel') || dl.includes('tab') || dl.includes('serving')) storedUnit = 'pills';
@@ -794,7 +798,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
     }
     // Persist dose label from the dose unit dropdown
     if (editState.editDoseUnit) {
-      const unitMap: Record<string, string> = { mg: 'mg', mcg: 'mcg', g: 'g', iu: 'IU', ml: 'mL', drops: 'drops', pills: 'pills', caps: 'caps', tabs: 'tabs', scoop: 'scoop', spray: 'spray', patch: 'patch', tbsp: 'tbsp', tsp: 'tsp', oz: 'oz', units: 'units' };
+      const unitMap: Record<string, string> = { mg: 'mg', mcg: 'mcg', g: 'g', iu: 'IU', ml: 'mL', floz: 'fl oz', drops: 'drops', pills: 'pills', caps: 'caps', tabs: 'tabs', softgels: 'softgels', scoop: 'scoop', spray: 'spray', patch: 'patch', tbsp: 'tbsp', tsp: 'tsp', oz: 'oz', units: 'units' };
       updates.doseLabel = unitMap[editState.editDoseUnit] || compound.doseLabel;
     }
     // Strength (weight per unit) — available for all categories
@@ -1520,7 +1524,10 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
             </>
           ) : (
             <div className="flex items-center gap-2 text-[11px]">
-              <span className="text-muted-foreground w-16 flex-shrink-0">Per Unit</span>
+              <span className="text-muted-foreground w-16 flex-shrink-0 flex items-center gap-0.5">
+                Per Unit
+                <InfoTooltip text="How much is in each container/bottle. For liquids dosed by drops, enter the volume (e.g. 2 fl oz) — the system auto-converts to drops." />
+              </span>
               <div className="flex items-center gap-1 flex-1">
                 <input
                   type="number"
@@ -1546,6 +1553,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                   <option value="mcg">mcg</option>
                   <option value="g">g</option>
                   <option value="mL">mL</option>
+                  <option value="fl oz">fl oz</option>
                   <option value="mg/mL">mg/mL</option>
                   <option value="tbsp">tbsp</option>
                   <option value="tsp">tsp</option>
@@ -1620,10 +1628,12 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                 <option value="g">g</option>
                 <option value="iu">IU</option>
                 <option value="ml">mL</option>
+                <option value="floz">fl oz</option>
                 <option value="drops">drops</option>
                 <option value="pills">pills</option>
                 <option value="caps">caps</option>
                 <option value="tabs">tabs</option>
+                <option value="softgels">softgels</option>
                 <option value="scoop">scoop</option>
                 <option value="spray">spray</option>
                 <option value="patch">patch</option>
@@ -1990,6 +2000,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                       className="bg-secondary border border-border/50 rounded px-1.5 py-1 text-foreground font-mono text-[10px] focus:outline-none focus:ring-1 focus:ring-primary/50 min-w-[48px]"
                     >
                       <option value="mL">mL</option>
+                      <option value="fl oz">fl oz</option>
                       <option value="oz">oz</option>
                       <option value="L">L</option>
                     </select>
