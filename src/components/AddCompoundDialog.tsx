@@ -2,8 +2,9 @@ import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Compound, CompoundCategory } from '@/data/compounds';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, Search, ArrowLeft, Loader2, ChevronRight, PenLine, ArrowUp, Sparkles } from 'lucide-react';
+import { Plus, Search, ArrowLeft, Loader2, ChevronRight, PenLine, ArrowUp, Sparkles, Calculator } from 'lucide-react';
 import { searchCompoundLibrary, LibraryEntry, COMPOUND_LIBRARY } from '@/data/compoundLibrary';
+import CompoundingCalculator from '@/components/CompoundingCalculator';
 
 interface LibraryCompound {
   id: string;
@@ -93,6 +94,7 @@ const AddCompoundDialog = ({ open, onOpenChange, existingCompoundIds, onAdd }: A
   const [customCategory, setCustomCategory] = useState<string>('oral');
   const [customUnitLabel, setCustomUnitLabel] = useState('cap');
   const [customDoseLabel, setCustomDoseLabel] = useState('cap');
+  const [showCalculator, setShowCalculator] = useState(false);
 
   // Library search results from the local comprehensive database
   const [libraryResults, setLibraryResults] = useState<LibraryEntry[]>([]);
@@ -601,7 +603,25 @@ const AddCompoundDialog = ({ open, onOpenChange, existingCompoundIds, onAdd }: A
                 ))}
               </div>
 
-              <SectionLabel>Dosing</SectionLabel>
+              <div className="flex items-center justify-between pt-2 border-t border-border/30">
+                <p className="text-[10px] font-semibold text-primary uppercase tracking-wider">Dosing</p>
+                <button type="button" onClick={() => setShowCalculator(true)}
+                  className="flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 hover:bg-primary/20 text-primary text-[10px] font-medium transition-colors">
+                  <Calculator className="w-3 h-3" /> Calculator
+                </button>
+              </div>
+              <CompoundingCalculator
+                open={showCalculator}
+                onOpenChange={setShowCalculator}
+                onApply={(result) => {
+                  if (result.weightPerUnit !== undefined) {
+                    // Auto-fill could be extended here if weight fields are added to add form
+                  }
+                  if (result.concentration !== undefined && result.solventVolume) {
+                    setForm(f => f ? { ...f, reconVolume: result.solventVolume!.toString() } : f);
+                  }
+                }}
+              />
               <FormRow label="Dose/Use" value={form!.dosePerUse} suffix={selected.dose_label}
                 onChange={v => setForm(f => f ? { ...f, dosePerUse: v } : f)} type="number" />
               <FormRow label="Doses/Day" value={form!.dosesPerDay}

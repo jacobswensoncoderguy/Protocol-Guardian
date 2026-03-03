@@ -16,7 +16,10 @@ import { getCompoundScores, getDeliveryLabel, CompoundScores } from '@/data/comp
 import { FlaskConical, Beaker, Target } from 'lucide-react';
 import CompoundScoreDrawer from '@/components/CompoundScoreDrawer';
 import { buildPrepGuide } from '@/data/dilutionDefaults';
-import { Droplets, Thermometer } from 'lucide-react';
+import { Droplets, Thermometer, Calculator } from 'lucide-react';
+import InfoTooltip from '@/components/InfoTooltip';
+import CompoundingCalculator from '@/components/CompoundingCalculator';
+import type { CalculatorResult } from '@/components/CompoundingCalculator';
 
 interface TitrationBadgeInfo {
   currentStep: number;
@@ -513,6 +516,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
   const [newFieldUnit, setNewFieldUnit] = useState('');
   const cycleStatus = getCycleStatus(compound);
   const [showCycleTimeline, setShowCycleTimeline] = useState(cycleStatus.hasCycle && !cycleStatus.isOn);
+  const [showCalculator, setShowCalculator] = useState(false);
 
   const { getDaysRemainingAdjusted: getDaysAdj, getEffectiveQtyAdjusted: getQtyAdj, getConsumedAdjusted: getConsumedAdj, getComplianceInfo: getCI } = useCompliance();
   const compoundIsPaused = isPaused(compound);
@@ -1647,7 +1651,10 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
           {/* Weight per unit — available for all non-peptide/oil categories */}
           {!isPeptide && !isOil && (
           <div className="flex items-center gap-2 text-[11px]">
-            <span className="text-muted-foreground w-16 flex-shrink-0">Weight/Unit</span>
+            <span className="text-muted-foreground w-16 flex-shrink-0 flex items-center gap-0.5">
+              Weight/Unit
+              <InfoTooltip text="Weight per individual pill, cap, or drop — NOT total container weight. Use the calculator (🧮) to derive this from total weight ÷ count." />
+            </span>
             <div className="flex items-center gap-1 flex-1">
               <input
                 type="number"
@@ -1667,9 +1674,35 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                 <option value="oz">oz</option>
                 <option value="lb">lb</option>
               </select>
+              <button
+                type="button"
+                onClick={() => setShowCalculator(true)}
+                className="p-1 rounded bg-primary/10 hover:bg-primary/20 text-primary transition-colors flex-shrink-0"
+                title="Open compounding calculator"
+              >
+                <Calculator className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
           )}
+          <CompoundingCalculator
+            open={showCalculator}
+            onOpenChange={setShowCalculator}
+            onApply={(result) => {
+              if (result.weightPerUnit !== undefined) {
+                setEditState(s => ({ ...s, weightPerUnit: result.weightPerUnit!.toString(), strengthUnit: 'mg' }));
+              }
+              if (result.concentration !== undefined) {
+                setEditState(s => ({
+                  ...s,
+                  ...(result.solventType ? { solventType: result.solventType } : {}),
+                  ...(result.solventVolume ? { solventVolume: result.solventVolume.toString() } : {}),
+                  resultingConcentration: result.concentration!.toString(),
+                  concentrationUnit: result.concentrationUnit || 'mg/mL',
+                }));
+              }
+            }}
+          />
           {!isPeptide && !isOil && (
           <div className="flex items-center gap-2 text-[11px]">
             <span className="text-muted-foreground w-16 flex-shrink-0">Purchased</span>
