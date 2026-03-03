@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { supabase } from '@/integrations/supabase/client';
 import { UserGoal } from '@/hooks/useGoals';
 import { toast } from 'sonner';
+import DatePickerInput from '@/components/DatePickerInput';
 
 interface BiomarkerUploadDialogProps {
   open: boolean;
@@ -438,13 +439,11 @@ export default function BiomarkerUploadDialog({
                     className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
                   />
                 </div>
-                <div className="flex items-center gap-2 bg-card rounded-lg border border-border/50 px-3 py-2">
-                  <Calendar className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-                  <input
-                    type="date"
+                <div className="flex items-center gap-2">
+                  <DatePickerInput
                     value={uploadDate}
-                    onChange={e => setUploadDate(e.target.value)}
-                    className="flex-1 bg-transparent text-sm text-foreground focus:outline-none"
+                    onChange={setUploadDate}
+                    className="flex-1 text-sm"
                   />
                 </div>
               </div>

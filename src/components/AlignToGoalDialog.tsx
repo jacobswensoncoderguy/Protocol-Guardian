@@ -4,6 +4,7 @@ import { Target, Plus, Link2, Loader2, CheckCircle2, ChevronDown, ChevronUp } fr
 import { supabase } from '@/integrations/supabase/client';
 import { UserGoal } from '@/hooks/useGoals';
 import { toast } from 'sonner';
+import DatePickerInput from '@/components/DatePickerInput';
 
 interface Biomarker {
   name: string;
@@ -361,12 +362,11 @@ export default function AlignToGoalDialog({
                   onChange={e => setNewGoalUnit(e.target.value)}
                   className="px-3 py-2 rounded-lg border border-border/50 bg-secondary/30 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50"
                 />
-                <input
-                  type="date"
+                <DatePickerInput
                   value={newGoalDate}
-                  onChange={e => setNewGoalDate(e.target.value)}
-                  title="Target achievement date"
-                  className="px-3 py-2 rounded-lg border border-border/50 bg-secondary/30 text-sm text-foreground focus:outline-none focus:border-primary/50"
+                  onChange={setNewGoalDate}
+                  placeholder="Target date"
+                  className="text-sm"
                 />
               </div>
 

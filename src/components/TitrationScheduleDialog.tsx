@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Plus, Trash2, Calendar, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
+import DatePickerInput from '@/components/DatePickerInput';
 
 interface TitrationStep {
   dose_amount: number;
@@ -172,11 +173,10 @@ const TitrationScheduleDialog = ({
 
                     <div>
                       <Label className="text-[10px] text-muted-foreground">Start Date</Label>
-                      <Input
-                        type="date"
+                      <DatePickerInput
                         value={step.start_date}
-                        onChange={e => updateStep(i, { start_date: e.target.value })}
-                        className="h-8 text-sm bg-secondary/50"
+                        onChange={v => updateStep(i, { start_date: v })}
+                        className="h-8 text-sm"
                       />
                     </div>
 

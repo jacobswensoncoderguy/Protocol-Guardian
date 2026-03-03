@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Plus, Search, ArrowLeft, Loader2, ChevronRight, PenLine, ArrowUp, Sparkles, Calculator } from 'lucide-react';
 import { searchCompoundLibrary, LibraryEntry, COMPOUND_LIBRARY } from '@/data/compoundLibrary';
 import CompoundingCalculator from '@/components/CompoundingCalculator';
+import DatePickerInput from '@/components/DatePickerInput';
 
 interface LibraryCompound {
   id: string;
@@ -749,13 +750,21 @@ const FormRow = ({ label, value, onChange, type, prefix, suffix, placeholder }: 
     <span className="text-muted-foreground w-20 flex-shrink-0 text-right">{label}</span>
     <div className="flex items-center gap-1 flex-1">
       {prefix && <span className="text-muted-foreground">{prefix}</span>}
-      <input
-        type={type}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full bg-secondary border border-border/50 rounded px-2 py-1.5 text-foreground font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50"
-      />
+      {type === 'date' ? (
+        <DatePickerInput
+          value={value}
+          onChange={onChange}
+          className="text-[11px] py-1.5"
+        />
+      ) : (
+        <input
+          type={type}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="w-full bg-secondary border border-border/50 rounded px-2 py-1.5 text-foreground font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50"
+        />
+      )}
       {suffix && <span className="text-muted-foreground text-[10px] whitespace-nowrap">{suffix}</span>}
     </div>
   </div>

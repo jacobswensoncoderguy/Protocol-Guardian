@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Plus, Target, Sparkles, ChevronRight, Calendar as CalendarIcon, ArrowLeft, Info, MessageCircle, Loader2, Send } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import DatePickerInput from '@/components/DatePickerInput';
 
 import { getGoalIcon, GOAL_TYPE_LUCIDE_ICONS } from '@/lib/goalIcons';
 import { UserGoal } from '@/hooks/useGoals';
@@ -547,12 +548,11 @@ const AddGoalDialog = ({ open, onOpenChange, onCreateGoal, existingGoals }: AddG
                   <CalendarIcon className="w-3 h-3" />
                   Target Date (deadline)
                 </label>
-                <input
-                  type="date"
+                <DatePickerInput
                   value={targetDate}
-                  onChange={e => setTargetDate(e.target.value)}
+                  onChange={setTargetDate}
                   min={new Date().toISOString().split('T')[0]}
-                  className="w-full px-3 py-1.5 rounded-lg border border-border/50 bg-secondary text-sm text-foreground focus:outline-none focus:border-primary/50"
+                  className="w-full text-sm"
                 />
                 {targetDate && (
                   <p className="text-[10px] text-muted-foreground mt-1">
