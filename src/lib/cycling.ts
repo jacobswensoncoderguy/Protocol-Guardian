@@ -1,4 +1,4 @@
-import { Compound, getNormalizedDailyConsumption, getEffectiveQuantity } from '@/data/compounds';
+import { Compound, getNormalizedDailyConsumption, getEffectiveQuantity, totalSupplyInDoseUnits } from '@/data/compounds';
 
 export type ComplianceInfo = { checkedDoses: number; firstCheckDate: string | null; lastCheckDate: string | null };
 
@@ -127,12 +127,8 @@ export function getDaysRemainingWithCycling(compound: Compound, compliance?: Com
   // Use effective quantity (adjusted for actual usage via compliance data)
   const effectiveQty = getEffectiveQuantity(compound, compliance);
 
-  // Total supply in the same container units as normalizedDaily
-  const totalSupply = compound.category === 'peptide' && compound.bacstatPerVial
-    ? effectiveQty * compound.bacstatPerVial
-    : compound.category === 'injectable-oil' && compound.vialSizeMl
-      ? effectiveQty * compound.unitSize * compound.vialSizeMl
-      : effectiveQty * compound.unitSize;
+  // Total supply in the same dose units as normalizedDaily (handles volume→drops, peptide IU, etc.)
+  const totalSupply = totalSupplyInDoseUnits(compound, effectiveQty);
 
   if (!compound.cycleOnDays || !compound.cycleOffDays || !compound.cycleStartDate) {
     // No cycling — apply daysPerWeek fraction
