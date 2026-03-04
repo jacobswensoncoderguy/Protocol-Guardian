@@ -88,7 +88,7 @@ export function useProfile(userId?: string) {
     }
   }, [userId]);
 
-  const measurementSystem: MeasurementSystem = profile?.measurement_system || 'metric';
+  const measurementSystem: MeasurementSystem = profile?.measurement_system || 'imperial';
   const doseUnitPreference: DoseUnitPreference = profile?.dose_unit_preference || 'mg';
   const appFeatures: AppFeatures = (profile?.app_features as AppFeatures) || DEFAULT_APP_FEATURES;
   const reorderHorizon: 30 | 45 | 60 = ([30, 45, 60].includes(profile?.reorder_horizon ?? 30)
