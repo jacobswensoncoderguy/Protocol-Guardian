@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AlertTriangle, RotateCcw, Trash2, HelpCircle, KeyRound, Loader2, Users, ChevronDown, LogOut, Check, Pencil, X } from 'lucide-react';
 import HouseholdSyncPanel from '@/components/HouseholdSyncPanel';
 import { HouseholdMember } from '@/hooks/useHousehold';
-import { kgToLbs, lbsToKg, MeasurementSystem } from '@/lib/measurements';
+import { kgToLbs, lbsToKg, MeasurementSystem, displayHeight, displayWeight } from '@/lib/measurements';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -347,8 +347,8 @@ const AccountSettingsDialog = ({ open, onOpenChange, userId, displayName, userEm
                       {[
                         profileGender ? (profileGender === 'male' ? 'Male' : 'Female') : null,
                         profileAge ? `${profileAge}y` : null,
-                        profileHeightCm ? `${profileHeightCm}cm` : null,
-                        profileWeightKg ? `${profileWeightKg}kg` : null,
+                        profileHeightCm ? displayHeight(profileHeightCm, measurementSystem) : null,
+                        profileWeightKg ? displayWeight(profileWeightKg, measurementSystem) : null,
                       ].filter(Boolean).join(' · ') || 'Set age, height, weight & gender'}
                     </p>
                   </div>
