@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Compound, CompoundCategory } from '@/data/compounds';
+import { Compound, CompoundCategory, normalizeCompoundUnitLabel, getDerivedWeightPerUnitMg } from '@/data/compounds';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Plus, Search, ArrowLeft, Loader2, ChevronRight, PenLine, ArrowUp, Sparkles, Calculator } from 'lucide-react';
 import { searchCompoundLibrary, LibraryEntry, COMPOUND_LIBRARY } from '@/data/compoundLibrary';
@@ -106,7 +106,12 @@ const AddCompoundDialog = ({ open, onOpenChange, existingCompoundIds, onAdd }: A
     async function fetch() {
       setLoading(true);
       const { data, error } = await supabase.from('compounds').select('*').order('name');
-      if (!error && data) setLibrary(data as LibraryCompound[]);
+      if (!error && data) {
+        setLibrary((data as LibraryCompound[]).map((row) => ({
+          ...row,
+          unit_label: normalizeCompoundUnitLabel(row.unit_label, row.category as CompoundCategory),
+        })));
+      }
       setLoading(false);
     }
     fetch();
@@ -288,12 +293,15 @@ const AddCompoundDialog = ({ open, onOpenChange, existingCompoundIds, onAdd }: A
       timingNote = form.selectedDays.map(d => DAY_FULL[d]).join('/');
     }
 
-    const compound: Compound = {
+    const rawUnitLabel = isOil ? 'mg/mL' : selected.unit_label;
+    const normalizedUnitLabel = normalizeCompoundUnitLabel(rawUnitLabel, selected.category as CompoundCategory);
+
+    const baseCompound: Compound = {
       id: selected.id,
       name: selected.name,
       category: selected.category as CompoundCategory,
       unitSize: size,
-      unitLabel: isOil ? 'mg/mL' : selected.unit_label,
+      unitLabel: normalizedUnitLabel,
       unitPrice: price,
       kitPrice: isPeptide ? kit : undefined,
       vialSizeMl: isOil ? (parseFloat(form.vialSizeMl) || 10) : undefined,
@@ -313,6 +321,13 @@ const AddCompoundDialog = ({ open, onOpenChange, existingCompoundIds, onAdd }: A
       cycleOnDays: form.cycleOnDays ? parseInt(form.cycleOnDays) || undefined : undefined,
       cycleOffDays: form.cycleOffDays ? parseInt(form.cycleOffDays) || undefined : undefined,
       cycleStartDate: form.cycleStartDate || undefined,
+    };
+
+    const inferredWeightPerUnit = getDerivedWeightPerUnitMg(baseCompound);
+    const compound: Compound = {
+      ...baseCompound,
+      weightPerUnit: baseCompound.weightPerUnit ?? inferredWeightPerUnit,
+      weightUnit: baseCompound.weightUnit ?? (inferredWeightPerUnit ? 'mg' : undefined),
     };
 
     setSaving(true);

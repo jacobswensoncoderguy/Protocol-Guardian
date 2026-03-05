@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Compound, CompoundCategory } from '@/data/compounds';
+import { Compound, CompoundCategory, normalizeCompoundUnitLabel, getDerivedWeightPerUnitMg } from '@/data/compounds';
 
 interface DbUserCompound {
   id: string;
@@ -43,8 +43,21 @@ interface DbUserCompound {
   prep_notes: string | null;
 }
 
-function dbToCompound(row: DbUserCompound): Compound {
+function normalizeCompoundForApp(compound: Compound): Compound {
+  const normalizedUnitLabel = normalizeCompoundUnitLabel(compound.unitLabel, compound.category);
+  const normalized = { ...compound, unitLabel: normalizedUnitLabel };
+  const derivedWeightPerUnit = getDerivedWeightPerUnitMg(normalized);
+  const resolvedWeightPerUnit = normalized.weightPerUnit ?? derivedWeightPerUnit;
+
   return {
+    ...normalized,
+    weightPerUnit: resolvedWeightPerUnit,
+    weightUnit: normalized.weightUnit ?? (resolvedWeightPerUnit ? 'mg' : undefined),
+  };
+}
+
+function dbToCompound(row: DbUserCompound): Compound {
+  return normalizeCompoundForApp({
     id: row.id, // use user_compound UUID as the compound id
     name: row.name,
     category: row.category as CompoundCategory,
@@ -82,7 +95,7 @@ function dbToCompound(row: DbUserCompound): Compound {
     concentrationUnit: row.concentration_unit ?? undefined,
     storageInstructions: row.storage_instructions ?? undefined,
     prepNotes: row.prep_notes ?? undefined,
-  };
+  });
 }
 
 export function useCompounds(userId: string | undefined) {
@@ -148,7 +161,7 @@ export function useCompounds(userId: string | undefined) {
   }, [userId, fetchCompounds]);
 
   const updateCompound = useCallback(async (id: string, updates: Partial<Compound>) => {
-    setCompounds(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+    setCompounds(prev => prev.map(c => c.id === id ? normalizeCompoundForApp({ ...c, ...updates }) : c));
 
     const dbUpdates: Record<string, unknown> = {};
     if (updates.name !== undefined) dbUpdates.name = updates.name;
