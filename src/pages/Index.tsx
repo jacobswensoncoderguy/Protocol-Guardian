@@ -406,20 +406,18 @@ const Index = () => {
             >
               <UserPlus className="w-4 h-4 sm:w-[18px] sm:h-[18px]" />
             </button>
-            {import.meta.env.DEV && (
-              <button
-                onClick={() => setUseV2Wizard(v => !v)}
-                className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold border transition-colors"
-                style={{
-                  borderColor: useV2Wizard ? 'hsl(var(--primary))' : 'hsl(var(--border))',
-                  color: useV2Wizard ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
-                  backgroundColor: useV2Wizard ? 'hsl(var(--primary) / 0.1)' : 'transparent',
-                }}
-                title={useV2Wizard ? 'Using V2 Wizard — click for V1' : 'Using V1 Dialog — click for V2'}
-              >
-                {useV2Wizard ? 'V2' : 'V1'}
-              </button>
-            )}
+            <button
+              onClick={() => setUseV2Wizard(v => !v)}
+              className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold border transition-colors"
+              style={{
+                borderColor: useV2Wizard ? 'hsl(var(--primary))' : 'hsl(var(--border))',
+                color: useV2Wizard ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
+                backgroundColor: useV2Wizard ? 'hsl(var(--primary) / 0.1)' : 'transparent',
+              }}
+              title={useV2Wizard ? 'Using V2 Wizard — click for V1' : 'Using V1 Dialog — click for V2'}
+            >
+              {useV2Wizard ? 'V2' : 'V1'}
+            </button>
             <div className="w-px h-5 bg-border/50 hidden sm:block" />
             <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground font-mono">
               <span className="inline-block w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-status-good animate-pulse-glow" />
