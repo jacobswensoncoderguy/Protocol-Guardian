@@ -30,16 +30,23 @@ export default function StepIdentity({ formData, onUpdate, onNext, accentColor }
   return (
     <div className="space-y-6 px-4 pb-6">
       {/* Compound Name */}
-      <div>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Compound name</p>
+          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Required</p>
+        </div>
         <input
           ref={nameRef}
           type="text"
           value={formData.name}
           onChange={e => onUpdate({ name: e.target.value })}
-          placeholder="e.g. BPC-157"
-          className="w-full bg-transparent border-none outline-none text-[28px] font-bold text-foreground placeholder:text-muted-foreground/40 py-2"
+          placeholder="Enter compound name (e.g. BPC-157)"
+          className="w-full rounded-lg border border-border/50 bg-secondary px-3 py-2.5 text-base font-semibold text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/50"
           onKeyDown={e => { if (e.key === 'Enter' && canProceed) onNext(); }}
         />
+        {formData.name.trim().length === 0 && (
+          <p className="text-xs text-muted-foreground">Type a compound name to unlock Continue.</p>
+        )}
       </div>
 
       {/* Compound Type Grid */}
