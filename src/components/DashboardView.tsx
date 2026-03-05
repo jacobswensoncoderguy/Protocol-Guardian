@@ -1570,6 +1570,10 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
           loading={aiLoading ?? false}
           needsRefresh={needsRefresh ?? false}
           toleranceLevel={toleranceLevel}
+          excludedCounts={{
+            dormant: compounds.filter(c => c.notes?.includes('[DORMANT]')).length,
+            paused: compounds.filter(c => !c.notes?.includes('[DORMANT]') && c.pausedAt).length,
+          }}
           onRefresh={onAnalyzeStack}
           onViewDetails={onViewAIInsights ?? (() => {})}
         />
