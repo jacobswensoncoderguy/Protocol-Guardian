@@ -103,7 +103,7 @@ export default function StepDosing({ formData, onUpdate, onNext, onBack, accentC
 
       {/* Doses per day */}
       <div>
-        <label className="text-xs text-muted-foreground mb-1 block">Doses per day</label>
+        <label className="text-xs text-muted-foreground mb-1 block">Servings per day</label>
         <input
           type="number"
           inputMode="numeric"

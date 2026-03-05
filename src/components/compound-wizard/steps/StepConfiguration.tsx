@@ -204,18 +204,18 @@ function OralPillConfig({ formData, onUpdate, accentColor }: { formData: WizardF
   }
   if (countPerContainer > 0 && unitsPerDose > 0) {
     const dosesPerContainer = Math.floor(countPerContainer / unitsPerDose);
-    calcLines.push(`Each container = ${dosesPerContainer} doses`);
-    calcLines.push(`Total supply = ${dosesPerContainer * containers} doses`);
+    calcLines.push(`Each container = ${dosesPerContainer} servings`);
+    calcLines.push(`Total supply = ${dosesPerContainer * containers} servings`);
   }
 
   return (
     <div className="space-y-4">
-      <SelectField label="Form factor" value={formData.formFactor} onChange={v => onUpdate({ formFactor: v })} options={['Capsule', 'Tablet', 'Softgel', 'Sublingual', 'Enteric Coated', 'Chewable']} />
+      <SelectField label="Pill type" value={formData.formFactor} onChange={v => onUpdate({ formFactor: v })} options={['Capsule', 'Tablet', 'Softgel', 'Sublingual', 'Enteric Coated', 'Chewable']} />
       <SelectField label="Container type" value={formData.containerType} onChange={v => onUpdate({ containerType: v })} options={['Bottle', 'Blister Pack', 'Box', 'Bag', 'Other']} />
-      <NumericField label="Count per container" value={formData.countPerContainer} onChange={v => onUpdate({ countPerContainer: v })} placeholder="e.g. 90" />
+      <NumericField label="Servings per container" value={formData.countPerContainer} onChange={v => onUpdate({ countPerContainer: v })} placeholder="e.g. 90" />
       <NumericField label="Containers in current supply" value={formData.containersInSupply} onChange={v => onUpdate({ containersInSupply: v })} />
-      <NumericField label="Dose amount per unit" value={formData.doseAmountPerUnit} onChange={v => onUpdate({ doseAmountPerUnit: v })} unitOptions={['mg', 'mcg', 'IU', 'g']} unit={formData.doseAmountPerUnitUnit} onUnitChange={v => onUpdate({ doseAmountPerUnitUnit: v })} />
-      <NumericField label="Units per dose" value={formData.unitsPerDose} onChange={v => onUpdate({ unitsPerDose: v })} placeholder="e.g. 2" />
+      <NumericField label="Dose amount per serving" value={formData.doseAmountPerUnit} onChange={v => onUpdate({ doseAmountPerUnit: v })} unitOptions={['mg', 'mcg', 'IU', 'g']} unit={formData.doseAmountPerUnitUnit} onUnitChange={v => onUpdate({ doseAmountPerUnitUnit: v })} />
+      <NumericField label="Servings per dose" value={formData.unitsPerDose} onChange={v => onUpdate({ unitsPerDose: v })} placeholder="e.g. 2" />
       <CalcDisplay lines={calcLines} accentColor={accentColor} />
       <SelectField label="Take with food" value={formData.takeWithFood} onChange={v => onUpdate({ takeWithFood: v })} options={['With Food', 'Without Food', 'Either']} />
       <TextField label="Notes" value={formData.notes} onChange={v => onUpdate({ notes: v })} placeholder="e.g. Take with fat for absorption" multiline />
