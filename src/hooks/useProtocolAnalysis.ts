@@ -89,10 +89,16 @@ export interface CompoundAnalysis {
   riskSummary?: string;
 }
 
-/** Serialize a compound's live state for AI analysis, including pause and cycle phase context */
+/** Check if a compound is marked dormant */
+function isDormant(c: Compound): boolean {
+  return !!c.notes?.includes('[DORMANT]');
+}
+
+/** Serialize a compound's live state for AI analysis, including pause, dormant, and cycle phase context */
 function serializeCompoundForAI(c: Compound) {
   const cycleStatus = getCycleStatus(c);
   const paused = isPaused(c);
+  const dormant = isDormant(c);
   return {
     name: c.name,
     category: c.category,
@@ -109,10 +115,12 @@ function serializeCompoundForAI(c: Compound) {
     kitPrice: c.kitPrice,
     // Live state — AI uses these to adjust grading and recommendations
     isPaused: paused,
+    isDormant: dormant,
+    depletionAction: c.depletionAction ?? null,
     pauseRestartDate: c.pauseRestartDate,
     cyclePhase: cycleStatus.hasCycle ? (cycleStatus.isOn ? 'ON' : 'OFF') : 'continuous',
     daysLeftInPhase: cycleStatus.hasCycle ? cycleStatus.daysLeftInPhase : null,
-    isActiveNow: !paused && cycleStatus.isOn,
+    isActiveNow: !paused && !dormant && cycleStatus.isOn,
   };
 }
 
@@ -127,26 +135,33 @@ export function useProtocolAnalysis(compounds: Compound[], protocols: UserProtoc
   const [lastAnalyzedHash, setLastAnalyzedHash] = useState('');
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
+  // Filter out dormant compounds — they are discontinued and should not influence analysis
+  const analysisCompounds = compounds.filter(c => !isDormant(c));
+
   // Create a hash of the current stack to detect changes
-  // Hash includes cycle and pause fields so any cycle adjustment or pause toggles an automatic re-analysis
-  const stackHash = compounds.map(c =>
-    `${c.id}-${c.dosePerUse}-${c.dosesPerDay}-${c.daysPerWeek}-${c.cycleOnDays ?? 0}-${c.cycleOffDays ?? 0}-${c.cycleStartDate ?? ''}-${c.pausedAt ?? ''}-${c.pauseRestartDate ?? ''}`
+  // Hash includes cycle, pause, and dormant fields so any state change triggers re-analysis
+  const stackHash = analysisCompounds.map(c =>
+    `${c.id}-${c.dosePerUse}-${c.dosesPerDay}-${c.daysPerWeek}-${c.cycleOnDays ?? 0}-${c.cycleOffDays ?? 0}-${c.cycleStartDate ?? ''}-${c.pausedAt ?? ''}-${c.pauseRestartDate ?? ''}-${c.depletionAction ?? ''}`
   ).sort().join('|') + `|${toleranceLevel}`;
 
   const analyzeStack = useCallback(async () => {
-    if (compounds.length === 0) return;
+    if (analysisCompounds.length === 0) return;
     setLoading(true);
 
     try {
-      // Map protocol compound IDs to names
+      // Map protocol compound IDs to names (only active compounds)
+      const activeIds = new Set(analysisCompounds.map(c => c.id));
       const protocolsWithNames = protocols.map(p => ({
         ...p,
-        compoundNames: p.compoundIds.map(id => compounds.find(c => c.id === id)?.name).filter(Boolean),
+        compoundNames: p.compoundIds
+          .filter(id => activeIds.has(id))
+          .map(id => analysisCompounds.find(c => c.id === id)?.name)
+          .filter(Boolean),
       }));
 
       const { data, error } = await supabase.functions.invoke('analyze-protocol', {
         body: {
-          compounds: compounds.map(serializeCompoundForAI),
+          compounds: analysisCompounds.map(serializeCompoundForAI),
           protocols: protocolsWithNames,
           toleranceLevel,
           analysisType: 'stack',
@@ -167,16 +182,16 @@ export function useProtocolAnalysis(compounds: Compound[], protocols: UserProtoc
     } finally {
       setLoading(false);
     }
-  }, [compounds, protocols, toleranceLevel, stackHash]);
+  }, [analysisCompounds, protocols, toleranceLevel, stackHash]);
 
   const analyzeCompound = useCallback(async (compoundId: string) => {
-    const target = compounds.find(c => c.id === compoundId);
+    const target = analysisCompounds.find(c => c.id === compoundId);
     if (!target) return;
 
     setCompoundLoading(compoundId);
 
     try {
-      const otherCompounds = compounds.filter(c => c.id !== compoundId);
+      const otherCompounds = analysisCompounds.filter(c => c.id !== compoundId);
       const allCompounds = [target, ...otherCompounds];
 
       const { data, error } = await supabase.functions.invoke('analyze-protocol', {
@@ -200,12 +215,12 @@ export function useProtocolAnalysis(compounds: Compound[], protocols: UserProtoc
     } finally {
       setCompoundLoading(null);
     }
-  }, [compounds, toleranceLevel]);
+  }, [analysisCompounds, toleranceLevel]);
 
   // Auto-analyze on changes (debounced)
   useEffect(() => {
     if (stackHash === lastAnalyzedHash) return;
-    if (compounds.length === 0) return;
+    if (analysisCompounds.length === 0) return;
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
@@ -215,21 +230,25 @@ export function useProtocolAnalysis(compounds: Compound[], protocols: UserProtoc
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [stackHash, lastAnalyzedHash, compounds.length, analyzeStack]);
+  }, [stackHash, lastAnalyzedHash, analysisCompounds.length, analyzeStack]);
 
   const compareAllLevels = useCallback(async () => {
-    if (compounds.length === 0) return;
+    if (analysisCompounds.length === 0) return;
     setCompareLoading(true);
 
     try {
+      const activeIds = new Set(analysisCompounds.map(c => c.id));
       const protocolsWithNames = protocols.map(p => ({
         ...p,
-        compoundNames: p.compoundIds.map(id => compounds.find(c => c.id === id)?.name).filter(Boolean),
+        compoundNames: p.compoundIds
+          .filter(id => activeIds.has(id))
+          .map(id => analysisCompounds.find(c => c.id === id)?.name)
+          .filter(Boolean),
       }));
 
       const { data, error } = await supabase.functions.invoke('analyze-protocol', {
         body: {
-          compounds: compounds.map(serializeCompoundForAI),
+          compounds: analysisCompounds.map(serializeCompoundForAI),
           protocols: protocolsWithNames,
           analysisType: 'compare',
         },
@@ -248,7 +267,7 @@ export function useProtocolAnalysis(compounds: Compound[], protocols: UserProtoc
     } finally {
       setCompareLoading(false);
     }
-  }, [compounds, protocols]);
+  }, [analysisCompounds, protocols]);
 
   return {
     stackAnalysis,

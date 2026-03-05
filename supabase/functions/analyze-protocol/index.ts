@@ -199,8 +199,10 @@ function buildCompoundLine(c: any): string {
   let line = '- ' + c.name + ' (' + c.category + '): ' + c.dosePerUse + ' ' + c.doseLabel
     + ' \u00d7 ' + c.dosesPerDay + '/day \u00d7 ' + c.daysPerWeek + 'd/wk';
 
-  // Live state: pause and cycle phase
-  if (c.isPaused) {
+  // Live state: dormant, pause, and cycle phase
+  if (c.isDormant) {
+    line += ' [\u26d4 DORMANT \u2014 discontinued, not active]';
+  } else if (c.isPaused) {
     line += ' [\u23f8 PAUSED' + (c.pauseRestartDate ? ' \u2014 resumes ' + c.pauseRestartDate : ' \u2014 indefinitely') + ']';
   } else if (c.cyclePhase === 'OFF') {
     line += ' [\uD83D\uDD34 CURRENTLY OFF-CYCLE \u2014 ' + c.daysLeftInPhase + 'd left in OFF phase]';
@@ -212,6 +214,10 @@ function buildCompoundLine(c: any): string {
     line += ' [Cycling note: ' + c.cyclingNote + ']';
   } else {
     line += ' [Continuous use]';
+  }
+
+  if (c.depletionAction) {
+    line += ' [On depletion: ' + c.depletionAction + ']';
   }
 
   if (c.timingNote) line += ' [Timing: ' + c.timingNote + ']';
@@ -237,13 +243,16 @@ function formatStackForChat(compounds: any[], protocols: any[], toleranceLevel: 
 
   const pausedNames = compounds.filter((c: any) => c.isPaused).map((c: any) => c.name);
   const offCycleNames = compounds.filter((c: any) => !c.isPaused && c.cyclePhase === 'OFF').map((c: any) => c.name);
+  const dormantNames = compounds.filter((c: any) => c.isDormant).map((c: any) => c.name);
 
   let activeNote = '';
+  if (dormantNames.length > 0) activeNote += '\n\u26d4 DORMANT (discontinued, exclude from all scoring and recommendations): ' + dormantNames.join(', ');
   if (pausedNames.length > 0) activeNote += '\n\u26a0 PAUSED (not contributing to coverage): ' + pausedNames.join(', ');
   if (offCycleNames.length > 0) activeNote += '\n\u26a0 CURRENTLY OFF-CYCLE (not active today): ' + offCycleNames.join(', ');
 
   return 'Current Stack (Tolerance: ' + toleranceLevel + '):\n' + stackDesc + protocolDesc + analysisDesc + activeNote
     + '\n\nIMPORTANT:\n'
+    + '- Compounds marked DORMANT are DISCONTINUED and must be completely excluded from grading, interaction analysis, coverage calculations, and cost projections.\n'
     + '- Compounds marked PAUSED or OFF-CYCLE are NOT currently contributing to body coverage or daily dose totals. Factor this into your grade and recommendations.\n'
     + '- Before suggesting cycling changes, CHECK the cycling data above. Many compounds already have active ON/OFF cycling schedules configured. Do NOT recommend cycling if the compound is already being cycled \u2014 instead acknowledge the existing schedule and evaluate whether the cycle parameters are appropriate.';
 }
