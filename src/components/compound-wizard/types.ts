@@ -325,7 +325,7 @@ export interface WizardFormData {
 
 export const INITIAL_FORM_DATA: WizardFormData = {
   name: '',
-  compoundType: null,
+  compoundType: 'oral-pill',
   category: 'oral',
   purposeNote: '',
 
