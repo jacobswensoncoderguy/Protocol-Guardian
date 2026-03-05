@@ -144,6 +144,33 @@ export function useProtocolAnalysis(compounds: Compound[], protocols: UserProtoc
     `${c.id}-${c.dosePerUse}-${c.dosesPerDay}-${c.daysPerWeek}-${c.cycleOnDays ?? 0}-${c.cycleOffDays ?? 0}-${c.cycleStartDate ?? ''}-${c.pausedAt ?? ''}-${c.pauseRestartDate ?? ''}-${c.depletionAction ?? ''}`
   ).sort().join('|') + `|${toleranceLevel}`;
 
+  /** Fetch recent protocol changes (last 90 days) to give AI full context */
+  const fetchRecentChanges = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 90);
+      const { data } = await supabase
+        .from('protocol_changes')
+        .select('change_date, change_type, description, previous_value, new_value, compound_id')
+        .eq('user_id', user.id)
+        .gte('change_date', cutoff.toISOString().slice(0, 10))
+        .order('change_date', { ascending: false })
+        .limit(50);
+      return (data || []).map(c => ({
+        date: c.change_date,
+        type: c.change_type,
+        description: c.description,
+        previousValue: c.previous_value,
+        newValue: c.new_value,
+        compoundName: analysisCompounds.find(comp => comp.id === c.compound_id)?.name || null,
+      }));
+    } catch {
+      return [];
+    }
+  }, [analysisCompounds]);
+
   const analyzeStack = useCallback(async () => {
     if (analysisCompounds.length === 0) return;
     setLoading(true);
@@ -159,12 +186,15 @@ export function useProtocolAnalysis(compounds: Compound[], protocols: UserProtoc
           .filter(Boolean),
       }));
 
+      const recentChanges = await fetchRecentChanges();
+
       const { data, error } = await supabase.functions.invoke('analyze-protocol', {
         body: {
           compounds: analysisCompounds.map(serializeCompoundForAI),
           protocols: protocolsWithNames,
           toleranceLevel,
           analysisType: 'stack',
+          recentChanges,
         },
       });
 
@@ -182,7 +212,7 @@ export function useProtocolAnalysis(compounds: Compound[], protocols: UserProtoc
     } finally {
       setLoading(false);
     }
-  }, [analysisCompounds, protocols, toleranceLevel, stackHash]);
+  }, [analysisCompounds, protocols, toleranceLevel, stackHash, fetchRecentChanges]);
 
   const analyzeCompound = useCallback(async (compoundId: string) => {
     const target = analysisCompounds.find(c => c.id === compoundId);
@@ -193,12 +223,14 @@ export function useProtocolAnalysis(compounds: Compound[], protocols: UserProtoc
     try {
       const otherCompounds = analysisCompounds.filter(c => c.id !== compoundId);
       const allCompounds = [target, ...otherCompounds];
+      const recentChanges = await fetchRecentChanges();
 
       const { data, error } = await supabase.functions.invoke('analyze-protocol', {
         body: {
           compounds: allCompounds.map(serializeCompoundForAI),
           toleranceLevel,
           analysisType: 'compound',
+          recentChanges,
         },
       });
 
@@ -215,7 +247,7 @@ export function useProtocolAnalysis(compounds: Compound[], protocols: UserProtoc
     } finally {
       setCompoundLoading(null);
     }
-  }, [analysisCompounds, toleranceLevel]);
+  }, [analysisCompounds, toleranceLevel, fetchRecentChanges]);
 
   // Auto-analyze on changes (debounced)
   useEffect(() => {
@@ -246,11 +278,14 @@ export function useProtocolAnalysis(compounds: Compound[], protocols: UserProtoc
           .filter(Boolean),
       }));
 
+      const recentChanges = await fetchRecentChanges();
+
       const { data, error } = await supabase.functions.invoke('analyze-protocol', {
         body: {
           compounds: analysisCompounds.map(serializeCompoundForAI),
           protocols: protocolsWithNames,
           analysisType: 'compare',
+          recentChanges,
         },
       });
 
@@ -267,7 +302,7 @@ export function useProtocolAnalysis(compounds: Compound[], protocols: UserProtoc
     } finally {
       setCompareLoading(false);
     }
-  }, [analysisCompounds, protocols]);
+  }, [analysisCompounds, protocols, fetchRecentChanges]);
 
   return {
     stackAnalysis,
