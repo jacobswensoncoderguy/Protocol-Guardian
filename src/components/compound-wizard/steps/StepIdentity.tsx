@@ -98,6 +98,11 @@ export default function StepIdentity({ formData, onUpdate, onNext, accentColor }
       </div>
 
       {/* Next Button */}
+      {!canProceed && (
+        <p className="text-xs text-muted-foreground text-center animate-pulse">
+          Enter a compound name above to continue
+        </p>
+      )}
       <button
         type="button"
         disabled={!canProceed}
