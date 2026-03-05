@@ -23,6 +23,7 @@ import HeaderQuickActions from '@/components/HeaderQuickActions';
 import ProfileDropdown from '@/components/ProfileDropdown';
 import Onboarding from './Onboarding';
 import AddCompoundDialog from '@/components/AddCompoundDialog';
+import CompoundCardV2 from '@/components/compound-wizard/CompoundCardV2';
 import ProtocolManagerDialog from '@/components/ProtocolManagerDialog';
 import GoalExpansionDialog from '@/components/GoalExpansionDialog';
 import BiomarkerUploadDialog from '@/components/BiomarkerUploadDialog';
@@ -121,6 +122,7 @@ const Index = () => {
   useEffect(() => { if (user?.id) fetchFullGoals(); }, [user?.id, fetchFullGoals]);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showV2Wizard, setShowV2Wizard] = useState(false);
   const [showProtocolManager, setShowProtocolManager] = useState(false);
   const [showGoalExpansion, setShowGoalExpansion] = useState(false);
   const [showBiomarkerUpload, setShowBiomarkerUpload] = useState(false);
@@ -730,6 +732,19 @@ const Index = () => {
             await refetch();
           }}
         />
+
+        {/* V2 Wizard — dev toggle */}
+        {import.meta.env.DEV && (
+          <CompoundCardV2
+            open={showV2Wizard}
+            onOpenChange={setShowV2Wizard}
+            existingCompoundIds={compounds.map(c => c.name)}
+            onAdd={async (compound) => {
+              await addCompound(compound);
+              await refetch();
+            }}
+          />
+        )}
 
         <ProtocolManagerDialog
           open={showProtocolManager}
