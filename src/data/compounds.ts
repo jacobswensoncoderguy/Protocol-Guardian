@@ -50,6 +50,76 @@ export interface Compound {
   prepNotes?: string;
 }
 
+const CONTAINER_TAG_REGEX = /\[CONTAINER:(bag|bottle)\]/i;
+const COUNT_UNIT_REGEX = /\b(cap|caps|capsule|capsules|pill|pills|tab|tabs|tablet|tablets|softgel|softgels|serving|servings|scoop|scoops|unit|units)\b/i;
+const POWDER_CONTAINER_HINT_REGEX = /\b(scoop|scoops|serving|servings|powder)\b/i;
+const WEIGHT_HINT_REGEX = /(\d+(?:\.\d+)?)\s*(mcg|µg|mg|g)\b/i;
+
+function toMg(value: number, unit: string): number {
+  const normalized = unit.toLowerCase();
+  if (normalized === 'mcg' || normalized === 'µg') return value / 1000;
+  if (normalized === 'g') return value * 1000;
+  return value;
+}
+
+export function normalizeCompoundUnitLabel(unitLabel: string | null | undefined, category?: CompoundCategory): string {
+  const raw = (unitLabel || '').trim();
+  if (!raw) return category === 'powder' ? 'servings' : 'caps';
+
+  const lower = raw.toLowerCase();
+  if (lower.includes('mg/ml')) return 'mg/mL';
+  if (/\bmg\s*vial\b/i.test(raw)) return 'mg vial';
+  if (/\bml\s*vial\b/i.test(raw)) return 'mL vial';
+  if (/\b(capsule|capsules|cap|caps)\b/i.test(raw)) return 'caps';
+  if (/\b(softgel|softgels)\b/i.test(raw)) return 'softgels';
+  if (/\b(tab|tabs|tablet|tablets)\b/i.test(raw)) return 'tabs';
+  if (/\b(pill|pills)\b/i.test(raw)) return 'pills';
+  if (/\b(serving|servings)\b/i.test(raw)) return 'servings';
+  if (/\b(scoop|scoops)\b/i.test(raw)) return 'scoops';
+  if (/\b(drop|drops)\b/i.test(raw)) return 'drops';
+  if (/\b(unit|units)\b/i.test(raw)) return 'units';
+  if (/\b(spray|sprays)\b/i.test(raw)) return 'sprays';
+  if (/\b(patch|patches)\b/i.test(raw)) return 'patches';
+  if (/^iu$/i.test(raw)) return 'IU';
+  if (/^ml$/i.test(raw)) return 'mL';
+  if (/^fl\s*oz$/i.test(raw)) return 'fl oz';
+  if (/^oz$/i.test(raw)) return 'oz';
+  return raw;
+}
+
+export function getCompoundContainerKind(compound: Pick<Compound, 'category' | 'unitLabel' | 'notes'>): 'bag' | 'bottle' {
+  const notesMatch = (compound.notes || '').match(CONTAINER_TAG_REGEX);
+  if (notesMatch) return notesMatch[1].toLowerCase() as 'bag' | 'bottle';
+
+  const normalizedLabel = normalizeCompoundUnitLabel(compound.unitLabel, compound.category).toLowerCase();
+  if (compound.category === 'powder' || POWDER_CONTAINER_HINT_REGEX.test(normalizedLabel)) return 'bag';
+  return 'bottle';
+}
+
+export function getDerivedWeightPerUnitMg(compound: Pick<Compound, 'category' | 'unitLabel' | 'doseLabel' | 'dosePerUse' | 'weightPerUnit'>): number | undefined {
+  if (compound.category === 'peptide' || compound.category === 'injectable-oil') return undefined;
+  if (compound.weightPerUnit && compound.weightPerUnit > 0) return compound.weightPerUnit;
+
+  const normalizedLabel = normalizeCompoundUnitLabel(compound.unitLabel, compound.category).toLowerCase();
+  if (!COUNT_UNIT_REGEX.test(normalizedLabel)) return undefined;
+
+  const explicitWeight = (compound.unitLabel || '').match(WEIGHT_HINT_REGEX);
+  if (explicitWeight) {
+    const parsed = parseFloat(explicitWeight[1]);
+    if (!isNaN(parsed) && parsed > 0) {
+      return toMg(parsed, explicitWeight[2]);
+    }
+  }
+
+  const dl = (compound.doseLabel || '').toLowerCase();
+  if (dl.includes('mg') || dl.includes('mcg') || dl.includes('µg') || dl === 'g') {
+    const inferred = toMg(compound.dosePerUse, dl.includes('mcg') || dl.includes('µg') ? 'mcg' : dl === 'g' ? 'g' : 'mg');
+    return inferred > 0 ? inferred : undefined;
+  }
+
+  return undefined;
+}
+
 /**
  * Normalize daily consumption to native container units (pills, caps, servings)
  * for oral/powder compounds. When dosePerUse is stored in weight units (mg, mcg, g)
@@ -61,13 +131,14 @@ export function getNormalizedDailyConsumption(compound: Compound): number {
 
   const dl = compound.doseLabel.toLowerCase();
   const isWeightDose = dl.includes('mg') || dl.includes('mcg') || dl.includes('µg') || dl === 'g';
+  const weightPerUnitMg = getDerivedWeightPerUnitMg(compound);
 
-  if (isWeightDose && compound.weightPerUnit && compound.weightPerUnit > 0) {
+  if (isWeightDose && weightPerUnitMg && weightPerUnitMg > 0) {
     // Convert weight-based dose to pill/cap count
     let doseMg = compound.dosePerUse;
     if (dl.includes('mcg') || dl.includes('µg')) doseMg = compound.dosePerUse / 1000;
     else if (dl === 'g') doseMg = compound.dosePerUse * 1000;
-    const pillsPerDose = doseMg / compound.weightPerUnit;
+    const pillsPerDose = doseMg / weightPerUnitMg;
     return (pillsPerDose * compound.dosesPerDay * compound.daysPerWeek) / 7;
   }
 
@@ -190,14 +261,27 @@ export function consumedToContainerUnits(compound: Compound, consumed: number): 
     return consumed / (compound.unitSize * compound.vialSizeMl);
   }
   // Volume container with drop dosing
-  const ul = compound.unitLabel.toLowerCase().replace(/\s+/g, '');
+  const normalizedUnitLabel = normalizeCompoundUnitLabel(compound.unitLabel, compound.category);
+  const ul = normalizedUnitLabel.toLowerCase().replace(/\s+/g, '');
   const dl = compound.doseLabel.toLowerCase();
   if ((dl === 'drops' || dl === 'drop') && isVolumeUnit(ul)) {
     const mlPerContainer = toMl(compound.unitSize, ul);
     const dropsPerContainer = mlPerContainer * DROPS_PER_ML;
     return dropsPerContainer > 0 ? consumed / dropsPerContainer : 0;
   }
-  // For orals/powders: consumed is in raw dose units; unitSize = doses per container
+
+  // Weight-based dose on count-based containers (e.g. mg dose + caps per bottle)
+  const isWeightDose = dl.includes('mg') || dl.includes('mcg') || dl.includes('µg') || dl === 'g';
+  const weightPerUnitMg = getDerivedWeightPerUnitMg(compound);
+  if (isWeightDose && weightPerUnitMg && compound.unitSize > 0) {
+    let consumedMg = consumed;
+    if (dl.includes('mcg') || dl.includes('µg')) consumedMg = consumed / 1000;
+    else if (dl === 'g') consumedMg = consumed * 1000;
+    const consumedCountUnits = consumedMg / weightPerUnitMg;
+    return consumedCountUnits / compound.unitSize;
+  }
+
+  // For orals/powders with count-based doses: consumed is already in unit counts
   if (compound.unitSize > 0) {
     return consumed / compound.unitSize;
   }

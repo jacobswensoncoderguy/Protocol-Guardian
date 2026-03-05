@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
-import { Compound, getReorderCost, getEffectiveQuantity } from '@/data/compounds';
+import { Compound, getReorderCost, getEffectiveQuantity, getCompoundContainerKind } from '@/data/compounds';
 import { getDaysRemainingWithCycling, getEffectiveDailyConsumption } from '@/lib/cycling';
 import { useCompliance } from '@/contexts/ComplianceContext';
 import { UserProtocol } from '@/hooks/useProtocols';
@@ -412,9 +412,7 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
       return `Reorder Qty: ${qty} kit${qty !== 1 ? 's' : ''} (${qty * 10} vials)`;
     }
     if (compound.category === 'injectable-oil') return `Reorder Qty: ${qty} vial${qty !== 1 ? 's' : ''}`;
-    const ul = (compound.unitLabel || '').toLowerCase();
-    let containerLabel = 'bottle';
-    if (ul.includes('scoop') || ul.includes('serving') || ul.includes('g') || ul === 'oz') containerLabel = 'bag';
+    const containerLabel = getCompoundContainerKind(compound);
     if (compound.reorderType === 'kit') return `Reorder Qty: ${qty} kit${qty !== 1 ? 's' : ''}`;
     return `Reorder Qty: ${qty} ${containerLabel}${qty !== 1 ? 's' : ''}`;
   };

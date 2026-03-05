@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Compound, getReorderCost, getNormalizedDailyConsumption } from '@/data/compounds';
+import { Compound, getReorderCost, getNormalizedDailyConsumption, getCompoundContainerKind } from '@/data/compounds';
 import { supabase } from '@/integrations/supabase/client';
 import { getDaysRemainingWithCycling, getEffectiveDailyConsumption, getCycleStatus } from '@/lib/cycling';
 import { useCompliance } from '@/contexts/ComplianceContext';
@@ -103,10 +103,7 @@ function buildProjection(compounds: Compound[], getModifiers: (compoundId: strin
       : compound.category === 'injectable-oil'
         ? `${compound.reorderQuantity} vial${compound.reorderQuantity !== 1 ? 's' : ''}`
         : (() => {
-            const ul = (compound.unitLabel || '').toLowerCase();
-            let container = 'bottle';
-            if (ul.includes('scoop') || ul.includes('serving') || ul.includes('g') || ul === 'oz') container = 'bag';
-            if (compound.reorderType === 'kit') container = 'kit';
+            const container = compound.reorderType === 'kit' ? 'kit' : getCompoundContainerKind(compound);
             return `${compound.reorderQuantity} ${container}${compound.reorderQuantity !== 1 ? 's' : ''}`;
           })();
     const displayPrice = compound.category === 'peptide'

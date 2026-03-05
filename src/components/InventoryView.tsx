@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Compound, getStatus, getReorderDateString, CompoundCategory, getDaysRemaining, getEffectiveQuantity, getConsumedSinceDate, consumedToContainerUnits } from '@/data/compounds';
+import { Compound, getStatus, getReorderDateString, CompoundCategory, getDaysRemaining, getEffectiveQuantity, getConsumedSinceDate, consumedToContainerUnits, getCompoundContainerKind } from '@/data/compounds';
 import { getCycleStatus, getDaysRemainingWithCycling, isPaused } from '@/lib/cycling';
 import { useCompliance } from '@/contexts/ComplianceContext';
 import { UserProtocol } from '@/hooks/useProtocols';
@@ -663,11 +663,8 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
       unitLabel: compound.unitLabel,
       // Initialize container type from notes tag or infer from unitLabel
       containerType: (() => {
-        const notesMatch = (compound.notes || '').match(/\[CONTAINER:(bag|bottle)\]/i);
-        if (notesMatch) return notesMatch[1].toLowerCase() === 'bottle' ? 'bottles' : 'bags';
-        const ul = (compound.unitLabel || '').toLowerCase();
-        if (ul.includes('scoop') || ul.includes('serving') || ul.includes('g') || ul === 'oz') return 'bags';
-        return 'bottles';
+        const containerKind = getCompoundContainerKind(compound);
+        return containerKind === 'bag' ? 'bags' : 'bottles';
       })(),
       weightPerUnit: (() => {
         const wpu = compound.weightPerUnit || 0;
@@ -2164,13 +2161,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
               />
               <div>
                 <span className="text-muted-foreground">Price:</span>{' '}
-                <span className="font-mono text-foreground">${compound.unitPrice}/{isOil ? 'vial' : (() => {
-                  const notesMatch = (compound.notes || '').match(/\[CONTAINER:(bag|bottle)\]/i);
-                  if (notesMatch) return notesMatch[1].toLowerCase();
-                  const ul = (compound.unitLabel || '').toLowerCase();
-                  if (ul.includes('scoop') || ul.includes('serving') || ul.includes('g') || ul === 'oz') return 'bag';
-                  return 'bottle';
-                })()}</span>
+                <span className="font-mono text-foreground">${compound.unitPrice}/{isOil ? 'vial' : getCompoundContainerKind(compound)}</span>
               </div>
               {isOil && (
                 <div>
@@ -2187,13 +2178,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
               {!isOil && (
                 <div>
                   <span className="text-muted-foreground">Contents:</span>{' '}
-                  <span className="font-mono text-foreground">{compound.unitSize} {compound.unitLabel || 'caps'}/{(() => {
-                    const notesMatch = (compound.notes || '').match(/\[CONTAINER:(bag|bottle)\]/i);
-                    if (notesMatch) return notesMatch[1].toLowerCase();
-                    const ul = (compound.unitLabel || '').toLowerCase();
-                    if (ul.includes('scoop') || ul.includes('serving') || ul.includes('g') || ul === 'oz') return 'bag';
-                    return 'bottle';
-                  })()}</span>
+                  <span className="font-mono text-foreground">{compound.unitSize} {compound.unitLabel || 'caps'}/{getCompoundContainerKind(compound)}</span>
                 </div>
               )}
               {!isOil && compound.weightPerUnit && compound.weightPerUnit > 0 && (
@@ -2263,13 +2248,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
               </div>
               <div>
                 <span className="text-muted-foreground">Reorder Qty:</span>{' '}
-                <span className="font-mono text-foreground">{compound.reorderQuantity} {compound.reorderType === 'kit' ? 'kit' : (() => {
-                  const notesMatch = (compound.notes || '').match(/\[CONTAINER:(bag|bottle)\]/i);
-                  if (notesMatch) return notesMatch[1].toLowerCase();
-                  const ul = (compound.unitLabel || '').toLowerCase();
-                  if (ul.includes('scoop') || ul.includes('serving') || ul.includes('g') || ul === 'oz') return 'bag';
-                  return 'bottle';
-                })()}{compound.reorderQuantity !== 1 ? 's' : ''}</span>
+                <span className="font-mono text-foreground">{compound.reorderQuantity} {compound.reorderType === 'kit' ? 'kit' : getCompoundContainerKind(compound)}{compound.reorderQuantity !== 1 ? 's' : ''}</span>
               </div>
               {compound.purchaseDate && (
                 <div>
@@ -2338,14 +2317,7 @@ const InlineQuantityEditor = ({ compound, status, isOil, isPeptide, onUpdate }: 
   const formatQty = (qty: number) => {
     if (isPeptide) return `${Math.round(qty * 100) / 100}`;
     if (isOil) return `${Math.round(qty * 100) / 100} vial${qty !== 1 ? 's' : ''} (${compound.vialSizeMl || 10}mL)`;
-    const notesMatch = (compound.notes || '').match(/\[CONTAINER:(bag|bottle)\]/i);
-    if (notesMatch) {
-      const ct = notesMatch[1].toLowerCase();
-      return `${Math.round(qty * 100) / 100} ${ct}${qty !== 1 ? 's' : ''}`;
-    }
-    const ul = (compound.unitLabel || '').toLowerCase();
-    let container = 'bottle';
-    if (ul.includes('scoop') || ul.includes('serving') || ul.includes('g') || ul === 'oz') container = 'bag';
+    const container = getCompoundContainerKind(compound);
     return `${Math.round(qty * 100) / 100} ${container}${qty !== 1 ? 's' : ''}`;
   };
 
