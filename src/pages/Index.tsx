@@ -123,6 +123,7 @@ const Index = () => {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showV2Wizard, setShowV2Wizard] = useState(false);
+  const [useV2Wizard, setUseV2Wizard] = useState(true);
   const [showProtocolManager, setShowProtocolManager] = useState(false);
   const [showGoalExpansion, setShowGoalExpansion] = useState(false);
   const [showBiomarkerUpload, setShowBiomarkerUpload] = useState(false);
@@ -393,7 +394,7 @@ const Index = () => {
           <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
             <HeaderQuickActions
               activeTab={activeTab}
-              onAddCompound={() => setShowAddDialog(true)}
+              onAddCompound={() => useV2Wizard ? setShowV2Wizard(true) : setShowAddDialog(true)}
               onManageProtocols={() => setShowProtocolManager(true)}
               onGoalExpansion={() => setShowGoalExpansion(true)}
               onNavigateTab={setActiveTab}
@@ -405,6 +406,20 @@ const Index = () => {
             >
               <UserPlus className="w-4 h-4 sm:w-[18px] sm:h-[18px]" />
             </button>
+            {import.meta.env.DEV && (
+              <button
+                onClick={() => setUseV2Wizard(v => !v)}
+                className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold border transition-colors"
+                style={{
+                  borderColor: useV2Wizard ? 'hsl(var(--primary))' : 'hsl(var(--border))',
+                  color: useV2Wizard ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
+                  backgroundColor: useV2Wizard ? 'hsl(var(--primary) / 0.1)' : 'transparent',
+                }}
+                title={useV2Wizard ? 'Using V2 Wizard — click for V1' : 'Using V1 Dialog — click for V2'}
+              >
+                {useV2Wizard ? 'V2' : 'V1'}
+              </button>
+            )}
             <div className="w-px h-5 bg-border/50 hidden sm:block" />
             <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground font-mono">
               <span className="inline-block w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-status-good animate-pulse-glow" />
@@ -485,7 +500,7 @@ const Index = () => {
               conversationManager={conversationManager}
               appFeatures={appFeatures}
               onEnableFeature={handleToggleFeature}
-              onAddCompound={() => setShowAddDialog(true)}
+              onAddCompound={() => useV2Wizard ? setShowV2Wizard(true) : setShowAddDialog(true)}
               titrationNotifications={titration.notifications}
               titrationSchedules={titration.schedules}
               onTitrationConfirm={titration.confirmStep}
@@ -611,7 +626,7 @@ const Index = () => {
                     compounds={viewCompounds}
                     onUpdateCompound={householdViewId === 'self' ? handleUpdateCompound : () => {}}
                     onDeleteCompound={householdViewId === 'self' ? deleteCompound : undefined}
-                    onAddCompound={householdViewId === 'self' ? () => setShowAddDialog(true) : undefined}
+                    onAddCompound={householdViewId === 'self' ? () => useV2Wizard ? setShowV2Wizard(true) : setShowAddDialog(true) : undefined}
                     protocols={protocols}
                     toleranceLevel={toleranceLevel}
                     onToleranceChange={handleToleranceChange}
@@ -733,18 +748,15 @@ const Index = () => {
           }}
         />
 
-        {/* V2 Wizard — dev toggle */}
-        {import.meta.env.DEV && (
-          <CompoundCardV2
-            open={showV2Wizard}
-            onOpenChange={setShowV2Wizard}
-            existingCompoundIds={compounds.map(c => c.name)}
-            onAdd={async (compound) => {
-              await addCompound(compound);
-              await refetch();
-            }}
-          />
-        )}
+        <CompoundCardV2
+          open={showV2Wizard}
+          onOpenChange={setShowV2Wizard}
+          existingCompoundIds={compounds.map(c => c.name)}
+          onAdd={async (compound) => {
+            await addCompound(compound);
+            await refetch();
+          }}
+        />
 
         <ProtocolManagerDialog
           open={showProtocolManager}
