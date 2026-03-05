@@ -277,7 +277,7 @@ export default function CompoundCardV2({ existingCompoundIds, onAdd, open, onOpe
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0 border-0" style={{
+      <DialogContent className="max-w-md max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0 border border-border/30 bg-background" style={{
         borderRadius: '16px',
         boxShadow: `0 0 0 1px hsl(${accentColor} / 0.15), 0 8px 32px rgba(0,0,0,0.4), 0 0 20px hsl(${accentColor} / 0.1)`,
       }} aria-describedby={undefined}>
