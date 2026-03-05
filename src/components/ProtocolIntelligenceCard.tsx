@@ -1,4 +1,4 @@
-import { Brain, RefreshCw, ChevronRight, TrendingUp, AlertCircle, CircleAlert, Info } from 'lucide-react';
+import { Brain, RefreshCw, ChevronRight, TrendingUp, AlertCircle, CircleAlert, Info, EyeOff } from 'lucide-react';
 import ChatMarkdown from '@/components/ChatMarkdown';
 import InfoTooltip from '@/components/InfoTooltip';
 import { Shield, Scale, Zap, Rocket } from 'lucide-react';
@@ -11,6 +11,7 @@ interface ProtocolIntelligenceCardProps {
   loading: boolean;
   needsRefresh: boolean;
   toleranceLevel?: string;
+  excludedCounts?: { paused: number; dormant: number };
   onRefresh: () => void;
   onViewDetails: () => void;
 }
@@ -35,7 +36,7 @@ const toleranceLabels: Record<string, { Icon: LucideIcon; label: string }> = {
   performance: { Icon: Rocket, label: 'Performance' },
 };
 
-const ProtocolIntelligenceCard = ({ analysis, loading, needsRefresh, toleranceLevel, onRefresh, onViewDetails }: ProtocolIntelligenceCardProps) => {
+const ProtocolIntelligenceCard = ({ analysis, loading, needsRefresh, toleranceLevel, excludedCounts, onRefresh, onViewDetails }: ProtocolIntelligenceCardProps) => {
   if (!analysis && !loading) {
     return (
       <button
@@ -92,6 +93,15 @@ const ProtocolIntelligenceCard = ({ analysis, loading, needsRefresh, toleranceLe
                   <span className="inline-flex items-center gap-1 text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground">
                     {(() => { const { Icon } = toleranceLabels[toleranceLevel]; return <Icon className="w-2.5 h-2.5" />; })()}
                     {toleranceLabels[toleranceLevel].label}
+                  </span>
+                )}
+                {excludedCounts && (excludedCounts.paused > 0 || excludedCounts.dormant > 0) && (
+                  <span className="inline-flex items-center gap-1 text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+                    <EyeOff className="w-2.5 h-2.5" />
+                    {[
+                      excludedCounts.dormant > 0 ? `${excludedCounts.dormant} dormant` : null,
+                      excludedCounts.paused > 0 ? `${excludedCounts.paused} paused` : null,
+                    ].filter(Boolean).join(', ')} excluded
                   </span>
                 )}
                 {analysis.overallConfidencePct !== undefined && analysis.overallEvidenceTier && (
