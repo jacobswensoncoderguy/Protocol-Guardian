@@ -225,7 +225,24 @@ function buildCompoundLine(c: any): string {
   return line;
 }
 
-function formatStackForChat(compounds: any[], protocols: any[], toleranceLevel: string, analysis: any) {
+function formatChangeHistory(recentChanges: any[]): string {
+  if (!recentChanges || recentChanges.length === 0) return '';
+  const lines = recentChanges.map((c: any) => {
+    let line = '- [' + c.date + '] ' + c.description;
+    if (c.compoundName) line = '- [' + c.date + '] **' + c.compoundName + '**: ' + c.description;
+    if (c.previousValue && c.newValue) line += ' (' + c.previousValue + ' → ' + c.newValue + ')';
+    return line;
+  });
+  return '\n\n═══ PROTOCOL CHANGE HISTORY (last 90 days) ═══\n'
+    + 'Use this history to understand the trajectory of the user\'s protocol. Recent changes reveal intent, experimentation, and adjustments. Factor these into your grade and recommendations:\n'
+    + '- If a compound was recently added, acknowledge it as new and note it may not have had time to show results\n'
+    + '- If doses were recently adjusted, evaluate whether the new dose is an improvement\n'
+    + '- If compounds were removed, consider why and whether their removal creates gaps\n'
+    + '- Identify patterns (e.g., frequent dose changes suggest the user is titrating)\n\n'
+    + lines.join('\n');
+}
+
+function formatStackForChat(compounds: any[], protocols: any[], toleranceLevel: string, analysis: any, recentChanges?: any[]) {
   const stackDesc = compounds.map(buildCompoundLine).join('\n');
 
   const protocolDesc = protocols?.length > 0
@@ -250,11 +267,15 @@ function formatStackForChat(compounds: any[], protocols: any[], toleranceLevel: 
   if (pausedNames.length > 0) activeNote += '\n\u26a0 PAUSED (not contributing to coverage): ' + pausedNames.join(', ');
   if (offCycleNames.length > 0) activeNote += '\n\u26a0 CURRENTLY OFF-CYCLE (not active today): ' + offCycleNames.join(', ');
 
+  const changeHistory = formatChangeHistory(recentChanges || []);
+
   return 'Current Stack (Tolerance: ' + toleranceLevel + '):\n' + stackDesc + protocolDesc + analysisDesc + activeNote
+    + changeHistory
     + '\n\nIMPORTANT:\n'
     + '- Compounds marked DORMANT are DISCONTINUED and must be completely excluded from grading, interaction analysis, coverage calculations, and cost projections.\n'
     + '- Compounds marked PAUSED or OFF-CYCLE are NOT currently contributing to body coverage or daily dose totals. Factor this into your grade and recommendations.\n'
-    + '- Before suggesting cycling changes, CHECK the cycling data above. Many compounds already have active ON/OFF cycling schedules configured. Do NOT recommend cycling if the compound is already being cycled \u2014 instead acknowledge the existing schedule and evaluate whether the cycle parameters are appropriate.';
+    + '- Before suggesting cycling changes, CHECK the cycling data above. Many compounds already have active ON/OFF cycling schedules configured. Do NOT recommend cycling if the compound is already being cycled \u2014 instead acknowledge the existing schedule and evaluate whether the cycle parameters are appropriate.\n'
+    + '- Review the PROTOCOL CHANGE HISTORY to understand recent adjustments. Your advice should build on these changes, not contradict them without good reason.';
 }
 
 serve(async (req) => {
@@ -262,7 +283,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { compounds, protocols, toleranceLevel, analysisType, messages, analysis, prompt, context } = body;
+    const { compounds, protocols, toleranceLevel, analysisType, messages, analysis, prompt, context, recentChanges } = body;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
@@ -318,7 +339,7 @@ Rules:
 
     // ── CHAT MODE: streaming conversation ──
     if (analysisType === 'chat') {
-      const stackContext = formatStackForChat(compounds, protocols, toleranceLevel, analysis);
+      const stackContext = formatStackForChat(compounds, protocols, toleranceLevel, analysis, recentChanges);
       
       const chatMessages = [
         { role: "system", content: CHAT_SYSTEM_PROMPT + "\n\n" + stackContext },
@@ -410,15 +431,18 @@ Rules:
         .map((c: any) => c.name + ' [' + (c.isPaused ? 'PAUSED' : 'OFF-CYCLE') + ']')
         .join(', ');
 
+      const changeHistory = formatChangeHistory(recentChanges || []);
+
       const comparePrompt = 'Analyze this complete stack and grade it at ALL FOUR tolerance levels simultaneously.\n'
         + (pausedNote ? 'Note: These compounds are NOT currently active: ' + pausedNote + '. Factor this into your analysis.\n' : '')
         + '\n' + stackDescription + '\n' + protocolDescription
+        + changeHistory
         + '\n\nFor EACH tolerance level (conservative, moderate, aggressive, performance), provide:\n'
         + '1. The letter grade (A+ through F) calibrated properly for that level\n'
         + '2. A brief 1-2 sentence summary explaining why this grade was given at that level\n'
         + '3. The top risk or concern at that level\n'
         + '4. The top strength or advantage at that level\n\n'
-        + 'Remember the grading calibration rules — conservative grades harshly, performance grades on goal alignment.';
+        + 'Remember the grading calibration rules — conservative grades harshly, performance grades on goal alignment. Factor in any recent protocol changes.';
 
       const compareTools = [{
         type: "function",
@@ -548,6 +572,8 @@ Rules:
       return parts.join(' | ');
     })();
 
+    const changeHistoryBlock = formatChangeHistory(recentChanges || []);
+
     let userPrompt: string;
     let tools: any[];
     let toolChoice: any;
@@ -566,8 +592,9 @@ Rules:
         + targetCompound.dosesPerDay + '/day \u00d7 ' + targetCompound.daysPerWeek + 'd/wk' + targetStatus
         + '\n\nREST OF STACK:\n' + restOfStack.map(buildCompoundLine).join('\n')
         + (inactiveNote ? '\n\nNote on inactive compounds: ' + inactiveNote : '')
+        + changeHistoryBlock
         + '\n\nTolerance Level: ' + toleranceLevel
-        + '\n\nAnalyze interactions, bioavailability, and provide suggestions specific to this compound. Factor in whether the target compound or any stack members are currently paused or in OFF cycle phase.';
+        + '\n\nAnalyze interactions, bioavailability, and provide suggestions specific to this compound. Factor in whether the target compound or any stack members are currently paused or in OFF cycle phase. Reference any recent protocol changes that affect this compound.';
 
       tools = [{
         type: "function",
@@ -647,6 +674,7 @@ Rules:
         + stackDescription + '\n'
         + protocolDescription + '\n'
         + inactiveBlock
+        + changeHistoryBlock
         + '\n\nTolerance Level: ' + toleranceLevel
         + '\n\nCRITICAL GRADING INSTRUCTION: The tolerance level is "' + toleranceLevel + '". ' + toleranceInstruction
         + '\n\nProvide a comprehensive analysis covering:\n'
@@ -654,7 +682,8 @@ Rules:
         + '2. Bioavailability issues and optimization suggestions\n'
         + '3. Protocol efficiency grades (A-F) for each protocol group\n'
         + '4. Cost-efficiency analysis\n'
-        + '5. Overall stack grade and top recommendations';
+        + '5. Overall stack grade and top recommendations\n'
+        + '6. Assessment of recent protocol changes — whether they improve or weaken the stack';
 
       tools = [{
         type: "function",
