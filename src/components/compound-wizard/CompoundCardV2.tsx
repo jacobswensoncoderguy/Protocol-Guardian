@@ -27,7 +27,8 @@ import {
   INITIAL_FORM_DATA,
 } from './types';
 import { getDilutionDefaults } from '@/data/dilutionDefaults';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 
 interface CompoundCardV2Props {
   /** Existing compounds list — for name deduplication */
@@ -279,7 +280,8 @@ export default function CompoundCardV2({ existingCompoundIds, onAdd, open, onOpe
       <DialogContent className="max-w-md max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0 border-0" style={{
         borderRadius: '16px',
         boxShadow: `0 0 0 1px hsl(${accentColor} / 0.15), 0 8px 32px rgba(0,0,0,0.4), 0 0 20px hsl(${accentColor} / 0.1)`,
-      }}>
+      }} aria-describedby={undefined}>
+        <VisuallyHidden><DialogTitle>Add Compound</DialogTitle></VisuallyHidden>
         {/* Progress indicator — fixed at top */}
         {isActiveStep && (
           <div className="flex-shrink-0 border-b border-border/20">
