@@ -7,7 +7,7 @@
  * Phase 7 (swap) will only execute when explicitly authorized.
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 import { Compound, CompoundCategory, normalizeCompoundUnitLabel, getDerivedWeightPerUnitMg } from '@/data/compounds';
 import { useWizardMachine } from './useWizardMachine';
 import WizardProgress from './WizardProgress';
@@ -28,7 +28,6 @@ import {
 } from './types';
 import { getDilutionDefaults } from '@/data/dilutionDefaults';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 
 interface CompoundCardV2Props {
   /** Existing compounds list — for name deduplication */
@@ -237,16 +236,18 @@ export default function CompoundCardV2({ existingCompoundIds, onAdd, open, onOpe
 
   const accentColor = useMemo(() => getAccentColor(formData.category), [formData.category]);
 
-  // Start wizard when dialog opens
-  const handleOpenChange = useCallback((isOpen: boolean) => {
-    if (isOpen && step === 'IDLE') {
+  useEffect(() => {
+    if (open && step === 'IDLE') {
       start();
     }
-    if (!isOpen) {
+    if (!open && step !== 'IDLE') {
       reset();
     }
+  }, [open, step, start, reset]);
+
+  const handleOpenChange = useCallback((isOpen: boolean) => {
     onOpenChange(isOpen);
-  }, [step, start, reset, onOpenChange]);
+  }, [onOpenChange]);
 
   const handleNext = useCallback(() => next(), [next]);
   const handleBack = useCallback(() => back(), [back]);
@@ -281,7 +282,7 @@ export default function CompoundCardV2({ existingCompoundIds, onAdd, open, onOpe
         borderRadius: '16px',
         boxShadow: `0 0 0 1px hsl(${accentColor} / 0.15), 0 8px 32px rgba(0,0,0,0.4), 0 0 20px hsl(${accentColor} / 0.1)`,
       }} aria-describedby={undefined}>
-        <VisuallyHidden><DialogTitle>Add Compound</DialogTitle></VisuallyHidden>
+        <DialogTitle className="sr-only">Add Compound</DialogTitle>
         {/* Progress indicator — fixed at top */}
         {isActiveStep && (
           <div className="flex-shrink-0 border-b border-border/20">
