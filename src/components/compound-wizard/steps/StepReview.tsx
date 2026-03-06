@@ -1,5 +1,6 @@
 import { WizardFormData, COMPOUND_TYPE_META, TIMING_OPTIONS, SCHEDULE_PRESETS, getAccentColor } from '../types';
-import { Loader2 } from 'lucide-react';
+import { getEffectiveDose, validateWizardData } from '../doseResolver';
+import { Loader2, AlertTriangle } from 'lucide-react';
 
 interface StepReviewProps {
   formData: WizardFormData;
@@ -42,9 +43,29 @@ export default function StepReview({ formData, onJump, onSave, onCancel, isSavin
   const dayStr = activeDays.length === 7 ? 'Every day' : activeDays.map(d => dayNames[d]).join(', ');
   const timingStr = formData.timings.map(t => TIMING_OPTIONS.find(o => o.id === t)?.label || t).join(', ');
 
+  // Use centralized dose resolver for correct display
+  const resolved = getEffectiveDose(formData);
+  const doseDisplay = resolved.dosePerUse > 0 ? `${resolved.dosePerUse} ${resolved.doseLabel}` : 'Not set';
+
+  // Pre-save validation
+  const validationErrors = validateWizardData(formData);
+
   return (
     <div className="space-y-4 px-4 pb-6">
       <h3 className="text-base font-semibold text-foreground">Review Protocol</h3>
+
+      {/* Validation warnings */}
+      {validationErrors.length > 0 && (
+        <div className="rounded-xl p-3 bg-destructive/10 border border-destructive/30 space-y-1">
+          <div className="flex items-center gap-2 mb-1">
+            <AlertTriangle className="w-4 h-4 text-destructive" />
+            <span className="text-xs font-semibold text-destructive">Issues to fix before saving</span>
+          </div>
+          {validationErrors.map((err, i) => (
+            <p key={i} className="text-xs text-destructive/80 pl-6">• {err}</p>
+          ))}
+        </div>
+      )}
 
       {/* Card Face Preview */}
       <div
@@ -72,7 +93,7 @@ export default function StepReview({ formData, onJump, onSave, onCancel, isSavin
         </div>
         <div className="w-full h-px" style={{ backgroundColor: `hsl(${accentColor} / 0.2)` }} />
         <p className="text-sm font-semibold text-foreground">
-          {formData.targetDose} {formData.targetDoseUnit} — {timingStr}
+          {doseDisplay} — {timingStr}
         </p>
         <p className="text-xs text-muted-foreground font-mono">{dayStr}</p>
       </div>
@@ -105,11 +126,11 @@ export default function StepReview({ formData, onJump, onSave, onCancel, isSavin
         )}
         {formData.compoundType === 'oral-pill' && (
           <>
-            <Row label="Form" value={formData.formFactor} />
+            <Row label="Pill type" value={formData.formFactor} />
             <Row label="Container" value={formData.containerType} />
-            <Row label="Count" value={formData.countPerContainer} />
-            <Row label="Per unit" value={`${formData.doseAmountPerUnit} ${formData.doseAmountPerUnitUnit}`} />
-            <Row label="Units/dose" value={formData.unitsPerDose} />
+            <Row label="Servings/container" value={formData.countPerContainer} />
+            <Row label="Dose/serving" value={`${formData.doseAmountPerUnit} ${formData.doseAmountPerUnitUnit}`} />
+            <Row label="Servings/dose" value={formData.unitsPerDose} />
           </>
         )}
         {formData.compoundType === 'oral-powder' && (
@@ -124,6 +145,7 @@ export default function StepReview({ formData, onJump, onSave, onCancel, isSavin
             <Row label="Form" value={formData.topicalForm} />
             <Row label="Container" value={`${formData.topicalContainerSize} ${formData.topicalContainerSizeUnit}`} />
             <Row label="Application" value={`${formData.dosePerApplication} ${formData.applicationUnit}`} />
+            <Row label="Doses/container" value={formData.dosesPerContainer} />
           </>
         )}
         {formData.compoundType === 'prescription' && (
@@ -137,7 +159,7 @@ export default function StepReview({ formData, onJump, onSave, onCancel, isSavin
       </Section>
 
       <Section title="Dosing" stepIndex={2} onJump={onJump}>
-        <Row label="Dose" value={`${formData.targetDose} ${formData.targetDoseUnit}`} />
+        <Row label="Dose" value={doseDisplay} />
         <Row label="Frequency" value={`${formData.dosesPerDay}x/day`} />
         <Row label="Timing" value={timingStr} />
         <Row label="Schedule" value={dayStr} />
@@ -173,17 +195,17 @@ export default function StepReview({ formData, onJump, onSave, onCancel, isSavin
       {/* Save */}
       <button
         type="button"
-        disabled={isSaving}
+        disabled={isSaving || validationErrors.length > 0}
         onClick={onSave}
         className="w-full py-3.5 rounded-xl font-semibold text-sm transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50"
         style={{
-          backgroundColor: `hsl(${accentColor})`,
-          color: 'hsl(var(--background))',
-          boxShadow: `0 0 20px hsl(${accentColor} / 0.3)`,
+          backgroundColor: validationErrors.length > 0 ? 'hsl(var(--muted))' : `hsl(${accentColor})`,
+          color: validationErrors.length > 0 ? 'hsl(var(--muted-foreground))' : 'hsl(var(--background))',
+          boxShadow: validationErrors.length > 0 ? 'none' : `0 0 20px hsl(${accentColor} / 0.3)`,
         }}
       >
         {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
-        {isSaving ? 'Saving…' : 'Save to Protocol'}
+        {isSaving ? 'Saving…' : validationErrors.length > 0 ? 'Fix Issues Above' : 'Save to Protocol'}
       </button>
 
       <button type="button" onClick={onCancel} className="w-full py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
