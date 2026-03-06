@@ -49,8 +49,31 @@ function normalizeCompoundForApp(compound: Compound): Compound {
   const derivedWeightPerUnit = getDerivedWeightPerUnitMg(normalized);
   const resolvedWeightPerUnit = normalized.weightPerUnit ?? derivedWeightPerUnit;
 
+  // Safety net for legacy/bad writes: avoid active compounds with zero dose breaking
+  // schedule display, remaining math, reorder, and costs.
+  const hasMissingDose =
+    (normalized.dosePerUse ?? 0) <= 0 &&
+    (normalized.dosesPerDay ?? 0) > 0 &&
+    (normalized.daysPerWeek ?? 0) > 0;
+  const countLikeUnit = /\b(cap|caps|pill|pills|tab|tabs|softgel|softgels|serving|servings|scoop|scoops|unit|units|drop|drops|spray|sprays|patch|patches)\b/i.test(normalizedUnitLabel);
+
+  let resolvedDosePerUse = normalized.dosePerUse;
+  let resolvedDoseLabel = normalized.doseLabel;
+
+  if (hasMissingDose) {
+    if (resolvedWeightPerUnit && resolvedWeightPerUnit > 0) {
+      resolvedDosePerUse = resolvedWeightPerUnit;
+      resolvedDoseLabel = 'mg';
+    } else if (countLikeUnit) {
+      resolvedDosePerUse = 1;
+      resolvedDoseLabel = normalizedUnitLabel;
+    }
+  }
+
   return {
     ...normalized,
+    dosePerUse: resolvedDosePerUse,
+    doseLabel: resolvedDoseLabel,
     weightPerUnit: resolvedWeightPerUnit,
     weightUnit: normalized.weightUnit ?? (resolvedWeightPerUnit ? 'mg' : undefined),
   };

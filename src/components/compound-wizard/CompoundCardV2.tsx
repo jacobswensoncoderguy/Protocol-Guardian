@@ -39,7 +39,47 @@ interface CompoundCardV2Props {
   onOpenChange: (open: boolean) => void;
 }
 
-/** Convert wizard form data → Compound shape for Supabase write (uses existing patterns) */
+/** Convert supported weight units to mg for consistent internal storage */
+function toMg(value: number, unit: string): number | undefined {
+  const normalized = unit.toLowerCase();
+  if (normalized === 'mg') return value;
+  if (normalized === 'mcg' || normalized === 'µg') return value / 1000;
+  if (normalized === 'g') return value * 1000;
+  return undefined;
+}
+
+function resolvePillDoseFromServingFields(fd: WizardFormData, fallbackUnitLabel: string): {
+  dosePerUse: number;
+  doseLabel: string;
+  weightPerUnitMg?: number;
+} {
+  const doseAmountPerServing = parseFloat(fd.doseAmountPerUnit) || 0;
+  const servingsPerDose = Math.max(1, parseFloat(fd.unitsPerDose) || 1);
+
+  // Primary source for oral pill/prescription-pill flows
+  if (doseAmountPerServing > 0) {
+    const doseLabel = fd.doseAmountPerUnitUnit || 'mg';
+    return {
+      dosePerUse: doseAmountPerServing * servingsPerDose,
+      doseLabel,
+      weightPerUnitMg: toMg(doseAmountPerServing, doseLabel),
+    };
+  }
+
+  // Backward-compatible fallback from Step 3 target dose
+  const targetDose = parseFloat(fd.targetDose) || 0;
+  if (targetDose > 0) {
+    if ((fd.targetDoseUnit || '').toLowerCase() === 'pills') {
+      return { dosePerUse: targetDose, doseLabel: fallbackUnitLabel };
+    }
+    return { dosePerUse: targetDose, doseLabel: fd.targetDoseUnit || fallbackUnitLabel };
+  }
+
+  // Last-resort fallback to avoid zero-dose compounds breaking schedule/reorder math
+  return { dosePerUse: servingsPerDose, doseLabel: fallbackUnitLabel };
+}
+
+/** Convert wizard form data → Compound shape for database write (uses existing patterns) */
 function formDataToCompound(fd: WizardFormData): Compound {
   const type = fd.compoundType || 'oral-pill';
   const meta = COMPOUND_TYPE_META[type];
@@ -64,8 +104,9 @@ function formDataToCompound(fd: WizardFormData): Compound {
   let vialSizeMl: number | undefined;
   let bacstatPerVial: number | undefined;
   let reconVolume: number | undefined;
-  let currentQuantity = parseFloat(fd.currentSupply) || 0;
+  let currentQuantity = 0;
   let containerTag = '';
+  let explicitWeightPerUnitMg: number | undefined;
 
   switch (type) {
     case 'lyophilized-peptide': {
@@ -91,12 +132,12 @@ function formDataToCompound(fd: WizardFormData): Compound {
         Sublingual: 'tabs', 'Enteric Coated': 'tabs', Chewable: 'tabs',
       };
       unitLabel = formLabelMap[fd.formFactor] || 'caps';
-      const unitsPerDose = parseFloat(fd.unitsPerDose) || 1;
-      // If dose is in pills, use unitsPerDose
-      if (fd.targetDoseUnit === 'pills') {
-        dosePerUse = unitsPerDose;
-        doseLabel = unitLabel;
-      }
+
+      const oralDose = resolvePillDoseFromServingFields(fd, unitLabel);
+      dosePerUse = oralDose.dosePerUse;
+      doseLabel = oralDose.doseLabel;
+      explicitWeightPerUnitMg = oralDose.weightPerUnitMg;
+
       containerTag = fd.containerType === 'Bag' ? '[CONTAINER:bag]' : '[CONTAINER:bottle]';
       break;
     }
@@ -119,17 +160,58 @@ function formDataToCompound(fd: WizardFormData): Compound {
       break;
     }
     case 'prescription': {
-      // Delegate to the sub-form type
+      // Delegate to sub-form mode
       if (fd.prescriptionForm === 'Injectable') {
         unitSize = parseFloat(fd.concentration) || 0;
         unitLabel = 'mg/mL';
         vialSizeMl = parseFloat(fd.vialSizeMl) || 10;
+      } else if (fd.prescriptionForm === 'Topical') {
+        unitSize = parseFloat(fd.dosesPerContainer) || 0;
+        unitLabel = fd.applicationUnit.toLowerCase() + 's';
+        dosePerUse = parseFloat(fd.dosePerApplication) || 1;
+        doseLabel = fd.applicationUnit.toLowerCase();
       } else {
         unitSize = parseFloat(fd.countPerContainer) || 0;
-        unitLabel = 'caps';
+        const formLabelMap: Record<string, string> = {
+          Capsule: 'caps', Tablet: 'tabs', Softgel: 'softgels',
+          Sublingual: 'tabs', 'Enteric Coated': 'tabs', Chewable: 'tabs',
+        };
+        unitLabel = formLabelMap[fd.formFactor] || 'caps';
+
+        const oralDose = resolvePillDoseFromServingFields(fd, unitLabel);
+        dosePerUse = oralDose.dosePerUse;
+        doseLabel = oralDose.doseLabel;
+        explicitWeightPerUnitMg = oralDose.weightPerUnitMg;
       }
       break;
     }
+  }
+
+  // Fallback when unit price is entered as subscription cycle cost
+  if (unitPrice <= 0 && fd.orderFormat === 'Subscription') {
+    unitPrice = parseFloat(fd.subscriptionPrice) || 0;
+  }
+
+  // Keep Step 2 supply quantities in sync when Step 5 supply is left at default
+  const parsedCurrentSupply = parseFloat(fd.currentSupply);
+  const typeSpecificSupply = (() => {
+    switch (type) {
+      case 'lyophilized-peptide': return parseFloat(fd.vialsInSupply) || 0;
+      case 'injectable-oil': return parseFloat(fd.oilVialsInSupply) || 0;
+      case 'oral-pill': return parseFloat(fd.containersInSupply) || 0;
+      case 'oral-powder': return parseFloat(fd.powderContainersInSupply) || 0;
+      case 'topical': return parseFloat(fd.topicalContainersInSupply) || 0;
+      default: return 0;
+    }
+  })();
+
+  currentQuantity = Number.isFinite(parsedCurrentSupply) ? parsedCurrentSupply : 0;
+  if (
+    fd.currentSupply.trim() === INITIAL_FORM_DATA.currentSupply &&
+    typeSpecificSupply > 0 &&
+    currentQuantity !== typeSpecificSupply
+  ) {
+    currentQuantity = typeSpecificSupply;
   }
 
   const normalizedUnitLabel = normalizeCompoundUnitLabel(unitLabel, category);
@@ -173,11 +255,11 @@ function formDataToCompound(fd: WizardFormData): Compound {
     prepNotes: fd.prepNotes || undefined,
   };
 
-  const inferredWeight = getDerivedWeightPerUnitMg(baseCompound);
+  const inferredWeight = explicitWeightPerUnitMg ?? getDerivedWeightPerUnitMg(baseCompound);
   return {
     ...baseCompound,
-    weightPerUnit: inferredWeight,
-    weightUnit: inferredWeight ? 'mg' : undefined,
+    weightPerUnit: explicitWeightPerUnitMg ?? inferredWeight,
+    weightUnit: (explicitWeightPerUnitMg ?? inferredWeight) ? 'mg' : undefined,
   };
 }
 
