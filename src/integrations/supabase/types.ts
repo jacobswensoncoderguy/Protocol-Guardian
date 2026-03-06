@@ -1081,11 +1081,13 @@ export type Database = {
       }
       user_compounds: {
         Row: {
+          active_ingredient_total_mg: number | null
           bacstat_per_vial: number | null
           category: string
           compliance_dose_offset: number
           compound_id: string
           concentration_unit: string | null
+          container_volume_ml: number | null
           created_at: string
           current_quantity: number
           cycle_off_days: number | null
@@ -1093,12 +1095,14 @@ export type Database = {
           cycle_start_date: string | null
           cycling_note: string | null
           days_per_week: number
+          delivery_method: string | null
           depletion_action: string | null
           dose_label: string
           dose_per_use: number
           doses_per_day: number
           id: string
           kit_price: number | null
+          ml_per_spray: number | null
           name: string
           notes: string | null
           pause_restart_date: string | null
@@ -1112,6 +1116,7 @@ export type Database = {
           solvent_type: string | null
           solvent_unit: string | null
           solvent_volume: number | null
+          sprays_per_dose: number | null
           storage_instructions: string | null
           timing_note: string | null
           unit_label: string
@@ -1120,15 +1125,18 @@ export type Database = {
           updated_at: string
           user_id: string
           vial_size_ml: number | null
+          wear_duration_hours: number | null
           weight_per_unit: number | null
           weight_unit: string | null
         }
         Insert: {
+          active_ingredient_total_mg?: number | null
           bacstat_per_vial?: number | null
           category: string
           compliance_dose_offset?: number
           compound_id: string
           concentration_unit?: string | null
+          container_volume_ml?: number | null
           created_at?: string
           current_quantity?: number
           cycle_off_days?: number | null
@@ -1136,12 +1144,14 @@ export type Database = {
           cycle_start_date?: string | null
           cycling_note?: string | null
           days_per_week: number
+          delivery_method?: string | null
           depletion_action?: string | null
           dose_label: string
           dose_per_use: number
           doses_per_day: number
           id?: string
           kit_price?: number | null
+          ml_per_spray?: number | null
           name: string
           notes?: string | null
           pause_restart_date?: string | null
@@ -1155,6 +1165,7 @@ export type Database = {
           solvent_type?: string | null
           solvent_unit?: string | null
           solvent_volume?: number | null
+          sprays_per_dose?: number | null
           storage_instructions?: string | null
           timing_note?: string | null
           unit_label: string
@@ -1163,15 +1174,18 @@ export type Database = {
           updated_at?: string
           user_id: string
           vial_size_ml?: number | null
+          wear_duration_hours?: number | null
           weight_per_unit?: number | null
           weight_unit?: string | null
         }
         Update: {
+          active_ingredient_total_mg?: number | null
           bacstat_per_vial?: number | null
           category?: string
           compliance_dose_offset?: number
           compound_id?: string
           concentration_unit?: string | null
+          container_volume_ml?: number | null
           created_at?: string
           current_quantity?: number
           cycle_off_days?: number | null
@@ -1179,12 +1193,14 @@ export type Database = {
           cycle_start_date?: string | null
           cycling_note?: string | null
           days_per_week?: number
+          delivery_method?: string | null
           depletion_action?: string | null
           dose_label?: string
           dose_per_use?: number
           doses_per_day?: number
           id?: string
           kit_price?: number | null
+          ml_per_spray?: number | null
           name?: string
           notes?: string | null
           pause_restart_date?: string | null
@@ -1198,6 +1214,7 @@ export type Database = {
           solvent_type?: string | null
           solvent_unit?: string | null
           solvent_volume?: number | null
+          sprays_per_dose?: number | null
           storage_instructions?: string | null
           timing_note?: string | null
           unit_label?: string
@@ -1206,6 +1223,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           vial_size_ml?: number | null
+          wear_duration_hours?: number | null
           weight_per_unit?: number | null
           weight_unit?: string | null
         }
