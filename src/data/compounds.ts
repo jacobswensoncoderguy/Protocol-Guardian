@@ -142,6 +142,20 @@ export function getNormalizedDailyConsumption(compound: Compound): number {
     return (pillsPerDose * compound.dosesPerDay * compound.daysPerWeek) / 7;
   }
 
+  // Non-weight, non-count dose (e.g. IU) on count-based containers (caps, tabs, etc.)
+  // The dose is expressed in a unit that doesn't match the container's count units.
+  // Assume 1 container-unit per dose (e.g. 1 cap per dose of 5000 IU).
+  // Return consumption in container-count units so it matches totalSupplyInDoseUnits.
+  const normalizedUnitLabel = normalizeCompoundUnitLabel(compound.unitLabel, compound.category).toLowerCase();
+  const isCountContainer = COUNT_UNIT_REGEX.test(normalizedUnitLabel);
+  const isCountDose = COUNT_UNIT_REGEX.test(dl);
+  const isDropDose = dl === 'drops' || dl === 'drop';
+
+  if (!isWeightDose && !isCountDose && !isDropDose && isCountContainer && compound.dosePerUse > 0) {
+    // Return dosesPerDay in container units (1 unit per dose)
+    return (compound.dosesPerDay * compound.daysPerWeek) / 7;
+  }
+
   return rawDaily;
 }
 
@@ -279,6 +293,17 @@ export function consumedToContainerUnits(compound: Compound, consumed: number): 
     else if (dl === 'g') consumedMg = consumed * 1000;
     const consumedCountUnits = consumedMg / weightPerUnitMg;
     return consumedCountUnits / compound.unitSize;
+  }
+
+  // Non-weight, non-count, non-drop dose (e.g. IU) on count-based containers
+  // Convert consumed dose-units back to container-units via dosePerUse
+  const isCountDose = COUNT_UNIT_REGEX.test(dl);
+  const normalizedUL = normalizeCompoundUnitLabel(compound.unitLabel, compound.category).toLowerCase();
+  const isCountContainer = COUNT_UNIT_REGEX.test(normalizedUL);
+  if (!isWeightDose && !isCountDose && !(dl === 'drops' || dl === 'drop') && isCountContainer && compound.dosePerUse > 0) {
+    const numDoses = consumed / compound.dosePerUse; // IU → number of doses
+    // Each dose = 1 container-unit (cap/tab); divide by unitSize to get containers
+    return compound.unitSize > 0 ? numDoses / compound.unitSize : 0;
   }
 
   // For orals/powders with count-based doses: consumed is already in unit counts
