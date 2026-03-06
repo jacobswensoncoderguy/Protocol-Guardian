@@ -1,4 +1,5 @@
 import { WizardFormData, TIMING_OPTIONS, SCHEDULE_PRESETS, DAY_LABELS } from '../types';
+import { getEffectiveDose, doseDefinedInStep2 } from '../doseResolver';
 
 interface StepDosingProps {
   formData: WizardFormData;
@@ -11,15 +12,14 @@ interface StepDosingProps {
 export default function StepDosing({ formData, onUpdate, onNext, onBack, accentColor }: StepDosingProps) {
   const type = formData.compoundType;
   const isPeptide = type === 'lyophilized-peptide';
+  const skipDoseInput = doseDefinedInStep2(formData);
+  const resolvedDose = getEffectiveDose(formData);
 
-  // Determine dose unit options based on type
+  // Determine dose unit options based on type (only used when dose input is shown)
   const doseUnitOptions = (() => {
     switch (type) {
       case 'lyophilized-peptide':
       case 'injectable-oil': return ['mg', 'mcg', 'IU'];
-      case 'oral-pill': return ['pills'];
-      case 'oral-powder': return ['mg', 'g'];
-      case 'topical': return ['pumps', 'drops', 'patches', 'grams'];
       default: return ['mg', 'mcg', 'IU', 'pills'];
     }
   })();
@@ -52,7 +52,7 @@ export default function StepDosing({ formData, onUpdate, onNext, onBack, accentC
     }
   };
 
-  // Generate plain-language summary
+  // Summary
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const activeDays = formData.schedulePreset === 'Custom' ? formData.customDays : (SCHEDULE_PRESETS.find(p => p.id === formData.schedulePreset)?.days || []);
   const dayStr = activeDays.length === 7 ? 'Every day' : activeDays.map(d => dayNames[d]).join(', ');
@@ -68,7 +68,7 @@ export default function StepDosing({ formData, onUpdate, onNext, onBack, accentC
       const concMgPerMl = powder / solvent;
       let doseMg = dose;
       if (formData.targetDoseUnit === 'mcg') doseMg = dose / 1000;
-      if (formData.targetDoseUnit === 'IU') return null; // can't convert without bacstat
+      if (formData.targetDoseUnit === 'IU') return null;
       const ml = doseMg / concMgPerMl;
       return `Reminder: Draw ${ml.toFixed(2)}mL per dose`;
     }
@@ -79,27 +79,37 @@ export default function StepDosing({ formData, onUpdate, onNext, onBack, accentC
     <div className="space-y-5 px-4 pb-6">
       <h3 className="text-base font-semibold text-foreground">Dosing Schedule</h3>
 
-      {/* Target dose */}
-      <div>
-        <label className="text-xs text-muted-foreground mb-1 block">Target dose</label>
-        <div className="flex gap-1.5">
-          <input
-            type="number"
-            inputMode="decimal"
-            value={formData.targetDose}
-            onChange={e => onUpdate({ targetDose: e.target.value })}
-            placeholder="0"
-            className="flex-1 rounded-lg border border-border/50 bg-secondary px-3 py-2.5 text-sm font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 min-w-0"
-          />
-          <select
-            value={formData.targetDoseUnit}
-            onChange={e => onUpdate({ targetDoseUnit: e.target.value })}
-            className="rounded-lg border border-border/50 bg-secondary px-2 py-2.5 text-xs text-muted-foreground focus:outline-none"
-          >
-            {doseUnitOptions.map(u => <option key={u} value={u}>{u}</option>)}
-          </select>
+      {/* Target dose — only shown for types where dose is NOT defined in Step 2 */}
+      {!skipDoseInput ? (
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">Target dose</label>
+          <div className="flex gap-1.5">
+            <input
+              type="number"
+              inputMode="decimal"
+              value={formData.targetDose}
+              onChange={e => onUpdate({ targetDose: e.target.value })}
+              placeholder="0"
+              className="flex-1 rounded-lg border border-border/50 bg-secondary px-3 py-2.5 text-sm font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 min-w-0"
+            />
+            <select
+              value={formData.targetDoseUnit}
+              onChange={e => onUpdate({ targetDoseUnit: e.target.value })}
+              className="rounded-lg border border-border/50 bg-secondary px-2 py-2.5 text-xs text-muted-foreground focus:outline-none"
+            >
+              {doseUnitOptions.map(u => <option key={u} value={u}>{u}</option>)}
+            </select>
+          </div>
         </div>
-      </div>
+      ) : (
+        /* Read-only dose display for types where dose is defined in Step 2 */
+        <div className="rounded-xl p-3 border" style={{ borderColor: `hsl(${accentColor} / 0.3)`, backgroundColor: `hsl(${accentColor} / 0.06)` }}>
+          <p className="text-xs text-muted-foreground mb-1">Dose per use (from configuration)</p>
+          <p className="text-sm font-mono font-semibold" style={{ color: `hsl(${accentColor})` }}>
+            {resolvedDose.dosePerUse > 0 ? `${resolvedDose.dosePerUse} ${resolvedDose.doseLabel}` : '⚠ Not set — go back to Step 2'}
+          </p>
+        </div>
+      )}
 
       {/* Doses per day */}
       <div>

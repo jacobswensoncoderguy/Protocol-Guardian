@@ -26,60 +26,18 @@ import {
   compoundTypeFromCategory,
   INITIAL_FORM_DATA,
 } from './types';
+import { getEffectiveDose, validateWizardData } from './doseResolver';
 import { getDilutionDefaults } from '@/data/dilutionDefaults';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 
 interface CompoundCardV2Props {
-  /** Existing compounds list — for name deduplication */
   existingCompoundIds: string[];
-  /** Called with the fully built Compound on save — same shape as AddCompoundDialog.onAdd */
   onAdd: (compound: Compound) => void;
-  /** Dialog open state */
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-/** Convert supported weight units to mg for consistent internal storage */
-function toMg(value: number, unit: string): number | undefined {
-  const normalized = unit.toLowerCase();
-  if (normalized === 'mg') return value;
-  if (normalized === 'mcg' || normalized === 'µg') return value / 1000;
-  if (normalized === 'g') return value * 1000;
-  return undefined;
-}
-
-function resolvePillDoseFromServingFields(fd: WizardFormData, fallbackUnitLabel: string): {
-  dosePerUse: number;
-  doseLabel: string;
-  weightPerUnitMg?: number;
-} {
-  const doseAmountPerServing = parseFloat(fd.doseAmountPerUnit) || 0;
-  const servingsPerDose = Math.max(1, parseFloat(fd.unitsPerDose) || 1);
-
-  // Primary source for oral pill/prescription-pill flows
-  if (doseAmountPerServing > 0) {
-    const doseLabel = fd.doseAmountPerUnitUnit || 'mg';
-    return {
-      dosePerUse: doseAmountPerServing * servingsPerDose,
-      doseLabel,
-      weightPerUnitMg: toMg(doseAmountPerServing, doseLabel),
-    };
-  }
-
-  // Backward-compatible fallback from Step 3 target dose
-  const targetDose = parseFloat(fd.targetDose) || 0;
-  if (targetDose > 0) {
-    if ((fd.targetDoseUnit || '').toLowerCase() === 'pills') {
-      return { dosePerUse: targetDose, doseLabel: fallbackUnitLabel };
-    }
-    return { dosePerUse: targetDose, doseLabel: fd.targetDoseUnit || fallbackUnitLabel };
-  }
-
-  // Last-resort fallback to avoid zero-dose compounds breaking schedule/reorder math
-  return { dosePerUse: servingsPerDose, doseLabel: fallbackUnitLabel };
-}
-
-/** Convert wizard form data → Compound shape for database write (uses existing patterns) */
+/** Convert wizard form data → Compound shape for database write */
 function formDataToCompound(fd: WizardFormData): Compound {
   const type = fd.compoundType || 'oral-pill';
   const meta = COMPOUND_TYPE_META[type];
@@ -94,26 +52,27 @@ function formDataToCompound(fd: WizardFormData): Compound {
   const timingStr = fd.timings.map(t => TIMING_OPTIONS.find(o => o.id === t)?.label || t).join(', ').toLowerCase();
   const timingNote = fd.specialTimingNote || `${dayStr} ${timingStr}`.trim();
 
-  // Map supply / pricing based on type
+  // ── Resolve dose from centralized resolver ──
+  const resolved = getEffectiveDose(fd);
+
+  // ── Map supply / pricing based on type ──
   let unitSize = 0;
   let unitLabel = '';
   let unitPrice = parseFloat(fd.pricePerUnit) || 0;
   let kitPrice: number | undefined;
-  let dosePerUse = parseFloat(fd.targetDose) || 0;
-  let doseLabel = fd.targetDoseUnit;
   let vialSizeMl: number | undefined;
   let bacstatPerVial: number | undefined;
   let reconVolume: number | undefined;
   let currentQuantity = 0;
   let containerTag = '';
-  let explicitWeightPerUnitMg: number | undefined;
 
   switch (type) {
     case 'lyophilized-peptide': {
       unitSize = parseFloat(fd.powderWeightPerVial) || 0;
       unitLabel = `${fd.powderWeightUnit} vial`;
-      bacstatPerVial = unitSize; // simplified — will be refined by existing normalization
+      bacstatPerVial = unitSize;
       reconVolume = parseFloat(fd.solventVolume) || 2;
+      currentQuantity = parseFloat(fd.vialsInSupply) || 0;
       if (fd.orderFormat === 'Kit') {
         kitPrice = parseFloat(fd.pricePerKit) || 0;
       }
@@ -123,6 +82,7 @@ function formDataToCompound(fd: WizardFormData): Compound {
       unitSize = parseFloat(fd.concentration) || 0;
       unitLabel = 'mg/mL';
       vialSizeMl = parseFloat(fd.vialSizeMl) || 10;
+      currentQuantity = parseFloat(fd.oilVialsInSupply) || 0;
       break;
     }
     case 'oral-pill': {
@@ -132,44 +92,35 @@ function formDataToCompound(fd: WizardFormData): Compound {
         Sublingual: 'tabs', 'Enteric Coated': 'tabs', Chewable: 'tabs',
       };
       unitLabel = formLabelMap[fd.formFactor] || 'caps';
-
-      const oralDose = resolvePillDoseFromServingFields(fd, unitLabel);
-      dosePerUse = oralDose.dosePerUse;
-      doseLabel = oralDose.doseLabel;
-      explicitWeightPerUnitMg = oralDose.weightPerUnitMg;
-
       containerTag = fd.containerType === 'Bag' ? '[CONTAINER:bag]' : '[CONTAINER:bottle]';
+      currentQuantity = parseFloat(fd.containersInSupply) || 0;
       break;
     }
     case 'oral-powder': {
-      // Container size in g → unitSize = servings
       const containerG = fd.containerSizeUnit === 'kg' ? (parseFloat(fd.containerSize) || 0) * 1000 : (parseFloat(fd.containerSize) || 0);
       const doseG = fd.doseWeightUnit === 'mg' ? (parseFloat(fd.doseWeightPerServing) || 0) / 1000 : (parseFloat(fd.doseWeightPerServing) || 0);
       unitSize = doseG > 0 ? Math.floor(containerG / doseG) : 0;
       unitLabel = 'servings';
-      dosePerUse = parseFloat(fd.doseWeightPerServing) || 0;
-      doseLabel = fd.doseWeightUnit;
       containerTag = '[CONTAINER:bag]';
+      currentQuantity = parseFloat(fd.powderContainersInSupply) || 0;
       break;
     }
     case 'topical': {
       unitSize = parseFloat(fd.dosesPerContainer) || 0;
       unitLabel = fd.applicationUnit.toLowerCase() + 's';
-      dosePerUse = parseFloat(fd.dosePerApplication) || 1;
-      doseLabel = fd.applicationUnit.toLowerCase();
+      currentQuantity = parseFloat(fd.topicalContainersInSupply) || 0;
       break;
     }
     case 'prescription': {
-      // Delegate to sub-form mode
       if (fd.prescriptionForm === 'Injectable') {
         unitSize = parseFloat(fd.concentration) || 0;
         unitLabel = 'mg/mL';
         vialSizeMl = parseFloat(fd.vialSizeMl) || 10;
+        currentQuantity = parseFloat(fd.oilVialsInSupply) || 0;
       } else if (fd.prescriptionForm === 'Topical') {
         unitSize = parseFloat(fd.dosesPerContainer) || 0;
         unitLabel = fd.applicationUnit.toLowerCase() + 's';
-        dosePerUse = parseFloat(fd.dosePerApplication) || 1;
-        doseLabel = fd.applicationUnit.toLowerCase();
+        currentQuantity = parseFloat(fd.topicalContainersInSupply) || 0;
       } else {
         unitSize = parseFloat(fd.countPerContainer) || 0;
         const formLabelMap: Record<string, string> = {
@@ -177,41 +128,20 @@ function formDataToCompound(fd: WizardFormData): Compound {
           Sublingual: 'tabs', 'Enteric Coated': 'tabs', Chewable: 'tabs',
         };
         unitLabel = formLabelMap[fd.formFactor] || 'caps';
-
-        const oralDose = resolvePillDoseFromServingFields(fd, unitLabel);
-        dosePerUse = oralDose.dosePerUse;
-        doseLabel = oralDose.doseLabel;
-        explicitWeightPerUnitMg = oralDose.weightPerUnitMg;
+        currentQuantity = parseFloat(fd.containersInSupply) || 0;
       }
       break;
     }
   }
 
-  // Fallback when unit price is entered as subscription cycle cost
-  if (unitPrice <= 0 && fd.orderFormat === 'Subscription') {
-    unitPrice = parseFloat(fd.subscriptionPrice) || 0;
+  // Allow Step 5 currentSupply to override if user explicitly changed it
+  const step5Supply = parseFloat(fd.currentSupply);
+  if (Number.isFinite(step5Supply) && fd.currentSupply.trim() !== INITIAL_FORM_DATA.currentSupply) {
+    currentQuantity = step5Supply;
   }
 
-  // Keep Step 2 supply quantities in sync when Step 5 supply is left at default
-  const parsedCurrentSupply = parseFloat(fd.currentSupply);
-  const typeSpecificSupply = (() => {
-    switch (type) {
-      case 'lyophilized-peptide': return parseFloat(fd.vialsInSupply) || 0;
-      case 'injectable-oil': return parseFloat(fd.oilVialsInSupply) || 0;
-      case 'oral-pill': return parseFloat(fd.containersInSupply) || 0;
-      case 'oral-powder': return parseFloat(fd.powderContainersInSupply) || 0;
-      case 'topical': return parseFloat(fd.topicalContainersInSupply) || 0;
-      default: return 0;
-    }
-  })();
-
-  currentQuantity = Number.isFinite(parsedCurrentSupply) ? parsedCurrentSupply : 0;
-  if (
-    fd.currentSupply.trim() === INITIAL_FORM_DATA.currentSupply &&
-    typeSpecificSupply > 0 &&
-    currentQuantity !== typeSpecificSupply
-  ) {
-    currentQuantity = typeSpecificSupply;
+  if (unitPrice <= 0 && fd.orderFormat === 'Subscription') {
+    unitPrice = parseFloat(fd.subscriptionPrice) || 0;
   }
 
   const normalizedUnitLabel = normalizeCompoundUnitLabel(unitLabel, category);
@@ -232,8 +162,8 @@ function formDataToCompound(fd: WizardFormData): Compound {
     unitPrice,
     kitPrice,
     vialSizeMl,
-    dosePerUse,
-    doseLabel,
+    dosePerUse: resolved.dosePerUse,
+    doseLabel: resolved.doseLabel,
     bacstatPerVial,
     reconVolume,
     dosesPerDay: parseInt(fd.dosesPerDay) || 1,
@@ -255,6 +185,7 @@ function formDataToCompound(fd: WizardFormData): Compound {
     prepNotes: fd.prepNotes || undefined,
   };
 
+  const explicitWeightPerUnitMg = resolved.weightPerUnitMg;
   const inferredWeight = explicitWeightPerUnitMg ?? getDerivedWeightPerUnitMg(baseCompound);
   return {
     ...baseCompound,
@@ -289,7 +220,6 @@ function compoundToFormData(compound: Compound): WizardFormData {
     storageInstructions: compound.storageInstructions || '',
   };
 
-  // Type-specific fields
   if (ct === 'lyophilized-peptide') {
     fd.powderWeightPerVial = compound.unitSize.toString();
     fd.vialsInSupply = compound.currentQuantity.toString();
@@ -299,9 +229,15 @@ function compoundToFormData(compound: Compound): WizardFormData {
     fd.oilVialsInSupply = compound.currentQuantity.toString();
   } else if (ct === 'oral-pill') {
     fd.countPerContainer = compound.unitSize.toString();
+    fd.containersInSupply = compound.currentQuantity.toString();
+    if (compound.weightPerUnit) {
+      fd.doseAmountPerUnit = compound.weightPerUnit.toString();
+      fd.doseAmountPerUnitUnit = compound.weightUnit || 'mg';
+    }
   } else if (ct === 'oral-powder') {
     fd.doseWeightPerServing = compound.dosePerUse.toString();
     fd.doseWeightUnit = compound.doseLabel;
+    fd.powderContainersInSupply = compound.currentQuantity.toString();
   }
 
   if (compound.kitPrice) {
@@ -336,6 +272,13 @@ export default function CompoundCardV2({ existingCompoundIds, onAdd, open, onOpe
   const handleJump = useCallback((idx: number) => jump(idx), [jump]);
 
   const handleSave = useCallback(async () => {
+    // Validate before save
+    const errors = validateWizardData(formData);
+    if (errors.length > 0) {
+      saveError(errors[0]);
+      return;
+    }
+
     save();
     try {
       const compound = formDataToCompound(formData);
@@ -365,7 +308,6 @@ export default function CompoundCardV2({ existingCompoundIds, onAdd, open, onOpe
         boxShadow: `0 0 0 1px hsl(${accentColor} / 0.15), 0 8px 32px rgba(0,0,0,0.4), 0 0 20px hsl(${accentColor} / 0.1)`,
       }} aria-describedby={undefined}>
         <DialogTitle className="sr-only">Add Compound</DialogTitle>
-        {/* Progress indicator — fixed at top */}
         {isActiveStep && (
           <div className="flex-shrink-0 border-b border-border/20">
             <WizardProgress
@@ -377,7 +319,6 @@ export default function CompoundCardV2({ existingCompoundIds, onAdd, open, onOpe
           </div>
         )}
 
-        {/* Step content — scrollable */}
         <div className="flex-1 overflow-y-auto pt-2">
           {step === 'STEP_1' && (
             <StepIdentity formData={formData} onUpdate={updateForm} onNext={handleNext} accentColor={accentColor} />
