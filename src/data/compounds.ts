@@ -252,6 +252,12 @@ function getTheoreticalConsumption(compound: Compound, dayCount: number, fromDat
  */
 const DROPS_PER_ML = 20;
 
+/**
+ * Standard insulin syringe: 100 IU markings = 1 mL.
+ * Used to convert IU (syringe units) to mL for injectable oils.
+ */
+const SYRINGE_IU_PER_ML = 100;
+
 function isVolumeUnit(unit: string): boolean {
   return ['ml', 'floz', 'fl oz', 'oz'].includes(unit.toLowerCase().replace(/\s+/g, ''));
 }
@@ -272,6 +278,17 @@ export function consumedToContainerUnits(compound: Compound, consumed: number): 
     return consumed / compound.bacstatPerVial;
   }
   if (compound.category === 'injectable-oil' && compound.vialSizeMl) {
+    const dl = compound.doseLabel.toLowerCase();
+    // IU = syringe units (100 IU = 1 mL). Convert IU → mL first, then ÷ vialSizeMl.
+    if (dl === 'iu') {
+      const consumedMl = consumed / SYRINGE_IU_PER_ML;
+      return consumedMl / compound.vialSizeMl;
+    }
+    // mL dosing: consumed is already in mL
+    if (dl === 'ml') {
+      return consumed / compound.vialSizeMl;
+    }
+    // mg dosing: consumed mg ÷ (concentration mg/mL × vialSizeMl) = vials
     return consumed / (compound.unitSize * compound.vialSizeMl);
   }
   // Volume container with drop dosing
@@ -337,6 +354,16 @@ export function totalSupplyInDoseUnits(compound: Compound, effectiveQty: number)
     return effectiveQty * compound.bacstatPerVial;
   }
   if (compound.category === 'injectable-oil' && compound.vialSizeMl) {
+    const dl = compound.doseLabel.toLowerCase();
+    // IU = syringe units (100 IU = 1 mL). Total IU = vials × mL/vial × 100.
+    if (dl === 'iu') {
+      return effectiveQty * compound.vialSizeMl * SYRINGE_IU_PER_ML;
+    }
+    // mL dosing: total mL in supply
+    if (dl === 'ml') {
+      return effectiveQty * compound.vialSizeMl;
+    }
+    // mg dosing: total mg in supply = vials × concentration × volume
     return effectiveQty * compound.unitSize * compound.vialSizeMl;
   }
   // Volume container with drop dosing: convert volume to drops

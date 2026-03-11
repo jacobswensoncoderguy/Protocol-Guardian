@@ -15,6 +15,8 @@ export interface ComplianceMap {
   entries: CompoundCompliance[];
   /** Whether the data is still loading */
   loading: boolean;
+  /** Force re-fetch compliance data */
+  refetch: () => Promise<void>;
 }
 
 /**
@@ -89,5 +91,6 @@ export function useComplianceData(userId: string | undefined): ComplianceMap {
     get: (compoundId: string) => map.get(compoundId),
     entries,
     loading,
+    refetch: fetchCompliance,
   };
 }

@@ -439,7 +439,7 @@ const Index = () => {
       </header>
 
       <main className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={(tab) => { setActiveTab(tab); }} className="w-full">
           <TabsList className="w-full bg-secondary/50 border border-border/50 mb-3 sm:mb-4 h-14 sm:h-11">
             <TabsTrigger value="dashboard" className="flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
               <LayoutDashboard className="w-4 h-4 sm:w-3.5 sm:h-3.5" />

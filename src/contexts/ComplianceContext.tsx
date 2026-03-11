@@ -16,6 +16,8 @@ interface ComplianceContextValue {
   getEffectiveQtyAdjusted: (compound: Compound) => number;
   /** Compliance-aware consumed since date */
   getConsumedAdjusted: (compound: Compound) => number;
+  /** Force re-fetch compliance data from DB */
+  refetchCompliance: () => Promise<void>;
 }
 
 const ComplianceContext = createContext<ComplianceContextValue | null>(null);
@@ -41,6 +43,7 @@ export function ComplianceProvider({ userId, children }: { userId: string | unde
         getEffectiveQuantity(compound, getInfo(compound.id)),
       getConsumedAdjusted: (compound: Compound) =>
         getConsumedSinceDate(compound, new Date(), getInfo(compound.id)),
+      refetchCompliance: compliance.refetch,
     };
   }, [compliance]);
 
@@ -57,12 +60,13 @@ export function useCompliance(): ComplianceContextValue {
     // Fallback: return non-compliance-adjusted functions so components
     // work even outside the provider (e.g., tests)
     return {
-      compliance: { get: () => undefined, entries: [], loading: false },
+      compliance: { get: () => undefined, entries: [], loading: false, refetch: async () => {} },
       getComplianceInfo: () => undefined,
       getDaysRemainingAdjusted: (c) => getDaysRemainingWithCycling(c),
       getEffectiveDailyAdjusted: (c) => getEffectiveDailyConsumption(c),
       getEffectiveQtyAdjusted: (c) => getEffectiveQuantity(c),
       getConsumedAdjusted: (c) => getConsumedSinceDate(c),
+      refetchCompliance: async () => {},
     };
   }
   return ctx;
