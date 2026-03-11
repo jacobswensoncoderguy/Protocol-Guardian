@@ -15,6 +15,8 @@ export interface ComplianceMap {
   entries: CompoundCompliance[];
   /** Whether the data is still loading */
   loading: boolean;
+  /** Force re-fetch compliance data */
+  refetch: () => Promise<void>;
 }
 
 /**
