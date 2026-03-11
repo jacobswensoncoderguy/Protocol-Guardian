@@ -278,6 +278,17 @@ export function consumedToContainerUnits(compound: Compound, consumed: number): 
     return consumed / compound.bacstatPerVial;
   }
   if (compound.category === 'injectable-oil' && compound.vialSizeMl) {
+    const dl = compound.doseLabel.toLowerCase();
+    // IU = syringe units (100 IU = 1 mL). Convert IU → mL first, then ÷ vialSizeMl.
+    if (dl === 'iu') {
+      const consumedMl = consumed / SYRINGE_IU_PER_ML;
+      return consumedMl / compound.vialSizeMl;
+    }
+    // mL dosing: consumed is already in mL
+    if (dl === 'ml') {
+      return consumed / compound.vialSizeMl;
+    }
+    // mg dosing: consumed mg ÷ (concentration mg/mL × vialSizeMl) = vials
     return consumed / (compound.unitSize * compound.vialSizeMl);
   }
   // Volume container with drop dosing
