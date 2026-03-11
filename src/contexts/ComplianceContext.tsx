@@ -16,6 +16,8 @@ interface ComplianceContextValue {
   getEffectiveQtyAdjusted: (compound: Compound) => number;
   /** Compliance-aware consumed since date */
   getConsumedAdjusted: (compound: Compound) => number;
+  /** Force re-fetch compliance data from DB */
+  refetchCompliance: () => Promise<void>;
 }
 
 const ComplianceContext = createContext<ComplianceContextValue | null>(null);
