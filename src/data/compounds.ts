@@ -252,6 +252,12 @@ function getTheoreticalConsumption(compound: Compound, dayCount: number, fromDat
  */
 const DROPS_PER_ML = 20;
 
+/**
+ * Standard insulin syringe: 100 IU markings = 1 mL.
+ * Used to convert IU (syringe units) to mL for injectable oils.
+ */
+const SYRINGE_IU_PER_ML = 100;
+
 function isVolumeUnit(unit: string): boolean {
   return ['ml', 'floz', 'fl oz', 'oz'].includes(unit.toLowerCase().replace(/\s+/g, ''));
 }
