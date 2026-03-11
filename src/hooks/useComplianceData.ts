@@ -89,5 +89,6 @@ export function useComplianceData(userId: string | undefined): ComplianceMap {
     get: (compoundId: string) => map.get(compoundId),
     entries,
     loading,
+    refetch: fetchCompliance,
   };
 }
