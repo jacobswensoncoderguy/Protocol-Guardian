@@ -20,7 +20,7 @@ import { Calendar as CalendarUI } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { ThemeSelector } from '@/contexts/ThemeContext';
+
 
 interface ReorderViewProps {
   compounds: Compound[];
