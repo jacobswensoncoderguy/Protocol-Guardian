@@ -234,7 +234,7 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
 
       {/* Stock Alert Banner */}
       {alertCompounds.length > 0 && (
-        <div className="rounded-lg p-2.5 space-y-1.5" style={{ background: 'var(--pg-crit, #f87171)', opacity: 0.12, border: '1px solid var(--pg-crit)' }}>
+        <div className="rounded-lg p-2.5 space-y-1.5" style={{ background: 'hsl(var(--destructive) / 0.08)', border: '1px solid hsl(var(--destructive) / 0.25)' }}>
           <div className="flex items-center gap-1.5">
             <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--pg-crit)' }} />
             <span className="text-[11px] font-semibold" style={{ color: 'var(--pg-crit)' }}>

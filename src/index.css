@@ -269,6 +269,20 @@
   --status-critical: 0 72% 51%;
 }
 
+/* Shimmer loading animation */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.shimmer-loading {
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0.03) 0%,
+    rgba(255,255,255,0.08) 50%,
+    rgba(255,255,255,0.03) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
 /* Urgency bar pulse animation */
 @keyframes urgency-pulse {
   0%, 100% { opacity: 0.7; }

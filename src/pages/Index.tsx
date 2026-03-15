@@ -442,38 +442,44 @@ const Index = () => {
 
       <main className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
         <Tabs value={activeTab} onValueChange={(tab) => { setActiveTab(tab); }} className="w-full">
-          <TabsList className="w-full bg-secondary/50 border border-border/50 mb-3 sm:mb-4 h-14 sm:h-11">
-            <TabsTrigger value="dashboard" className="flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
-              <LayoutDashboard className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+          <TabsList className="w-full bg-secondary/50 border border-border/50 mb-3 sm:mb-4 h-16 sm:h-11">
+            <TabsTrigger value="dashboard" className="relative flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-transparent data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5 transition-all" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+              <LayoutDashboard className="w-4 h-4 sm:w-3.5 sm:h-3.5 transition-transform data-[state=active]:scale-110" />
               <span>Home</span>
+              {activeTab === 'dashboard' && <span className="absolute bottom-0.5 w-[18px] h-1 rounded-full bg-primary" />}
             </TabsTrigger>
-            <TabsTrigger value="outcomes" className="flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
+            <TabsTrigger value="outcomes" className="relative flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-transparent data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5 transition-all" style={{ fontFamily: "'DM Sans', sans-serif" }}>
               <Gauge className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
               <span>Progress</span>
+              {activeTab === 'outcomes' && <span className="absolute bottom-0.5 w-[18px] h-1 rounded-full bg-primary" />}
             </TabsTrigger>
-            <TabsTrigger value="tracking" className="flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
+            <TabsTrigger value="tracking" className="relative flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-transparent data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5 transition-all" style={{ fontFamily: "'DM Sans', sans-serif" }}>
               <LineChart className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
               <span>Logging</span>
+              {activeTab === 'tracking' && <span className="absolute bottom-0.5 w-[18px] h-1 rounded-full bg-primary" />}
             </TabsTrigger>
-            <TabsTrigger value="schedule" className="relative flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
+            <TabsTrigger value="schedule" className="relative flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-transparent data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5 transition-all" style={{ fontFamily: "'DM Sans', sans-serif" }}>
               <CalendarDays className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
               <span>Protocol</span>
+              {activeTab === 'schedule' && <span className="absolute bottom-0.5 w-[18px] h-1 rounded-full bg-primary" />}
               {household.pendingIncoming.length > 0 && (
                 <span className="absolute -top-1 -right-1 sm:top-0 sm:right-0 w-2.5 h-2.5 rounded-full bg-destructive ring-2 ring-background" />
               )}
             </TabsTrigger>
-            <TabsTrigger value="inventory" className="relative flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
+            <TabsTrigger value="inventory" className="relative flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-transparent data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5 transition-all" style={{ fontFamily: "'DM Sans', sans-serif" }}>
               <Package className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
               <span>Inventory</span>
+              {activeTab === 'inventory' && <span className="absolute bottom-0.5 w-[18px] h-1 rounded-full bg-primary" />}
               {lowStockCounts.inventory > 0 && (
-                <span className="absolute -top-1 -right-1 sm:top-0 sm:right-0 min-w-[16px] h-4 px-1 rounded-full bg-status-warning text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 sm:top-0 sm:right-0 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[8px] font-bold flex items-center justify-center">
                   {lowStockCounts.inventory}
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="ai-insights" className="flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5">
+            <TabsTrigger value="ai-insights" className="relative flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-transparent data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5 transition-all" style={{ fontFamily: "'DM Sans', sans-serif" }}>
               <Brain className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
               <span>AI</span>
+              {activeTab === 'ai-insights' && <span className="absolute bottom-0.5 w-[18px] h-1 rounded-full bg-primary" />}
             </TabsTrigger>
           </TabsList>
 
