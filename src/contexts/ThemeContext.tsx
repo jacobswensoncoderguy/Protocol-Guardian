@@ -31,7 +31,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   return (
     <ThemeContext.Provider value={{ theme, setTheme }}>
-      <div className={`theme-${theme}`} style={{ background: 'var(--pg-bg)', color: 'var(--pg-text-primary)', borderRadius: 'var(--pg-radius)', minHeight: '100%' }}>
+      <div className={`theme-${theme}`} style={{ minHeight: '100%' }}>
         {children}
       </div>
     </ThemeContext.Provider>
