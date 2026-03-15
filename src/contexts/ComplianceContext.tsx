@@ -64,6 +64,7 @@ export function useCompliance(): ComplianceContextValue {
     // work even outside the provider (e.g., tests)
     return {
       compliance: { get: () => undefined, entries: [], loading: false, refetch: async () => {} },
+      complianceLoading: false,
       getComplianceInfo: () => undefined,
       getDaysRemainingAdjusted: (c) => getDaysRemainingWithCycling(c),
       getEffectiveDailyAdjusted: (c) => getEffectiveDailyConsumption(c),
