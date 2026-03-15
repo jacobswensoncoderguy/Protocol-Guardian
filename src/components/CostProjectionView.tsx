@@ -472,18 +472,17 @@ const CostProjectionView = ({ compounds, protocols = [], customFields = [], cust
         const finalGroups = savingsGroups.length > 0 ? savingsGroups : [{ label: '', items: savings }];
 
         return (
-          <div className="bg-card rounded-lg border border-border/50 overflow-hidden">
+          <div className="rounded-xl border border-status-good/15 overflow-hidden" style={{ background: 'hsl(var(--status-good) / 0.05)' }}>
             <button
               onClick={() => setShowSavings(!showSavings)}
               className="w-full flex items-center justify-between p-3 text-left active:bg-secondary/30 touch-manipulation"
             >
               <div className="flex items-center gap-2">
-                <TrendingDown className="w-4 h-4 text-status-good" />
-                <span className="text-sm font-semibold text-foreground">Cycling Savings</span>
-                <span className="text-xs text-muted-foreground">({savings.length} compounds)</span>
+                <RefreshCcw className="w-4 h-4 text-status-good" />
+                <span className="text-[11px] font-semibold text-muted-foreground" style={{ fontFamily: "'DM Sans', sans-serif" }}>↗ Cycling Savings</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold font-mono text-status-good">
+                <span className="text-lg font-bold text-status-good" style={{ fontFamily: "'DM Mono', monospace" }}>
                   -${Math.round(totalAnnualSaved).toLocaleString()}/yr
                 </span>
                 <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform duration-200 ${showSavings ? 'rotate-180' : ''}`} />
