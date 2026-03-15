@@ -837,16 +837,19 @@ const DoseSection = ({
         onClick={() => setCollapsed(c => !c)}
         className="w-full flex items-center justify-between text-left"
       >
-        <h3 className={`text-sm font-semibold flex items-center gap-2 ${accent}`}>
+        <h3 className={`text-[11px] font-semibold flex items-center gap-2 ${accent}`} style={{ fontFamily: "'DM Sans', sans-serif" }}>
           {icon}
           {title}
-          <span className="text-muted-foreground font-normal">({totalActive} active)</span>
         </h3>
         <div className="flex items-center gap-2">
-          {collapsed && checkedCount.total > 0 && (
-            <span className="text-[10px] text-muted-foreground font-mono">
-              {checkedCount.checked}/{checkedCount.total}
-            </span>
+          {checkedCount.total > 0 && (
+            checkedCount.checked === checkedCount.total ? (
+              <span className="text-[10px] font-semibold text-status-good" style={{ fontFamily: "'DM Mono', monospace" }}>✓ Done</span>
+            ) : (
+              <span className="text-[10px] text-muted-foreground" style={{ fontFamily: "'DM Mono', monospace" }}>
+                {checkedCount.checked}/{checkedCount.total}
+              </span>
+            )
           )}
           <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${collapsed ? '' : 'rotate-180'}`} />
         </div>
