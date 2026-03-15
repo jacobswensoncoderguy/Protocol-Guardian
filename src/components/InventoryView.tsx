@@ -903,7 +903,12 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
 
     onUpdate(compound.id, updates);
     setEditing(false);
-    toast.success(`${updates.name || compound.name} updated`);
+    if (qtyChanged) {
+      const unitWord = compound.unitLabel || 'units';
+      toast.success(`Stock updated. Depletion tracking reset to your new inventory of ${qty} ${unitWord}.`);
+    } else {
+      toast.success(`${updates.name || compound.name} updated`);
+    }
   };
 
   const cancelEdit = () => setEditing(false);
