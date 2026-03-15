@@ -72,7 +72,7 @@ const categoryLabels: Record<string, string> = {
 const categoryOrder: string[] = ['peptide', 'injectable-oil', 'prescription', 'oral', 'powder', 'vitamin', 'holistic', 'adaptogen', 'nootropic', 'essential-oil', 'alternative-medicine', 'probiotic', 'topical'];
 
 const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCompound, protocols = [], toleranceLevel, onToleranceChange, customFields = [], customFieldValues = new Map(), onAddCustomField, onRemoveCustomField, onReorderCustomField, onSetCustomFieldValue, scrollToCompoundId, onScrollToCompoundDone, titrationInfo }: InventoryViewProps) => {
-  const { getDaysRemainingAdjusted, getEffectiveQtyAdjusted, getConsumedAdjusted, getComplianceInfo, refetchCompliance } = useCompliance();
+  const { getDaysRemainingAdjusted, getEffectiveQtyAdjusted, getConsumedAdjusted, getComplianceInfo, refetchCompliance, complianceLoading } = useCompliance();
 
   // Refetch compliance data on mount to ensure inventory reflects latest dose check-offs
   useEffect(() => {
@@ -526,7 +526,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
   const [showCycleTimeline, setShowCycleTimeline] = useState(cycleStatus.hasCycle && !cycleStatus.isOn);
   const [showCalculator, setShowCalculator] = useState(false);
 
-  const { getDaysRemainingAdjusted: getDaysAdj, getEffectiveQtyAdjusted: getQtyAdj, getConsumedAdjusted: getConsumedAdj, getComplianceInfo: getCI } = useCompliance();
+  const { getDaysRemainingAdjusted: getDaysAdj, getEffectiveQtyAdjusted: getQtyAdj, getConsumedAdjusted: getConsumedAdj, getComplianceInfo: getCI, complianceLoading: ciLoading } = useCompliance();
   const compoundIsPaused = isPaused(compound);
   const validationErrors = validateCompoundForMath(compound);
   const hasValidationErrors = validationErrors.length > 0;
@@ -780,6 +780,13 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
     // When user changes quantity via edit form, reset compliance offset so
     // the new quantity is treated as "what I have right now"
     const qtyChanged = qty !== compound.currentQuantity;
+
+    // EC-5: Block save if compliance data is still loading when qty changed
+    if (qtyChanged && ciLoading) {
+      toast.error('Syncing dose history — please try again in a moment.');
+      return;
+    }
+
     const ci = qtyChanged ? getCI(compound.id) : undefined;
 
     const updates: Partial<Compound> = {
@@ -791,7 +798,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
       reorderQuantity: reorder,
       reorderType: (editState.reorderType as 'single' | 'kit') || 'single',
       ...(qtyChanged ? {
-        complianceDoseOffset: ci?.checkedDoses || 0,
+        complianceDoseOffset: ci?.checkedDoses ?? 0,
         purchaseDate: new Date().toISOString().split('T')[0],
       } : {}),
     };
@@ -2333,7 +2340,7 @@ const InlineQuantityEditor = ({ compound, status, isOil, isPeptide, onUpdate }: 
   const label = isPeptide ? 'Vials' : 'On Hand';
 
   // Effective quantity = currentQuantity minus actual consumed (compliance-aware)
-  const { getEffectiveQtyAdjusted, getConsumedAdjusted, getComplianceInfo } = useCompliance();
+  const { getEffectiveQtyAdjusted, getConsumedAdjusted, getComplianceInfo, complianceLoading } = useCompliance();
   const effectiveQty = getEffectiveQtyAdjusted(compound);
   const consumedUnits = consumedToContainerUnits(compound, getConsumedAdjusted(compound));
   const hasDepletion = compound.purchaseDate ? true : consumedUnits > 0.005;
@@ -2351,20 +2358,34 @@ const InlineQuantityEditor = ({ compound, status, isOil, isPeptide, onUpdate }: 
   const saveInline = () => {
     const val = parseFloat(inlineValue);
     if (!isNaN(val) && val >= 0) {
-      // When user manually sets quantity, treat it as "as of today" by resetting
-      // complianceDoseOffset to current checked doses so past consumption is zeroed out,
-      // and setting purchaseDate to today so theoretical pre-tracking is also zeroed.
-      const ci = getComplianceInfo(compound.id);
-      onUpdate(compound.id, {
-        currentQuantity: val,
-        purchaseDate: new Date().toISOString().split('T')[0],
-        complianceDoseOffset: ci?.checkedDoses || 0,
-      });
+      const qtyChanged = val !== compound.currentQuantity;
+
+      // EC-5: Block save if compliance data is still loading when qty changed
+      if (qtyChanged && complianceLoading) {
+        toast.error('Syncing dose history — please try again in a moment.');
+        return;
+      }
+
+      if (qtyChanged) {
+        // When user manually sets quantity, treat it as "as of today" by resetting
+        // complianceDoseOffset to current checked doses so past consumption is zeroed out,
+        // and setting purchaseDate to today so theoretical pre-tracking is also zeroed.
+        const ci = getComplianceInfo(compound.id);
+        onUpdate(compound.id, {
+          currentQuantity: val,
+          purchaseDate: new Date().toISOString().split('T')[0],
+          complianceDoseOffset: ci?.checkedDoses ?? 0,
+        });
+        const unitWord = compound.unitLabel || 'units';
+        toast.success(`Stock updated. Depletion tracking reset to your new inventory of ${val} ${unitWord}.`);
+      } else {
+        // EC-10: No qty change — don't reset offset, don't show restock toast
+        // Nothing to update
+      }
+
       hapticTap(15);
       setJustSaved(true);
       setTimeout(() => setJustSaved(false), 600);
-      const unitWord = compound.unitLabel || 'units';
-      toast.success(`Stock updated. Depletion tracking reset to your new inventory of ${val} ${unitWord}.`);
     }
     setInlineEditing(false);
   };

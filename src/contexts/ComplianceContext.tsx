@@ -6,6 +6,8 @@ import { getDaysRemainingWithCycling, getEffectiveDailyConsumption, ComplianceIn
 interface ComplianceContextValue {
   /** Raw compliance map */
   compliance: ComplianceMap;
+  /** Whether compliance data is still loading from DB */
+  complianceLoading: boolean;
   /** Get compliance info for a compound (to pass to calculation functions) */
   getComplianceInfo: (compoundId: string) => ComplianceInfo | undefined;
   /** Compliance-aware days remaining with cycling */
@@ -34,6 +36,7 @@ export function ComplianceProvider({ userId, children }: { userId: string | unde
 
     return {
       compliance,
+      complianceLoading: compliance.loading,
       getComplianceInfo: getInfo,
       getDaysRemainingAdjusted: (compound: Compound) =>
         getDaysRemainingWithCycling(compound, getInfo(compound.id)),
@@ -61,6 +64,7 @@ export function useCompliance(): ComplianceContextValue {
     // work even outside the provider (e.g., tests)
     return {
       compliance: { get: () => undefined, entries: [], loading: false, refetch: async () => {} },
+      complianceLoading: false,
       getComplianceInfo: () => undefined,
       getDaysRemainingAdjusted: (c) => getDaysRemainingWithCycling(c),
       getEffectiveDailyAdjusted: (c) => getEffectiveDailyConsumption(c),
