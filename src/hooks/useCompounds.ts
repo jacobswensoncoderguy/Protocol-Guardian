@@ -234,6 +234,9 @@ export function useCompounds(userId: string | undefined) {
     if ('concentrationUnit' in updates) dbUpdates.concentration_unit = updates.concentrationUnit ?? null;
     if ('storageInstructions' in updates) dbUpdates.storage_instructions = updates.storageInstructions ?? null;
     if ('prepNotes' in updates) dbUpdates.prep_notes = updates.prepNotes ?? null;
+    if (updates.containerVolumeMl !== undefined) dbUpdates.container_volume_ml = updates.containerVolumeMl ?? null;
+    if (updates.mlPerSpray !== undefined) dbUpdates.ml_per_spray = updates.mlPerSpray ?? null;
+    if (updates.spraysPerDose !== undefined) dbUpdates.sprays_per_dose = updates.spraysPerDose ?? null;
 
     // Auto-derive bacstatPerVial for peptides (B2 fix)
     const mergedCategory = (updates.category ?? compounds.find(c => c.id === id)?.category) || '';

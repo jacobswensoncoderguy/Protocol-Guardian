@@ -108,6 +108,98 @@
   }
 }
 
+/* ═══════════════════════════════════════════
+   Protocol Guardian Theme System (--pg-* vars)
+   These do NOT override Tailwind vars.
+   ═══════════════════════════════════════════ */
+
+.theme-obsidian {
+  --pg-bg: #070b12;
+  --pg-card: rgba(255,255,255,0.03);
+  --pg-card-border: rgba(255,255,255,0.07);
+  --pg-card-hover: rgba(255,255,255,0.055);
+  --pg-text-primary: #f1f5f9;
+  --pg-text-secondary: rgba(226,232,240,0.55);
+  --pg-text-muted: rgba(226,232,240,0.3);
+  --pg-accent: #38bdf8;
+  --pg-accent2: #34d399;
+  --pg-accent3: #a78bfa;
+  --pg-crit: #f87171;
+  --pg-warn: #fb923c;
+  --pg-good: #34d399;
+  --pg-radius: 12px;
+  background-image: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(56,189,248,0.08) 0%, transparent 70%);
+}
+
+.theme-clinic {
+  --pg-bg: #faf8f5;
+  --pg-card: #ffffff;
+  --pg-card-border: rgba(28,25,23,0.08);
+  --pg-card-hover: rgba(28,25,23,0.02);
+  --pg-text-primary: #1c1917;
+  --pg-text-secondary: rgba(28,25,23,0.55);
+  --pg-text-muted: rgba(28,25,23,0.35);
+  --pg-accent: #1c1917;
+  --pg-accent2: #059669;
+  --pg-accent3: #7c3aed;
+  --pg-crit: #dc2626;
+  --pg-warn: #d97706;
+  --pg-good: #059669;
+  --pg-radius: 14px;
+}
+
+.theme-neon {
+  --pg-bg: #000000;
+  --pg-card: rgba(255,255,255,0.04);
+  --pg-card-border: rgba(255,255,255,0.08);
+  --pg-card-hover: rgba(255,255,255,0.07);
+  --pg-text-primary: #ffffff;
+  --pg-text-secondary: rgba(255,255,255,0.55);
+  --pg-text-muted: rgba(255,255,255,0.28);
+  --pg-accent: #6366f1;
+  --pg-accent2: #26de81;
+  --pg-accent3: #a78bfa;
+  --pg-crit: #ff6b6b;
+  --pg-warn: #ffd32a;
+  --pg-good: #26de81;
+  --pg-radius: 16px;
+}
+
+.theme-carbon {
+  --pg-bg: #111318;
+  --pg-card: rgba(255,255,255,0.025);
+  --pg-card-border: rgba(212,208,200,0.1);
+  --pg-card-hover: rgba(212,208,200,0.04);
+  --pg-text-primary: #f5f3ef;
+  --pg-text-secondary: rgba(212,208,200,0.55);
+  --pg-text-muted: rgba(212,208,200,0.3);
+  --pg-accent: #f59e0b;
+  --pg-accent2: #10b981;
+  --pg-accent3: #3b82f6;
+  --pg-crit: #ef4444;
+  --pg-warn: #f59e0b;
+  --pg-good: #10b981;
+  --pg-radius: 8px;
+}
+
+/* Urgency bar pulse animation */
+@keyframes urgency-pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+.urgency-pulse {
+  animation: urgency-pulse 2s ease-in-out infinite;
+}
+
+/* Transit badge pulse */
+@keyframes transit-pulse {
+  0%, 100% { opacity: 0.6; box-shadow: 0 0 0 0 var(--pg-accent); }
+  50% { opacity: 1; box-shadow: 0 0 8px 2px var(--pg-accent); }
+}
+.transit-pulse {
+  animation: transit-pulse 1.5s ease-in-out infinite;
+}
+
 @layer base {
   * {
     @apply border-border;
