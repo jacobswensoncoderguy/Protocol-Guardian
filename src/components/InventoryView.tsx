@@ -2363,6 +2363,8 @@ const InlineQuantityEditor = ({ compound, status, isOil, isPeptide, onUpdate }: 
       hapticTap(15);
       setJustSaved(true);
       setTimeout(() => setJustSaved(false), 600);
+      const unitWord = compound.unitLabel || 'units';
+      toast.success(`Stock updated. Depletion tracking reset to your new inventory of ${val} ${unitWord}.`);
     }
     setInlineEditing(false);
   };
