@@ -1047,7 +1047,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
             {compound.depletionAction === 'pause' ? '⏸ on empty' : '💤 on empty'}
           </span>
         )}
-        {!compoundIsPaused && (compound.purchaseDate || isPeptide || isOil) && (
+        {!compoundIsPaused && !hasValidationErrors && (compound.purchaseDate || isPeptide || isOil) && (
           <span
             className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full cursor-help ${
               status === 'critical' ? 'bg-destructive/20 text-status-critical' :
