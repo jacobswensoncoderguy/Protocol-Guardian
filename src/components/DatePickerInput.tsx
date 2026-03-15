@@ -33,7 +33,8 @@ export default function DatePickerInput({
 }: DatePickerInputProps) {
   const [open, setOpen] = React.useState(false);
 
-  const selectedDate = value ? parse(value, 'yyyy-MM-dd', new Date()) : undefined;
+  const parsedDate = value ? parse(value, 'yyyy-MM-dd', new Date()) : undefined;
+  const selectedDate = parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate : undefined;
   const minDate = min ? parse(min, 'yyyy-MM-dd', new Date()) : undefined;
   const maxDate = max ? parse(max, 'yyyy-MM-dd', new Date()) : undefined;
 
