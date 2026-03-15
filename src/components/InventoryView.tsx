@@ -522,13 +522,15 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
 
   const { getDaysRemainingAdjusted: getDaysAdj, getEffectiveQtyAdjusted: getQtyAdj, getConsumedAdjusted: getConsumedAdj, getComplianceInfo: getCI } = useCompliance();
   const compoundIsPaused = isPaused(compound);
-  const days = getDaysAdj(compound);
-  const status = compoundIsPaused ? 'good' as const : getStatus(days);
+  const validationErrors = validateCompoundForMath(compound);
+  const hasValidationErrors = validationErrors.length > 0;
+  const days = hasValidationErrors ? 0 : getDaysAdj(compound);
+  const status = compoundIsPaused ? 'good' as const : hasValidationErrors ? 'warning' as const : getStatus(days);
   const maxDays = 90;
-  const progress = Math.min(100, (days / maxDays) * 100);
+  const progress = hasValidationErrors ? 0 : Math.min(100, (days / maxDays) * 100);
   const isPeptide = compound.category === 'peptide';
   const isOil = compound.category === 'injectable-oil';
-  const reorderDate = getReorderDateString(compound, getCI(compound.id));
+  const reorderDate = hasValidationErrors ? '—' : getReorderDateString(compound, getCI(compound.id));
 
   /** Build a human-readable math breakdown for peptides and oils */
   const getDaysMathTooltip = (): string => {
