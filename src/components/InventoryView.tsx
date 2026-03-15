@@ -854,7 +854,9 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
       updates.unitPrice = price;
     }
 
-    updates.purchaseDate = editState.purchaseDate || '';
+    if (!qtyChanged) {
+      updates.purchaseDate = editState.purchaseDate || '';
+    }
 
     if (editState.cyclingEnabled === 'true') {
       const on = parseInt(editState.cycleOnDays);

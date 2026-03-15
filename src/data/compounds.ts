@@ -592,6 +592,32 @@ export function validateCompoundForMath(compound: Compound): string[] {
       if (!compound.unitSize || compound.unitSize <= 0)
         errors.push('Total count per bottle required (e.g. 90 for a 90-capsule bottle)');
       break;
+
+    case 'topical': {
+      const dl_v = (compound.doseLabel ?? '').toLowerCase();
+      if (dl_v === 'sprays' || dl_v === 'spray') {
+        if (!compound.containerVolumeMl || compound.containerVolumeMl <= 0) {
+          errors.push('Spray topical requires container volume in mL (containerVolumeMl)');
+        }
+        if (!compound.mlPerSpray || compound.mlPerSpray <= 0) {
+          errors.push('Spray topical requires mL per spray');
+        }
+      } else {
+        if (!compound.unitSize || compound.unitSize <= 0) {
+          errors.push('Topical requires total volume as unit size (mL)');
+        }
+      }
+      break;
+    }
+
+    case 'holistic':
+    case 'essential-oil':
+    case 'alternative-medicine':
+    case 'prescription':
+      if (!compound.unitSize || compound.unitSize <= 0) {
+        errors.push('Unit size required (count per bottle or total volume in mL)');
+      }
+      break;
   }
 
   return errors;
