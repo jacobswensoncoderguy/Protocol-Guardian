@@ -235,6 +235,13 @@ export function useCompounds(userId: string | undefined) {
     if ('storageInstructions' in updates) dbUpdates.storage_instructions = updates.storageInstructions ?? null;
     if ('prepNotes' in updates) dbUpdates.prep_notes = updates.prepNotes ?? null;
 
+    // Auto-derive bacstatPerVial for peptides (B2 fix)
+    const mergedCategory = (updates.category ?? compounds.find(c => c.id === id)?.category) || '';
+    const mergedReconVolume = updates.reconVolume ?? compounds.find(c => c.id === id)?.reconVolume;
+    if (mergedCategory === 'peptide' && mergedReconVolume && mergedReconVolume > 0) {
+      dbUpdates.bacstat_per_vial = mergedReconVolume * 100;
+    }
+
     const { error } = await supabase
       .from('user_compounds')
       .update(dbUpdates)
