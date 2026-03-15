@@ -400,6 +400,31 @@ export function totalSupplyInDoseUnits(compound: Compound, effectiveQty: number)
     const mlPerContainer = toMl(compound.unitSize, ul);
     return effectiveQty * mlPerContainer * DROPS_PER_ML;
   }
+  const dl_tsidu = (compound.doseLabel ?? '').toLowerCase();
+  const ul_tsidu = (compound.unitLabel ?? '').toLowerCase();
+
+  // Spray compounds
+  if (
+    (dl_tsidu === 'sprays' || dl_tsidu === 'spray') &&
+    compound.containerVolumeMl &&
+    compound.mlPerSpray &&
+    compound.mlPerSpray > 0
+  ) {
+    return effectiveQty * (compound.containerVolumeMl / compound.mlPerSpray);
+  }
+
+  // Drop compounds (verify formula: effectiveQty × unitSize_mL × 20)
+  if (
+    (dl_tsidu === 'drops' || dl_tsidu === 'drop') &&
+    compound.unitSize > 0 &&
+    (ul_tsidu === 'ml' || ul_tsidu === 'fl oz' || ul_tsidu === 'oz')
+  ) {
+    const mlPerContainer = ul_tsidu === 'ml'
+      ? compound.unitSize
+      : compound.unitSize * 29.5735;
+    return effectiveQty * mlPerContainer * 20;
+  }
+
   // orals/powders: effectiveQty is in containers, unitSize = units per container
   return effectiveQty * compound.unitSize;
 }
