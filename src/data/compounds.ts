@@ -353,17 +353,18 @@ export function totalSupplyInDoseUnits(compound: Compound, effectiveQty: number)
     return effectiveQty * compound.bacstatPerVial;
   }
   if (compound.category === 'injectable-oil' && compound.vialSizeMl) {
-    const dl = compound.doseLabel.toLowerCase();
-    // IU = syringe units (100 IU = 1 mL). Total IU = vials × mL/vial × 100.
+    const dl = (compound.doseLabel ?? '').toLowerCase();
     if (dl === 'iu') {
       return effectiveQty * compound.vialSizeMl * SYRINGE_IU_PER_ML;
     }
-    // mL dosing: total mL in supply
+    if (dl === 'mg') {
+      return effectiveQty * compound.unitSize * compound.vialSizeMl;
+    }
     if (dl === 'ml') {
       return effectiveQty * compound.vialSizeMl;
     }
-    // mg dosing: total mg in supply = vials × concentration × volume
-    return effectiveQty * compound.unitSize * compound.vialSizeMl;
+    // Unrecognized doseLabel: return 0
+    return 0;
   }
   // Volume container with drop dosing: convert volume to drops
   const ul = compound.unitLabel.toLowerCase().replace(/\s+/g, '');
