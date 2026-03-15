@@ -270,7 +270,11 @@ const CostProjectionView = ({ compounds, protocols = [], customFields = [], cust
 
   return (
     <div className="space-y-4">
-      {/* Summary */}
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-foreground">Cost Projection</h2>
+        <ThemeSelector />
+      </div>
       <div className="grid grid-cols-3 gap-2">
         <div className="bg-card rounded-lg border border-border/50 p-3">
           <p className="text-[10px] text-muted-foreground">Est. Annual</p>
