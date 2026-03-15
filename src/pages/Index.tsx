@@ -912,6 +912,7 @@ const Index = () => {
       <BackToTopButton />
     </div>
     </ComplianceProvider>
+    </ThemeProvider>
   );
 };
 
