@@ -269,7 +269,9 @@ export function useCompounds(userId: string | undefined) {
         kit_price: compound.kitPrice ?? null,
         dose_per_use: compound.dosePerUse,
         dose_label: compound.doseLabel,
-        bacstat_per_vial: compound.bacstatPerVial ?? null,
+        bacstat_per_vial: compound.category === 'peptide' && compound.reconVolume && compound.reconVolume > 0
+          ? compound.reconVolume * 100
+          : (compound.bacstatPerVial ?? null),
         recon_volume: compound.reconVolume ?? null,
         doses_per_day: compound.dosesPerDay,
         days_per_week: compound.daysPerWeek,
