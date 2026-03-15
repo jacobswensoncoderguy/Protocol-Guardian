@@ -850,26 +850,50 @@ const DoseSection = ({
         </div>
       </button>
 
-      {/* Stack Score Summary — clickable */}
-      {stackScores && (
-        <button
-          onClick={() => setStackBreakdownOpen(true)}
-          className="flex items-center gap-2 mb-3 px-1 w-full text-left hover:opacity-80 transition-opacity active:scale-[0.98]"
-        >
-          {[
-            { label: 'Bio', value: stackScores.bio, Icon: Beaker },
-            { label: 'Eff', value: stackScores.eff, Icon: FlaskConical },
-            { label: 'Ovr', value: stackScores.ovr, Icon: Target },
-          ].map(({ label, value, Icon }) => (
-            <div key={label} className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-mono ${scoreBg(value)}`}>
-              <Icon className={`w-2.5 h-2.5 ${scoreColor(value)}`} />
-              <span className="text-muted-foreground">{label}</span>
-              <span className={`font-bold ${scoreColor(value)}`}>{value}%</span>
+      <div className={`grid transition-[grid-template-rows] duration-300 ease-out ${collapsed ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'}`}>
+        <div className="overflow-hidden">
+          <div className="mt-2">
+            {/* Stack Score Summary — clickable */}
+            {stackScores && (
+              <button
+                onClick={() => setStackBreakdownOpen(true)}
+                className="flex items-center gap-2 mb-3 px-1 w-full text-left hover:opacity-80 transition-opacity active:scale-[0.98]"
+              >
+                {[
+                  { label: 'Bio', value: stackScores.bio, Icon: Beaker },
+                  { label: 'Eff', value: stackScores.eff, Icon: FlaskConical },
+                  { label: 'Ovr', value: stackScores.ovr, Icon: Target },
+                ].map(({ label, value, Icon }) => (
+                  <div key={label} className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-mono ${scoreBg(value)}`}>
+                    <Icon className={`w-2.5 h-2.5 ${scoreColor(value)}`} />
+                    <span className="text-muted-foreground">{label}</span>
+                    <span className={`font-bold ${scoreColor(value)}`}>{value}%</span>
+                  </div>
+                ))}
+                <span className="text-[9px] text-muted-foreground/50 ml-auto">avg of {stackScores.count}</span>
+              </button>
+            )}
+
+            <div className="space-y-3">
+              {allPeptides.length > 0 && (
+                <DoseGroup label="Injectables" doses={allPeptides} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} cachedScoresMap={cachedScoresMap} onScoreDrawerClose={onScoreDrawerClose} />
+              )}
+              {protocolGroups.map(pg => (
+                <DoseGroup key={pg.label} label={pg.label} doses={pg.doses} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} cachedScoresMap={cachedScoresMap} onScoreDrawerClose={onScoreDrawerClose} />
+              ))}
+              {ungroupedOrals.length > 0 && (
+                <DoseGroup label="Oral Supplements" doses={ungroupedOrals} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} cachedScoresMap={cachedScoresMap} onScoreDrawerClose={onScoreDrawerClose} />
+              )}
+              {ungroupedPowders.length > 0 && (
+                <DoseGroup label="Powders" doses={ungroupedPowders} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} cachedScoresMap={cachedScoresMap} onScoreDrawerClose={onScoreDrawerClose} />
+              )}
+              {ungroupedTopicals.length > 0 && (
+                <DoseGroup label="Topicals" doses={ungroupedTopicals} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} cachedScoresMap={cachedScoresMap} onScoreDrawerClose={onScoreDrawerClose} />
+              )}
             </div>
-          ))}
-          <span className="text-[9px] text-muted-foreground/50 ml-auto">avg of {stackScores.count}</span>
-        </button>
-      )}
+          </div>
+        </div>
+      </div>
 
       {/* Stack Score Breakdown Sheet */}
       <Sheet open={stackBreakdownOpen} onOpenChange={setStackBreakdownOpen}>
@@ -881,7 +905,6 @@ const DoseSection = ({
             </SheetTitle>
           </SheetHeader>
           <div className="mt-4 space-y-1">
-            {/* Header row */}
             <div className="grid grid-cols-4 gap-2 text-[10px] font-mono text-muted-foreground px-2 pb-1 border-b border-border/40">
               <span className="col-span-1">Compound</span>
               <span className="text-center">Bio</span>
@@ -896,7 +919,6 @@ const DoseSection = ({
                 <span className={`text-center text-xs font-mono font-bold ${scoreColor(d.ovr)}`}>{d.ovr}%</span>
               </div>
             ))}
-            {/* Average row */}
             {stackScores && (
               <div className="grid grid-cols-4 gap-2 items-center px-2 py-2 mt-1 border-t border-border/40 font-semibold">
                 <span className="text-xs text-muted-foreground">Average</span>
@@ -908,24 +930,6 @@ const DoseSection = ({
           </div>
         </SheetContent>
       </Sheet>
-
-      <div className="space-y-3">
-        {allPeptides.length > 0 && (
-          <DoseGroup label="Injectables" doses={allPeptides} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} cachedScoresMap={cachedScoresMap} onScoreDrawerClose={onScoreDrawerClose} />
-        )}
-        {protocolGroups.map(pg => (
-          <DoseGroup key={pg.label} label={pg.label} doses={pg.doses} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} cachedScoresMap={cachedScoresMap} onScoreDrawerClose={onScoreDrawerClose} />
-        ))}
-        {ungroupedOrals.length > 0 && (
-          <DoseGroup label="Oral Supplements" doses={ungroupedOrals} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} cachedScoresMap={cachedScoresMap} onScoreDrawerClose={onScoreDrawerClose} />
-        )}
-        {ungroupedPowders.length > 0 && (
-          <DoseGroup label="Powders" doses={ungroupedPowders} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} cachedScoresMap={cachedScoresMap} onScoreDrawerClose={onScoreDrawerClose} />
-        )}
-        {ungroupedTopicals.length > 0 && (
-          <DoseGroup label="Topicals" doses={ungroupedTopicals} compoundMap={compoundMap} offCycleIds={offCycleIds} pausedIds={pausedIds} onCompoundClick={onCompoundClick} doseUnit={doseUnit} checkedDoses={checkedDoses} onToggleChecked={onToggleChecked} readOnly={readOnly} memberInitialsDoses={memberInitialsDoses} memberCompoundIds={memberCompoundIds} flashedIds={flashedIds} cachedScoresMap={cachedScoresMap} onScoreDrawerClose={onScoreDrawerClose} />
-        )}
-      </div>
     </div>
   );
 };
