@@ -8,7 +8,7 @@ import { CustomField, CustomFieldValue, PREDEFINED_FIELDS } from '@/hooks/useCus
 import { Pencil, Check, X, Trash2, Plus, ChevronDown, ChevronUp, GripVertical, Syringe, Clock, SortAsc, Moon as MoonIcon, Sun, Dumbbell, RefreshCcw, Package, PlusCircle, AlertTriangle, Pause, Play, Calendar, TrendingDown, Loader2, TrendingUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+
 import ConfirmDialog from '@/components/ConfirmDialog';
 import ToleranceSelector from '@/components/ToleranceSelector';
 import { ToleranceLevel } from '@/hooks/useProtocolAnalysis';
