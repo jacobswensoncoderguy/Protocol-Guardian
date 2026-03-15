@@ -72,7 +72,7 @@ const categoryLabels: Record<string, string> = {
 const categoryOrder: string[] = ['peptide', 'injectable-oil', 'prescription', 'oral', 'powder', 'vitamin', 'holistic', 'adaptogen', 'nootropic', 'essential-oil', 'alternative-medicine', 'probiotic', 'topical'];
 
 const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCompound, protocols = [], toleranceLevel, onToleranceChange, customFields = [], customFieldValues = new Map(), onAddCustomField, onRemoveCustomField, onReorderCustomField, onSetCustomFieldValue, scrollToCompoundId, onScrollToCompoundDone, titrationInfo }: InventoryViewProps) => {
-  const { getDaysRemainingAdjusted, getEffectiveQtyAdjusted, getConsumedAdjusted, getComplianceInfo, refetchCompliance } = useCompliance();
+  const { getDaysRemainingAdjusted, getEffectiveQtyAdjusted, getConsumedAdjusted, getComplianceInfo, refetchCompliance, complianceLoading } = useCompliance();
 
   // Refetch compliance data on mount to ensure inventory reflects latest dose check-offs
   useEffect(() => {
