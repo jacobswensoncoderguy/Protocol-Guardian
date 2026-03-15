@@ -6,6 +6,8 @@ import { getDaysRemainingWithCycling, getEffectiveDailyConsumption, ComplianceIn
 interface ComplianceContextValue {
   /** Raw compliance map */
   compliance: ComplianceMap;
+  /** Whether compliance data is still loading from DB */
+  complianceLoading: boolean;
   /** Get compliance info for a compound (to pass to calculation functions) */
   getComplianceInfo: (compoundId: string) => ComplianceInfo | undefined;
   /** Compliance-aware days remaining with cycling */
