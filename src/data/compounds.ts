@@ -48,6 +48,10 @@ export interface Compound {
   concentrationUnit?: string;  // e.g. "mg/mL"
   storageInstructions?: string;
   prepNotes?: string;
+  // Spray compounds
+  containerVolumeMl?: number;  // total container volume in mL (e.g. 15 for a 15mL spray bottle)
+  mlPerSpray?: number;         // mL delivered per spray (e.g. 0.1)
+  spraysPerDose?: number;      // number of sprays per dose
 }
 
 const CONTAINER_TAG_REGEX = /\[CONTAINER:(bag|bottle)\]/i;
