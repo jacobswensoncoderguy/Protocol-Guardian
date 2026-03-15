@@ -522,13 +522,15 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
 
   const { getDaysRemainingAdjusted: getDaysAdj, getEffectiveQtyAdjusted: getQtyAdj, getConsumedAdjusted: getConsumedAdj, getComplianceInfo: getCI } = useCompliance();
   const compoundIsPaused = isPaused(compound);
-  const days = getDaysAdj(compound);
-  const status = compoundIsPaused ? 'good' as const : getStatus(days);
+  const validationErrors = validateCompoundForMath(compound);
+  const hasValidationErrors = validationErrors.length > 0;
+  const days = hasValidationErrors ? 0 : getDaysAdj(compound);
+  const status = compoundIsPaused ? 'good' as const : hasValidationErrors ? 'warning' as const : getStatus(days);
   const maxDays = 90;
-  const progress = Math.min(100, (days / maxDays) * 100);
+  const progress = hasValidationErrors ? 0 : Math.min(100, (days / maxDays) * 100);
   const isPeptide = compound.category === 'peptide';
   const isOil = compound.category === 'injectable-oil';
-  const reorderDate = getReorderDateString(compound, getCI(compound.id));
+  const reorderDate = hasValidationErrors ? '—' : getReorderDateString(compound, getCI(compound.id));
 
   /** Build a human-readable math breakdown for peptides and oils */
   const getDaysMathTooltip = (): string => {
@@ -972,6 +974,17 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
 
       {/* Row 2: Status badges */}
       <div className="flex flex-wrap items-center gap-1 mb-2">
+        {/* Validation errors badge */}
+        {hasValidationErrors && (
+          <button
+            onClick={() => startEdit()}
+            className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-accent/20 text-status-warning border border-accent/30 inline-flex items-center gap-1 cursor-pointer hover:bg-accent/30 transition-colors"
+            title={validationErrors.join('\n')}
+          >
+            <AlertTriangle className="w-2.5 h-2.5" />
+            Setup incomplete
+          </button>
+        )}
         {compound.weightPerUnit && compound.weightPerUnit > 0 && !isPeptide && !isOil && (
           <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground border border-border/40" title="Weight per unit">
             {(() => {
@@ -1034,7 +1047,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
             {compound.depletionAction === 'pause' ? '⏸ on empty' : '💤 on empty'}
           </span>
         )}
-        {!compoundIsPaused && (compound.purchaseDate || isPeptide || isOil) && (
+        {!compoundIsPaused && !hasValidationErrors && (compound.purchaseDate || isPeptide || isOil) && (
           <span
             className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full cursor-help ${
               status === 'critical' ? 'bg-destructive/20 text-status-critical' :
@@ -1069,6 +1082,15 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
           <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full inline-flex items-center gap-1 bg-primary/10 text-primary border border-primary/20" title={`Titration: Step ${titrationBadge.currentStep}/${titrationBadge.totalSteps} — ${titrationBadge.currentDose} ${titrationBadge.doseUnit}`}>
             <TrendingUp className="w-2.5 h-2.5" />
             {titrationBadge.currentStep}/{titrationBadge.totalSteps}
+          </span>
+        )}
+        {/* Compliance dose offset indicator (Section 9A / B8) */}
+        {(compound.complianceDoseOffset ?? 0) > 0 && (
+          <span
+            className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground border border-border/40 inline-flex items-center gap-1 cursor-help"
+            title={`Dose offset active: ${compound.complianceDoseOffset} doses excluded from compliance tracking. Edit compound to adjust if incorrect.`}
+          >
+            ℹ offset {compound.complianceDoseOffset}
           </span>
         )}
       </div>

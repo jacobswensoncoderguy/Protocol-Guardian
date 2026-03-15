@@ -110,7 +110,12 @@ function PeptideConfig({ formData, onUpdate, accentColor }: { formData: WizardFo
   const solvent = parseFloat(formData.solventVolume) || 0;
   const dose = parseFloat(formData.targetDose) || 0;
 
+  const totalIU = solvent > 0 ? Math.round(solvent * 100) : 0;
+
   const calcLines: string[] = [];
+  if (solvent > 0) {
+    calcLines.push(`This vial will contain ${totalIU} IU after reconstitution`);
+  }
   if (powder > 0 && solvent > 0) {
     const conc = calculateConcentration(powder, `${formData.powderWeightUnit} vial`, solvent, 'mL');
     if (conc) {
