@@ -7,7 +7,7 @@ import { UserProtocol } from '@/hooks/useProtocols';
 import { CustomField } from '@/hooks/useCustomFields';
 import { TrendingDown, ChevronDown, RefreshCcw } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ThemeSelector } from '@/contexts/ThemeContext';
+
 
 export interface CostModifiers {
   shippingCost: number; // flat $ per reorder
