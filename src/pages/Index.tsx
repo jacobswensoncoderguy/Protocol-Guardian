@@ -2,6 +2,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CalendarDays, Package, LayoutDashboard, RefreshCw, Brain, Gauge, LineChart, UserPlus } from 'lucide-react';
 import { getDaysRemainingWithCycling, getEffectiveDailyConsumption } from '@/lib/cycling';
 import { ComplianceProvider } from '@/contexts/ComplianceContext';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import { getStatus } from '@/data/compounds';
 import { Compound } from '@/data/compounds';
 import { useCompounds } from '@/hooks/useCompounds';
