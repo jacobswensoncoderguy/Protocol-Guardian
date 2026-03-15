@@ -1,4 +1,4 @@
-import { Settings, Target, FileText, LogOut, Sun, Moon, Plus, Share2, MessageSquare, Mail, Link, ShieldCheck } from 'lucide-react';
+import { Settings, Target, FileText, LogOut, Sun, Moon, Plus, Share2, MessageSquare, Mail, Link, ShieldCheck, Palette } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminRole } from '@/hooks/useAdminRole';
 import {
