@@ -2340,7 +2340,7 @@ const InlineQuantityEditor = ({ compound, status, isOil, isPeptide, onUpdate }: 
   const label = isPeptide ? 'Vials' : 'On Hand';
 
   // Effective quantity = currentQuantity minus actual consumed (compliance-aware)
-  const { getEffectiveQtyAdjusted, getConsumedAdjusted, getComplianceInfo } = useCompliance();
+  const { getEffectiveQtyAdjusted, getConsumedAdjusted, getComplianceInfo, complianceLoading } = useCompliance();
   const effectiveQty = getEffectiveQtyAdjusted(compound);
   const consumedUnits = consumedToContainerUnits(compound, getConsumedAdjusted(compound));
   const hasDepletion = compound.purchaseDate ? true : consumedUnits > 0.005;
