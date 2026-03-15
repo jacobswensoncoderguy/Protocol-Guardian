@@ -457,6 +457,39 @@ export function getMonthlyConsumptionCost(
     return 0;
   }
 
+  const dl_mcc = (compound.doseLabel ?? '').toLowerCase();
+  const ul_mcc = (compound.unitLabel ?? '').toLowerCase();
+
+  // Spray compounds
+  if (
+    (dl_mcc === 'sprays' || dl_mcc === 'spray') &&
+    compound.containerVolumeMl &&
+    compound.mlPerSpray &&
+    compound.mlPerSpray > 0
+  ) {
+    const totalSprays = compound.containerVolumeMl / compound.mlPerSpray;
+    if (totalSprays > 0) {
+      return (monthly / totalSprays) * compound.unitPrice;
+    }
+    return 0;
+  }
+
+  // Drop compounds
+  if (
+    (dl_mcc === 'drops' || dl_mcc === 'drop') &&
+    compound.unitSize > 0 &&
+    (ul_mcc === 'ml' || ul_mcc === 'fl oz' || ul_mcc === 'oz')
+  ) {
+    const mlPerContainer = ul_mcc === 'ml'
+      ? compound.unitSize
+      : compound.unitSize * 29.5735;
+    const totalDrops = mlPerContainer * 20;
+    if (totalDrops > 0) {
+      return (monthly / totalDrops) * compound.unitPrice;
+    }
+    return 0;
+  }
+
   // Oral / powder / all other categories
   if (compound.unitSize > 0) {
     return (monthly / compound.unitSize) * compound.unitPrice;
