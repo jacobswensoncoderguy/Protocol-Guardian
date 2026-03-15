@@ -526,7 +526,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
   const [showCycleTimeline, setShowCycleTimeline] = useState(cycleStatus.hasCycle && !cycleStatus.isOn);
   const [showCalculator, setShowCalculator] = useState(false);
 
-  const { getDaysRemainingAdjusted: getDaysAdj, getEffectiveQtyAdjusted: getQtyAdj, getConsumedAdjusted: getConsumedAdj, getComplianceInfo: getCI } = useCompliance();
+  const { getDaysRemainingAdjusted: getDaysAdj, getEffectiveQtyAdjusted: getQtyAdj, getConsumedAdjusted: getConsumedAdj, getComplianceInfo: getCI, complianceLoading: ciLoading } = useCompliance();
   const compoundIsPaused = isPaused(compound);
   const validationErrors = validateCompoundForMath(compound);
   const hasValidationErrors = validationErrors.length > 0;
