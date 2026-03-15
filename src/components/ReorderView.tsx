@@ -454,7 +454,6 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
       {/* Header */}
       <div className="flex items-center justify-between mb-1">
         <h2 className="text-sm font-semibold text-foreground">Reorder</h2>
-        <ThemeSelector />
       </div>
       {(criticalCompounds.length > 0 || warningCompounds.length > 0) && (
         <div className="flex gap-2">

@@ -229,7 +229,6 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
       {/* Theme Selector + Header */}
       <div className="flex items-center justify-between mb-1">
         <h2 className="text-sm font-semibold" style={{ color: 'var(--pg-text-primary)', fontFamily: "'DM Sans', sans-serif" }}>Compounds</h2>
-        <ThemeSelector />
       </div>
 
       {/* Stock Alert Banner */}
