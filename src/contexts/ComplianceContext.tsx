@@ -36,6 +36,7 @@ export function ComplianceProvider({ userId, children }: { userId: string | unde
 
     return {
       compliance,
+      complianceLoading: compliance.loading,
       getComplianceInfo: getInfo,
       getDaysRemainingAdjusted: (compound: Compound) =>
         getDaysRemainingWithCycling(compound, getInfo(compound.id)),
