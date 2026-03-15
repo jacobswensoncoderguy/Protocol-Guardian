@@ -60,7 +60,7 @@ function getFrequencyLabel(compound: Compound): string {
 }
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import CompoundInfoDrawer from '@/components/CompoundInfoDrawer';
-import { ThemeSelector } from '@/contexts/ThemeContext';
+
 
 interface WeeklyScheduleViewProps {
   compounds: Compound[];
@@ -574,7 +574,6 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
             </TooltipContent>
           </Tooltip>
           <div className="ml-auto flex items-center gap-2">
-            <ThemeSelector />
             <button
               onClick={() => setDoseUnit(u => u === 'mg' ? 'ml' : 'mg')}
               className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-medium bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors"

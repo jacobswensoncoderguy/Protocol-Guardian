@@ -7,7 +7,7 @@ import { UserProtocol } from '@/hooks/useProtocols';
 import { CustomField } from '@/hooks/useCustomFields';
 import { TrendingDown, ChevronDown, RefreshCcw } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ThemeSelector } from '@/contexts/ThemeContext';
+
 
 export interface CostModifiers {
   shippingCost: number; // flat $ per reorder
@@ -275,7 +275,6 @@ const CostProjectionView = ({ compounds, protocols = [], customFields = [], cust
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-foreground" style={{ fontFamily: "'DM Sans', sans-serif" }}>Cost Projection</h2>
-        <ThemeSelector />
       </div>
       {/* Summary Row */}
       <div className="flex items-stretch bg-card rounded-xl border border-border/50 overflow-hidden">

@@ -1,5 +1,6 @@
-import { Settings, Target, FileText, LogOut, Sun, Moon, Plus, Share2, MessageSquare, Mail, Link, ShieldCheck } from 'lucide-react';
+import { Settings, Target, FileText, LogOut, Sun, Moon, Plus, Share2, MessageSquare, Mail, Link, ShieldCheck, Palette } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { cn } from '@/lib/utils';
 import { useAdminRole } from '@/hooks/useAdminRole';
 import {
   DropdownMenu,
@@ -14,6 +15,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
+import { usePageTheme, type PgTheme } from '@/contexts/ThemeContext';
 
 interface ProfileDropdownProps {
   isDark: boolean;
@@ -40,6 +42,13 @@ const ProfileDropdown = ({
 }: ProfileDropdownProps) => {
   const { user } = useAuth();
   const { isAdmin } = useAdminRole(user?.id);
+  const { theme, setTheme } = usePageTheme();
+  const themeOptions: { key: PgTheme; label: string }[] = [
+    { key: 'obsidian', label: 'Atlas' },
+    { key: 'clinic', label: 'Clinic' },
+    { key: 'neon', label: 'Neon' },
+    { key: 'carbon', label: 'Carbon' },
+  ];
   const navigate = useNavigate();
   const initials = displayName
     ? displayName.slice(0, 2).toUpperCase()
@@ -71,6 +80,24 @@ const ProfileDropdown = ({
           {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           {isDark ? 'Light Mode' : 'Dark Mode'}
         </DropdownMenuItem>
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger className="gap-2 cursor-pointer">
+            <Palette className="w-4 h-4" />
+            Theme: {themeOptions.find(o => o.key === theme)?.label}
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="w-36" sideOffset={4} alignOffset={-5}>
+            {themeOptions.map(o => (
+              <DropdownMenuItem
+                key={o.key}
+                onClick={() => setTheme(o.key)}
+                className={cn('gap-2 cursor-pointer', theme === o.key && 'font-semibold text-primary')}
+              >
+                {o.label}
+                {theme === o.key && <span className="ml-auto text-primary">✓</span>}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={onAccountSettings} className="gap-2 cursor-pointer">
           <Settings className="w-4 h-4" />

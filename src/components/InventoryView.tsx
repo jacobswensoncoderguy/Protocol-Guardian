@@ -24,7 +24,7 @@ import DatePickerInput from '@/components/DatePickerInput';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import ArcGauge from '@/components/ArcGauge';
 import DestructiveConfirmSheet from '@/components/DestructiveConfirmSheet';
-import { ThemeSelector, usePageTheme } from '@/contexts/ThemeContext';
+import { usePageTheme } from '@/contexts/ThemeContext';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface TitrationBadgeInfo {
@@ -229,7 +229,6 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
       {/* Theme Selector + Header */}
       <div className="flex items-center justify-between mb-1">
         <h2 className="text-sm font-semibold" style={{ color: 'var(--pg-text-primary)', fontFamily: "'DM Sans', sans-serif" }}>Compounds</h2>
-        <ThemeSelector />
       </div>
 
       {/* Stock Alert Banner */}
