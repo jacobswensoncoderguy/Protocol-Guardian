@@ -1,0 +1,1731 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.1"
+  }
+  public: {
+    Tables: {
+      chat_conversations: {
+        Row: {
+          created_at: string
+          id: string
+          project_id: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          project_id?: string | null
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          project_id?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_conversations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "chat_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_projects: {
+        Row: {
+          color: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      compound_custom_field_values: {
+        Row: {
+          created_at: string
+          custom_field_id: string
+          id: string
+          updated_at: string
+          user_compound_id: string
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          custom_field_id: string
+          id?: string
+          updated_at?: string
+          user_compound_id: string
+          value: string
+        }
+        Update: {
+          created_at?: string
+          custom_field_id?: string
+          id?: string
+          updated_at?: string
+          user_compound_id?: string
+          value?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compound_custom_field_values_custom_field_id_fkey"
+            columns: ["custom_field_id"]
+            isOneToOne: false
+            referencedRelation: "compound_custom_fields"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compound_custom_field_values_user_compound_id_fkey"
+            columns: ["user_compound_id"]
+            isOneToOne: false
+            referencedRelation: "user_compounds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      compound_custom_fields: {
+        Row: {
+          affects_calculation: boolean
+          calculation_role: string | null
+          created_at: string
+          default_value: string | null
+          field_name: string
+          field_type: string
+          field_unit: string | null
+          id: string
+          is_predefined: boolean
+          options: Json | null
+          sort_order: number
+          user_id: string
+        }
+        Insert: {
+          affects_calculation?: boolean
+          calculation_role?: string | null
+          created_at?: string
+          default_value?: string | null
+          field_name: string
+          field_type?: string
+          field_unit?: string | null
+          id?: string
+          is_predefined?: boolean
+          options?: Json | null
+          sort_order?: number
+          user_id: string
+        }
+        Update: {
+          affects_calculation?: boolean
+          calculation_role?: string | null
+          created_at?: string
+          default_value?: string | null
+          field_name?: string
+          field_type?: string
+          field_unit?: string | null
+          id?: string
+          is_predefined?: boolean
+          options?: Json | null
+          sort_order?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      compounds: {
+        Row: {
+          bacstat_per_vial: number | null
+          category: string
+          created_at: string
+          current_quantity: number
+          cycle_off_days: number | null
+          cycle_on_days: number | null
+          cycle_start_date: string | null
+          cycling_note: string | null
+          days_per_week: number
+          dose_label: string
+          dose_per_use: number
+          doses_per_day: number
+          id: string
+          kit_price: number | null
+          name: string
+          notes: string | null
+          purchase_date: string | null
+          recon_volume: number | null
+          reorder_quantity: number
+          timing_note: string | null
+          unit_label: string
+          unit_price: number
+          unit_size: number
+          updated_at: string
+          vial_size_ml: number | null
+        }
+        Insert: {
+          bacstat_per_vial?: number | null
+          category: string
+          created_at?: string
+          current_quantity?: number
+          cycle_off_days?: number | null
+          cycle_on_days?: number | null
+          cycle_start_date?: string | null
+          cycling_note?: string | null
+          days_per_week: number
+          dose_label: string
+          dose_per_use: number
+          doses_per_day: number
+          id: string
+          kit_price?: number | null
+          name: string
+          notes?: string | null
+          purchase_date?: string | null
+          recon_volume?: number | null
+          reorder_quantity?: number
+          timing_note?: string | null
+          unit_label: string
+          unit_price: number
+          unit_size: number
+          updated_at?: string
+          vial_size_ml?: number | null
+        }
+        Update: {
+          bacstat_per_vial?: number | null
+          category?: string
+          created_at?: string
+          current_quantity?: number
+          cycle_off_days?: number | null
+          cycle_on_days?: number | null
+          cycle_start_date?: string | null
+          cycling_note?: string | null
+          days_per_week?: number
+          dose_label?: string
+          dose_per_use?: number
+          doses_per_day?: number
+          id?: string
+          kit_price?: number | null
+          name?: string
+          notes?: string | null
+          purchase_date?: string | null
+          recon_volume?: number | null
+          reorder_quantity?: number
+          timing_note?: string | null
+          unit_label?: string
+          unit_price?: number
+          unit_size?: number
+          updated_at?: string
+          vial_size_ml?: number | null
+        }
+        Relationships: []
+      }
+      daily_checkins: {
+        Row: {
+          checkin_date: string
+          created_at: string
+          energy_score: number | null
+          id: string
+          mood_score: number | null
+          notes: string | null
+          pain_score: number | null
+          sleep_score: number | null
+          user_id: string
+        }
+        Insert: {
+          checkin_date?: string
+          created_at?: string
+          energy_score?: number | null
+          id?: string
+          mood_score?: number | null
+          notes?: string | null
+          pain_score?: number | null
+          sleep_score?: number | null
+          user_id: string
+        }
+        Update: {
+          checkin_date?: string
+          created_at?: string
+          energy_score?: number | null
+          id?: string
+          mood_score?: number | null
+          notes?: string | null
+          pain_score?: number | null
+          sleep_score?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      dose_check_offs: {
+        Row: {
+          check_date: string
+          checked_at: string
+          compound_id: string
+          dose_index: number
+          id: string
+          timing: string
+          user_id: string
+        }
+        Insert: {
+          check_date?: string
+          checked_at?: string
+          compound_id: string
+          dose_index?: number
+          id?: string
+          timing: string
+          user_id: string
+        }
+        Update: {
+          check_date?: string
+          checked_at?: string
+          compound_id?: string
+          dose_index?: number
+          id?: string
+          timing?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      feature_requests: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean
+          request_text: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          request_text: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          request_text?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      food_entries: {
+        Row: {
+          ai_confidence: number | null
+          barcode: string | null
+          brand: string | null
+          calories: number | null
+          carbs_g: number | null
+          cholesterol_mg: number | null
+          created_at: string
+          fat_g: number | null
+          fiber_g: number | null
+          food_name: string
+          id: string
+          meal_id: string | null
+          protein_g: number | null
+          serving_size: number | null
+          serving_unit: string | null
+          servings: number
+          sodium_mg: number | null
+          source: string | null
+          sugar_g: number | null
+          user_id: string
+        }
+        Insert: {
+          ai_confidence?: number | null
+          barcode?: string | null
+          brand?: string | null
+          calories?: number | null
+          carbs_g?: number | null
+          cholesterol_mg?: number | null
+          created_at?: string
+          fat_g?: number | null
+          fiber_g?: number | null
+          food_name: string
+          id?: string
+          meal_id?: string | null
+          protein_g?: number | null
+          serving_size?: number | null
+          serving_unit?: string | null
+          servings?: number
+          sodium_mg?: number | null
+          source?: string | null
+          sugar_g?: number | null
+          user_id: string
+        }
+        Update: {
+          ai_confidence?: number | null
+          barcode?: string | null
+          brand?: string | null
+          calories?: number | null
+          carbs_g?: number | null
+          cholesterol_mg?: number | null
+          created_at?: string
+          fat_g?: number | null
+          fiber_g?: number | null
+          food_name?: string
+          id?: string
+          meal_id?: string | null
+          protein_g?: number | null
+          serving_size?: number | null
+          serving_unit?: string | null
+          servings?: number
+          sodium_mg?: number | null
+          source?: string | null
+          sugar_g?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "food_entries_meal_id_fkey"
+            columns: ["meal_id"]
+            isOneToOne: false
+            referencedRelation: "meals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      household_links: {
+        Row: {
+          created_at: string
+          id: string
+          invite_token: string | null
+          member_id: string
+          requester_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invite_token?: string | null
+          member_id: string
+          requester_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invite_token?: string | null
+          member_id?: string
+          requester_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      meals: {
+        Row: {
+          created_at: string
+          id: string
+          meal_date: string
+          meal_time: string | null
+          meal_type: string
+          notes: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          meal_date?: string
+          meal_time?: string | null
+          meal_type?: string
+          notes?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          meal_date?: string
+          meal_time?: string | null
+          meal_type?: string
+          notes?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      nutrition_targets: {
+        Row: {
+          calories_target: number | null
+          carbs_target_g: number | null
+          created_at: string
+          diet_type: string | null
+          fat_target_g: number | null
+          fiber_target_g: number | null
+          id: string
+          protein_target_g: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          calories_target?: number | null
+          carbs_target_g?: number | null
+          created_at?: string
+          diet_type?: string | null
+          fat_target_g?: number | null
+          fiber_target_g?: number | null
+          id?: string
+          protein_target_g?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          calories_target?: number | null
+          carbs_target_g?: number | null
+          created_at?: string
+          diet_type?: string | null
+          fat_target_g?: number | null
+          fiber_target_g?: number | null
+          id?: string
+          protein_target_g?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      orders: {
+        Row: {
+          compound_id: string
+          cost: number
+          created_at: string
+          id: string
+          month_label: string
+          notes: string | null
+          ordered_at: string | null
+          quantity: number
+          received_at: string | null
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          compound_id: string
+          cost: number
+          created_at?: string
+          id?: string
+          month_label: string
+          notes?: string | null
+          ordered_at?: string | null
+          quantity: number
+          received_at?: string | null
+          status?: string
+          user_id?: string | null
+        }
+        Update: {
+          compound_id?: string
+          cost?: number
+          created_at?: string
+          id?: string
+          month_label?: string
+          notes?: string | null
+          ordered_at?: string | null
+          quantity?: number
+          received_at?: string | null
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      personalized_score_cache: {
+        Row: {
+          cache_key: string
+          compound_name: string
+          context: Json | null
+          created_at: string
+          expires_at: string
+          id: string
+          scores: Json
+          user_id: string
+        }
+        Insert: {
+          cache_key: string
+          compound_name: string
+          context?: Json | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          scores: Json
+          user_id: string
+        }
+        Update: {
+          cache_key?: string
+          compound_name?: string
+          context?: Json | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          scores?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          age: number | null
+          app_features: Json | null
+          avatar_url: string | null
+          body_fat_pct: number | null
+          created_at: string
+          display_name: string | null
+          dose_unit_preference: string
+          gender: string | null
+          height_cm: number | null
+          id: string
+          last_active_at: string | null
+          last_sign_in_at: string | null
+          measurement_system: string
+          referred_by: string | null
+          reorder_horizon: number
+          sign_in_count: number
+          signup_source: string | null
+          updated_at: string
+          user_id: string
+          weight_kg: number | null
+        }
+        Insert: {
+          age?: number | null
+          app_features?: Json | null
+          avatar_url?: string | null
+          body_fat_pct?: number | null
+          created_at?: string
+          display_name?: string | null
+          dose_unit_preference?: string
+          gender?: string | null
+          height_cm?: number | null
+          id?: string
+          last_active_at?: string | null
+          last_sign_in_at?: string | null
+          measurement_system?: string
+          referred_by?: string | null
+          reorder_horizon?: number
+          sign_in_count?: number
+          signup_source?: string | null
+          updated_at?: string
+          user_id: string
+          weight_kg?: number | null
+        }
+        Update: {
+          age?: number | null
+          app_features?: Json | null
+          avatar_url?: string | null
+          body_fat_pct?: number | null
+          created_at?: string
+          display_name?: string | null
+          dose_unit_preference?: string
+          gender?: string | null
+          height_cm?: number | null
+          id?: string
+          last_active_at?: string | null
+          last_sign_in_at?: string | null
+          measurement_system?: string
+          referred_by?: string | null
+          reorder_horizon?: number
+          sign_in_count?: number
+          signup_source?: string | null
+          updated_at?: string
+          user_id?: string
+          weight_kg?: number | null
+        }
+        Relationships: []
+      }
+      protocol_changes: {
+        Row: {
+          change_date: string
+          change_type: string
+          compound_id: string | null
+          created_at: string
+          description: string
+          id: string
+          new_value: string | null
+          previous_value: string | null
+          user_id: string
+        }
+        Insert: {
+          change_date?: string
+          change_type?: string
+          compound_id?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          new_value?: string | null
+          previous_value?: string | null
+          user_id: string
+        }
+        Update: {
+          change_date?: string
+          change_type?: string
+          compound_id?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          new_value?: string | null
+          previous_value?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      protocol_chat_messages: {
+        Row: {
+          content: string
+          conversation_id: string | null
+          created_at: string
+          id: string
+          proposal: Json | null
+          role: string
+          user_id: string
+        }
+        Insert: {
+          content?: string
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          proposal?: Json | null
+          role: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          proposal?: Json | null
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "protocol_chat_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      saved_foods: {
+        Row: {
+          barcode: string | null
+          brand: string | null
+          calories: number | null
+          carbs_g: number | null
+          cholesterol_mg: number | null
+          created_at: string
+          fat_g: number | null
+          fiber_g: number | null
+          food_name: string
+          id: string
+          protein_g: number | null
+          serving_size: number | null
+          serving_unit: string | null
+          sodium_mg: number | null
+          sugar_g: number | null
+          use_count: number | null
+          user_id: string
+        }
+        Insert: {
+          barcode?: string | null
+          brand?: string | null
+          calories?: number | null
+          carbs_g?: number | null
+          cholesterol_mg?: number | null
+          created_at?: string
+          fat_g?: number | null
+          fiber_g?: number | null
+          food_name: string
+          id?: string
+          protein_g?: number | null
+          serving_size?: number | null
+          serving_unit?: string | null
+          sodium_mg?: number | null
+          sugar_g?: number | null
+          use_count?: number | null
+          user_id: string
+        }
+        Update: {
+          barcode?: string | null
+          brand?: string | null
+          calories?: number | null
+          carbs_g?: number | null
+          cholesterol_mg?: number | null
+          created_at?: string
+          fat_g?: number | null
+          fiber_g?: number | null
+          food_name?: string
+          id?: string
+          protein_g?: number | null
+          serving_size?: number | null
+          serving_unit?: string | null
+          sodium_mg?: number | null
+          sugar_g?: number | null
+          use_count?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      symptom_definitions: {
+        Row: {
+          body_area: string | null
+          category: string
+          created_at: string
+          id: string
+          is_system: boolean | null
+          name: string
+          user_id: string | null
+        }
+        Insert: {
+          body_area?: string | null
+          category: string
+          created_at?: string
+          id?: string
+          is_system?: boolean | null
+          name: string
+          user_id?: string | null
+        }
+        Update: {
+          body_area?: string | null
+          category?: string
+          created_at?: string
+          id?: string
+          is_system?: boolean | null
+          name?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      symptom_logs: {
+        Row: {
+          created_at: string
+          custom_symptom: string | null
+          id: string
+          log_date: string
+          log_time: string | null
+          notes: string | null
+          severity: number
+          symptom_definition_id: string | null
+          timing: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          custom_symptom?: string | null
+          id?: string
+          log_date?: string
+          log_time?: string | null
+          notes?: string | null
+          severity?: number
+          symptom_definition_id?: string | null
+          timing?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          custom_symptom?: string | null
+          id?: string
+          log_date?: string
+          log_time?: string | null
+          notes?: string | null
+          severity?: number
+          symptom_definition_id?: string | null
+          timing?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "symptom_logs_symptom_definition_id_fkey"
+            columns: ["symptom_definition_id"]
+            isOneToOne: false
+            referencedRelation: "symptom_definitions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      titration_notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_actioned: boolean
+          is_read: boolean
+          notification_type: string
+          schedule_id: string
+          step_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_actioned?: boolean
+          is_read?: boolean
+          notification_type?: string
+          schedule_id: string
+          step_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_actioned?: boolean
+          is_read?: boolean
+          notification_type?: string
+          schedule_id?: string
+          step_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "titration_notifications_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "titration_schedules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "titration_notifications_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "titration_steps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      titration_schedules: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          start_date: string
+          status: string
+          updated_at: string
+          user_compound_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          start_date?: string
+          status?: string
+          updated_at?: string
+          user_compound_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          start_date?: string
+          status?: string
+          updated_at?: string
+          user_compound_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "titration_schedules_user_compound_id_fkey"
+            columns: ["user_compound_id"]
+            isOneToOne: false
+            referencedRelation: "user_compounds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      titration_steps: {
+        Row: {
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          dose_amount: number
+          dose_unit: string
+          duration_days: number | null
+          end_date: string | null
+          id: string
+          notes: string | null
+          schedule_id: string
+          start_date: string
+          status: string
+          step_number: number
+        }
+        Insert: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          dose_amount: number
+          dose_unit?: string
+          duration_days?: number | null
+          end_date?: string | null
+          id?: string
+          notes?: string | null
+          schedule_id: string
+          start_date: string
+          status?: string
+          step_number: number
+        }
+        Update: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          dose_amount?: number
+          dose_unit?: string
+          duration_days?: number | null
+          end_date?: string | null
+          id?: string
+          notes?: string | null
+          schedule_id?: string
+          start_date?: string
+          status?: string
+          step_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "titration_steps_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "titration_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tolerance_history: {
+        Row: {
+          created_at: string
+          id: string
+          tolerance_level: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          tolerance_level: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          tolerance_level?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_compound_protocols: {
+        Row: {
+          created_at: string
+          id: string
+          user_compound_id: string
+          user_protocol_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          user_compound_id: string
+          user_protocol_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          user_compound_id?: string
+          user_protocol_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_compound_protocols_user_compound_id_fkey"
+            columns: ["user_compound_id"]
+            isOneToOne: false
+            referencedRelation: "user_compounds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_compound_protocols_user_protocol_id_fkey"
+            columns: ["user_protocol_id"]
+            isOneToOne: false
+            referencedRelation: "user_protocols"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_compounds: {
+        Row: {
+          active_ingredient_total_mg: number | null
+          bacstat_per_vial: number | null
+          category: string
+          compliance_dose_offset: number
+          compound_id: string
+          concentration_unit: string | null
+          container_volume_ml: number | null
+          created_at: string
+          current_quantity: number
+          cycle_off_days: number | null
+          cycle_on_days: number | null
+          cycle_start_date: string | null
+          cycling_note: string | null
+          days_per_week: number
+          delivery_method: string | null
+          depletion_action: string | null
+          dose_label: string
+          dose_per_use: number
+          doses_per_day: number
+          id: string
+          kit_price: number | null
+          ml_per_spray: number | null
+          name: string
+          notes: string | null
+          pause_restart_date: string | null
+          paused_at: string | null
+          prep_notes: string | null
+          purchase_date: string | null
+          recon_volume: number | null
+          reorder_quantity: number
+          reorder_type: string
+          resulting_concentration: number | null
+          solvent_type: string | null
+          solvent_unit: string | null
+          solvent_volume: number | null
+          sprays_per_dose: number | null
+          storage_instructions: string | null
+          timing_note: string | null
+          unit_label: string
+          unit_price: number
+          unit_size: number
+          updated_at: string
+          user_id: string
+          vial_size_ml: number | null
+          wear_duration_hours: number | null
+          weight_per_unit: number | null
+          weight_unit: string | null
+        }
+        Insert: {
+          active_ingredient_total_mg?: number | null
+          bacstat_per_vial?: number | null
+          category: string
+          compliance_dose_offset?: number
+          compound_id: string
+          concentration_unit?: string | null
+          container_volume_ml?: number | null
+          created_at?: string
+          current_quantity?: number
+          cycle_off_days?: number | null
+          cycle_on_days?: number | null
+          cycle_start_date?: string | null
+          cycling_note?: string | null
+          days_per_week: number
+          delivery_method?: string | null
+          depletion_action?: string | null
+          dose_label: string
+          dose_per_use: number
+          doses_per_day: number
+          id?: string
+          kit_price?: number | null
+          ml_per_spray?: number | null
+          name: string
+          notes?: string | null
+          pause_restart_date?: string | null
+          paused_at?: string | null
+          prep_notes?: string | null
+          purchase_date?: string | null
+          recon_volume?: number | null
+          reorder_quantity?: number
+          reorder_type?: string
+          resulting_concentration?: number | null
+          solvent_type?: string | null
+          solvent_unit?: string | null
+          solvent_volume?: number | null
+          sprays_per_dose?: number | null
+          storage_instructions?: string | null
+          timing_note?: string | null
+          unit_label: string
+          unit_price: number
+          unit_size: number
+          updated_at?: string
+          user_id: string
+          vial_size_ml?: number | null
+          wear_duration_hours?: number | null
+          weight_per_unit?: number | null
+          weight_unit?: string | null
+        }
+        Update: {
+          active_ingredient_total_mg?: number | null
+          bacstat_per_vial?: number | null
+          category?: string
+          compliance_dose_offset?: number
+          compound_id?: string
+          concentration_unit?: string | null
+          container_volume_ml?: number | null
+          created_at?: string
+          current_quantity?: number
+          cycle_off_days?: number | null
+          cycle_on_days?: number | null
+          cycle_start_date?: string | null
+          cycling_note?: string | null
+          days_per_week?: number
+          delivery_method?: string | null
+          depletion_action?: string | null
+          dose_label?: string
+          dose_per_use?: number
+          doses_per_day?: number
+          id?: string
+          kit_price?: number | null
+          ml_per_spray?: number | null
+          name?: string
+          notes?: string | null
+          pause_restart_date?: string | null
+          paused_at?: string | null
+          prep_notes?: string | null
+          purchase_date?: string | null
+          recon_volume?: number | null
+          reorder_quantity?: number
+          reorder_type?: string
+          resulting_concentration?: number | null
+          solvent_type?: string | null
+          solvent_unit?: string | null
+          solvent_volume?: number | null
+          sprays_per_dose?: number | null
+          storage_instructions?: string | null
+          timing_note?: string | null
+          unit_label?: string
+          unit_price?: number
+          unit_size?: number
+          updated_at?: string
+          user_id?: string
+          vial_size_ml?: number | null
+          wear_duration_hours?: number | null
+          weight_per_unit?: number | null
+          weight_unit?: string | null
+        }
+        Relationships: []
+      }
+      user_goal_protocols: {
+        Row: {
+          created_at: string
+          id: string
+          user_goal_id: string
+          user_protocol_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          user_goal_id: string
+          user_protocol_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          user_goal_id?: string
+          user_protocol_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_goal_protocols_user_goal_id_fkey"
+            columns: ["user_goal_id"]
+            isOneToOne: false
+            referencedRelation: "user_goals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_goal_protocols_user_protocol_id_fkey"
+            columns: ["user_protocol_id"]
+            isOneToOne: false
+            referencedRelation: "user_protocols"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_goal_readings: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          reading_date: string
+          source: string | null
+          unit: string
+          user_goal_id: string
+          user_id: string
+          value: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          reading_date?: string
+          source?: string | null
+          unit: string
+          user_goal_id: string
+          user_id: string
+          value: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          reading_date?: string
+          source?: string | null
+          unit?: string
+          user_goal_id?: string
+          user_id?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_goal_readings_user_goal_id_fkey"
+            columns: ["user_goal_id"]
+            isOneToOne: false
+            referencedRelation: "user_goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_goal_uploads: {
+        Row: {
+          ai_extracted_data: Json | null
+          created_at: string
+          file_name: string
+          file_type: string | null
+          file_url: string
+          id: string
+          notes: string | null
+          reading_date: string | null
+          upload_type: string
+          user_goal_id: string | null
+          user_id: string
+        }
+        Insert: {
+          ai_extracted_data?: Json | null
+          created_at?: string
+          file_name: string
+          file_type?: string | null
+          file_url: string
+          id?: string
+          notes?: string | null
+          reading_date?: string | null
+          upload_type: string
+          user_goal_id?: string | null
+          user_id: string
+        }
+        Update: {
+          ai_extracted_data?: Json | null
+          created_at?: string
+          file_name?: string
+          file_type?: string | null
+          file_url?: string
+          id?: string
+          notes?: string | null
+          reading_date?: string | null
+          upload_type?: string
+          user_goal_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_goal_uploads_user_goal_id_fkey"
+            columns: ["user_goal_id"]
+            isOneToOne: false
+            referencedRelation: "user_goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_goals: {
+        Row: {
+          baseline_date: string | null
+          baseline_label: string | null
+          baseline_value: number | null
+          body_area: string | null
+          created_at: string
+          current_value: number | null
+          description: string | null
+          goal_type: string
+          id: string
+          priority: number | null
+          status: string
+          target_date: string | null
+          target_label: string | null
+          target_unit: string | null
+          target_value: number | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          baseline_date?: string | null
+          baseline_label?: string | null
+          baseline_value?: number | null
+          body_area?: string | null
+          created_at?: string
+          current_value?: number | null
+          description?: string | null
+          goal_type: string
+          id?: string
+          priority?: number | null
+          status?: string
+          target_date?: string | null
+          target_label?: string | null
+          target_unit?: string | null
+          target_value?: number | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          baseline_date?: string | null
+          baseline_label?: string | null
+          baseline_value?: number | null
+          body_area?: string | null
+          created_at?: string
+          current_value?: number | null
+          description?: string | null
+          goal_type?: string
+          id?: string
+          priority?: number | null
+          status?: string
+          target_date?: string | null
+          target_label?: string | null
+          target_unit?: string | null
+          target_value?: number | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_onboarding: {
+        Row: {
+          ai_conversation: string | null
+          completed_at: string | null
+          created_at: string
+          id: string
+          responses: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_conversation?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          responses?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_conversation?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          responses?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_protocols: {
+        Row: {
+          created_at: string
+          description: string | null
+          icon: string
+          id: string
+          name: string
+          notes: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          icon?: string
+          id?: string
+          name: string
+          notes?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          icon?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_sessions: {
+        Row: {
+          created_at: string
+          duration_seconds: number | null
+          id: string
+          session_end: string | null
+          session_start: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          session_end?: string | null
+          session_start?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          session_end?: string | null
+          session_start?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      weekly_schedule_snapshots: {
+        Row: {
+          compound_snapshots: Json
+          created_at: string
+          id: string
+          user_id: string
+          week_start_date: string
+        }
+        Insert: {
+          compound_snapshots?: Json
+          created_at?: string
+          id?: string
+          user_id: string
+          week_start_date: string
+        }
+        Update: {
+          compound_snapshots?: Json
+          created_at?: string
+          id?: string
+          user_id?: string
+          week_start_date?: string
+        }
+        Relationships: []
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      find_user_for_household: {
+        Args: { lookup_email: string }
+        Returns: {
+          display_name: string
+          email: string
+          user_id: string
+        }[]
+      }
+      get_compound_compliance: {
+        Args: { p_user_id: string }
+        Returns: {
+          checked_doses: number
+          compound_id: string
+          first_check_date: string
+          last_check_date: string
+        }[]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      increment_sign_in_count: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
+      is_household_linked: {
+        Args: { user_a: string; user_b: string }
+        Returns: boolean
+      }
+      update_last_active: { Args: { p_user_id: string }; Returns: undefined }
+    }
+    Enums: {
+      app_role: "admin" | "moderator" | "user"
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+    },
+  },
+} as const
