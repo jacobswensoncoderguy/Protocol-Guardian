@@ -809,14 +809,46 @@ const DoseSection = ({
   }, [doses, offCycleIds, pausedIds, compoundMap, cachedScoresMap]);
 
   const [stackBreakdownOpen, setStackBreakdownOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
+
+  // Count checked active doses for summary when collapsed
+  const checkedCount = useMemo(() => {
+    const seenOff = new Set<string>();
+    let total = 0;
+    let checked = 0;
+    doses.forEach((d, i) => {
+      if (offCycleIds.has(d.compoundId)) {
+        if (seenOff.has(d.compoundId)) return;
+        seenOff.add(d.compoundId);
+      }
+      if (offCycleIds.has(d.compoundId) || pausedIds.has(d.compoundId)) return;
+      total++;
+      const key = `${d.compoundId}-${d.timing}-${i}`;
+      if (checkedDoses.has(key)) checked++;
+    });
+    return { total, checked };
+  }, [doses, offCycleIds, pausedIds, checkedDoses]);
 
   return (
     <div className={`rounded-lg border p-3 ${bgAccent}`}>
-      <h3 className={`text-sm font-semibold mb-2 flex items-center gap-2 ${accent}`}>
-        {icon}
-        {title}
-        <span className="text-muted-foreground font-normal">({totalActive} active)</span>
-      </h3>
+      <button
+        onClick={() => setCollapsed(c => !c)}
+        className="w-full flex items-center justify-between text-left"
+      >
+        <h3 className={`text-sm font-semibold flex items-center gap-2 ${accent}`}>
+          {icon}
+          {title}
+          <span className="text-muted-foreground font-normal">({totalActive} active)</span>
+        </h3>
+        <div className="flex items-center gap-2">
+          {collapsed && checkedCount.total > 0 && (
+            <span className="text-[10px] text-muted-foreground font-mono">
+              {checkedCount.checked}/{checkedCount.total}
+            </span>
+          )}
+          <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${collapsed ? '' : 'rotate-180'}`} />
+        </div>
+      </button>
 
       {/* Stack Score Summary — clickable */}
       {stackScores && (
