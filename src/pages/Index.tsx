@@ -338,6 +338,7 @@ const Index = () => {
   }
 
   return (
+    <ThemeProvider>
     <ComplianceProvider userId={user?.id}>
     <div ref={containerRef} className="min-h-screen bg-background relative pt-[env(safe-area-inset-top,0px)]">
       {/* Pull-to-refresh indicator */}
