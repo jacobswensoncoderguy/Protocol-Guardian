@@ -76,10 +76,6 @@ const ProfileDropdown = ({
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52 bg-popover border-border z-50">
-        <DropdownMenuItem onClick={onToggleTheme} className="gap-2 cursor-pointer">
-          {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          {isDark ? 'Light Mode' : 'Dark Mode'}
-        </DropdownMenuItem>
         <DropdownMenuSub>
           <DropdownMenuSubTrigger className="gap-2 cursor-pointer">
             <Palette className="w-4 h-4" />
