@@ -260,25 +260,10 @@ const CostProjectionView = ({ compounds, protocols = [], customFields = [], cust
   const remainingAnnual = totalAnnual - totalSpent;
   const monthlyAvg = compounds.reduce((sum, c) => {
     const mods = getModifiers(c.id);
-    // Apply dosesPerDay override for monthly burn calculation
     const effectiveCompound = mods.dosesPerDayOverride !== null
       ? { ...c, dosesPerDay: mods.dosesPerDayOverride }
       : c;
-    const effectiveDaily = getEffectiveDailyConsumption(effectiveCompound, getComplianceInfo(c.id));
-    if (effectiveDaily === 0) return sum;
-    const monthlyConsumption = effectiveDaily * 30;
-
-    if (c.category === 'peptide' && c.bacstatPerVial) {
-      const vialsPerMonth = monthlyConsumption / c.bacstatPerVial;
-      const kitsPerMonth = vialsPerMonth / 10;
-      const baseCost = kitsPerMonth * (c.kitPrice || 0);
-      return sum + baseCost * (1 - mods.discountPct / 100) + mods.shippingCost;
-    }
-
-    const totalMgPerUnit = c.category === 'injectable-oil' && c.vialSizeMl
-      ? c.unitSize * c.vialSizeMl : c.unitSize;
-    const unitsPerMonth = monthlyConsumption / totalMgPerUnit;
-    const baseCost = unitsPerMonth * c.unitPrice;
+    const baseCost = getMonthlyConsumptionCost(effectiveCompound, getComplianceInfo(c.id));
     return sum + baseCost * (1 - mods.discountPct / 100) + mods.shippingCost;
   }, 0);
 
