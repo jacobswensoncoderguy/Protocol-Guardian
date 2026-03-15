@@ -377,63 +377,10 @@ export function totalSupplyInDoseUnits(compound: Compound, effectiveQty: number)
   return effectiveQty * compound.unitSize;
 }
 
-export function getDaysRemaining(
-  compound: Compound,
-  compliance?: { checkedDoses: number; firstCheckDate: string | null; lastCheckDate: string | null }
-): number {
-  // Use getNormalizedDailyConsumption which correctly converts weight-based doses
-  // to container units (pills) for oral/powder compounds
-  const normalizedDaily = getNormalizedDailyConsumption(compound);
-  if (normalizedDaily <= 0) return 999;
-  const daysPerWeek = Math.min(7, Math.max(0, compound.daysPerWeek || 0));
-  if (daysPerWeek === 0) return 999;
-
-  const dosePerActiveDay = normalizedDaily * (7 / daysPerWeek);
-
-  const effectiveQty = getEffectiveQuantity(compound, compliance);
-  const totalSupply = totalSupplyInDoseUnits(compound, effectiveQty);
-  const dailyRate = dosePerActiveDay * (daysPerWeek / 7);
-
-  // If we have compliance data, adjust the daily rate by the compliance rate
-  if (compliance && compliance.firstCheckDate && compliance.lastCheckDate) {
-    const first = new Date(compliance.firstCheckDate);
-    const last = new Date(compliance.lastCheckDate);
-    first.setHours(0, 0, 0, 0);
-    last.setHours(0, 0, 0, 0);
-    const trackingDays = Math.max(1, Math.floor((last.getTime() - first.getTime()) / (24 * 60 * 60 * 1000)) + 1);
-    const expectedDoses = compound.dosesPerDay * trackingDays * (daysPerWeek / 7);
-    if (expectedDoses > 0) {
-      const complianceRate = Math.min(1, compliance.checkedDoses / expectedDoses);
-      // Project forward using actual compliance rate
-      const adjustedDailyRate = dailyRate * complianceRate;
-      if (adjustedDailyRate > 0) {
-        return Math.max(0, Math.floor(totalSupply / adjustedDailyRate));
-      }
-    }
-  }
-
-  return Math.max(0, Math.floor(totalSupply / dailyRate));
-}
-
 export function getStatus(daysRemaining: number): CompoundStatus {
   if (daysRemaining > 30) return 'good';
   if (daysRemaining > 7) return 'warning';
   return 'critical';
-}
-
-export function getReorderMonth(compound: Compound): number {
-  const days = getDaysRemaining(compound);
-  const now = new Date();
-  const reorderDate = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
-  return reorderDate.getMonth();
-}
-
-export function getReorderDateString(compound: Compound): string {
-  const days = getDaysRemaining(compound);
-  const now = new Date();
-  const reorderDate = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return `${monthNames[reorderDate.getMonth()]} ${reorderDate.getFullYear()}`;
 }
 
 export function getReorderCost(compound: Compound): number {
@@ -446,22 +393,123 @@ export function getReorderCost(compound: Compound): number {
   return compound.reorderQuantity * compound.unitPrice;
 }
 
-export function getMonthlyConsumptionCost(compound: Compound): number {
-  const dailyConsumption = getNormalizedDailyConsumption(compound);
-  if (dailyConsumption === 0) return 0;
-  const monthlyConsumption = dailyConsumption * 30;
+export function getMonthlyConsumptionCost(
+  compound: Compound,
+  compliance?: {
+    checkedDoses: number;
+    firstCheckDate: string | null;
+    lastCheckDate: string | null;
+  }
+): number {
+  let daily = getNormalizedDailyConsumption(compound);
+  if (daily === 0) return 0;
 
-  if (compound.category === 'peptide' && compound.bacstatPerVial) {
-    const vialsPerMonth = monthlyConsumption / compound.bacstatPerVial;
-    const kitsPerMonth = vialsPerMonth / 10;
-    return kitsPerMonth * (compound.kitPrice || 0);
+  // Step 1: apply compliance rate
+  if (compliance?.firstCheckDate && compliance?.lastCheckDate) {
+    const first = new Date(compliance.firstCheckDate);
+    const last = new Date(compliance.lastCheckDate);
+    first.setHours(0, 0, 0, 0);
+    last.setHours(0, 0, 0, 0);
+    const trackingDays = Math.max(
+      1,
+      Math.floor((last.getTime() - first.getTime()) / (24 * 60 * 60 * 1000)) + 1
+    );
+    const daysPerWeek = Math.min(7, Math.max(0, compound.daysPerWeek || 0));
+    const expectedDoses = compound.dosesPerDay * trackingDays * (daysPerWeek / 7);
+    if (expectedDoses > 0) {
+      const rate = Math.min(1, compliance.checkedDoses / expectedDoses);
+      daily *= rate;
+    }
   }
 
-  const totalMgPerUnit = compound.category === 'injectable-oil' && compound.vialSizeMl
-    ? compound.unitSize * compound.vialSizeMl
-    : compound.unitSize;
-  const unitsPerMonth = monthlyConsumption / totalMgPerUnit;
-  return unitsPerMonth * compound.unitPrice;
+  // Step 2: apply cycling ON/OFF fraction AFTER compliance
+  if (compound.cycleOnDays && compound.cycleOffDays) {
+    const onFraction = compound.cycleOnDays / (compound.cycleOnDays + compound.cycleOffDays);
+    daily *= onFraction;
+  }
+
+  const monthly = daily * 30;
+
+  // Peptide
+  if (compound.category === 'peptide' && compound.bacstatPerVial) {
+    const vials = monthly / compound.bacstatPerVial;
+    if (compound.reorderType === 'kit' && compound.kitPrice) {
+      return (vials / 10) * compound.kitPrice;
+    }
+    return vials * compound.unitPrice;
+  }
+
+  // Injectable oil — branch on doseLabel
+  if (compound.category === 'injectable-oil' && compound.vialSizeMl && compound.unitSize) {
+    const dl = (compound.doseLabel ?? '').toLowerCase();
+    let totalPerVial: number;
+    if (dl === 'iu') {
+      totalPerVial = compound.vialSizeMl * 100;
+    } else if (dl === 'ml') {
+      totalPerVial = compound.vialSizeMl;
+    } else {
+      // mg (default)
+      totalPerVial = compound.unitSize * compound.vialSizeMl;
+    }
+    if (totalPerVial > 0) {
+      return (monthly / totalPerVial) * compound.unitPrice;
+    }
+    return 0;
+  }
+
+  // Oral / powder / all other categories
+  if (compound.unitSize > 0) {
+    return (monthly / compound.unitSize) * compound.unitPrice;
+  }
+
+  return 0;
+}
+
+/**
+ * Validate that a compound has all required fields for accurate math.
+ * Returns an array of error messages (empty = valid).
+ */
+export function validateCompoundForMath(compound: Compound): string[] {
+  const errors: string[] = [];
+
+  if (!compound.dosePerUse || compound.dosePerUse <= 0)
+    errors.push('Dose per use must be greater than 0');
+  if (!compound.dosesPerDay || compound.dosesPerDay <= 0)
+    errors.push('Doses per day must be greater than 0');
+  if (!compound.daysPerWeek || compound.daysPerWeek <= 0)
+    errors.push('Days per week must be greater than 0');
+
+  switch (compound.category) {
+    case 'peptide':
+      if (!compound.bacstatPerVial || compound.bacstatPerVial <= 0)
+        errors.push('Reconstitution volume missing — set solvent volume so IU per vial can be calculated');
+      if (!compound.reconVolume || compound.reconVolume <= 0)
+        errors.push('Reconstitution volume (mL) required');
+      if ((compound.doseLabel ?? '').toLowerCase() !== 'iu')
+        errors.push('Peptide dose unit must be IU');
+      break;
+
+    case 'injectable-oil':
+      if (!compound.vialSizeMl || compound.vialSizeMl <= 0)
+        errors.push('Vial size (mL) required');
+      if (!compound.unitSize || compound.unitSize <= 0)
+        errors.push('Concentration (mg/mL) required as unit size');
+      if (!['iu', 'mg', 'ml'].includes((compound.doseLabel ?? '').toLowerCase()))
+        errors.push('Dose unit must be IU, mg, or mL');
+      break;
+
+    case 'oral':
+    case 'powder':
+    case 'vitamin':
+    case 'adaptogen':
+    case 'nootropic':
+    case 'probiotic':
+      if (!compound.unitSize || compound.unitSize <= 0)
+        errors.push('Total count per bottle required (e.g. 90 for a 90-capsule bottle)');
+      break;
+  }
+
+  return errors;
 }
 
 // Helper: date N days ago as ISO string
