@@ -79,6 +79,24 @@ const ProfileDropdown = ({
           {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           {isDark ? 'Light Mode' : 'Dark Mode'}
         </DropdownMenuItem>
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger className="gap-2 cursor-pointer">
+            <Palette className="w-4 h-4" />
+            Theme: {themeOptions.find(o => o.key === theme)?.label}
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="w-36" sideOffset={4} alignOffset={-5}>
+            {themeOptions.map(o => (
+              <DropdownMenuItem
+                key={o.key}
+                onClick={() => setTheme(o.key)}
+                className={cn('gap-2 cursor-pointer', theme === o.key && 'font-semibold text-primary')}
+              >
+                {o.label}
+                {theme === o.key && <span className="ml-auto text-primary">✓</span>}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={onAccountSettings} className="gap-2 cursor-pointer">
           <Settings className="w-4 h-4" />
