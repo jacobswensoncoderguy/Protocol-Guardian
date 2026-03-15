@@ -170,3 +170,22 @@ export function getDaysRemainingWithCycling(compound: Compound, compliance?: Com
 
   return Math.max(0, day - 1);
 }
+
+export function getReorderDateString(
+  compound: Compound,
+  compliance?: ComplianceInfo
+): string {
+  const days = getDaysRemainingWithCycling(compound, compliance);
+  const reorderDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${months[reorderDate.getMonth()]} ${reorderDate.getFullYear()}`;
+}
+
+export function getReorderMonth(
+  compound: Compound,
+  compliance?: ComplianceInfo
+): number {
+  const days = getDaysRemainingWithCycling(compound, compliance);
+  const reorderDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+  return reorderDate.getMonth();
+}

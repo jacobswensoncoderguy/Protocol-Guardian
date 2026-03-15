@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Compound, getStatus, getReorderDateString, CompoundCategory, getDaysRemaining, getEffectiveQuantity, getConsumedSinceDate, consumedToContainerUnits, getCompoundContainerKind } from '@/data/compounds';
-import { getCycleStatus, getDaysRemainingWithCycling, isPaused } from '@/lib/cycling';
+import { Compound, getStatus, CompoundCategory, getEffectiveQuantity, getConsumedSinceDate, consumedToContainerUnits, getCompoundContainerKind, validateCompoundForMath } from '@/data/compounds';
+import { getCycleStatus, getDaysRemainingWithCycling, isPaused, getReorderDateString } from '@/lib/cycling';
 import { useCompliance } from '@/contexts/ComplianceContext';
 import { UserProtocol } from '@/hooks/useProtocols';
 import { CustomField, CustomFieldValue, PREDEFINED_FIELDS } from '@/hooks/useCustomFields';
