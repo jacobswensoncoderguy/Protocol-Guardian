@@ -780,6 +780,13 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
     // When user changes quantity via edit form, reset compliance offset so
     // the new quantity is treated as "what I have right now"
     const qtyChanged = qty !== compound.currentQuantity;
+
+    // EC-5: Block save if compliance data is still loading when qty changed
+    if (qtyChanged && ciLoading) {
+      toast.error('Syncing dose history — please try again in a moment.');
+      return;
+    }
+
     const ci = qtyChanged ? getCI(compound.id) : undefined;
 
     const updates: Partial<Compound> = {
@@ -791,7 +798,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
       reorderQuantity: reorder,
       reorderType: (editState.reorderType as 'single' | 'kit') || 'single',
       ...(qtyChanged ? {
-        complianceDoseOffset: ci?.checkedDoses || 0,
+        complianceDoseOffset: ci?.checkedDoses ?? 0,
         purchaseDate: new Date().toISOString().split('T')[0],
       } : {}),
     };
