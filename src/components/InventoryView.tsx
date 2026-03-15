@@ -1084,6 +1084,15 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
             {titrationBadge.currentStep}/{titrationBadge.totalSteps}
           </span>
         )}
+        {/* Compliance dose offset indicator (Section 9A / B8) */}
+        {(compound.complianceDoseOffset ?? 0) > 0 && (
+          <span
+            className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground border border-border/40 inline-flex items-center gap-1 cursor-help"
+            title={`Dose offset active: ${compound.complianceDoseOffset} doses excluded from compliance tracking. Edit compound to adjust if incorrect.`}
+          >
+            ℹ offset {compound.complianceDoseOffset}
+          </span>
+        )}
       </div>
 
       {/* Compound Scores — bioavailability, efficacy, effectiveness */}
