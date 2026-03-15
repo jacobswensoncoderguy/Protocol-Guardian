@@ -311,6 +311,23 @@
     font-family: 'DM Sans', 'Inter', sans-serif;
   }
 
+  /* Smooth theme transitions */
+  *,
+  *::before,
+  *::after {
+    transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+    transition-duration: 0.3s;
+    transition-timing-function: ease-in-out;
+  }
+
+  /* Exclude elements where transitions cause issues */
+  input, textarea, select, button,
+  [data-radix-popper-content-wrapper],
+  .no-theme-transition,
+  .no-theme-transition * {
+    transition-property: none !important;
+  }
+
   .font-mono {
     font-family: 'DM Mono', 'JetBrains Mono', monospace;
   }
