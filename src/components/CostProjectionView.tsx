@@ -5,7 +5,7 @@ import { getDaysRemainingWithCycling, getEffectiveDailyConsumption, getCycleStat
 import { useCompliance } from '@/contexts/ComplianceContext';
 import { UserProtocol } from '@/hooks/useProtocols';
 import { CustomField } from '@/hooks/useCustomFields';
-import { TrendingDown, ChevronDown } from 'lucide-react';
+import { TrendingDown, ChevronDown, RefreshCcw } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ThemeSelector } from '@/contexts/ThemeContext';
 
@@ -268,25 +268,30 @@ const CostProjectionView = ({ compounds, protocols = [], customFields = [], cust
     return sum + baseCost * (1 - mods.discountPct / 100) + mods.shippingCost;
   }, 0);
 
+  const maxMonthSpend = Math.max(...projection.map(m => m.total), 1);
+
   return (
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-foreground">Cost Projection</h2>
+        <h2 className="text-sm font-semibold text-foreground" style={{ fontFamily: "'DM Sans', sans-serif" }}>Cost Projection</h2>
         <ThemeSelector />
       </div>
-      <div className="grid grid-cols-3 gap-2">
-        <div className="bg-card rounded-lg border border-border/50 p-3">
-          <p className="text-[10px] text-muted-foreground">Est. Annual</p>
-          <p className="text-lg font-bold font-mono text-primary">${Math.round(totalAnnual).toLocaleString()}</p>
+      {/* Summary Row */}
+      <div className="flex items-stretch bg-card rounded-xl border border-border/50 overflow-hidden">
+        <div className="flex-1 p-3 text-center">
+          <p className="text-xl font-bold font-mono text-primary" style={{ fontFamily: "'DM Mono', monospace" }}>${Math.round(totalAnnual).toLocaleString()}</p>
+          <p className="text-[9px] uppercase tracking-wider text-muted-foreground mt-0.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>Est. Annual</p>
         </div>
-        <div className="bg-card rounded-lg border border-border/50 p-3">
-          <p className="text-[10px] text-muted-foreground">Remaining</p>
-          <p className="text-lg font-bold font-mono text-accent">${Math.round(remainingAnnual).toLocaleString()}</p>
+        <div className="w-px bg-border/50 self-stretch" />
+        <div className="flex-1 p-3 text-center">
+          <p className="text-xl font-bold font-mono text-accent" style={{ fontFamily: "'DM Mono', monospace" }}>${Math.round(remainingAnnual).toLocaleString()}</p>
+          <p className="text-[9px] uppercase tracking-wider text-muted-foreground mt-0.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>Remaining</p>
         </div>
-        <div className="bg-card rounded-lg border border-border/50 p-3">
-          <p className="text-[10px] text-muted-foreground">Spent</p>
-          <p className="text-lg font-bold font-mono text-status-good">${Math.round(totalSpent).toLocaleString()}</p>
+        <div className="w-px bg-border/50 self-stretch" />
+        <div className="flex-1 p-3 text-center">
+          <p className="text-xl font-bold font-mono text-status-good" style={{ fontFamily: "'DM Mono', monospace" }}>${Math.round(totalSpent).toLocaleString()}</p>
+          <p className="text-[9px] uppercase tracking-wider text-muted-foreground mt-0.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>Spent</p>
         </div>
       </div>
 
@@ -319,31 +324,41 @@ const CostProjectionView = ({ compounds, protocols = [], customFields = [], cust
       {/* Month Grid */}
       <div className="grid grid-cols-4 sm:grid-cols-4 lg:grid-cols-6 gap-1.5 sm:gap-2">
         {projection.map((month, idx) => {
-          const color = month.total === 0 ? 'bg-secondary' :
-            month.total < 200 ? 'bg-status-good/15 border-status-good/30' :
-            month.total < 500 ? 'bg-accent/15 border-accent/30' :
-            'bg-destructive/15 border-destructive/30';
+          const spendPct = maxMonthSpend > 0 ? (month.total / maxMonthSpend) * 100 : 0;
+          const tierColor = month.total === 0 ? 'muted' :
+            month.total < 200 ? 'good' :
+            month.total < 500 ? 'warning' : 'critical';
+          const bgClass = month.total === 0 ? 'bg-secondary/30' :
+            month.total < 200 ? 'bg-status-good/10 border-status-good/20' :
+            month.total < 500 ? 'bg-accent/12 border-accent/20' :
+            'bg-destructive/12 border-destructive/20';
+          const textClass = month.total === 0 ? 'text-muted-foreground' :
+            month.total < 200 ? 'text-status-good' :
+            month.total < 500 ? 'text-status-warning' :
+            'text-status-critical';
+          const barColor = month.total === 0 ? 'bg-muted' :
+            month.total < 200 ? 'bg-status-good' :
+            month.total < 500 ? 'bg-accent' : 'bg-destructive';
 
           return (
             <button
               key={idx}
               onClick={() => setSelectedIndex(selectedIndex === idx ? null : idx)}
-              className={`rounded-lg border p-2 sm:p-2.5 text-center transition-all active:scale-95 touch-manipulation ${color} ${
+              className={`relative rounded-xl border p-2.5 text-left transition-all active:scale-95 touch-manipulation overflow-hidden ${bgClass} ${
                 selectedIndex === idx ? 'ring-1 ring-primary' : 'border-border/50'
               }`}
             >
-              <p className="text-[11px] sm:text-xs font-semibold text-foreground">{month.name}</p>
-              <p className={`text-xs sm:text-sm font-bold font-mono mt-0.5 ${
-                month.total === 0 ? 'text-muted-foreground' :
-                month.total < 200 ? 'text-status-good' :
-                month.total < 500 ? 'text-status-warning' :
-                'text-status-critical'
-              }`}>
+              <p className="text-[11px] font-semibold text-foreground" style={{ fontFamily: "'DM Sans', sans-serif" }}>{month.name}</p>
+              <p className={`text-sm font-bold mt-0.5 ${textClass}`} style={{ fontFamily: "'DM Mono', monospace" }}>
                 ${Math.round(month.total)}
               </p>
-              <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5">
-                {month.compounds.length}
+              <p className="text-[9px] text-muted-foreground mt-0.5">
+                {month.compounds.length} compound{month.compounds.length !== 1 ? 's' : ''}
               </p>
+              {/* Proportional spend bar */}
+              <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-border/10 rounded-b-xl overflow-hidden">
+                <div className={`h-full rounded-b-xl ${barColor}`} style={{ width: `${spendPct}%`, transition: 'width 0.3s ease' }} />
+              </div>
             </button>
           );
         })}
@@ -457,18 +472,17 @@ const CostProjectionView = ({ compounds, protocols = [], customFields = [], cust
         const finalGroups = savingsGroups.length > 0 ? savingsGroups : [{ label: '', items: savings }];
 
         return (
-          <div className="bg-card rounded-lg border border-border/50 overflow-hidden">
+          <div className="rounded-xl border border-status-good/15 overflow-hidden" style={{ background: 'hsl(var(--status-good) / 0.05)' }}>
             <button
               onClick={() => setShowSavings(!showSavings)}
               className="w-full flex items-center justify-between p-3 text-left active:bg-secondary/30 touch-manipulation"
             >
               <div className="flex items-center gap-2">
-                <TrendingDown className="w-4 h-4 text-status-good" />
-                <span className="text-sm font-semibold text-foreground">Cycling Savings</span>
-                <span className="text-xs text-muted-foreground">({savings.length} compounds)</span>
+                <RefreshCcw className="w-4 h-4 text-status-good" />
+                <span className="text-[11px] font-semibold text-muted-foreground" style={{ fontFamily: "'DM Sans', sans-serif" }}>↗ Cycling Savings</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold font-mono text-status-good">
+                <span className="text-lg font-bold text-status-good" style={{ fontFamily: "'DM Mono', monospace" }}>
                   -${Math.round(totalAnnualSaved).toLocaleString()}/yr
                 </span>
                 <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform duration-200 ${showSavings ? 'rotate-180' : ''}`} />

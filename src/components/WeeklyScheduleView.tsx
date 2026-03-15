@@ -495,7 +495,7 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
         </div>
 
         {/* Day Selector */}
-        <div className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-thin">
+        <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-thin justify-center">
           {weeklySchedule.map((day) => {
             const dayDate = getDateForDayIndex(day.dayIndex);
             const isToday = isCurrentWeek && day.dayIndex === today;
@@ -505,19 +505,19 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
               <TooltipTrigger asChild>
                 <button
                   onClick={() => setSelectedDay(day.dayIndex)}
-                  className={`relative flex-shrink-0 px-3 py-2.5 sm:py-2 rounded-lg text-xs font-medium transition-all touch-manipulation ${
+                  className={`relative flex-shrink-0 w-10 h-10 rounded-full flex flex-col items-center justify-center text-xs font-semibold transition-all touch-manipulation ${
                     selectedDay === day.dayIndex
-                      ? 'bg-primary text-primary-foreground glow-cyan'
+                      ? 'bg-primary/20 border border-primary/40 text-primary'
                       : isToday
                         ? 'bg-secondary border border-primary/30 text-primary'
                         : 'bg-secondary text-secondary-foreground active:bg-secondary/60'
                   }`}
+                  style={{ fontFamily: "'DM Sans', sans-serif" }}
                 >
-                  {day.shortName}
+                  <span className="text-[11px] leading-none">{day.shortName}</span>
+                  <span className="text-[9px] leading-none mt-0.5 font-mono opacity-60">{dayDate.getDate()}</span>
                   {isDayDone && (
-                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-status-good flex items-center justify-center ring-2 ring-background">
-                      <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
-                    </span>
+                    <span className="absolute -bottom-1 w-1.5 h-1.5 rounded-full bg-status-good" />
                   )}
                 </button>
               </TooltipTrigger>
@@ -837,16 +837,19 @@ const DoseSection = ({
         onClick={() => setCollapsed(c => !c)}
         className="w-full flex items-center justify-between text-left"
       >
-        <h3 className={`text-sm font-semibold flex items-center gap-2 ${accent}`}>
+        <h3 className={`text-[11px] font-semibold flex items-center gap-2 ${accent}`} style={{ fontFamily: "'DM Sans', sans-serif" }}>
           {icon}
           {title}
-          <span className="text-muted-foreground font-normal">({totalActive} active)</span>
         </h3>
         <div className="flex items-center gap-2">
-          {collapsed && checkedCount.total > 0 && (
-            <span className="text-[10px] text-muted-foreground font-mono">
-              {checkedCount.checked}/{checkedCount.total}
-            </span>
+          {checkedCount.total > 0 && (
+            checkedCount.checked === checkedCount.total ? (
+              <span className="text-[10px] font-semibold text-status-good" style={{ fontFamily: "'DM Mono', monospace" }}>✓ Done</span>
+            ) : (
+              <span className="text-[10px] text-muted-foreground" style={{ fontFamily: "'DM Mono', monospace" }}>
+                {checkedCount.checked}/{checkedCount.total}
+              </span>
+            )
           )}
           <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${collapsed ? '' : 'rotate-180'}`} />
         </div>
