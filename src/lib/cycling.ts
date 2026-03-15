@@ -82,28 +82,38 @@ export function getCycleStatus(compound: Compound, referenceDate: Date = new Dat
  * Get the effective daily consumption adjusted for cycling and pause state.
  * Paused compounds consume nothing. During cycling OFF phases, average is reduced.
  */
-export function getEffectiveDailyConsumption(compound: Compound, compliance?: ComplianceInfo): number {
+export function getEffectiveDailyConsumption(
+  compound: Compound,
+  compliance?: ComplianceInfo
+): number {
   if (isPaused(compound)) return 0;
-  const rawDaily = getNormalizedDailyConsumption(compound);
-  const { onFraction } = getCycleStatus(compound);
-  let adjusted = rawDaily * onFraction;
 
-  // Scale by compliance rate if available
-  if (compliance && compliance.firstCheckDate && compliance.lastCheckDate) {
+  let daily = getNormalizedDailyConsumption(compound);
+
+  if (compliance?.firstCheckDate && compliance?.lastCheckDate) {
     const first = new Date(compliance.firstCheckDate);
     const last = new Date(compliance.lastCheckDate);
     first.setHours(0, 0, 0, 0);
     last.setHours(0, 0, 0, 0);
-    const trackingDays = Math.max(1, Math.floor((last.getTime() - first.getTime()) / (24 * 60 * 60 * 1000)) + 1);
+    const trackingDays = Math.max(
+      1,
+      Math.floor(
+        (last.getTime() - first.getTime()) / (24 * 60 * 60 * 1000)
+      ) + 1
+    );
     const daysPerWeek = Math.min(7, Math.max(0, compound.daysPerWeek || 0));
     const expectedDoses = compound.dosesPerDay * trackingDays * (daysPerWeek / 7);
     if (expectedDoses > 0) {
-      const complianceRate = Math.min(1, compliance.checkedDoses / expectedDoses);
-      adjusted *= complianceRate;
+      const rate = Math.min(1, compliance.checkedDoses / expectedDoses);
+      daily *= rate;
     }
   }
 
-  return adjusted;
+  // Do NOT apply onFraction here.
+  // This function returns the average daily consumption rate for card display only.
+  // getDaysRemainingWithCycling handles ON/OFF via day-loop.
+  // getMonthlyConsumptionCost applies onFraction separately.
+  return daily;
 }
 
 /**
