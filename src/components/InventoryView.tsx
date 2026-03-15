@@ -974,6 +974,17 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
 
       {/* Row 2: Status badges */}
       <div className="flex flex-wrap items-center gap-1 mb-2">
+        {/* Validation errors badge */}
+        {hasValidationErrors && (
+          <button
+            onClick={() => startEdit()}
+            className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-accent/20 text-status-warning border border-accent/30 inline-flex items-center gap-1 cursor-pointer hover:bg-accent/30 transition-colors"
+            title={validationErrors.join('\n')}
+          >
+            <AlertTriangle className="w-2.5 h-2.5" />
+            Setup incomplete
+          </button>
+        )}
         {compound.weightPerUnit && compound.weightPerUnit > 0 && !isPeptide && !isOil && (
           <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground border border-border/40" title="Weight per unit">
             {(() => {
