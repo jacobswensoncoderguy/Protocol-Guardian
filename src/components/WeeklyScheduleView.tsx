@@ -11,7 +11,7 @@ import { UserProtocol } from '@/hooks/useProtocols';
 import { getCompoundScores, getDeliveryLabel, CompoundScores } from '@/data/compoundScores';
 import CompoundScoreDrawer from '@/components/CompoundScoreDrawer';
 import { supabase } from '@/integrations/supabase/client';
-import { Sun, Moon, Dumbbell, Info, Syringe, Pause, Check, ArrowLeft, Search, X, ChevronLeft, ChevronRight, Calendar, Beaker, FlaskConical, Target } from 'lucide-react';
+import { Sun, Moon, Dumbbell, Info, Syringe, Pause, Check, ArrowLeft, Search, X, ChevronLeft, ChevronRight, ChevronDown, Calendar, Beaker, FlaskConical, Target } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarWidget } from '@/components/ui/calendar';
