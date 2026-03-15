@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Compound, getReorderCost, getNormalizedDailyConsumption, getCompoundContainerKind } from '@/data/compounds';
+import { Compound, getReorderCost, getNormalizedDailyConsumption, getCompoundContainerKind, getMonthlyConsumptionCost } from '@/data/compounds';
 import { supabase } from '@/integrations/supabase/client';
 import { getDaysRemainingWithCycling, getEffectiveDailyConsumption, getCycleStatus } from '@/lib/cycling';
 import { useCompliance } from '@/contexts/ComplianceContext';
