@@ -41,6 +41,13 @@ const ProfileDropdown = ({
 }: ProfileDropdownProps) => {
   const { user } = useAuth();
   const { isAdmin } = useAdminRole(user?.id);
+  const { theme, setTheme } = usePageTheme();
+  const themeOptions: { key: PgTheme; label: string }[] = [
+    { key: 'obsidian', label: 'Atlas' },
+    { key: 'clinic', label: 'Clinic' },
+    { key: 'neon', label: 'Neon' },
+    { key: 'carbon', label: 'Carbon' },
+  ];
   const navigate = useNavigate();
   const initials = displayName
     ? displayName.slice(0, 2).toUpperCase()
