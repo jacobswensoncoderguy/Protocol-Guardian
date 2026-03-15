@@ -928,11 +928,14 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                 >
                   <Calculator className="w-3 h-3" /> Calculator
                 </button>
-                {showCalculator && (
-                  <CompoundingCalculator compound={compound} onResult={(r: CalculatorResult) => {
+                <CompoundingCalculator
+                  open={showCalculator}
+                  onOpenChange={setShowCalculator}
+                  onApply={(r: CalculatorResult) => {
                     if (r.weightPerUnit !== undefined) onUpdate(compound.id, { weightPerUnit: r.weightPerUnit, weightUnit: 'mg' });
-                  }} />
-                )}
+                    if (r.concentration !== undefined) onUpdate(compound.id, { resultingConcentration: r.concentration, solventType: r.solventType, solventVolume: r.solventVolume });
+                  }}
+                />
 
                 {/* Purchase date prompt */}
                 {!compound.purchaseDate && !isPeptide && !isOil && (
