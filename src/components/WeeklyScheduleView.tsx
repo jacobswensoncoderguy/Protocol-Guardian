@@ -60,7 +60,7 @@ function getFrequencyLabel(compound: Compound): string {
 }
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import CompoundInfoDrawer from '@/components/CompoundInfoDrawer';
-import { ThemeSelector } from '@/contexts/ThemeContext';
+
 
 interface WeeklyScheduleViewProps {
   compounds: Compound[];
