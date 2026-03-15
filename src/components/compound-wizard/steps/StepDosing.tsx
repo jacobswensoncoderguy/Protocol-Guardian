@@ -231,7 +231,7 @@ export default function StepDosing({ formData, onUpdate, onNext, onBack, accentC
 
       <div className="flex gap-3 pt-2">
         <button type="button" onClick={onBack} className="flex-1 py-3 rounded-xl text-sm font-medium text-muted-foreground border border-border/50 hover:bg-secondary transition-colors">Back</button>
-        <button type="button" onClick={onNext} className="flex-1 py-3 rounded-xl font-semibold text-sm transition-all" style={{ backgroundColor: `hsl(${accentColor})`, color: 'hsl(var(--background))' }}>Continue</button>
+        <button type="button" onClick={onNext} disabled={!doseValid} className="flex-1 py-3 rounded-xl font-semibold text-sm transition-all disabled:opacity-50" style={{ backgroundColor: `hsl(${accentColor})`, color: 'hsl(var(--background))' }}>Continue</button>
       </div>
     </div>
   );
