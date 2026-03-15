@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useMemo } from 'react';
 import { useComplianceData, ComplianceMap, CompoundCompliance } from '@/hooks/useComplianceData';
-import { Compound, getEffectiveQuantity, getDaysRemaining, getConsumedSinceDate, consumedToContainerUnits } from '@/data/compounds';
+import { Compound, getEffectiveQuantity, getConsumedSinceDate, consumedToContainerUnits } from '@/data/compounds';
 import { getDaysRemainingWithCycling, getEffectiveDailyConsumption, ComplianceInfo } from '@/lib/cycling';
 
 interface ComplianceContextValue {

@@ -75,6 +75,10 @@ export default function StepDosing({ formData, onUpdate, onNext, onBack, accentC
     return null;
   })() : null;
 
+  // Validate dose: must be > 0 to continue
+  const doseValue = skipDoseInput ? resolvedDose.dosePerUse : (parseFloat(formData.targetDose) || 0);
+  const doseValid = doseValue > 0;
+
   return (
     <div className="space-y-5 px-4 pb-6">
       <h3 className="text-base font-semibold text-foreground">Dosing Schedule</h3>
@@ -100,6 +104,9 @@ export default function StepDosing({ formData, onUpdate, onNext, onBack, accentC
               {doseUnitOptions.map(u => <option key={u} value={u}>{u}</option>)}
             </select>
           </div>
+          {!doseValid && (
+            <p className="text-[11px] text-destructive mt-1">Enter a dose greater than 0 to continue.</p>
+          )}
         </div>
       ) : (
         /* Read-only dose display for types where dose is defined in Step 2 */
@@ -224,7 +231,7 @@ export default function StepDosing({ formData, onUpdate, onNext, onBack, accentC
 
       <div className="flex gap-3 pt-2">
         <button type="button" onClick={onBack} className="flex-1 py-3 rounded-xl text-sm font-medium text-muted-foreground border border-border/50 hover:bg-secondary transition-colors">Back</button>
-        <button type="button" onClick={onNext} className="flex-1 py-3 rounded-xl font-semibold text-sm transition-all" style={{ backgroundColor: `hsl(${accentColor})`, color: 'hsl(var(--background))' }}>Continue</button>
+        <button type="button" onClick={onNext} disabled={!doseValid} className="flex-1 py-3 rounded-xl font-semibold text-sm transition-all disabled:opacity-50" style={{ backgroundColor: `hsl(${accentColor})`, color: 'hsl(var(--background))' }}>Continue</button>
       </div>
     </div>
   );

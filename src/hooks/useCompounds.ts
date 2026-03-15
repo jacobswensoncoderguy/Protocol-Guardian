@@ -80,7 +80,7 @@ function normalizeCompoundForApp(compound: Compound): Compound {
 }
 
 function dbToCompound(row: DbUserCompound): Compound {
-  return normalizeCompoundForApp({
+  const compound = normalizeCompoundForApp({
     id: row.id, // use user_compound UUID as the compound id
     name: row.name,
     category: row.category as CompoundCategory,
@@ -119,6 +119,17 @@ function dbToCompound(row: DbUserCompound): Compound {
     storageInstructions: row.storage_instructions ?? undefined,
     prepNotes: row.prep_notes ?? undefined,
   });
+
+  // Auto-derive bacstatPerVial for peptides if missing (B2 fix)
+  if (
+    compound.category === 'peptide' &&
+    compound.reconVolume && compound.reconVolume > 0 &&
+    (!compound.bacstatPerVial || compound.bacstatPerVial <= 0)
+  ) {
+    compound.bacstatPerVial = compound.reconVolume * 100;
+  }
+
+  return compound;
 }
 
 export function useCompounds(userId: string | undefined) {
@@ -224,6 +235,13 @@ export function useCompounds(userId: string | undefined) {
     if ('storageInstructions' in updates) dbUpdates.storage_instructions = updates.storageInstructions ?? null;
     if ('prepNotes' in updates) dbUpdates.prep_notes = updates.prepNotes ?? null;
 
+    // Auto-derive bacstatPerVial for peptides (B2 fix)
+    const mergedCategory = (updates.category ?? compounds.find(c => c.id === id)?.category) || '';
+    const mergedReconVolume = updates.reconVolume ?? compounds.find(c => c.id === id)?.reconVolume;
+    if (mergedCategory === 'peptide' && mergedReconVolume && mergedReconVolume > 0) {
+      dbUpdates.bacstat_per_vial = mergedReconVolume * 100;
+    }
+
     const { error } = await supabase
       .from('user_compounds')
       .update(dbUpdates)
@@ -251,7 +269,9 @@ export function useCompounds(userId: string | undefined) {
         kit_price: compound.kitPrice ?? null,
         dose_per_use: compound.dosePerUse,
         dose_label: compound.doseLabel,
-        bacstat_per_vial: compound.bacstatPerVial ?? null,
+        bacstat_per_vial: compound.category === 'peptide' && compound.reconVolume && compound.reconVolume > 0
+          ? compound.reconVolume * 100
+          : (compound.bacstatPerVial ?? null),
         recon_volume: compound.reconVolume ?? null,
         doses_per_day: compound.dosesPerDay,
         days_per_week: compound.daysPerWeek,
