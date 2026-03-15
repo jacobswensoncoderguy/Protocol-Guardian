@@ -1090,28 +1090,6 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
             {titrationBadge.currentStep}/{titrationBadge.totalSteps}
           </span>
         )}
-        {/* Compliance dose offset indicator (Section 9A / B8) */}
-        {(compound.complianceDoseOffset ?? 0) > 0 && (
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground border border-border/40 inline-flex items-center gap-1 cursor-pointer hover:bg-secondary/80 transition-colors"
-              >
-                ℹ offset {compound.complianceDoseOffset}
-              </button>
-            </PopoverTrigger>
-            <PopoverContent side="top" align="start" className="w-64 p-3 text-xs space-y-2">
-              <p className="font-semibold text-foreground">Dose Offset Active</p>
-              <p className="text-muted-foreground leading-relaxed">
-                <span className="font-mono text-foreground">{compound.complianceDoseOffset}</span> prior dose check-offs are excluded from depletion math. This happens automatically when you update stock quantity — the system "zeros out" old usage so days-remaining starts fresh from your new count.
-              </p>
-              <p className="text-muted-foreground/70 leading-relaxed">
-                If this looks wrong, edit the compound and re-save the current quantity to recalibrate.
-              </p>
-            </PopoverContent>
-          </Popover>
-        )}
       </div>
 
       {/* Compound Scores — bioavailability, efficacy, effectiveness */}
