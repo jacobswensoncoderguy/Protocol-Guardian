@@ -2358,20 +2358,34 @@ const InlineQuantityEditor = ({ compound, status, isOil, isPeptide, onUpdate }: 
   const saveInline = () => {
     const val = parseFloat(inlineValue);
     if (!isNaN(val) && val >= 0) {
-      // When user manually sets quantity, treat it as "as of today" by resetting
-      // complianceDoseOffset to current checked doses so past consumption is zeroed out,
-      // and setting purchaseDate to today so theoretical pre-tracking is also zeroed.
-      const ci = getComplianceInfo(compound.id);
-      onUpdate(compound.id, {
-        currentQuantity: val,
-        purchaseDate: new Date().toISOString().split('T')[0],
-        complianceDoseOffset: ci?.checkedDoses || 0,
-      });
+      const qtyChanged = val !== compound.currentQuantity;
+
+      // EC-5: Block save if compliance data is still loading when qty changed
+      if (qtyChanged && complianceLoading) {
+        toast.error('Syncing dose history — please try again in a moment.');
+        return;
+      }
+
+      if (qtyChanged) {
+        // When user manually sets quantity, treat it as "as of today" by resetting
+        // complianceDoseOffset to current checked doses so past consumption is zeroed out,
+        // and setting purchaseDate to today so theoretical pre-tracking is also zeroed.
+        const ci = getComplianceInfo(compound.id);
+        onUpdate(compound.id, {
+          currentQuantity: val,
+          purchaseDate: new Date().toISOString().split('T')[0],
+          complianceDoseOffset: ci?.checkedDoses ?? 0,
+        });
+        const unitWord = compound.unitLabel || 'units';
+        toast.success(`Stock updated. Depletion tracking reset to your new inventory of ${val} ${unitWord}.`);
+      } else {
+        // EC-10: No qty change — don't reset offset, don't show restock toast
+        // Nothing to update
+      }
+
       hapticTap(15);
       setJustSaved(true);
       setTimeout(() => setJustSaved(false), 600);
-      const unitWord = compound.unitLabel || 'units';
-      toast.success(`Stock updated. Depletion tracking reset to your new inventory of ${val} ${unitWord}.`);
     }
     setInlineEditing(false);
   };
