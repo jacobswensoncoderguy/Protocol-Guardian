@@ -357,7 +357,7 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
       onUpdateCompound(compound.id, {
         currentQuantity: newCurrentQuantity,
         purchaseDate: new Date().toISOString().split('T')[0],
-        complianceDoseOffset: complianceInfo?.checkedDoses || 0,
+        complianceDoseOffset: complianceInfo?.checkedDoses ?? 0,
       });
     }
     setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'received', received_at: now } : o));
