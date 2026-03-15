@@ -24,7 +24,7 @@ import DatePickerInput from '@/components/DatePickerInput';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import ArcGauge from '@/components/ArcGauge';
 import DestructiveConfirmSheet from '@/components/DestructiveConfirmSheet';
-import { ThemeSelector, usePageTheme } from '@/contexts/ThemeContext';
+import { usePageTheme } from '@/contexts/ThemeContext';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface TitrationBadgeInfo {
