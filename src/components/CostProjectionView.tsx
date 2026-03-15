@@ -268,25 +268,30 @@ const CostProjectionView = ({ compounds, protocols = [], customFields = [], cust
     return sum + baseCost * (1 - mods.discountPct / 100) + mods.shippingCost;
   }, 0);
 
+  const maxMonthSpend = Math.max(...projection.map(m => m.total), 1);
+
   return (
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-foreground">Cost Projection</h2>
+        <h2 className="text-sm font-semibold text-foreground" style={{ fontFamily: "'DM Sans', sans-serif" }}>Cost Projection</h2>
         <ThemeSelector />
       </div>
-      <div className="grid grid-cols-3 gap-2">
-        <div className="bg-card rounded-lg border border-border/50 p-3">
-          <p className="text-[10px] text-muted-foreground">Est. Annual</p>
-          <p className="text-lg font-bold font-mono text-primary">${Math.round(totalAnnual).toLocaleString()}</p>
+      {/* Summary Row */}
+      <div className="flex items-stretch bg-card rounded-xl border border-border/50 overflow-hidden">
+        <div className="flex-1 p-3 text-center">
+          <p className="text-xl font-bold font-mono text-primary" style={{ fontFamily: "'DM Mono', monospace" }}>${Math.round(totalAnnual).toLocaleString()}</p>
+          <p className="text-[9px] uppercase tracking-wider text-muted-foreground mt-0.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>Est. Annual</p>
         </div>
-        <div className="bg-card rounded-lg border border-border/50 p-3">
-          <p className="text-[10px] text-muted-foreground">Remaining</p>
-          <p className="text-lg font-bold font-mono text-accent">${Math.round(remainingAnnual).toLocaleString()}</p>
+        <div className="w-px bg-border/50 self-stretch" />
+        <div className="flex-1 p-3 text-center">
+          <p className="text-xl font-bold font-mono text-accent" style={{ fontFamily: "'DM Mono', monospace" }}>${Math.round(remainingAnnual).toLocaleString()}</p>
+          <p className="text-[9px] uppercase tracking-wider text-muted-foreground mt-0.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>Remaining</p>
         </div>
-        <div className="bg-card rounded-lg border border-border/50 p-3">
-          <p className="text-[10px] text-muted-foreground">Spent</p>
-          <p className="text-lg font-bold font-mono text-status-good">${Math.round(totalSpent).toLocaleString()}</p>
+        <div className="w-px bg-border/50 self-stretch" />
+        <div className="flex-1 p-3 text-center">
+          <p className="text-xl font-bold font-mono text-status-good" style={{ fontFamily: "'DM Mono', monospace" }}>${Math.round(totalSpent).toLocaleString()}</p>
+          <p className="text-[9px] uppercase tracking-wider text-muted-foreground mt-0.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>Spent</p>
         </div>
       </div>
 
