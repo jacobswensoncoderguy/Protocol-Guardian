@@ -48,6 +48,10 @@ export interface Compound {
   concentrationUnit?: string;  // e.g. "mg/mL"
   storageInstructions?: string;
   prepNotes?: string;
+  // Spray compounds
+  containerVolumeMl?: number;  // total container volume in mL (e.g. 15 for a 15mL spray bottle)
+  mlPerSpray?: number;         // mL delivered per spray (e.g. 0.1)
+  spraysPerDose?: number;      // number of sprays per dose
 }
 
 const CONTAINER_TAG_REGEX = /\[CONTAINER:(bag|bottle)\]/i;
@@ -322,6 +326,33 @@ export function consumedToContainerUnits(compound: Compound, consumed: number): 
     return compound.unitSize > 0 ? numDoses / compound.unitSize : 0;
   }
 
+  const dl_ctcu = (compound.doseLabel ?? '').toLowerCase();
+  const ul_ctcu = (compound.unitLabel ?? '').toLowerCase();
+
+  // Spray compounds
+  if (
+    (dl_ctcu === 'sprays' || dl_ctcu === 'spray') &&
+    compound.containerVolumeMl &&
+    compound.mlPerSpray &&
+    compound.mlPerSpray > 0
+  ) {
+    const totalSprays = compound.containerVolumeMl / compound.mlPerSpray;
+    return totalSprays > 0 ? consumed / totalSprays : 0;
+  }
+
+  // Drop compounds
+  if (
+    (dl_ctcu === 'drops' || dl_ctcu === 'drop') &&
+    compound.unitSize > 0 &&
+    (ul_ctcu === 'ml' || ul_ctcu === 'fl oz' || ul_ctcu === 'oz')
+  ) {
+    const mlPerContainer = ul_ctcu === 'ml'
+      ? compound.unitSize
+      : compound.unitSize * 29.5735;
+    const totalDrops = mlPerContainer * 20;
+    return totalDrops > 0 ? consumed / totalDrops : 0;
+  }
+
   // For orals/powders with count-based doses: consumed is already in unit counts
   if (compound.unitSize > 0) {
     return consumed / compound.unitSize;
@@ -373,6 +404,31 @@ export function totalSupplyInDoseUnits(compound: Compound, effectiveQty: number)
     const mlPerContainer = toMl(compound.unitSize, ul);
     return effectiveQty * mlPerContainer * DROPS_PER_ML;
   }
+  const dl_tsidu = (compound.doseLabel ?? '').toLowerCase();
+  const ul_tsidu = (compound.unitLabel ?? '').toLowerCase();
+
+  // Spray compounds
+  if (
+    (dl_tsidu === 'sprays' || dl_tsidu === 'spray') &&
+    compound.containerVolumeMl &&
+    compound.mlPerSpray &&
+    compound.mlPerSpray > 0
+  ) {
+    return effectiveQty * (compound.containerVolumeMl / compound.mlPerSpray);
+  }
+
+  // Drop compounds (verify formula: effectiveQty × unitSize_mL × 20)
+  if (
+    (dl_tsidu === 'drops' || dl_tsidu === 'drop') &&
+    compound.unitSize > 0 &&
+    (ul_tsidu === 'ml' || ul_tsidu === 'fl oz' || ul_tsidu === 'oz')
+  ) {
+    const mlPerContainer = ul_tsidu === 'ml'
+      ? compound.unitSize
+      : compound.unitSize * 29.5735;
+    return effectiveQty * mlPerContainer * 20;
+  }
+
   // orals/powders: effectiveQty is in containers, unitSize = units per container
   return effectiveQty * compound.unitSize;
 }
@@ -457,6 +513,39 @@ export function getMonthlyConsumptionCost(
     return 0;
   }
 
+  const dl_mcc = (compound.doseLabel ?? '').toLowerCase();
+  const ul_mcc = (compound.unitLabel ?? '').toLowerCase();
+
+  // Spray compounds
+  if (
+    (dl_mcc === 'sprays' || dl_mcc === 'spray') &&
+    compound.containerVolumeMl &&
+    compound.mlPerSpray &&
+    compound.mlPerSpray > 0
+  ) {
+    const totalSprays = compound.containerVolumeMl / compound.mlPerSpray;
+    if (totalSprays > 0) {
+      return (monthly / totalSprays) * compound.unitPrice;
+    }
+    return 0;
+  }
+
+  // Drop compounds
+  if (
+    (dl_mcc === 'drops' || dl_mcc === 'drop') &&
+    compound.unitSize > 0 &&
+    (ul_mcc === 'ml' || ul_mcc === 'fl oz' || ul_mcc === 'oz')
+  ) {
+    const mlPerContainer = ul_mcc === 'ml'
+      ? compound.unitSize
+      : compound.unitSize * 29.5735;
+    const totalDrops = mlPerContainer * 20;
+    if (totalDrops > 0) {
+      return (monthly / totalDrops) * compound.unitPrice;
+    }
+    return 0;
+  }
+
   // Oral / powder / all other categories
   if (compound.unitSize > 0) {
     return (monthly / compound.unitSize) * compound.unitPrice;
@@ -506,6 +595,32 @@ export function validateCompoundForMath(compound: Compound): string[] {
     case 'probiotic':
       if (!compound.unitSize || compound.unitSize <= 0)
         errors.push('Total count per bottle required (e.g. 90 for a 90-capsule bottle)');
+      break;
+
+    case 'topical': {
+      const dl_v = (compound.doseLabel ?? '').toLowerCase();
+      if (dl_v === 'sprays' || dl_v === 'spray') {
+        if (!compound.containerVolumeMl || compound.containerVolumeMl <= 0) {
+          errors.push('Spray topical requires container volume in mL (containerVolumeMl)');
+        }
+        if (!compound.mlPerSpray || compound.mlPerSpray <= 0) {
+          errors.push('Spray topical requires mL per spray');
+        }
+      } else {
+        if (!compound.unitSize || compound.unitSize <= 0) {
+          errors.push('Topical requires total volume as unit size (mL)');
+        }
+      }
+      break;
+    }
+
+    case 'holistic':
+    case 'essential-oil':
+    case 'alternative-medicine':
+    case 'prescription':
+      if (!compound.unitSize || compound.unitSize <= 0) {
+        errors.push('Unit size required (count per bottle or total volume in mL)');
+      }
       break;
   }
 
