@@ -14,6 +14,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
+import { usePageTheme, type PgTheme } from '@/contexts/ThemeContext';
 
 interface ProfileDropdownProps {
   isDark: boolean;
