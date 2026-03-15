@@ -80,7 +80,7 @@ function normalizeCompoundForApp(compound: Compound): Compound {
 }
 
 function dbToCompound(row: DbUserCompound): Compound {
-  return normalizeCompoundForApp({
+  const compound = normalizeCompoundForApp({
     id: row.id, // use user_compound UUID as the compound id
     name: row.name,
     category: row.category as CompoundCategory,
@@ -119,6 +119,17 @@ function dbToCompound(row: DbUserCompound): Compound {
     storageInstructions: row.storage_instructions ?? undefined,
     prepNotes: row.prep_notes ?? undefined,
   });
+
+  // Auto-derive bacstatPerVial for peptides if missing (B2 fix)
+  if (
+    compound.category === 'peptide' &&
+    compound.reconVolume && compound.reconVolume > 0 &&
+    (!compound.bacstatPerVial || compound.bacstatPerVial <= 0)
+  ) {
+    compound.bacstatPerVial = compound.reconVolume * 100;
+  }
+
+  return compound;
 }
 
 export function useCompounds(userId: string | undefined) {

@@ -528,7 +528,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
   const progress = Math.min(100, (days / maxDays) * 100);
   const isPeptide = compound.category === 'peptide';
   const isOil = compound.category === 'injectable-oil';
-  const reorderDate = getReorderDateString(compound);
+  const reorderDate = getReorderDateString(compound, getCI(compound.id));
 
   /** Build a human-readable math breakdown for peptides and oils */
   const getDaysMathTooltip = (): string => {
