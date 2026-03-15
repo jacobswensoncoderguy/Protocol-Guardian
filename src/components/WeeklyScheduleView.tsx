@@ -573,7 +573,8 @@ const WeeklyScheduleView = ({ compounds, protocols = [], compoundAnalyses, compo
               <p>Some compounds follow cycling protocols to maintain effectiveness and reduce tolerance. <span className="text-status-warning">OFF</span> items show their resume date. <span className="text-status-good">Active</span> items show days remaining in the current ON phase. Tap any compound for details.</p>
             </TooltipContent>
           </Tooltip>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            <ThemeSelector />
             <button
               onClick={() => setDoseUnit(u => u === 'mg' ? 'ml' : 'mg')}
               className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-medium bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors"
