@@ -322,6 +322,33 @@ export function consumedToContainerUnits(compound: Compound, consumed: number): 
     return compound.unitSize > 0 ? numDoses / compound.unitSize : 0;
   }
 
+  const dl_ctcu = (compound.doseLabel ?? '').toLowerCase();
+  const ul_ctcu = (compound.unitLabel ?? '').toLowerCase();
+
+  // Spray compounds
+  if (
+    (dl_ctcu === 'sprays' || dl_ctcu === 'spray') &&
+    compound.containerVolumeMl &&
+    compound.mlPerSpray &&
+    compound.mlPerSpray > 0
+  ) {
+    const totalSprays = compound.containerVolumeMl / compound.mlPerSpray;
+    return totalSprays > 0 ? consumed / totalSprays : 0;
+  }
+
+  // Drop compounds
+  if (
+    (dl_ctcu === 'drops' || dl_ctcu === 'drop') &&
+    compound.unitSize > 0 &&
+    (ul_ctcu === 'ml' || ul_ctcu === 'fl oz' || ul_ctcu === 'oz')
+  ) {
+    const mlPerContainer = ul_ctcu === 'ml'
+      ? compound.unitSize
+      : compound.unitSize * 29.5735;
+    const totalDrops = mlPerContainer * 20;
+    return totalDrops > 0 ? consumed / totalDrops : 0;
+  }
+
   // For orals/powders with count-based doses: consumed is already in unit counts
   if (compound.unitSize > 0) {
     return consumed / compound.unitSize;
