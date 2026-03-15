@@ -324,31 +324,41 @@ const CostProjectionView = ({ compounds, protocols = [], customFields = [], cust
       {/* Month Grid */}
       <div className="grid grid-cols-4 sm:grid-cols-4 lg:grid-cols-6 gap-1.5 sm:gap-2">
         {projection.map((month, idx) => {
-          const color = month.total === 0 ? 'bg-secondary' :
-            month.total < 200 ? 'bg-status-good/15 border-status-good/30' :
-            month.total < 500 ? 'bg-accent/15 border-accent/30' :
-            'bg-destructive/15 border-destructive/30';
+          const spendPct = maxMonthSpend > 0 ? (month.total / maxMonthSpend) * 100 : 0;
+          const tierColor = month.total === 0 ? 'muted' :
+            month.total < 200 ? 'good' :
+            month.total < 500 ? 'warning' : 'critical';
+          const bgClass = month.total === 0 ? 'bg-secondary/30' :
+            month.total < 200 ? 'bg-status-good/10 border-status-good/20' :
+            month.total < 500 ? 'bg-accent/12 border-accent/20' :
+            'bg-destructive/12 border-destructive/20';
+          const textClass = month.total === 0 ? 'text-muted-foreground' :
+            month.total < 200 ? 'text-status-good' :
+            month.total < 500 ? 'text-status-warning' :
+            'text-status-critical';
+          const barColor = month.total === 0 ? 'bg-muted' :
+            month.total < 200 ? 'bg-status-good' :
+            month.total < 500 ? 'bg-accent' : 'bg-destructive';
 
           return (
             <button
               key={idx}
               onClick={() => setSelectedIndex(selectedIndex === idx ? null : idx)}
-              className={`rounded-lg border p-2 sm:p-2.5 text-center transition-all active:scale-95 touch-manipulation ${color} ${
+              className={`relative rounded-xl border p-2.5 text-left transition-all active:scale-95 touch-manipulation overflow-hidden ${bgClass} ${
                 selectedIndex === idx ? 'ring-1 ring-primary' : 'border-border/50'
               }`}
             >
-              <p className="text-[11px] sm:text-xs font-semibold text-foreground">{month.name}</p>
-              <p className={`text-xs sm:text-sm font-bold font-mono mt-0.5 ${
-                month.total === 0 ? 'text-muted-foreground' :
-                month.total < 200 ? 'text-status-good' :
-                month.total < 500 ? 'text-status-warning' :
-                'text-status-critical'
-              }`}>
+              <p className="text-[11px] font-semibold text-foreground" style={{ fontFamily: "'DM Sans', sans-serif" }}>{month.name}</p>
+              <p className={`text-sm font-bold mt-0.5 ${textClass}`} style={{ fontFamily: "'DM Mono', monospace" }}>
                 ${Math.round(month.total)}
               </p>
-              <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5">
-                {month.compounds.length}
+              <p className="text-[9px] text-muted-foreground mt-0.5">
+                {month.compounds.length} compound{month.compounds.length !== 1 ? 's' : ''}
               </p>
+              {/* Proportional spend bar */}
+              <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-border/10 rounded-b-xl overflow-hidden">
+                <div className={`h-full rounded-b-xl ${barColor}`} style={{ width: `${spendPct}%`, transition: 'width 0.3s ease' }} />
+              </div>
             </button>
           );
         })}
