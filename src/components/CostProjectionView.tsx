@@ -5,7 +5,7 @@ import { getDaysRemainingWithCycling, getEffectiveDailyConsumption, getCycleStat
 import { useCompliance } from '@/contexts/ComplianceContext';
 import { UserProtocol } from '@/hooks/useProtocols';
 import { CustomField } from '@/hooks/useCustomFields';
-import { TrendingDown, ChevronDown } from 'lucide-react';
+import { TrendingDown, ChevronDown, RefreshCcw } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ThemeSelector } from '@/contexts/ThemeContext';
 
