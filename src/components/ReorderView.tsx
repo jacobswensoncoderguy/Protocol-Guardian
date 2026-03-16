@@ -1355,6 +1355,24 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
           <p className="text-xs text-muted-foreground">Select a compound to add to your order list, even if it's not due yet.</p>
         </DialogHeader>
         <div className="space-y-1.5 mt-2">
+          {/* Always shown at top — add a new compound to the order */}
+          {onAddCompound && (
+            <button
+              onClick={() => {
+                setForceReorderOpen(false);
+                onAddCompound();
+              }}
+              className="w-full flex items-center gap-3 p-3 rounded-lg bg-primary/8 border border-primary/25 hover:bg-primary/12 active:bg-primary/18 transition-colors touch-manipulation text-left mb-3"
+            >
+              <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
+                <Plus className="w-4 h-4 text-primary" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-foreground">+ Add New Compound</p>
+                <p className="text-[10px] text-muted-foreground">Create a compound and add it to your order list</p>
+              </div>
+            </button>
+          )}
           {(() => {
             const neededIds = new Set(neededItems.map(n => n.compound_id));
             const orderedIds = new Set(orderedItems.map(o => o.compound_id));
