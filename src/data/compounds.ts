@@ -179,40 +179,75 @@ export function getConsumedSinceDate(
 ): number {
   const now = new Date(referenceDate);
   now.setHours(0, 0, 0, 0);
+  const offset = compound.complianceDoseOffset || 0;
 
-  // If we have compliance data with actual check-offs, always use it
-  // (even without a purchaseDate — checked doses are ground truth)
-  if (compliance && compliance.firstCheckDate && compliance.checkedDoses > 0) {
-    const firstCheck = new Date(compliance.firstCheckDate);
-    firstCheck.setHours(0, 0, 0, 0);
-
-    // If we also have a purchaseDate, add theoretical consumption for the pre-tracking period
-    let theoreticalPreTracking = 0;
-    if (compound.purchaseDate) {
-      const purchaseDay = new Date(compound.purchaseDate);
-      purchaseDay.setHours(0, 0, 0, 0);
-      const preTrackingDays = Math.max(0, Math.floor((firstCheck.getTime() - purchaseDay.getTime()) / (24 * 60 * 60 * 1000)));
-      if (preTrackingDays > 0) {
-        theoreticalPreTracking = getTheoreticalConsumption(compound, preTrackingDays, purchaseDay);
-      }
+  // Calendar floor: how much SHOULD have been consumed
+  // based on elapsed days since purchase
+  let dateBased = 0;
+  if (compound.purchaseDate) {
+    const purchaseDay = new Date(compound.purchaseDate);
+    purchaseDay.setHours(0, 0, 0, 0);
+    const daysSince = Math.floor(
+      (now.getTime() - purchaseDay.getTime()) /
+      (24 * 60 * 60 * 1000)
+    );
+    if (daysSince > 0) {
+      dateBased = getTheoreticalConsumption(
+        compound, daysSince, purchaseDay
+      );
     }
-
-    // Actual consumption = checked doses (minus offset for prior stock) × dose per use
-    const offset = compound.complianceDoseOffset || 0;
-    const effectiveCheckedDoses = Math.max(0, compliance.checkedDoses - offset);
-    const actualPostTracking = effectiveCheckedDoses * compound.dosePerUse;
-    return theoreticalPreTracking + actualPostTracking;
   }
 
-  // No compliance data — fall back to theoretical consumption from purchaseDate
-  if (!compound.purchaseDate) return 0;
+  // Injectables: use the original split logic unchanged.
+  // Cycling and dose breaks make calendar math unreliable
+  // as a floor for peptides and oils.
+  const isInjectable =
+    compound.category === 'peptide' ||
+    compound.category === 'injectable-oil';
 
-  const purchaseDay = new Date(compound.purchaseDate);
-  purchaseDay.setHours(0, 0, 0, 0);
-  const daysSincePurchase = Math.floor((now.getTime() - purchaseDay.getTime()) / (24 * 60 * 60 * 1000));
-  if (daysSincePurchase <= 0) return 0;
+  if (isInjectable) {
+    if (compliance && compliance.firstCheckDate &&
+        compliance.checkedDoses > 0) {
+      let theoreticalPreTracking = 0;
+      if (compound.purchaseDate) {
+        const purchaseDay = new Date(compound.purchaseDate);
+        purchaseDay.setHours(0, 0, 0, 0);
+        const firstCheck =
+          new Date(compliance.firstCheckDate);
+        firstCheck.setHours(0, 0, 0, 0);
+        const preTrackingDays = Math.max(
+          0,
+          Math.floor(
+            (firstCheck.getTime() - purchaseDay.getTime())
+            / (24 * 60 * 60 * 1000)
+          )
+        );
+        if (preTrackingDays > 0) {
+          theoreticalPreTracking =
+            getTheoreticalConsumption(
+              compound, preTrackingDays, purchaseDay
+            );
+        }
+      }
+      const effectiveChecked =
+        Math.max(0, compliance.checkedDoses - offset);
+      return theoreticalPreTracking +
+        effectiveChecked * compound.dosePerUse;
+    }
+    return dateBased;
+  }
 
-  return getTheoreticalConsumption(compound, daysSincePurchase, purchaseDay);
+  // Non-injectables: take the HIGHER of calendar math
+  // vs check-off math. Missed check-offs cannot make
+  // stock appear higher than calendar allows.
+  let complianceBased = 0;
+  if (compliance && compliance.checkedDoses > 0) {
+    const effectiveChecked =
+      Math.max(0, compliance.checkedDoses - offset);
+    complianceBased = effectiveChecked * compound.dosePerUse;
+  }
+
+  return Math.max(dateBased, complianceBased);
 }
 
 /**
