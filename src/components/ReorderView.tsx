@@ -296,7 +296,15 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
     setEditOrderQty(String(order.quantity));
     setEditOrderCost(String(order.cost));
     setEditOrderNotes(order.notes || '');
-    setEditOrderName(compound?.name || '');
+    const fallbackName = (() => {
+      if (compound?.name) return compound.name;
+      if (order.notes) {
+        const sepIdx = order.notes.indexOf('||');
+        return sepIdx > 0 ? order.notes.slice(0, sepIdx) : order.notes;
+      }
+      return '';
+    })();
+    setEditOrderName(fallbackName);
     setEditOrderUnitSize(String(compound?.unitSize || ''));
     setEditOrderUnitLabel(compound?.unitLabel || '');
     setEditOrderUnitPrice(String(compound?.unitPrice || ''));
