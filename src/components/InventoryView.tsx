@@ -1154,7 +1154,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
             {/* Section G: Purchase date for non-peptide/oil */}
             {!isPeptide && !isOil && (
               <div className="space-y-1">
-                <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-muted)' }}>Purchase Date</label>
+                <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-primary)', opacity: 0.65 }}>Purchase Date</label>
                 <DatePickerInput value={editState.purchaseDate || ''} onChange={v => setEditState(s => ({ ...s, purchaseDate: v }))} className="text-[11px] py-1.5" />
               </div>
             )}
