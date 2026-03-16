@@ -985,7 +985,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
 
       {/* ═══ EDIT FORM SHEET ═══ */}
       <Sheet open={editSheetOpen} onOpenChange={setEditSheetOpen}>
-        <SheetContent side="bottom" className="max-h-[92vh] overflow-y-auto rounded-t-2xl" style={{ background: 'var(--pg-bg)', color: 'var(--pg-text-primary)' }}>
+        <SheetContent side="bottom" className="max-h-[92vh] rounded-t-2xl flex flex-col" style={{ background: 'var(--pg-bg)', color: 'var(--pg-text-primary)' }}>
           {/* Drag handle */}
           <div className="flex justify-center pt-2 pb-3"><div className="w-10 h-1 rounded-full" style={{ background: 'var(--pg-card-border)' }} /></div>
           <SheetHeader>
