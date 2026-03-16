@@ -356,10 +356,19 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
       // For kit-based peptide orders, order.quantity is kits — multiply by 10 to get vials
       const receivedUnits = (compound.reorderType === 'kit' && compound.category === 'peptide') ? order.quantity * 10 : order.quantity;
       const newCurrentQuantity = effectiveRemaining + receivedUnits;
+
+      // Strip [ON_ORDER] tag if present — compound is now in stock
+      const cleanedNotes = (compound.notes || '')
+        .replace('[ON_ORDER]', '')
+        .trim() || undefined;
+
       onUpdateCompound(compound.id, {
         currentQuantity: newCurrentQuantity,
         purchaseDate: new Date().toISOString().split('T')[0],
         complianceDoseOffset: complianceInfo?.checkedDoses ?? 0,
+        ...(compound.notes?.includes('[ON_ORDER]')
+          ? { notes: cleanedNotes }
+          : {}),
       });
     }
     setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'received', received_at: now } : o));
