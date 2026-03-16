@@ -1,11 +1,18 @@
+import { useState } from 'react';
 import { WizardFormData, COMPOUND_TYPE_META, TIMING_OPTIONS, SCHEDULE_PRESETS, getAccentColor } from '../types';
 import { getEffectiveDose, validateWizardData } from '../doseResolver';
 import { Loader2, AlertTriangle } from 'lucide-react';
+import DatePickerInput from '@/components/DatePickerInput';
 
 interface StepReviewProps {
   formData: WizardFormData;
   onJump: (stepIndex: number) => void;
   onSave: () => void;
+  onSaveOrdered: (
+    intakeMode: 'now' | 'ordered',
+    orderDate: string,
+    orderNotes: string
+  ) => void;
   onCancel: () => void;
   isSaving: boolean;
   error: string | null;
@@ -17,7 +24,9 @@ function Section({ title, stepIndex, onJump, children }: { title: string; stepIn
     <div className="border border-border/30 rounded-xl overflow-hidden">
       <div className="flex items-center justify-between px-3 py-2 bg-secondary/30">
         <span className="text-xs font-semibold text-foreground/80 uppercase tracking-wider">{title}</span>
-        <button type="button" onClick={() => onJump(stepIndex)} className="text-[10px] font-medium text-primary hover:underline">Edit</button>
+        {stepIndex >= 0 && (
+          <button type="button" onClick={() => onJump(stepIndex)} className="text-[10px] font-medium text-primary hover:underline">Edit</button>
+        )}
       </div>
       <div className="px-3 py-2 space-y-1">{children}</div>
     </div>
@@ -34,7 +43,7 @@ function Row({ label, value }: { label: string; value: string | undefined | null
   );
 }
 
-export default function StepReview({ formData, onJump, onSave, onCancel, isSaving, error, accentColor }: StepReviewProps) {
+export default function StepReview({ formData, onJump, onSave, onSaveOrdered, onCancel, isSaving, error, accentColor }: StepReviewProps) {
   const typeMeta = formData.compoundType ? COMPOUND_TYPE_META[formData.compoundType] : null;
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const activeDays = formData.schedulePreset === 'Custom'
@@ -49,6 +58,13 @@ export default function StepReview({ formData, onJump, onSave, onCancel, isSavin
 
   // Pre-save validation
   const validationErrors = validateWizardData(formData);
+
+  // Intake path state
+  const [selectedPath, setSelectedPath] = useState<'now' | 'ordered'>('now');
+  const [orderDateStr, setOrderDateStr] = useState(
+    new Date().toISOString().split('T')[0]
+  );
+  const [orderNotesStr, setOrderNotesStr] = useState('');
 
   return (
     <div className="space-y-4 px-4 pb-6">
@@ -187,30 +203,134 @@ export default function StepReview({ formData, onJump, onSave, onCancel, isSavin
         <Row label="Price" value={formData.orderFormat === 'Kit' ? `$${formData.pricePerKit}/kit` : `$${formData.pricePerUnit}/unit`} />
       </Section>
 
+      {/* Intake section — visible when Path B selected */}
+      {selectedPath === 'ordered' && orderDateStr && (
+        <Section title="Intake" stepIndex={-1} onJump={() => {}}>
+          <Row label="Mode" value="Ordered — not yet received" />
+          <Row label="Order date" value={orderDateStr} />
+          {orderNotesStr && <Row label="Supplier" value={orderNotesStr} />}
+          <Row label="Initial stock" value="0 (until received)" />
+        </Section>
+      )}
+
       {/* Error */}
       {error && (
         <div className="rounded-lg p-3 bg-destructive/10 border border-destructive/30 text-destructive text-sm">{error}</div>
       )}
 
-      {/* Save */}
-      <button
-        type="button"
-        disabled={isSaving || validationErrors.length > 0}
-        onClick={onSave}
-        className="w-full py-3.5 rounded-xl font-semibold text-sm transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50"
-        style={{
-          backgroundColor: validationErrors.length > 0 ? 'hsl(var(--muted))' : `hsl(${accentColor})`,
-          color: validationErrors.length > 0 ? 'hsl(var(--muted-foreground))' : 'hsl(var(--background))',
-          boxShadow: validationErrors.length > 0 ? 'none' : `0 0 20px hsl(${accentColor} / 0.3)`,
-        }}
-      >
-        {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
-        {isSaving ? 'Saving…' : validationErrors.length > 0 ? 'Fix Issues Above' : 'Save to Protocol'}
-      </button>
+      {/* ── Intake Path Buttons ── */}
+      <div className="space-y-2">
+        {/* PATH A — Add to Inventory Now */}
+        <button
+          type="button"
+          disabled={isSaving || validationErrors.length > 0}
+          onClick={() => {
+            setSelectedPath('now');
+            onSave();
+          }}
+          className={`w-full py-3.5 rounded-xl font-semibold text-sm transition-all duration-200 flex flex-col items-center justify-center gap-0.5 disabled:opacity-50 ${
+            selectedPath === 'now' && !isSaving
+              ? 'ring-2 ring-offset-2 ring-offset-background'
+              : ''
+          }`}
+          style={{
+            backgroundColor: validationErrors.length > 0
+              ? 'hsl(var(--muted))'
+              : `hsl(${accentColor})`,
+            color: validationErrors.length > 0
+              ? 'hsl(var(--muted-foreground))'
+              : 'hsl(var(--background))',
+            boxShadow: validationErrors.length > 0
+              ? 'none'
+              : `0 0 20px hsl(${accentColor} / 0.3)`,
+            '--tw-ring-color': `hsl(${accentColor})`,
+          } as React.CSSProperties}
+        >
+          {isSaving && selectedPath === 'now' && (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          )}
+          <span>
+            {isSaving && selectedPath === 'now'
+              ? 'Saving…'
+              : validationErrors.length > 0
+                ? 'Fix Issues Above'
+                : 'Add to Inventory Now'}
+          </span>
+          {!(isSaving && selectedPath === 'now') && validationErrors.length === 0 && (
+            <span className="text-[10px] font-normal opacity-70">
+              Stock added today · depletion tracking starts now
+            </span>
+          )}
+        </button>
 
-      <button type="button" onClick={onCancel} className="w-full py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-        Cancel
-      </button>
+        {/* PATH B — I Ordered It */}
+        <button
+          type="button"
+          disabled={isSaving || validationErrors.length > 0}
+          onClick={() => setSelectedPath(p => p === 'ordered' ? 'now' : 'ordered')}
+          className={`w-full py-3 rounded-xl text-sm font-semibold transition-all duration-200 flex flex-col items-center justify-center gap-0.5 border disabled:opacity-50 ${
+            selectedPath === 'ordered'
+              ? 'bg-secondary/80 border-primary/50 text-foreground'
+              : 'bg-secondary/20 border-border/40 text-muted-foreground hover:text-foreground hover:border-border/70'
+          }`}
+        >
+          <span>
+            {isSaving && selectedPath === 'ordered'
+              ? 'Saving…'
+              : 'I Ordered It — Not Yet Received'}
+          </span>
+          <span className="text-[10px] font-normal opacity-60">
+            Zero stock now · inventory updates when you mark received
+          </span>
+        </button>
+
+        {/* Order details — only visible when Path B is selected */}
+        {selectedPath === 'ordered' && (
+          <div className="rounded-xl border border-primary/20 bg-secondary/20 p-3 space-y-3 animate-slide-up">
+            <p className="text-xs font-semibold text-foreground/80">Order Details</p>
+
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] text-muted-foreground">Order date</span>
+              <DatePickerInput
+                value={orderDateStr}
+                onChange={(v) => setOrderDateStr(v || new Date().toISOString().split('T')[0])}
+                max={new Date().toISOString().split('T')[0]}
+                className="text-xs py-1 flex-1 text-right"
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] text-muted-foreground whitespace-nowrap">Supplier / notes</span>
+              <input
+                type="text"
+                value={orderNotesStr}
+                onChange={(e) => setOrderNotesStr(e.target.value)}
+                placeholder="e.g. Amazon, Peptide Sciences"
+                className="flex-1 text-xs bg-secondary/50 border border-border/40 rounded-lg px-2.5 py-1.5 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/50 text-right"
+              />
+            </div>
+
+            <button
+              type="button"
+              disabled={isSaving || validationErrors.length > 0}
+              onClick={() => onSaveOrdered('ordered', orderDateStr, orderNotesStr)}
+              className="w-full py-3 rounded-xl font-semibold text-sm bg-primary/15 border border-primary/30 text-primary hover:bg-primary/20 active:bg-primary/25 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isSaving && selectedPath === 'ordered' && (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              )}
+              {isSaving && selectedPath === 'ordered'
+                ? 'Saving…'
+                : 'Confirm Order · Start Tracking'}
+            </button>
+          </div>
+        )}
+
+        {/* Cancel */}
+        <button type="button" onClick={onCancel} className="w-full py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          Cancel
+        </button>
+      </div>
     </div>
   );
 }
