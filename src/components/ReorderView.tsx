@@ -29,6 +29,7 @@ interface ReorderViewProps {
   protocols?: UserProtocol[];
   reorderHorizon?: 30 | 45 | 60;
   onHorizonChange?: (h: 30 | 45 | 60) => void;
+  onAddCompound?: () => void;
 }
 
 interface OrderItem {
