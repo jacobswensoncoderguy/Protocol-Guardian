@@ -367,7 +367,7 @@ const CostProjectionView = ({ compounds, protocols = [], customFields = [], cust
                 selectedIndex === idx ? 'ring-1 ring-primary' : 'border-border/50'
               }`}
             >
-              <p className="text-[11px] font-semibold text-foreground" style={{ fontFamily: "'DM Sans', sans-serif" }}>{month.name}</p>
+              <p className="text-[11px] font-semibold text-foreground" style={{ fontFamily: "'DM Sans', sans-serif" }}>{month.name}{month.year !== new Date().getFullYear() ? ` '${String(month.year).slice(2)}` : ''}</p>
               <p className={`text-sm font-bold mt-0.5 ${textClass}`} style={{ fontFamily: "'DM Mono', monospace" }}>
                 ${Math.round(month.total)}
               </p>
