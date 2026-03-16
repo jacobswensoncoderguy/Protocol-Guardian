@@ -1101,7 +1101,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
             {/* Section D: Cycling */}
             <SectionHeader label="Cycling" />
             <div className="flex items-center gap-2">
-              <span className="text-[11px]" style={{ color: 'var(--pg-text-muted)' }}>Cycling</span>
+              <span className="text-[11px]" style={{ color: 'var(--pg-text-primary)', opacity: 0.65 }}>Cycling</span>
               <button onClick={() => setEditState(s => ({ ...s, cyclingEnabled: s.cyclingEnabled === 'true' ? 'false' : 'true' }))}
                 className="px-3 py-1 rounded-full text-[10px] font-medium"
                 style={{
