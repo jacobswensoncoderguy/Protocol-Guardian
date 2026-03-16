@@ -690,7 +690,7 @@ const Index = () => {
                     compounds={viewCompounds}
                     onUpdateCompound={householdViewId === 'self' ? handleUpdateCompound : () => {}}
                     onDeleteCompound={householdViewId === 'self' ? deleteCompound : undefined}
-                    onAddCompound={householdViewId === 'self' ? () => useV2Wizard ? setShowV2Wizard(true) : setShowAddDialog(true) : undefined}
+                    onAddCompound={householdViewId === 'self' ? handleAddCompoundFromInventory : undefined}
                     protocols={protocols}
                     toleranceLevel={toleranceLevel}
                     onToleranceChange={handleToleranceChange}
