@@ -288,6 +288,62 @@ const Index = () => {
     updateCompound(id, updates);
   };
 
+  const handleAddCompoundFromInventory = useCallback(() => {
+    wizardOpenedFrom.current = 'inventory';
+    if (useV2Wizard) setShowV2Wizard(true); else setShowAddDialog(true);
+  }, [useV2Wizard]);
+
+  const handleAddCompoundFromReorder = useCallback(() => {
+    wizardOpenedFrom.current = 'reorder';
+    setShowV2Wizard(true);
+  }, []);
+
+  const handleAddAsOrdered = useCallback(async (params: {
+    newCompoundId: string;
+    reorderQuantity: number;
+    reorderType: 'single' | 'kit';
+    unitPrice: number;
+    kitPrice?: number;
+    category: string;
+    orderDate: string;
+    orderNotes: string;
+  }) => {
+    if (!user?.id) {
+      console.error('handleAddAsOrdered: userId is undefined');
+      return;
+    }
+
+    const cost = params.reorderType === 'kit' && params.kitPrice
+      ? params.kitPrice * params.reorderQuantity
+      : params.unitPrice * params.reorderQuantity;
+
+    const orderDate = new Date(params.orderDate);
+    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun',
+      'Jul','Aug','Sep','Oct','Nov','Dec'];
+    const monthLabel = `${MONTHS[orderDate.getMonth()]} ${orderDate.getFullYear()}`;
+
+    const { error } = await supabase
+      .from('orders')
+      .insert([{
+        compound_id: params.newCompoundId,
+        quantity: params.reorderQuantity,
+        cost,
+        status: 'ordered',
+        month_label: monthLabel,
+        ordered_at: orderDate.toISOString(),
+        notes: params.orderNotes.trim() || null,
+        user_id: user.id,
+      }]);
+
+    if (error) {
+      console.error('Failed to create order record:', error);
+      return;
+    }
+
+    setActiveTab('inventory');
+    setInventorySubTab('reorder');
+  }, [user?.id]);
+
   // Compute per-member annual/monthly cost estimates for the combined cost breakdown
   const memberCostBreakdowns = useMemo(() => {
     if (householdViewId !== 'combined' || household.acceptedMembers.length === 0) return undefined;
