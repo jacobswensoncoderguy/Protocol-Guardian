@@ -88,6 +88,8 @@ function buildProjection(compounds: Compound[], getModifiers: (compoundId: strin
   endDate.setFullYear(endDate.getFullYear() + 1);
 
   effectiveCompounds.forEach(compound => {
+    // Skip compounds that are on order but not yet received
+    if (compound.notes?.includes('[ON_ORDER]')) return;
     // Skip future projections for compounds that will pause/go dormant on depletion
     if (compound.depletionAction === 'pause' || compound.depletionAction === 'dormant') return;
 
