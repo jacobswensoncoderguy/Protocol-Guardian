@@ -985,7 +985,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
 
       {/* ═══ EDIT FORM SHEET ═══ */}
       <Sheet open={editSheetOpen} onOpenChange={setEditSheetOpen}>
-        <SheetContent side="bottom" className="max-h-[92vh] overflow-y-auto rounded-t-2xl" style={{ background: 'var(--pg-bg)', color: 'var(--pg-text-primary)' }}>
+        <SheetContent side="bottom" className="max-h-[92vh] rounded-t-2xl flex flex-col" style={{ background: 'var(--pg-bg)', color: 'var(--pg-text-primary)' }}>
           {/* Drag handle */}
           <div className="flex justify-center pt-2 pb-3"><div className="w-10 h-1 rounded-full" style={{ background: 'var(--pg-card-border)' }} /></div>
           <SheetHeader>
@@ -996,12 +996,12 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
               </span>
             </SheetTitle>
           </SheetHeader>
-          <div className="mt-4 space-y-4 pb-20">
+          <div className="mt-4 space-y-4 pb-4 overflow-y-auto flex-1">
             {/* Section A: Identity */}
             <SectionHeader label="Identity" />
             <EditField label="Name" value={editState.name || ''} onChange={v => setEditState(s => ({ ...s, name: v }))} placeholder="Compound name" />
             <div className="space-y-1">
-              <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-muted)' }}>Category</label>
+              <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-primary)', opacity: 0.65 }}>Category</label>
               <div className="grid grid-cols-3 gap-1">
                 {categoryOrder.map(cat => (
                   <button key={cat} onClick={() => setEditState(s => ({ ...s, category: cat }))}
@@ -1018,7 +1018,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
             <EditField label="Timing note" value={editState.timing || ''} onChange={v => setEditState(s => ({ ...s, timing: v }))} placeholder="e.g. daily AM, Mon/Wed/Fri" />
             {/* Days/week — interactive Su-Sa pill picker */}
             <div className="space-y-1">
-              <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-muted)' }}>Days / week</label>
+              <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-primary)', opacity: 0.65 }}>Days / week</label>
               <div className="flex gap-1">
                 {DAY_LABELS.map((lbl, idx) => {
                   const activeDaySet = parseDaysFromNote(editState.timing || '');
@@ -1058,7 +1058,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
             <SectionHeader label="Dosing" />
             <EditField label="Dose" value={editState.dosePerUse || ''} onChange={v => setEditState(s => ({ ...s, dosePerUse: v }))} type="number" placeholder="e.g. 2.5" />
             <div className="space-y-1">
-              <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-muted)' }}>Dose Unit</label>
+              <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-primary)', opacity: 0.65 }}>Dose Unit</label>
               <select value={editState.editDoseUnit || 'mg'} onChange={e => setEditState(s => ({ ...s, editDoseUnit: e.target.value }))}
                 className="w-full px-3 py-2 rounded-lg text-[12px] font-mono"
                 style={{ background: 'var(--pg-card)', color: 'var(--pg-text-primary)', border: '1px solid var(--pg-card-border)' }}
@@ -1084,7 +1084,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
             <div className="grid grid-cols-2 gap-2">
               <EditField label="Strength/Unit" value={editState.weightPerUnit || ''} onChange={v => setEditState(s => ({ ...s, weightPerUnit: v }))} type="number" placeholder="e.g. 500" />
               <div className="space-y-1">
-                <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-muted)' }}>Strength Unit</label>
+                <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-primary)', opacity: 0.65 }}>Strength Unit</label>
                 <select value={editState.strengthUnit || 'mg'} onChange={e => setEditState(s => ({ ...s, strengthUnit: e.target.value }))}
                   className="w-full px-3 py-2 rounded-lg text-[12px] font-mono"
                   style={{ background: 'var(--pg-card)', color: 'var(--pg-text-primary)', border: '1px solid var(--pg-card-border)' }}
@@ -1101,7 +1101,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
             {/* Section D: Cycling */}
             <SectionHeader label="Cycling" />
             <div className="flex items-center gap-2">
-              <span className="text-[11px]" style={{ color: 'var(--pg-text-muted)' }}>Cycling</span>
+              <span className="text-[11px]" style={{ color: 'var(--pg-text-primary)', opacity: 0.65 }}>Cycling</span>
               <button onClick={() => setEditState(s => ({ ...s, cyclingEnabled: s.cyclingEnabled === 'true' ? 'false' : 'true' }))}
                 className="px-3 py-1 rounded-full text-[10px] font-medium"
                 style={{
@@ -1116,7 +1116,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                 <EditField label="ON days" value={editState.cycleOnDays || ''} onChange={v => setEditState(s => ({ ...s, cycleOnDays: v }))} type="number" />
                 <EditField label="OFF days" value={editState.cycleOffDays || ''} onChange={v => setEditState(s => ({ ...s, cycleOffDays: v }))} type="number" />
                 <div className="space-y-1">
-                  <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-muted)' }}>Cycle Start</label>
+                  <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-primary)', opacity: 0.65 }}>Cycle Start</label>
                   <DatePickerInput value={editState.cycleStartDate || ''} onChange={v => setEditState(s => ({ ...s, cycleStartDate: v }))} className="text-[11px] py-1.5" />
                 </div>
               </>
@@ -1127,7 +1127,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
               <>
                 <SectionHeader label="Dilution / Reconstitution" />
                 <div className="space-y-1">
-                  <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-muted)' }}>Solvent</label>
+                  <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-primary)', opacity: 0.65 }}>Solvent</label>
                   <select value={editState.solventType || ''} onChange={e => setEditState(s => ({ ...s, solventType: e.target.value }))}
                     className="w-full px-3 py-2 rounded-lg text-[11px] font-mono"
                     style={{ background: 'var(--pg-card)', color: 'var(--pg-text-primary)', border: '1px solid var(--pg-card-border)' }}
@@ -1143,7 +1143,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                 {editState.solventType && <EditField label="Volume (mL)" value={editState.solventVolume || ''} onChange={v => setEditState(s => ({ ...s, solventVolume: v }))} type="number" />}
                 <EditField label="Storage" value={editState.storageInstructions || ''} onChange={v => setEditState(s => ({ ...s, storageInstructions: v }))} />
                 <div className="space-y-1">
-                  <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-muted)' }}>Prep Notes</label>
+                  <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-primary)', opacity: 0.65 }}>Prep Notes</label>
                   <textarea value={editState.prepNotes || ''} onChange={e => setEditState(s => ({ ...s, prepNotes: e.target.value }))}
                     rows={2} className="w-full px-3 py-2 rounded-lg text-[11px] font-mono resize-none"
                     style={{ background: 'var(--pg-card)', color: 'var(--pg-text-primary)', border: '1px solid var(--pg-card-border)' }} />
@@ -1154,14 +1154,14 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
             {/* Section G: Purchase date for non-peptide/oil */}
             {!isPeptide && !isOil && (
               <div className="space-y-1">
-                <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-muted)' }}>Purchase Date</label>
+                <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-primary)', opacity: 0.65 }}>Purchase Date</label>
                 <DatePickerInput value={editState.purchaseDate || ''} onChange={v => setEditState(s => ({ ...s, purchaseDate: v }))} className="text-[11px] py-1.5" />
               </div>
             )}
           </div>
 
           {/* Sticky footer */}
-          <div className="fixed bottom-0 left-0 right-0 flex gap-3 p-4" style={{ background: 'var(--pg-bg)', borderTop: '1px solid var(--pg-card-border)' }}>
+          <div className="flex-shrink-0 flex gap-3 p-4" style={{ background: 'var(--pg-bg)', borderTop: '1px solid var(--pg-card-border)' }}>
             <button onClick={() => setEditSheetOpen(false)}
               className="flex-1 py-2.5 rounded-xl text-sm font-medium"
               style={{ background: 'var(--pg-card)', color: 'var(--pg-text-secondary)', border: '1px solid var(--pg-card-border)' }}
@@ -1251,12 +1251,12 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
 // ═══════════════════════════════════════════
 
 const SectionHeader = ({ label }: { label: string }) => (
-  <p className="text-[10px] uppercase tracking-wider font-semibold pt-2 pb-1" style={{ color: 'var(--pg-text-muted)', fontFamily: "'DM Mono', monospace", borderTop: '1px solid var(--pg-card-border)' }}>{label}</p>
+  <p className="text-[11px] uppercase tracking-wider font-semibold pt-3 pb-1" style={{ color: 'var(--pg-text-primary)', fontFamily: "'DM Mono', monospace", borderTop: '1px solid var(--pg-card-border)', opacity: 0.75 }}>{label}</p>
 );
 
 const EditField = ({ label, value, onChange, type = 'text', placeholder }: { label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string }) => (
   <div className="space-y-1">
-    <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-muted)' }}>{label}</label>
+    <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-primary)', opacity: 0.65 }}>{label}</label>
     <input type={type} value={value} onChange={e => onChange(e.target.value)}
       placeholder={placeholder || `Enter ${label.toLowerCase()}`}
       className="w-full px-3 py-2 rounded-lg text-[12px] font-mono placeholder:text-[var(--pg-text-muted)] placeholder:opacity-50"
