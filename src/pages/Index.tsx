@@ -725,7 +725,7 @@ const Index = () => {
                   {inventorySubTab === 'costs' && <CostProjectionView compounds={viewCompounds} protocols={protocols} customFields={customFields} customFieldValues={customFieldValues} userId={user?.id} memberBreakdowns={memberCostBreakdowns} />}
                 </TabsContent>
                 <TabsContent value="reorder" forceMount={inventorySubTab === 'reorder' ? true : undefined}>
-                  {inventorySubTab === 'reorder' && <ReorderView compounds={viewCompounds} onUpdateCompound={householdViewId === 'self' ? handleUpdateCompound : () => {}} userId={user?.id} protocols={protocols} reorderHorizon={reorderHorizon} onHorizonChange={updateReorderHorizon} />}
+                  {inventorySubTab === 'reorder' && <ReorderView compounds={viewCompounds} onUpdateCompound={householdViewId === 'self' ? handleUpdateCompound : () => {}} userId={user?.id} protocols={protocols} reorderHorizon={reorderHorizon} onHorizonChange={updateReorderHorizon} onAddCompound={householdViewId === 'self' ? handleAddCompoundFromReorder : undefined} />}
                 </TabsContent>
               </div>
             </Tabs>
