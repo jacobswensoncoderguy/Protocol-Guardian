@@ -18,7 +18,7 @@ import { useConversations } from '@/hooks/useConversations';
 import { useCustomFields } from '@/hooks/useCustomFields';
 import { useDoseCheckOffs } from '@/hooks/useDoseCheckOffs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useCallback, useState, useEffect, useMemo } from 'react';
+import { useCallback, useState, useEffect, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
 import HeaderQuickActions from '@/components/HeaderQuickActions';
 import ProfileDropdown from '@/components/ProfileDropdown';
