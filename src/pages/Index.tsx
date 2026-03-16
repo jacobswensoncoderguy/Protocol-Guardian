@@ -817,8 +817,14 @@ const Index = () => {
           onOpenChange={setShowV2Wizard}
           existingCompoundIds={compounds.map(c => c.name)}
           onAdd={async (compound) => {
-            await addCompound(compound);
+            const id = await addCompound(compound);
             await refetch();
+            return id;
+          }}
+          onAddAsOrdered={async (params) => {
+            if (wizardOpenedFrom.current === 'reorder') {
+              await handleAddAsOrdered(params);
+            }
           }}
         />
 
