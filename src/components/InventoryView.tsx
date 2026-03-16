@@ -996,7 +996,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
               </span>
             </SheetTitle>
           </SheetHeader>
-          <div className="mt-4 space-y-4 pb-20">
+          <div className="mt-4 space-y-4 pb-4 overflow-y-auto flex-1">
             {/* Section A: Identity */}
             <SectionHeader label="Identity" />
             <EditField label="Name" value={editState.name || ''} onChange={v => setEditState(s => ({ ...s, name: v }))} placeholder="Compound name" />
