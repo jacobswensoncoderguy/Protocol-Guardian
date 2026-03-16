@@ -1161,7 +1161,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
           </div>
 
           {/* Sticky footer */}
-          <div className="fixed bottom-0 left-0 right-0 flex gap-3 p-4" style={{ background: 'var(--pg-bg)', borderTop: '1px solid var(--pg-card-border)' }}>
+          <div className="flex-shrink-0 flex gap-3 p-4" style={{ background: 'var(--pg-bg)', borderTop: '1px solid var(--pg-card-border)' }}>
             <button onClick={() => setEditSheetOpen(false)}
               className="flex-1 py-2.5 rounded-xl text-sm font-medium"
               style={{ background: 'var(--pg-card)', color: 'var(--pg-text-secondary)', border: '1px solid var(--pg-card-border)' }}
