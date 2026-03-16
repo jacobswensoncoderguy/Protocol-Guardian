@@ -1084,7 +1084,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
             <div className="grid grid-cols-2 gap-2">
               <EditField label="Strength/Unit" value={editState.weightPerUnit || ''} onChange={v => setEditState(s => ({ ...s, weightPerUnit: v }))} type="number" placeholder="e.g. 500" />
               <div className="space-y-1">
-                <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-muted)' }}>Strength Unit</label>
+                <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-primary)', opacity: 0.65 }}>Strength Unit</label>
                 <select value={editState.strengthUnit || 'mg'} onChange={e => setEditState(s => ({ ...s, strengthUnit: e.target.value }))}
                   className="w-full px-3 py-2 rounded-lg text-[12px] font-mono"
                   style={{ background: 'var(--pg-card)', color: 'var(--pg-text-primary)', border: '1px solid var(--pg-card-border)' }}
