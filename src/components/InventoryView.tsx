@@ -1016,7 +1016,32 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
               </div>
             </div>
             <EditField label="Timing note" value={editState.timing || ''} onChange={v => setEditState(s => ({ ...s, timing: v }))} placeholder="e.g. daily AM, Mon/Wed/Fri" />
-            <EditField label="Days/week" value={editState.daysPerWeek || ''} onChange={v => setEditState(s => ({ ...s, daysPerWeek: v }))} type="number" placeholder="1–7" />
+            {/* Days/week — interactive Su-Sa pill picker */}
+            <div className="space-y-1">
+              <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-muted)' }}>Days / week</label>
+              <div className="flex gap-1">
+                {DAY_LABELS.map((lbl, idx) => {
+                  const activeDaySet = parseDaysFromNote(editState.timing || '');
+                  const isActive = activeDaySet.has(idx);
+                  return (
+                    <button key={idx} type="button"
+                      onClick={() => {
+                        const current = parseDaysFromNote(editState.timing || '');
+                        if (isActive) current.delete(idx); else current.add(idx);
+                        const newTiming = buildDayString(current);
+                        setEditState(s => ({ ...s, timing: newTiming, daysPerWeek: current.size.toString() }));
+                      }}
+                      className="flex-1 py-1.5 rounded-md text-[11px] font-semibold transition-all"
+                      style={{
+                        background: isActive ? 'rgba(56,189,248,0.15)' : 'var(--pg-card)',
+                        color: isActive ? 'var(--pg-accent)' : 'var(--pg-text-muted)',
+                        border: `1px solid ${isActive ? 'rgba(56,189,248,0.4)' : 'var(--pg-card-border)'}`,
+                      }}
+                    >{lbl}</button>
+                  );
+                })}
+              </div>
+            </div>
             <EditField label="Doses/day" value={editState.dosesPerDay || ''} onChange={v => setEditState(s => ({ ...s, dosesPerDay: v }))} type="number" placeholder="e.g. 1" />
 
             {/* Section B: Supply */}
