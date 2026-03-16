@@ -141,12 +141,12 @@ export const COMPOUND_TYPE_META: Record<CompoundType, {
   subtitle: string;
   category: CompoundCategory;
 }> = {
-  'lyophilized-peptide': { icon: '🧬', label: 'Lyophilized Peptide', subtitle: 'Requires reconstitution', category: 'peptide' },
-  'injectable-oil':     { icon: '💉', label: 'Injectable Oil', subtitle: 'Pre-mixed, draw and inject', category: 'injectable-oil' },
-  'oral-pill':          { icon: '💊', label: 'Oral Pill / Capsule', subtitle: 'Swallow whole', category: 'oral' },
-  'oral-powder':        { icon: '🥄', label: 'Oral Powder', subtitle: 'Mix or measure by weight', category: 'powder' },
-  'topical':            { icon: '🧴', label: 'Topical / Cream', subtitle: 'Apply to skin', category: 'topical' },
-  'prescription':       { icon: '📋', label: 'Prescription', subtitle: 'Prescribed medication', category: 'prescription' },
+  'lyophilized-peptide': { icon: 'Syringe', label: 'Lyophilized Peptide', subtitle: 'Requires reconstitution', category: 'peptide' },
+  'injectable-oil':     { icon: 'Syringe', label: 'Injectable Oil', subtitle: 'Pre-mixed, draw and inject', category: 'injectable-oil' },
+  'oral-pill':          { icon: 'Pill', label: 'Oral Pill / Capsule', subtitle: 'Swallow whole', category: 'oral' },
+  'oral-powder':        { icon: 'FlaskConical', label: 'Oral Powder', subtitle: 'Mix or measure by weight', category: 'powder' },
+  'topical':            { icon: 'Droplets', label: 'Topical / Cream', subtitle: 'Apply to skin', category: 'topical' },
+  'prescription':       { icon: 'ClipboardList', label: 'Prescription', subtitle: 'Prescribed medication', category: 'prescription' },
 };
 
 export function compoundTypeFromCategory(cat: CompoundCategory): CompoundType {

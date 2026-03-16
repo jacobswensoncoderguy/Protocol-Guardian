@@ -1256,7 +1256,7 @@ const SectionHeader = ({ label }: { label: string }) => (
 
 const EditField = ({ label, value, onChange, type = 'text', placeholder }: { label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string }) => (
   <div className="space-y-1">
-    <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-muted)' }}>{label}</label>
+    <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-primary)', opacity: 0.65 }}>{label}</label>
     <input type={type} value={value} onChange={e => onChange(e.target.value)}
       placeholder={placeholder || `Enter ${label.toLowerCase()}`}
       className="w-full px-3 py-2 rounded-lg text-[12px] font-mono placeholder:text-[var(--pg-text-muted)] placeholder:opacity-50"

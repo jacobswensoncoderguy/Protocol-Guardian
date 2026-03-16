@@ -77,7 +77,18 @@ export default function StepIdentity({ formData, onUpdate, onNext, accentColor }
                   boxShadow: selected ? `0 0 0 1px hsl(${typeAccent} / 0.4)` : 'none',
                 }}
               >
-                <span className="text-2xl mt-0.5">{meta.icon}</span>
+                {(() => {
+                  const IconComponent = TYPE_ICONS[meta.icon];
+                  if (!IconComponent) return null;
+                  return (
+                    <IconComponent
+                      className="w-5 h-5 mt-0.5 flex-shrink-0"
+                      style={{ color: selected
+                        ? `hsl(${typeAccent})`
+                        : 'hsl(var(--muted-foreground))' }}
+                    />
+                  );
+                })()}
                 <div className="min-w-0">
                   <span className="text-sm font-semibold text-foreground block">{meta.label}</span>
                   <span className="text-[10px] text-muted-foreground leading-snug">{meta.subtitle}</span>
