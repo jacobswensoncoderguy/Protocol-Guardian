@@ -564,7 +564,7 @@ const Index = () => {
               conversationManager={conversationManager}
               appFeatures={appFeatures}
               onEnableFeature={handleToggleFeature}
-              onAddCompound={() => useV2Wizard ? setShowV2Wizard(true) : setShowAddDialog(true)}
+              onAddCompound={handleAddCompoundFromInventory}
               titrationNotifications={titration.notifications}
               titrationSchedules={titration.schedules}
               onTitrationConfirm={titration.confirmStep}
