@@ -300,7 +300,7 @@ export function useCompounds(userId: string | undefined) {
       return null;
     }
     await fetchCompounds();
-    return (data as { id: string } | null)?.id ?? null;
+    return data?.id ?? null;
   }, [userId, fetchCompounds]);
 
   const deleteCompound = useCallback(async (id: string) => {

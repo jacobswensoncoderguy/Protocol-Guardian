@@ -831,11 +831,7 @@ const Index = () => {
             await refetch();
             return id;
           }}
-          onAddAsOrdered={async (params) => {
-            if (wizardOpenedFrom.current === 'reorder') {
-              await handleAddAsOrdered(params);
-            }
-          }}
+          onAddAsOrdered={handleAddAsOrdered}
         />
 
         <ProtocolManagerDialog
