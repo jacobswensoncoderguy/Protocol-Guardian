@@ -999,7 +999,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
           <div className="mt-4 space-y-4 pb-20">
             {/* Section A: Identity */}
             <SectionHeader label="Identity" />
-            <EditField label="Name" value={editState.name || ''} onChange={v => setEditState(s => ({ ...s, name: v }))} />
+            <EditField label="Name" value={editState.name || ''} onChange={v => setEditState(s => ({ ...s, name: v }))} placeholder="Compound name" />
             <div className="space-y-1">
               <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-muted)' }}>Category</label>
               <div className="grid grid-cols-3 gap-1">
@@ -1015,21 +1015,63 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                 ))}
               </div>
             </div>
-            <EditField label="Timing note" value={editState.timing || ''} onChange={v => setEditState(s => ({ ...s, timing: v }))} />
-            <EditField label="Doses/day" value={editState.dosesPerDay || '1'} onChange={v => setEditState(s => ({ ...s, dosesPerDay: v }))} type="number" />
+            <EditField label="Timing note" value={editState.timing || ''} onChange={v => setEditState(s => ({ ...s, timing: v }))} placeholder="e.g. daily AM, Mon/Wed/Fri" />
+            <EditField label="Days/week" value={editState.daysPerWeek || ''} onChange={v => setEditState(s => ({ ...s, daysPerWeek: v }))} type="number" placeholder="1–7" />
+            <EditField label="Doses/day" value={editState.dosesPerDay || ''} onChange={v => setEditState(s => ({ ...s, dosesPerDay: v }))} type="number" placeholder="e.g. 1" />
 
             {/* Section B: Supply */}
             <SectionHeader label="Supply & Container" />
-            <EditField label={isPeptide ? 'Vials on hand' : 'On Hand'} value={editState.currentQuantity || ''} onChange={v => setEditState(s => ({ ...s, currentQuantity: v }))} type="number" />
-            <EditField label={isPeptide ? 'Per vial' : isOil ? 'Concentration (mg/mL)' : 'Per container'} value={editState.unitSize || ''} onChange={v => setEditState(s => ({ ...s, unitSize: v }))} type="number" />
-            {isOil && <EditField label="Vial Size (mL)" value={editState.vialSizeMl || '10'} onChange={v => setEditState(s => ({ ...s, vialSizeMl: v }))} type="number" />}
-            <EditField label="Price ($)" value={editState.unitPrice || ''} onChange={v => setEditState(s => ({ ...s, unitPrice: v }))} type="number" />
-            {isPeptide && editState.reorderType === 'kit' && <EditField label="Kit Price ($)" value={editState.kitPrice || ''} onChange={v => setEditState(s => ({ ...s, kitPrice: v }))} type="number" />}
-            <EditField label="Reorder Qty" value={editState.reorderQuantity || ''} onChange={v => setEditState(s => ({ ...s, reorderQuantity: v }))} type="number" />
+            <EditField label={isPeptide ? 'Vials on hand' : 'On Hand'} value={editState.currentQuantity || ''} onChange={v => setEditState(s => ({ ...s, currentQuantity: v }))} type="number" placeholder="0" />
+            <EditField label={isPeptide ? 'Per vial' : isOil ? 'Concentration (mg/mL)' : 'Per container'} value={editState.unitSize || ''} onChange={v => setEditState(s => ({ ...s, unitSize: v }))} type="number" placeholder="e.g. 100" />
+            <EditField label="Unit Label" value={editState.unitLabel || ''} onChange={v => setEditState(s => ({ ...s, unitLabel: v }))} placeholder="e.g. caps, mL, servings" />
+            {isOil && <EditField label="Vial Size (mL)" value={editState.vialSizeMl || ''} onChange={v => setEditState(s => ({ ...s, vialSizeMl: v }))} type="number" placeholder="10" />}
+            <EditField label="Price ($)" value={editState.unitPrice || ''} onChange={v => setEditState(s => ({ ...s, unitPrice: v }))} type="number" placeholder="0.00" />
+            {isPeptide && editState.reorderType === 'kit' && <EditField label="Kit Price ($)" value={editState.kitPrice || ''} onChange={v => setEditState(s => ({ ...s, kitPrice: v }))} type="number" placeholder="0.00" />}
+            <EditField label="Reorder Qty" value={editState.reorderQuantity || ''} onChange={v => setEditState(s => ({ ...s, reorderQuantity: v }))} type="number" placeholder="1" />
 
             {/* Section C: Dosing */}
             <SectionHeader label="Dosing" />
-            <EditField label="Dose" value={editState.dosePerUse || ''} onChange={v => setEditState(s => ({ ...s, dosePerUse: v }))} type="number" />
+            <EditField label="Dose" value={editState.dosePerUse || ''} onChange={v => setEditState(s => ({ ...s, dosePerUse: v }))} type="number" placeholder="e.g. 2.5" />
+            <div className="space-y-1">
+              <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-muted)' }}>Dose Unit</label>
+              <select value={editState.editDoseUnit || 'mg'} onChange={e => setEditState(s => ({ ...s, editDoseUnit: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg text-[12px] font-mono"
+                style={{ background: 'var(--pg-card)', color: 'var(--pg-text-primary)', border: '1px solid var(--pg-card-border)' }}
+              >
+                <option value="mg">mg</option>
+                <option value="mcg">mcg</option>
+                <option value="g">g</option>
+                <option value="iu">IU</option>
+                <option value="ml">mL</option>
+                <option value="pills">pills/caps</option>
+                <option value="scoop">scoop</option>
+                <option value="drops">drops</option>
+                <option value="spray">spray</option>
+                <option value="patch">patch</option>
+                <option value="softgels">softgels</option>
+                <option value="units">units</option>
+                <option value="tbsp">tbsp</option>
+                <option value="tsp">tsp</option>
+                <option value="oz">oz</option>
+                <option value="floz">fl oz</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <EditField label="Strength/Unit" value={editState.weightPerUnit || ''} onChange={v => setEditState(s => ({ ...s, weightPerUnit: v }))} type="number" placeholder="e.g. 500" />
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-muted)' }}>Strength Unit</label>
+                <select value={editState.strengthUnit || 'mg'} onChange={e => setEditState(s => ({ ...s, strengthUnit: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg text-[12px] font-mono"
+                  style={{ background: 'var(--pg-card)', color: 'var(--pg-text-primary)', border: '1px solid var(--pg-card-border)' }}
+                >
+                  <option value="mg">mg</option>
+                  <option value="mcg">mcg</option>
+                  <option value="g">g</option>
+                  <option value="oz">oz</option>
+                  <option value="lb">lb</option>
+                </select>
+              </div>
+            </div>
 
             {/* Section D: Cycling */}
             <SectionHeader label="Cycling" />

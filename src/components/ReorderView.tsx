@@ -214,6 +214,23 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
   const confirmMarkOrdered = async () => {
     if (!orderDialog) return;
     const { compoundId, monthLabel } = orderDialog;
+
+    // Bug 3 gate: require dosing data before confirming order
+    const parsedDose = parseFloat(editDosePerUse);
+    const parsedDosesPerDay = parseFloat(editDosesPerDay);
+    if (!parsedDose || parsedDose <= 0) {
+      toast.error('Dose per use is required before confirming an order — depletion math depends on it.');
+      return;
+    }
+    if (!parsedDosesPerDay || parsedDosesPerDay <= 0) {
+      toast.error('Doses per day is required before confirming an order.');
+      return;
+    }
+    if (!editDoseLabel.trim()) {
+      toast.error('Dose label (unit) is required before confirming an order.');
+      return;
+    }
+
     const finalQty = parseFloat(editQty) || orderDialog.quantity;
     const finalCost = parseFloat(editCost) || orderDialog.cost;
 
