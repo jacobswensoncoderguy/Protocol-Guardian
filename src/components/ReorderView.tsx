@@ -118,7 +118,7 @@ function getAvgShippingDays(compoundId: string, receivedOrders: OrderItem[]): nu
   return Math.round(total / completed.length);
 }
 
-const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reorderHorizon = 30, onHorizonChange }: ReorderViewProps) => {
+const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reorderHorizon = 30, onHorizonChange, onAddCompound }: ReorderViewProps) => {
   const { getComplianceInfo, getDaysRemainingAdjusted } = useCompliance();
   const [tab, setTab] = useState<Tab>('needed');
   const [orders, setOrders] = useState<OrderItem[]>([]);
