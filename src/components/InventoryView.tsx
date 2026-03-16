@@ -1116,7 +1116,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                 <EditField label="ON days" value={editState.cycleOnDays || ''} onChange={v => setEditState(s => ({ ...s, cycleOnDays: v }))} type="number" />
                 <EditField label="OFF days" value={editState.cycleOffDays || ''} onChange={v => setEditState(s => ({ ...s, cycleOffDays: v }))} type="number" />
                 <div className="space-y-1">
-                  <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-muted)' }}>Cycle Start</label>
+                  <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-primary)', opacity: 0.65 }}>Cycle Start</label>
                   <DatePickerInput value={editState.cycleStartDate || ''} onChange={v => setEditState(s => ({ ...s, cycleStartDate: v }))} className="text-[11px] py-1.5" />
                 </div>
               </>
