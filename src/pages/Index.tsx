@@ -125,6 +125,8 @@ const Index = () => {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showV2Wizard, setShowV2Wizard] = useState(false);
   const [useV2Wizard, setUseV2Wizard] = useState(true);
+  // Tracks which context opened the compound wizard
+  const wizardOpenedFrom = useRef<'inventory' | 'reorder'>('inventory');
   const [showProtocolManager, setShowProtocolManager] = useState(false);
   const [showGoalExpansion, setShowGoalExpansion] = useState(false);
   const [showBiomarkerUpload, setShowBiomarkerUpload] = useState(false);
