@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { Compound, getReorderCost, getEffectiveQuantity, getCompoundContainerKind } from '@/data/compounds';
@@ -175,8 +175,16 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
     setLoading(false);
   }, []);
 
+  useEffect(() => { fetchOrders(); }, [fetchOrders]);
+
   // Refetch orders whenever the compounds list changes (e.g. after wizard Path B save)
-  useEffect(() => { fetchOrders(); }, [fetchOrders, compounds.length]);
+  const prevCompoundsLengthRef = useRef(compounds.length);
+  useEffect(() => {
+    if (compounds.length !== prevCompoundsLengthRef.current) {
+      prevCompoundsLengthRef.current = compounds.length;
+      fetchOrders();
+    }
+  }, [compounds.length, fetchOrders]);
 
   const neededItems = buildNeededItems(compounds, horizon, getComplianceInfo);
   const orderedItems = orders.filter(o => o.status === 'ordered');
@@ -288,7 +296,15 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
     setEditOrderQty(String(order.quantity));
     setEditOrderCost(String(order.cost));
     setEditOrderNotes(order.notes || '');
-    setEditOrderName(compound?.name || '');
+    const fallbackName = (() => {
+      if (compound?.name) return compound.name;
+      if (order.notes) {
+        const sepIdx = order.notes.indexOf('||');
+        return sepIdx > 0 ? order.notes.slice(0, sepIdx) : order.notes;
+      }
+      return '';
+    })();
+    setEditOrderName(fallbackName);
     setEditOrderUnitSize(String(compound?.unitSize || ''));
     setEditOrderUnitLabel(compound?.unitLabel || '');
     setEditOrderUnitPrice(String(compound?.unitPrice || ''));
@@ -723,7 +739,15 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
                           <div key={order.id} className="bg-card rounded-lg border border-primary/20 p-3">
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0 flex-1">
-                                <h4 className="text-sm font-semibold text-foreground truncate">{compound?.name || order.compound_id}</h4>
+                                <h4 className="text-sm font-semibold text-foreground truncate">{(() => {
+                                  if (compound?.name) return compound.name;
+                                  if (order.notes) {
+                                    const sepIdx = order.notes.indexOf('||');
+                                    if (sepIdx > 0) return order.notes.slice(0, sepIdx);
+                                    return order.notes;
+                                  }
+                                  return 'Unknown Compound';
+                                })()}</h4>
                                 <div className="flex items-center gap-2 mt-1 flex-wrap">
                                   <span className="text-[10px] text-muted-foreground">{getDisplayQty(order.compound_id, order.quantity)}</span>
                                   <span className="text-[10px] font-mono text-muted-foreground">${order.cost}</span>
@@ -756,12 +780,18 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
                                     );
                                   })()}
                                 </div>
-                                {order.notes && (
-                                  <div className="flex items-center gap-1 mt-1.5">
-                                    <Store className="w-2.5 h-2.5 text-muted-foreground flex-shrink-0" />
-                                    <p className="text-[10px] text-muted-foreground italic truncate">{order.notes}</p>
-                                  </div>
-                                )}
+                                {order.notes && (() => {
+                                  const sepIdx = order.notes.indexOf('||');
+                                  const displayNotes = sepIdx >= 0 ? order.notes.slice(sepIdx + 2).trim() : order.notes;
+                                  // If displayNotes equals compound name (no-separator fallback), don't show as supplier
+                                  if (!displayNotes || (!compound?.name && sepIdx < 0)) return null;
+                                  return (
+                                    <div className="flex items-center gap-1 mt-1.5">
+                                      <Store className="w-2.5 h-2.5 text-muted-foreground flex-shrink-0" />
+                                      <p className="text-[10px] text-muted-foreground italic truncate">{displayNotes}</p>
+                                    </div>
+                                  );
+                                })()}
                               </div>
                               <div className="flex items-center gap-1 flex-shrink-0">
                                 <button
@@ -882,7 +912,15 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
                         <div key={order.id} className="bg-card rounded-lg border border-status-good/20 p-3">
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0 flex-1">
-                              <h4 className="text-sm font-semibold text-foreground truncate">{compound?.name || order.compound_id}</h4>
+                              <h4 className="text-sm font-semibold text-foreground truncate">{(() => {
+                                if (compound?.name) return compound.name;
+                                if (order.notes) {
+                                  const sepIdx = order.notes.indexOf('||');
+                                  if (sepIdx > 0) return order.notes.slice(0, sepIdx);
+                                  return order.notes;
+                                }
+                                return 'Unknown Compound';
+                              })()}</h4>
                               <div className="flex items-center gap-2 mt-1 flex-wrap">
                                 <span className="text-[10px] text-muted-foreground">{getDisplayQty(order.compound_id, order.quantity)}</span>
                                 <span className="text-[10px] font-mono text-muted-foreground">${order.cost}</span>
@@ -909,12 +947,17 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
                                   </span>
                                 )}
                               </div>
-                              {order.notes && (
-                                <div className="flex items-center gap-1 mt-1.5">
-                                  <Store className="w-2.5 h-2.5 text-muted-foreground flex-shrink-0" />
-                                  <p className="text-[10px] text-muted-foreground italic truncate">{order.notes}</p>
-                                </div>
-                              )}
+                              {order.notes && (() => {
+                                const sepIdx = order.notes.indexOf('||');
+                                const displayNotes = sepIdx >= 0 ? order.notes.slice(sepIdx + 2).trim() : order.notes;
+                                if (!displayNotes || (!compound?.name && sepIdx < 0)) return null;
+                                return (
+                                  <div className="flex items-center gap-1 mt-1.5">
+                                    <Store className="w-2.5 h-2.5 text-muted-foreground flex-shrink-0" />
+                                    <p className="text-[10px] text-muted-foreground italic truncate">{displayNotes}</p>
+                                  </div>
+                                );
+                              })()}
                             </div>
                             <div className="flex items-center gap-1 flex-shrink-0">
                               <button
