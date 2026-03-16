@@ -75,10 +75,28 @@ function buildProjection(compounds: Compound[], getModifiers: (compoundId: strin
     return c;
   });
   const now = new Date();
-  const startMonth = now.getMonth();
-  const startYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
 
-  const months: MonthData[] = Array.from({ length: 12 }, (_, i) => {
+  // Determine earliest month from received orders to include historical data
+  let startMonth = currentMonth;
+  let startYear = currentYear;
+  if (receivedOrders.length > 0) {
+    const earliest = receivedOrders.reduce((min, o) => {
+      const d = new Date(o.received_at);
+      return d < min ? d : min;
+    }, new Date());
+    if (earliest < now) {
+      startMonth = earliest.getMonth();
+      startYear = earliest.getFullYear();
+    }
+  }
+
+  // Calculate total months: from earliest historical month through 12 months forward from now
+  const histMonths = (currentYear - startYear) * 12 + (currentMonth - startMonth);
+  const totalMonths = histMonths + 12;
+
+  const months: MonthData[] = Array.from({ length: totalMonths }, (_, i) => {
     const m = (startMonth + i) % 12;
     const y = startYear + Math.floor((startMonth + i) / 12);
     return { month: m, year: y, name: MONTHS[m], compounds: [], total: 0 };
@@ -349,7 +367,7 @@ const CostProjectionView = ({ compounds, protocols = [], customFields = [], cust
                 selectedIndex === idx ? 'ring-1 ring-primary' : 'border-border/50'
               }`}
             >
-              <p className="text-[11px] font-semibold text-foreground" style={{ fontFamily: "'DM Sans', sans-serif" }}>{month.name}</p>
+              <p className="text-[11px] font-semibold text-foreground" style={{ fontFamily: "'DM Sans', sans-serif" }}>{month.name}{month.year !== new Date().getFullYear() ? ` '${String(month.year).slice(2)}` : ''}</p>
               <p className={`text-sm font-bold mt-0.5 ${textClass}`} style={{ fontFamily: "'DM Mono', monospace" }}>
                 ${Math.round(month.total)}
               </p>
