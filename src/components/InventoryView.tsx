@@ -1127,7 +1127,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
               <>
                 <SectionHeader label="Dilution / Reconstitution" />
                 <div className="space-y-1">
-                  <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-muted)' }}>Solvent</label>
+                  <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-primary)', opacity: 0.65 }}>Solvent</label>
                   <select value={editState.solventType || ''} onChange={e => setEditState(s => ({ ...s, solventType: e.target.value }))}
                     className="w-full px-3 py-2 rounded-lg text-[11px] font-mono"
                     style={{ background: 'var(--pg-card)', color: 'var(--pg-text-primary)', border: '1px solid var(--pg-card-border)' }}
