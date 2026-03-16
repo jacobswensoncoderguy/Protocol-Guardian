@@ -1001,7 +1001,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
             <SectionHeader label="Identity" />
             <EditField label="Name" value={editState.name || ''} onChange={v => setEditState(s => ({ ...s, name: v }))} placeholder="Compound name" />
             <div className="space-y-1">
-              <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-muted)' }}>Category</label>
+              <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-primary)', opacity: 0.65 }}>Category</label>
               <div className="grid grid-cols-3 gap-1">
                 {categoryOrder.map(cat => (
                   <button key={cat} onClick={() => setEditState(s => ({ ...s, category: cat }))}
