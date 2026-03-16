@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { Compound, getReorderCost, getEffectiveQuantity, getCompoundContainerKind } from '@/data/compounds';
