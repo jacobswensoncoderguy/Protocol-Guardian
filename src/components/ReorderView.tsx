@@ -1018,37 +1018,45 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
               </div>
             </div>
 
-            {/* Dosing */}
+            {/* Dosing — required for order confirmation */}
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground uppercase tracking-wider">Dosing (updates protocol)</Label>
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                Dosing (required for order)
+              </Label>
+              {(!(parseFloat(editDosePerUse) > 0) || !editDoseLabel.trim() || !(parseFloat(editDosesPerDay) > 0)) && (
+                <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-2 flex items-start gap-1.5 mb-1">
+                  <AlertTriangle className="w-3 h-3 text-destructive flex-shrink-0 mt-0.5" />
+                  <p className="text-[10px] text-destructive">Dosing info is required — depletion and reorder math depend on it.</p>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <p className="text-[10px] text-muted-foreground">Dose/Use</p>
+                  <p className={`text-[10px] ${!(parseFloat(editDosePerUse) > 0) ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>Dose/Use *</p>
                   <Input
                     type="number"
                     value={editDosePerUse}
                     onChange={e => setEditDosePerUse(e.target.value)}
                     placeholder="e.g. 2.5"
-                    className="text-sm h-8"
+                    className={`text-sm h-8 ${!(parseFloat(editDosePerUse) > 0) ? 'border-destructive/50 ring-1 ring-destructive/20' : ''}`}
                   />
                 </div>
                 <div className="space-y-1">
-                  <p className="text-[10px] text-muted-foreground">Dose Label</p>
+                  <p className={`text-[10px] ${!editDoseLabel.trim() ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>Dose Label *</p>
                   <Input
                     value={editDoseLabel}
                     onChange={e => setEditDoseLabel(e.target.value)}
                     placeholder="g, mg, mL…"
-                    className="text-sm h-8"
+                    className={`text-sm h-8 ${!editDoseLabel.trim() ? 'border-destructive/50 ring-1 ring-destructive/20' : ''}`}
                   />
                 </div>
                 <div className="space-y-1">
-                  <p className="text-[10px] text-muted-foreground">Doses/Day</p>
+                  <p className={`text-[10px] ${!(parseFloat(editDosesPerDay) > 0) ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>Doses/Day *</p>
                   <Input
                     type="number"
                     value={editDosesPerDay}
                     onChange={e => setEditDosesPerDay(e.target.value)}
                     placeholder="1"
-                    className="text-sm h-8"
+                    className={`text-sm h-8 ${!(parseFloat(editDosesPerDay) > 0) ? 'border-destructive/50 ring-1 ring-destructive/20' : ''}`}
                   />
                 </div>
                 <div className="space-y-1">
