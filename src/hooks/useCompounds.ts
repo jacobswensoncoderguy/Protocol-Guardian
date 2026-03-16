@@ -256,8 +256,8 @@ export function useCompounds(userId: string | undefined) {
     }
   }, [fetchCompounds]);
 
-  const addCompound = useCallback(async (compound: Compound) => {
-    if (!userId) return;
+  const addCompound = useCallback(async (compound: Compound): Promise<string | null> => {
+    if (!userId) return null;
 
     const { data, error } = await supabase
       .from('user_compounds')
@@ -296,9 +296,11 @@ export function useCompounds(userId: string | undefined) {
 
     if (error) {
       console.error('Failed to add compound:', error);
+      await fetchCompounds();
+      return null;
     }
-    // Always refetch to get the correct DB-generated ID
     await fetchCompounds();
+    return (data as { id: string } | null)?.id ?? null;
   }, [userId, fetchCompounds]);
 
   const deleteCompound = useCallback(async (id: string) => {

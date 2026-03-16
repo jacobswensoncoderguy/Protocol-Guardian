@@ -170,7 +170,11 @@ export function generateScheduleFromCompounds(
     doses: [],
   }));
 
-  compounds.filter(c => c.daysPerWeek > 0 || (c.cycleOnDays && c.cycleOffDays)).forEach(compound => {
+  compounds.filter(c => 
+    (c.daysPerWeek > 0 || (c.cycleOnDays && c.cycleOffDays)) &&
+    !c.notes?.includes('[DORMANT]') &&
+    !c.notes?.includes('[ON_ORDER]')
+  ).forEach(compound => {
     const days = parseDays(compound);
     const effectiveDpd = getEffectiveDosesPerDay(compound, customFields, customFieldValues);
     const timings = parseTimings(compound, effectiveDpd);

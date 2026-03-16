@@ -261,7 +261,7 @@ const CostProjectionView = ({ compounds, protocols = [], customFields = [], cust
   const totalSpent = projection.reduce((sum, m) => 
     sum + m.compounds.filter(c => c.isReceived).reduce((s, c) => s + c.cost, 0), 0);
   const remainingAnnual = totalAnnual - totalSpent;
-  const monthlyAvg = compounds.reduce((sum, c) => {
+  const monthlyAvg = compounds.filter(c => !c.notes?.includes('[ON_ORDER]')).reduce((sum, c) => {
     const mods = getModifiers(c.id);
     const effectiveCompound = mods.dosesPerDayOverride !== null
       ? { ...c, dosesPerDay: mods.dosesPerDayOverride }
