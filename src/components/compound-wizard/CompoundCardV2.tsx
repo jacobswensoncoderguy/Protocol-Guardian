@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useCallback, useMemo } from 'react';
-import { Compound, CompoundCategory, normalizeCompoundUnitLabel, getDerivedWeightPerUnitMg } from '@/data/compounds';
+import { Compound, CompoundCategory, normalizeCompoundUnitLabel, getDerivedWeightPerUnitMg, getReorderCost } from '@/data/compounds';
 import { useWizardMachine } from './useWizardMachine';
 import WizardProgress from './WizardProgress';
 import StepIdentity from './steps/StepIdentity';
