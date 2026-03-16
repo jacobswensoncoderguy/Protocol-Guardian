@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useCallback, useMemo } from 'react';
-import { Compound, CompoundCategory, normalizeCompoundUnitLabel, getDerivedWeightPerUnitMg } from '@/data/compounds';
+import { Compound, CompoundCategory, normalizeCompoundUnitLabel, getDerivedWeightPerUnitMg, getReorderCost } from '@/data/compounds';
 import { useWizardMachine } from './useWizardMachine';
 import WizardProgress from './WizardProgress';
 import StepIdentity from './steps/StepIdentity';
@@ -37,10 +37,10 @@ interface CompoundCardV2Props {
   onOpenChange: (open: boolean) => void;
   onAddAsOrdered?: (params: {
     newCompoundId: string;
+    compoundName: string;
+    orderCost: number;
     reorderQuantity: number;
     reorderType: 'single' | 'kit';
-    unitPrice: number;
-    kitPrice?: number;
     category: string;
     orderDate: string;
     orderNotes: string;
@@ -318,6 +318,7 @@ export default function CompoundCardV2({ existingCompoundIds, onAdd, open, onOpe
 
     try {
       const compound = formDataToCompound(formData);
+      const orderCost = getReorderCost(compound);
 
       // Override: zero stock, no purchase date, tag as on-order
       const orderedCompound: typeof compound = {
@@ -333,17 +334,21 @@ export default function CompoundCardV2({ existingCompoundIds, onAdd, open, onOpe
       const newCompoundId = await onAdd(orderedCompound);
 
       if (!newCompoundId) {
-        saveError('Failed to save compound — please try again');
+        saveError(
+          'Compound saved but could not get ID — ' +
+          'check Reorder tab and use Force Reorder ' +
+          'to add the order manually'
+        );
         return;
       }
 
       // Notify parent to create the order record
       await onAddAsOrdered?.({
         newCompoundId,
+        compoundName: compound.name,
+        orderCost,
         reorderQuantity: compound.reorderQuantity,
         reorderType: compound.reorderType,
-        unitPrice: compound.unitPrice,
-        kitPrice: compound.kitPrice,
         category: compound.category,
         orderDate,
         orderNotes,

@@ -266,7 +266,7 @@ export default function StepReview({ formData, onJump, onSave, onSaveOrdered, on
         {/* PATH B — I Ordered It */}
         <button
           type="button"
-          disabled={isSaving || validationErrors.length > 0}
+          disabled={isSaving}
           onClick={() => setSelectedPath(p => p === 'ordered' ? 'now' : 'ordered')}
           className={`w-full py-3 rounded-xl text-sm font-semibold transition-all duration-200 flex flex-col items-center justify-center gap-0.5 border disabled:opacity-50 ${
             selectedPath === 'ordered'

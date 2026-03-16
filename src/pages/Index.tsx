@@ -300,45 +300,55 @@ const Index = () => {
 
   const handleAddAsOrdered = useCallback(async (params: {
     newCompoundId: string;
+    compoundName: string;
+    orderCost: number;
     reorderQuantity: number;
     reorderType: 'single' | 'kit';
-    unitPrice: number;
-    kitPrice?: number;
     category: string;
     orderDate: string;
     orderNotes: string;
-  }) => {
+  }): Promise<void> => {
     if (!user?.id) {
-      console.error('handleAddAsOrdered: userId is undefined');
+      console.error('handleAddAsOrdered: no userId');
       return;
     }
 
-    const cost = params.reorderType === 'kit' && params.kitPrice
-      ? params.kitPrice * params.reorderQuantity
-      : params.unitPrice * params.reorderQuantity;
-
-    const orderDate = new Date(params.orderDate);
-    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun',
-      'Jul','Aug','Sep','Oct','Nov','Dec'];
-    const monthLabel = `${MONTHS[orderDate.getMonth()]} ${orderDate.getFullYear()}`;
+    const date = new Date(params.orderDate);
+    const MONTHS = [
+      'Jan','Feb','Mar','Apr','May','Jun',
+      'Jul','Aug','Sep','Oct','Nov','Dec',
+    ];
+    const monthLabel = `${MONTHS[date.getMonth()]} ${date.getFullYear()}`;
 
     const { error } = await supabase
       .from('orders')
       .insert([{
         compound_id: params.newCompoundId,
         quantity: params.reorderQuantity,
-        cost,
+        cost: params.orderCost,
         status: 'ordered',
         month_label: monthLabel,
-        ordered_at: orderDate.toISOString(),
+        ordered_at: date.toISOString(),
         notes: params.orderNotes.trim() || null,
         user_id: user.id,
       }]);
 
     if (error) {
       console.error('Failed to create order record:', error);
+      toast.error(
+        'Compound saved but order record failed — ' +
+        'use Force Reorder to add it manually'
+      );
       return;
     }
+
+    toast.success(
+      `${params.compoundName} added to your order list`,
+      {
+        description: 'Go to Inventory → Reorder → Ordered tab',
+        duration: 5000,
+      }
+    );
 
     setActiveTab('inventory');
     setInventorySubTab('reorder');
@@ -821,11 +831,7 @@ const Index = () => {
             await refetch();
             return id;
           }}
-          onAddAsOrdered={async (params) => {
-            if (wizardOpenedFrom.current === 'reorder') {
-              await handleAddAsOrdered(params);
-            }
-          }}
+          onAddAsOrdered={handleAddAsOrdered}
         />
 
         <ProtocolManagerDialog
