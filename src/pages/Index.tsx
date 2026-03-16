@@ -18,7 +18,7 @@ import { useConversations } from '@/hooks/useConversations';
 import { useCustomFields } from '@/hooks/useCustomFields';
 import { useDoseCheckOffs } from '@/hooks/useDoseCheckOffs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useCallback, useState, useEffect, useMemo } from 'react';
+import { useCallback, useState, useEffect, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
 import HeaderQuickActions from '@/components/HeaderQuickActions';
 import ProfileDropdown from '@/components/ProfileDropdown';
@@ -125,6 +125,8 @@ const Index = () => {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showV2Wizard, setShowV2Wizard] = useState(false);
   const [useV2Wizard, setUseV2Wizard] = useState(true);
+  // Tracks which context opened the compound wizard
+  const wizardOpenedFrom = useRef<'inventory' | 'reorder'>('inventory');
   const [showProtocolManager, setShowProtocolManager] = useState(false);
   const [showGoalExpansion, setShowGoalExpansion] = useState(false);
   const [showBiomarkerUpload, setShowBiomarkerUpload] = useState(false);
@@ -286,6 +288,62 @@ const Index = () => {
     updateCompound(id, updates);
   };
 
+  const handleAddCompoundFromInventory = useCallback(() => {
+    wizardOpenedFrom.current = 'inventory';
+    if (useV2Wizard) setShowV2Wizard(true); else setShowAddDialog(true);
+  }, [useV2Wizard]);
+
+  const handleAddCompoundFromReorder = useCallback(() => {
+    wizardOpenedFrom.current = 'reorder';
+    setShowV2Wizard(true);
+  }, []);
+
+  const handleAddAsOrdered = useCallback(async (params: {
+    newCompoundId: string;
+    reorderQuantity: number;
+    reorderType: 'single' | 'kit';
+    unitPrice: number;
+    kitPrice?: number;
+    category: string;
+    orderDate: string;
+    orderNotes: string;
+  }) => {
+    if (!user?.id) {
+      console.error('handleAddAsOrdered: userId is undefined');
+      return;
+    }
+
+    const cost = params.reorderType === 'kit' && params.kitPrice
+      ? params.kitPrice * params.reorderQuantity
+      : params.unitPrice * params.reorderQuantity;
+
+    const orderDate = new Date(params.orderDate);
+    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun',
+      'Jul','Aug','Sep','Oct','Nov','Dec'];
+    const monthLabel = `${MONTHS[orderDate.getMonth()]} ${orderDate.getFullYear()}`;
+
+    const { error } = await supabase
+      .from('orders')
+      .insert([{
+        compound_id: params.newCompoundId,
+        quantity: params.reorderQuantity,
+        cost,
+        status: 'ordered',
+        month_label: monthLabel,
+        ordered_at: orderDate.toISOString(),
+        notes: params.orderNotes.trim() || null,
+        user_id: user.id,
+      }]);
+
+    if (error) {
+      console.error('Failed to create order record:', error);
+      return;
+    }
+
+    setActiveTab('inventory');
+    setInventorySubTab('reorder');
+  }, [user?.id]);
+
   // Compute per-member annual/monthly cost estimates for the combined cost breakdown
   const memberCostBreakdowns = useMemo(() => {
     if (householdViewId !== 'combined' || household.acceptedMembers.length === 0) return undefined;
@@ -396,7 +454,7 @@ const Index = () => {
           <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
             <HeaderQuickActions
               activeTab={activeTab}
-              onAddCompound={() => useV2Wizard ? setShowV2Wizard(true) : setShowAddDialog(true)}
+              onAddCompound={handleAddCompoundFromInventory}
               onManageProtocols={() => setShowProtocolManager(true)}
               onGoalExpansion={() => setShowGoalExpansion(true)}
               onNavigateTab={setActiveTab}
@@ -506,7 +564,7 @@ const Index = () => {
               conversationManager={conversationManager}
               appFeatures={appFeatures}
               onEnableFeature={handleToggleFeature}
-              onAddCompound={() => useV2Wizard ? setShowV2Wizard(true) : setShowAddDialog(true)}
+              onAddCompound={handleAddCompoundFromInventory}
               titrationNotifications={titration.notifications}
               titrationSchedules={titration.schedules}
               onTitrationConfirm={titration.confirmStep}
@@ -632,7 +690,7 @@ const Index = () => {
                     compounds={viewCompounds}
                     onUpdateCompound={householdViewId === 'self' ? handleUpdateCompound : () => {}}
                     onDeleteCompound={householdViewId === 'self' ? deleteCompound : undefined}
-                    onAddCompound={householdViewId === 'self' ? () => useV2Wizard ? setShowV2Wizard(true) : setShowAddDialog(true) : undefined}
+                    onAddCompound={householdViewId === 'self' ? handleAddCompoundFromInventory : undefined}
                     protocols={protocols}
                     toleranceLevel={toleranceLevel}
                     onToleranceChange={handleToleranceChange}
@@ -667,7 +725,7 @@ const Index = () => {
                   {inventorySubTab === 'costs' && <CostProjectionView compounds={viewCompounds} protocols={protocols} customFields={customFields} customFieldValues={customFieldValues} userId={user?.id} memberBreakdowns={memberCostBreakdowns} />}
                 </TabsContent>
                 <TabsContent value="reorder" forceMount={inventorySubTab === 'reorder' ? true : undefined}>
-                  {inventorySubTab === 'reorder' && <ReorderView compounds={viewCompounds} onUpdateCompound={householdViewId === 'self' ? handleUpdateCompound : () => {}} userId={user?.id} protocols={protocols} reorderHorizon={reorderHorizon} onHorizonChange={updateReorderHorizon} />}
+                  {inventorySubTab === 'reorder' && <ReorderView compounds={viewCompounds} onUpdateCompound={householdViewId === 'self' ? handleUpdateCompound : () => {}} userId={user?.id} protocols={protocols} reorderHorizon={reorderHorizon} onHorizonChange={updateReorderHorizon} onAddCompound={householdViewId === 'self' ? handleAddCompoundFromReorder : undefined} />}
                 </TabsContent>
               </div>
             </Tabs>
@@ -759,8 +817,14 @@ const Index = () => {
           onOpenChange={setShowV2Wizard}
           existingCompoundIds={compounds.map(c => c.name)}
           onAdd={async (compound) => {
-            await addCompound(compound);
+            const id = await addCompound(compound);
             await refetch();
+            return id;
+          }}
+          onAddAsOrdered={async (params) => {
+            if (wizardOpenedFrom.current === 'reorder') {
+              await handleAddAsOrdered(params);
+            }
           }}
         />
 

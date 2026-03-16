@@ -32,9 +32,19 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 
 interface CompoundCardV2Props {
   existingCompoundIds: string[];
-  onAdd: (compound: Compound) => void;
+  onAdd: (compound: Compound) => Promise<string | null>;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onAddAsOrdered?: (params: {
+    newCompoundId: string;
+    reorderQuantity: number;
+    reorderType: 'single' | 'kit';
+    unitPrice: number;
+    kitPrice?: number;
+    category: string;
+    orderDate: string;
+    orderNotes: string;
+  }) => Promise<void>;
 }
 
 /** Convert wizard form data → Compound shape for database write */
@@ -248,7 +258,7 @@ function compoundToFormData(compound: Compound): WizardFormData {
   return fd;
 }
 
-export default function CompoundCardV2({ existingCompoundIds, onAdd, open, onOpenChange }: CompoundCardV2Props) {
+export default function CompoundCardV2({ existingCompoundIds, onAdd, open, onOpenChange, onAddAsOrdered }: CompoundCardV2Props) {
   const { state, start, next, back, jump, updateForm, save, saveSuccess, saveError, reset } = useWizardMachine();
   const { step, formData, highestStep, error } = state;
 
@@ -292,6 +302,66 @@ export default function CompoundCardV2({ existingCompoundIds, onAdd, open, onOpe
       saveError(err.message || 'Failed to save compound');
     }
   }, [formData, onAdd, save, saveSuccess, saveError, reset, onOpenChange]);
+
+  const handleSaveOrdered = useCallback(async (
+    orderDate: string,
+    orderNotes: string
+  ) => {
+    // Run the same pre-save validation as handleSave
+    const errors = validateWizardData(formData);
+    if (errors.length > 0) {
+      saveError(errors[0]);
+      return;
+    }
+
+    save();
+
+    try {
+      const compound = formDataToCompound(formData);
+
+      // Override: zero stock, no purchase date, tag as on-order
+      const orderedCompound: typeof compound = {
+        ...compound,
+        currentQuantity: 0,
+        purchaseDate: '',
+        notes: compound.notes
+          ? `[ON_ORDER] ${compound.notes}`
+          : '[ON_ORDER]',
+      };
+
+      // Call onAdd (now returns the DB-generated id)
+      const newCompoundId = await onAdd(orderedCompound);
+
+      if (!newCompoundId) {
+        saveError('Failed to save compound — please try again');
+        return;
+      }
+
+      // Notify parent to create the order record
+      await onAddAsOrdered?.({
+        newCompoundId,
+        reorderQuantity: compound.reorderQuantity,
+        reorderType: compound.reorderType,
+        unitPrice: compound.unitPrice,
+        kitPrice: compound.kitPrice,
+        category: compound.category,
+        orderDate,
+        orderNotes,
+      });
+
+      saveSuccess();
+      setTimeout(() => {
+        reset();
+        onOpenChange(false);
+      }, 600);
+
+    } catch (err: unknown) {
+      const msg = err instanceof Error
+        ? err.message
+        : 'Failed to save compound';
+      saveError(msg);
+    }
+  }, [formData, onAdd, onAddAsOrdered, save, saveSuccess, saveError, reset, onOpenChange]);
 
   const handleCancel = useCallback(() => {
     reset();
@@ -340,6 +410,13 @@ export default function CompoundCardV2({ existingCompoundIds, onAdd, open, onOpe
               formData={formData}
               onJump={handleJump}
               onSave={handleSave}
+              onSaveOrdered={(intakeMode, orderDate, orderNotes) => {
+                if (intakeMode === 'ordered') {
+                  handleSaveOrdered(orderDate, orderNotes);
+                } else {
+                  handleSave();
+                }
+              }}
               onCancel={handleCancel}
               isSaving={isSaving}
               error={error}
