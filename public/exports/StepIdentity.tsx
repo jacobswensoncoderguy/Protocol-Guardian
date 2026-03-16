@@ -1,5 +1,14 @@
 import { useEffect, useRef } from 'react';
 import { WizardFormData, CompoundType, COMPOUND_TYPE_META, CATEGORY_OPTIONS, getAccentColor } from '../types';
+import { Syringe, Pill, FlaskConical, Droplets, ClipboardList, type LucideIcon } from 'lucide-react';
+
+const TYPE_ICONS: Record<string, LucideIcon> = {
+  Syringe,
+  Pill,
+  FlaskConical,
+  Droplets,
+  ClipboardList,
+};
 
 interface StepIdentityProps {
   formData: WizardFormData;
