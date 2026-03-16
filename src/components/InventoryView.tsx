@@ -1058,7 +1058,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
             <SectionHeader label="Dosing" />
             <EditField label="Dose" value={editState.dosePerUse || ''} onChange={v => setEditState(s => ({ ...s, dosePerUse: v }))} type="number" placeholder="e.g. 2.5" />
             <div className="space-y-1">
-              <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-muted)' }}>Dose Unit</label>
+              <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-primary)', opacity: 0.65 }}>Dose Unit</label>
               <select value={editState.editDoseUnit || 'mg'} onChange={e => setEditState(s => ({ ...s, editDoseUnit: e.target.value }))}
                 className="w-full px-3 py-2 rounded-lg text-[12px] font-mono"
                 style={{ background: 'var(--pg-card)', color: 'var(--pg-text-primary)', border: '1px solid var(--pg-card-border)' }}
