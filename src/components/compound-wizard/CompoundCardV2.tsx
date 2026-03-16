@@ -37,10 +37,10 @@ interface CompoundCardV2Props {
   onOpenChange: (open: boolean) => void;
   onAddAsOrdered?: (params: {
     newCompoundId: string;
+    compoundName: string;
+    orderCost: number;
     reorderQuantity: number;
     reorderType: 'single' | 'kit';
-    unitPrice: number;
-    kitPrice?: number;
     category: string;
     orderDate: string;
     orderNotes: string;
