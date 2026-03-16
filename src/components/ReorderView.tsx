@@ -912,7 +912,15 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
                         <div key={order.id} className="bg-card rounded-lg border border-status-good/20 p-3">
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0 flex-1">
-                              <h4 className="text-sm font-semibold text-foreground truncate">{compound?.name || order.compound_id}</h4>
+                              <h4 className="text-sm font-semibold text-foreground truncate">{(() => {
+                                if (compound?.name) return compound.name;
+                                if (order.notes) {
+                                  const sepIdx = order.notes.indexOf('||');
+                                  if (sepIdx > 0) return order.notes.slice(0, sepIdx);
+                                  return order.notes;
+                                }
+                                return 'Unknown Compound';
+                              })()}</h4>
                               <div className="flex items-center gap-2 mt-1 flex-wrap">
                                 <span className="text-[10px] text-muted-foreground">{getDisplayQty(order.compound_id, order.quantity)}</span>
                                 <span className="text-[10px] font-mono text-muted-foreground">${order.cost}</span>
@@ -939,12 +947,17 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
                                   </span>
                                 )}
                               </div>
-                              {order.notes && (
-                                <div className="flex items-center gap-1 mt-1.5">
-                                  <Store className="w-2.5 h-2.5 text-muted-foreground flex-shrink-0" />
-                                  <p className="text-[10px] text-muted-foreground italic truncate">{order.notes}</p>
-                                </div>
-                              )}
+                              {order.notes && (() => {
+                                const sepIdx = order.notes.indexOf('||');
+                                const displayNotes = sepIdx >= 0 ? order.notes.slice(sepIdx + 2).trim() : order.notes;
+                                if (!displayNotes || (!compound?.name && sepIdx < 0)) return null;
+                                return (
+                                  <div className="flex items-center gap-1 mt-1.5">
+                                    <Store className="w-2.5 h-2.5 text-muted-foreground flex-shrink-0" />
+                                    <p className="text-[10px] text-muted-foreground italic truncate">{displayNotes}</p>
+                                  </div>
+                                );
+                              })()}
                             </div>
                             <div className="flex items-center gap-1 flex-shrink-0">
                               <button

@@ -329,7 +329,9 @@ const Index = () => {
         status: 'ordered',
         month_label: monthLabel,
         ordered_at: date.toISOString(),
-        notes: params.orderNotes.trim() || null,
+        notes: params.orderNotes.trim()
+          ? `${params.compoundName}||${params.orderNotes.trim()}`
+          : params.compoundName,
         user_id: user.id,
       }]);
 
