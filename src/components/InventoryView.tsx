@@ -1143,7 +1143,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                 {editState.solventType && <EditField label="Volume (mL)" value={editState.solventVolume || ''} onChange={v => setEditState(s => ({ ...s, solventVolume: v }))} type="number" />}
                 <EditField label="Storage" value={editState.storageInstructions || ''} onChange={v => setEditState(s => ({ ...s, storageInstructions: v }))} />
                 <div className="space-y-1">
-                  <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-muted)' }}>Prep Notes</label>
+                  <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-primary)', opacity: 0.65 }}>Prep Notes</label>
                   <textarea value={editState.prepNotes || ''} onChange={e => setEditState(s => ({ ...s, prepNotes: e.target.value }))}
                     rows={2} className="w-full px-3 py-2 rounded-lg text-[11px] font-mono resize-none"
                     style={{ background: 'var(--pg-card)', color: 'var(--pg-text-primary)', border: '1px solid var(--pg-card-border)' }} />
