@@ -175,8 +175,16 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
     setLoading(false);
   }, []);
 
+  useEffect(() => { fetchOrders(); }, [fetchOrders]);
+
   // Refetch orders whenever the compounds list changes (e.g. after wizard Path B save)
-  useEffect(() => { fetchOrders(); }, [fetchOrders, compounds.length]);
+  const prevCompoundsLengthRef = useRef(compounds.length);
+  useEffect(() => {
+    if (compounds.length !== prevCompoundsLengthRef.current) {
+      prevCompoundsLengthRef.current = compounds.length;
+      fetchOrders();
+    }
+  }, [compounds.length, fetchOrders]);
 
   const neededItems = buildNeededItems(compounds, horizon, getComplianceInfo);
   const orderedItems = orders.filter(o => o.status === 'ordered');
