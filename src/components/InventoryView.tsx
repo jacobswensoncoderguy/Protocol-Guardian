@@ -1018,7 +1018,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
             <EditField label="Timing note" value={editState.timing || ''} onChange={v => setEditState(s => ({ ...s, timing: v }))} placeholder="e.g. daily AM, Mon/Wed/Fri" />
             {/* Days/week — interactive Su-Sa pill picker */}
             <div className="space-y-1">
-              <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-muted)' }}>Days / week</label>
+              <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-primary)', opacity: 0.65 }}>Days / week</label>
               <div className="flex gap-1">
                 {DAY_LABELS.map((lbl, idx) => {
                   const activeDaySet = parseDaysFromNote(editState.timing || '');
