@@ -1251,7 +1251,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
 // ═══════════════════════════════════════════
 
 const SectionHeader = ({ label }: { label: string }) => (
-  <p className="text-[10px] uppercase tracking-wider font-semibold pt-2 pb-1" style={{ color: 'var(--pg-text-muted)', fontFamily: "'DM Mono', monospace", borderTop: '1px solid var(--pg-card-border)' }}>{label}</p>
+  <p className="text-[11px] uppercase tracking-wider font-semibold pt-3 pb-1" style={{ color: 'var(--pg-text-primary)', fontFamily: "'DM Mono', monospace", borderTop: '1px solid var(--pg-card-border)', opacity: 0.75 }}>{label}</p>
 );
 
 const EditField = ({ label, value, onChange, type = 'text', placeholder }: { label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string }) => (
