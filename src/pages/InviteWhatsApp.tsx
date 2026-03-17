@@ -32,33 +32,56 @@ ${inviteUrl}`;
   return (
     <div className="min-h-screen" style={{ background: '#06090f' }}>
       <InviteNavBar />
-      <div className="flex justify-center px-4 py-6">
+      <div className="flex justify-center px-4 py-4">
         <div className="w-full max-w-md space-y-4">
           {/* Message preview */}
           <div
-            className="rounded-xl p-5 whitespace-pre-wrap text-sm leading-relaxed"
+            className="rounded-xl p-4 sm:p-5 overflow-hidden"
             style={{
-              fontFamily: '"Courier New", monospace',
-              color: 'rgba(200,215,230,0.7)',
               background: 'rgba(255,255,255,0.028)',
               border: '1px solid rgba(56,189,248,0.18)',
             }}
           >
-            <span>🧬 </span>
-            <strong style={{ color: '#e2e8f0' }}>PROTOCOL Guardian</strong>
-            <span> — Join My Household</span>
-            <br /><br />
-            <span>I've been tracking my entire supplement &amp; peptide protocol on an app called </span>
-            <strong style={{ color: '#e2e8f0' }}>Protocol Guardian</strong>
-            <span> — doses, inventory, reorders, AI insights, all of it.</span>
-            <br /><br />
-            <span>Join my household and we track </span>
-            <em>together</em>
-            <span> 💊</span>
-            <br /><br />
-            <strong style={{ color: '#e2e8f0' }}>Sign up here 👇</strong>
-            <br />
-            <span style={{ color: '#38bdf8' }}>{inviteUrl}</span>
+            <div
+              className="text-[13px] leading-relaxed overflow-x-hidden"
+              style={{
+                fontFamily: '"Courier New", monospace',
+                color: 'rgba(200,215,230,0.7)',
+                wordBreak: 'break-word',
+                overflowWrap: 'anywhere',
+              }}
+            >
+              <span>🧬 </span>
+              <strong style={{ color: '#e2e8f0' }}>PROTOCOL Guardian</strong>
+              <span> — Join My Household</span>
+
+              <div className="h-4" />
+
+              <span>I've been tracking my entire supplement &amp; peptide protocol on an app called </span>
+              <strong style={{ color: '#e2e8f0' }}>Protocol Guardian</strong>
+              <span> — doses, inventory, reorders, AI insights, all of it.</span>
+
+              <div className="h-4" />
+
+              <span>Join my household and we track </span>
+              <em>together</em>
+              <span> 💊</span>
+
+              <div className="h-4" />
+
+              <strong style={{ color: '#e2e8f0' }}>Sign up here 👇</strong>
+              <br />
+              <span
+                className="text-[11px] inline-block mt-1"
+                style={{
+                  color: '#38bdf8',
+                  wordBreak: 'break-all',
+                  overflowWrap: 'anywhere',
+                }}
+              >
+                {inviteUrl}
+              </span>
+            </div>
           </div>
 
           {/* Copy button */}
