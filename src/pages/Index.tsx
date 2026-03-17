@@ -472,7 +472,7 @@ const Index = () => {
               onNavigateTab={setActiveTab}
             />
             <button
-              onClick={() => setShowQuickInvite(true)}
+              onClick={() => navigate('/invite-card')}
               className="p-1.5 sm:p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 active:scale-90 transition-all duration-150"
               aria-label="Invite household member"
             >
