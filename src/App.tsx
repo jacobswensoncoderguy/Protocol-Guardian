@@ -56,6 +56,9 @@ const App = () => (
               </AuthGuard>
             }
           />
+          <Route path="/invite-card" element={<AuthGuard><InviteCard /></AuthGuard>} />
+          <Route path="/invite-email" element={<AuthGuard><InviteEmail /></AuthGuard>} />
+          <Route path="/invite-whatsapp" element={<AuthGuard><InviteWhatsApp /></AuthGuard>} />
           <Route path="/admin" element={<AuthGuard><AdminDashboard /></AuthGuard>} />
           <Route path="*" element={<AuthGuard><NotFound /></AuthGuard>} />
         </Routes>
