@@ -257,7 +257,7 @@ const Index = () => {
   const [showGuidedTour, setShowGuidedTour] = useState(false);
   const [showTourPrompt, setShowTourPrompt] = useState(false);
   const [showFeatureManager, setShowFeatureManager] = useState(false);
-  const [showQuickInvite, setShowQuickInvite] = useState(false);
+  const navigate = useNavigate();
 
   const handleToggleFeature = useCallback(async (key: keyof AppFeatures) => {
     const updated = { ...appFeatures, [key]: !appFeatures[key] };
