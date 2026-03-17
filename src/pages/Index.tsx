@@ -932,11 +932,6 @@ const Index = () => {
           onRequestFeature={handleFeatureRequest}
         />
 
-        <QuickInviteDialog
-          open={showQuickInvite}
-          onOpenChange={setShowQuickInvite}
-          onSendInvite={household.sendInvite}
-        />
 
         {/* Titration Schedule Dialog */}
         {titrationCompoundId && (() => {
