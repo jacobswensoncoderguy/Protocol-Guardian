@@ -1,17 +1,65 @@
+import { useState, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
+import html2canvas from 'html2canvas';
+import { Copy, Check, Loader2 } from 'lucide-react';
 import InviteNavBar from '@/components/InviteNavBar';
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 const InviteCard = () => {
   const { user } = useAuth();
   const inviteUrl = `https://superhumanprotocol.lovable.app/invite?ref=${user?.id ?? ''}`;
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [copying, setCopying] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyAsImage = async () => {
+    if (!cardRef.current) return;
+    setCopying(true);
+    try {
+      const canvas = await html2canvas(cardRef.current, {
+        backgroundColor: '#06090f',
+        scale: 2,
+        useCORS: true,
+      });
+      canvas.toBlob(async (blob) => {
+        if (!blob) {
+          toast.error('Failed to generate image');
+          setCopying(false);
+          return;
+        }
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({ 'image/png': blob }),
+          ]);
+          setCopied(true);
+          toast.success('Card copied to clipboard!');
+          setTimeout(() => setCopied(false), 2000);
+        } catch {
+          // Fallback: download
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'protocol-guardian-invite.png';
+          a.click();
+          URL.revokeObjectURL(url);
+          toast.success('Card saved as image!');
+        }
+        setCopying(false);
+      }, 'image/png');
+    } catch {
+      toast.error('Failed to capture card');
+      setCopying(false);
+    }
+  };
 
   return (
     <div className="min-h-screen" style={{ background: '#06090f' }}>
       <InviteNavBar />
-      <div className="flex items-center justify-center px-4 py-6">
-        {/* 1080x1080 card container – scales down on mobile */}
+      <div className="flex flex-col items-center px-4 py-6 gap-4">
+        {/* 1080x1080 card container */}
         <div
+          ref={cardRef}
           className="w-full max-w-[540px] aspect-square relative overflow-hidden rounded-2xl"
           style={{
             background: `
@@ -178,6 +226,28 @@ const InviteCard = () => {
             </div>
           </div>
         </div>
+
+        {/* Copy as Image button */}
+        <button
+          onClick={handleCopyAsImage}
+          disabled={copying}
+          className="w-full max-w-[540px] py-3 rounded-lg text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+          style={{
+            fontFamily: '"Courier New", monospace',
+            background: copied ? 'rgba(52,211,153,0.15)' : 'rgba(56,189,248,0.1)',
+            color: copied ? '#34d399' : '#38bdf8',
+            border: `1px solid ${copied ? 'rgba(52,211,153,0.3)' : 'rgba(56,189,248,0.25)'}`,
+          }}
+        >
+          {copying ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : copied ? (
+            <Check className="w-4 h-4" />
+          ) : (
+            <Copy className="w-4 h-4" />
+          )}
+          {copying ? 'Generating…' : copied ? 'Copied!' : 'Copy as Image'}
+        </button>
       </div>
     </div>
   );
