@@ -34,7 +34,7 @@ import GuidedTour from '@/components/GuidedTour';
 import WhatsNewOverlay from '@/components/WhatsNewOverlay';
 import FeatureManagerDialog from '@/components/FeatureManagerDialog';
 import { AppFeatures } from '@/lib/appFeatures';
-import QuickInviteDialog from '@/components/QuickInviteDialog';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 
 import DashboardView from '@/components/DashboardView';
