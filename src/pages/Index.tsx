@@ -747,7 +747,12 @@ const Index = () => {
           </TabsContent>
           <TabsContent value="tracking" className="animate-slide-up">
             <TabErrorBoundary tabName="Logging">
-            <Tabs value={trackingSubTab} onValueChange={setTrackingSubTab} className="w-full">
+            {/* Today's Log Status Card */}
+            <TodayLogCard
+              userId={user?.id}
+              onNavigate={(subTab) => setTrackingSubTab(subTab)}
+            />
+            <Tabs value={trackingSubTab} onValueChange={setTrackingSubTab} className="w-full mt-3">
               <TabsList className="w-full bg-card/80 border border-border/60 mb-3 h-10 p-1 gap-1 logging-tabs">
                 <TabsTrigger value="food" className="flex-1 text-xs font-semibold rounded-md data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">Food</TabsTrigger>
                 <TabsTrigger value="symptoms" className="flex-1 text-xs font-semibold rounded-md data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">Symptoms</TabsTrigger>
