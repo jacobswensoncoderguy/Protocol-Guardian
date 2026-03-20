@@ -14,6 +14,8 @@ import AddGoalDialog from './AddGoalDialog';
 import ConfirmDialog from './ConfirmDialog';
 import GoalCardChat from './GoalCardChat';
 import GoalCelebration from './GoalCelebration';
+import ProgressHero from './progress/ProgressHero';
+import CausalityTimeline from './progress/CausalityTimeline';
 import { toast } from 'sonner';
 
 interface OutcomesViewProps {
@@ -260,17 +262,13 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
         </div>
       )}
 
-      {/* Overall Progress Header */}
-      <div className="bg-card rounded-xl border border-border/50 p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <Activity className="w-4 h-4 text-primary" />
-            Overall Progress
-          </h3>
-          <span className="text-lg font-bold font-mono" style={{ color: 'hsl(var(--neon-cyan))', textShadow: '0 0 8px hsl(190 100% 50% / 0.5)' }}>{Math.round(overallProgress)}%</span>
-        </div>
-        <NeonProgressBar progress={overallProgress} color="hsl(var(--neon-cyan))" label={`${activeGoals.length} active goal${activeGoals.length !== 1 ? 's' : ''}`} />
-      </div>
+      {/* Progress Hero Card */}
+      <ProgressHero
+        activeGoals={activeGoals}
+        achievedCount={inactiveGoals.filter(g => g.status === 'achieved').length}
+        overallProgress={overallProgress}
+        onAddGoal={() => setShowAddGoal(true)}
+      />
 
       {/* Add Goal Button */}
       <button
@@ -620,6 +618,14 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
                           <span className="text-[10px] text-muted-foreground">Log readings to see neon trend chart</span>
                         </div>
                       )}
+
+                      {/* ── Causality Timeline ── */}
+                      <CausalityTimeline
+                        readings={goalReadings}
+                        goalColor={neon.solid}
+                        targetValue={goal.target_value}
+                        baselineValue={goal.baseline_value}
+                      />
 
                       {/* ── Reading History with Timestamps ── */}
                       {goalReadings.length > 0 && (
