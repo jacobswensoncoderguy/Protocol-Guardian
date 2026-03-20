@@ -14,6 +14,8 @@ import AddGoalDialog from './AddGoalDialog';
 import ConfirmDialog from './ConfirmDialog';
 import GoalCardChat from './GoalCardChat';
 import GoalCelebration from './GoalCelebration';
+import ProgressHero from './progress/ProgressHero';
+import CausalityTimeline from './progress/CausalityTimeline';
 import { toast } from 'sonner';
 
 interface OutcomesViewProps {
