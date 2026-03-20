@@ -818,7 +818,16 @@ const Index = () => {
             </TabErrorBoundary>
           </TabsContent>
           <TabsContent value="ai-insights" className="animate-slide-up">
-            <TabErrorBoundary tabName="AI">
+            <AIIntelligenceHero
+              overallGrade={stackAnalysis?.overallGrade}
+              overallSummary={stackAnalysis?.overallSummary}
+              contraindicationCount={stackAnalysis?.contraindications?.length ?? 0}
+              bioIssueCount={stackAnalysis?.bioavailabilityIssues?.length ?? 0}
+              recommendationCount={stackAnalysis?.topRecommendations?.length ?? 0}
+              hasAnalysis={!!stackAnalysis}
+              isLoading={aiLoading}
+              onAnalyze={analyzeStack}
+            />
             <AIInsightsView
               analysis={stackAnalysis}
               loading={aiLoading}
