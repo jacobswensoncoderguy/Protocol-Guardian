@@ -98,7 +98,13 @@ const Auth = () => {
   }
 
   if (user) {
-    return <Navigate to="/" replace />;
+    // Use window.location for redirect to avoid router context timing issues
+    window.location.href = '/';
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+      </div>
+    );
   }
 
   return (
