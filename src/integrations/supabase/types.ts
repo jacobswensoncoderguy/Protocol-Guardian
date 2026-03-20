@@ -1557,6 +1557,146 @@ export type Database = {
         }
         Relationships: []
       }
+      workout_integrations: {
+        Row: {
+          access_token: string | null
+          created_at: string | null
+          id: string
+          is_connected: boolean | null
+          last_sync_at: string | null
+          provider: string
+          refresh_token: string | null
+          terra_user_id: string | null
+          token_expires_at: string | null
+          user_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          created_at?: string | null
+          id?: string
+          is_connected?: boolean | null
+          last_sync_at?: string | null
+          provider: string
+          refresh_token?: string | null
+          terra_user_id?: string | null
+          token_expires_at?: string | null
+          user_id: string
+        }
+        Update: {
+          access_token?: string | null
+          created_at?: string | null
+          id?: string
+          is_connected?: boolean | null
+          last_sync_at?: string | null
+          provider?: string
+          refresh_token?: string | null
+          terra_user_id?: string | null
+          token_expires_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      workout_sessions: {
+        Row: {
+          avg_heart_rate: number | null
+          calories_burned: number | null
+          created_at: string | null
+          duration_minutes: number | null
+          external_id: string | null
+          hrv_post_workout: number | null
+          id: string
+          notes: string | null
+          program_name: string | null
+          session_date: string
+          source: string
+          total_volume_lbs: number | null
+          user_id: string
+          workout_type: string | null
+        }
+        Insert: {
+          avg_heart_rate?: number | null
+          calories_burned?: number | null
+          created_at?: string | null
+          duration_minutes?: number | null
+          external_id?: string | null
+          hrv_post_workout?: number | null
+          id?: string
+          notes?: string | null
+          program_name?: string | null
+          session_date: string
+          source?: string
+          total_volume_lbs?: number | null
+          user_id: string
+          workout_type?: string | null
+        }
+        Update: {
+          avg_heart_rate?: number | null
+          calories_burned?: number | null
+          created_at?: string | null
+          duration_minutes?: number | null
+          external_id?: string | null
+          hrv_post_workout?: number | null
+          id?: string
+          notes?: string | null
+          program_name?: string | null
+          session_date?: string
+          source?: string
+          total_volume_lbs?: number | null
+          user_id?: string
+          workout_type?: string | null
+        }
+        Relationships: []
+      }
+      workout_sets: {
+        Row: {
+          created_at: string | null
+          exercise_name: string
+          id: string
+          is_personal_record: boolean | null
+          muscle_group: string | null
+          reps: number | null
+          rpe: number | null
+          session_id: string
+          set_number: number | null
+          user_id: string
+          weight_lbs: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          exercise_name: string
+          id?: string
+          is_personal_record?: boolean | null
+          muscle_group?: string | null
+          reps?: number | null
+          rpe?: number | null
+          session_id: string
+          set_number?: number | null
+          user_id: string
+          weight_lbs?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          exercise_name?: string
+          id?: string
+          is_personal_record?: boolean | null
+          muscle_group?: string | null
+          reps?: number | null
+          rpe?: number | null
+          session_id?: string
+          set_number?: number | null
+          user_id?: string
+          weight_lbs?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workout_sets_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "workout_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
