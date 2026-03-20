@@ -346,12 +346,23 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
             setOpenGroupLabel(isOpen ? group.label : null);
           }}
         >
-          {group.label !== 'all' && (
+          {group.label !== 'all' && (() => {
+            const errCount = group.items.filter(c => !isPaused(c) && validateCompoundForMath(c).length > 0).length;
+            return (
             <CollapsibleTrigger className="flex items-center gap-1.5 w-full text-left mb-2 group">
               <ChevronDown className="w-3.5 h-3.5 transition-transform duration-200 group-data-[state=closed]:-rotate-90" style={{ color: 'var(--pg-text-muted)' }} />
               <h3 className="text-sm font-semibold" style={{ color: 'var(--pg-text-primary)', fontFamily: "'DM Sans', sans-serif" }}>{group.label}</h3>
               <span className="text-[10px] font-mono" style={{ color: 'var(--pg-text-muted)' }}>({group.items.length})</span>
+              {errCount > 0 && (
+                <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full ml-auto"
+                  style={{ background: 'rgba(255,59,59,0.12)', border: '1px solid rgba(255,59,59,0.2)' }}>
+                  <AlertTriangle className="w-2.5 h-2.5" strokeWidth={1.5} style={{ color: '#FF3B3B' }} />
+                  <span className="text-[9px] font-bold" style={{ color: '#FF3B3B' }}>{errCount}</span>
+                </span>
+              )}
             </CollapsibleTrigger>
+            );
+          })()}
           )}
           <CollapsibleContent className="animate-accordion-down data-[state=closed]:animate-accordion-up">
             <div className="space-y-1">
