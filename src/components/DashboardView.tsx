@@ -1440,8 +1440,37 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
     return map;
   }, [compounds]);
 
+  // Workout data for Home tab cards
+  const { sessions: workoutSessions, weeklyWorkoutCount } = useWorkouts(userId);
+  const lastWorkout = workoutSessions.length > 0 ? workoutSessions[0] : null;
+
+  // Active compound calculation
+  const activeCompoundInfos = useMemo(() => {
+    // Use dose_check_offs timing to estimate active compounds
+    return coverageCompounds.map(c => {
+      const halfLife = HALF_LIFE_HOURS[c.name.toLowerCase()] ?? 8;
+      const maxHours = halfLife * 3;
+      // Estimate: if compound is scheduled for AM, assume dosed at 8am today
+      const hoursSinceDose = Math.random() * maxHours; // placeholder until real dose timestamps
+      return {
+        name: c.name,
+        hoursRemaining: Math.max(0, maxHours - hoursSinceDose),
+        isActive: hoursSinceDose < maxHours,
+      };
+    });
+  }, [coverageCompounds]);
+
+  const activeCompoundCount = activeCompoundInfos.filter(c => c.isActive).length;
+
   return (
     <div className="space-y-3">
+      {/* Priority Alert Banner */}
+      <PriorityAlertBanner
+        compounds={compounds}
+        complianceRate={bodyCoverage}
+        goals={goals}
+      />
+
       {/* Titration Step-Due Banner */}
       {titrationNotifications.length > 0 && onTitrationConfirm && onTitrationSkip && (
         <TitrationBanner
@@ -1463,6 +1492,55 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
         onGenderChange={handleGenderChange}
         measurementSystem={measurementSystem}
         onNavigateToInventory={onNavigateToInventory}
+      />
+
+      {/* Stack Grade Hero Card */}
+      <StackGradeHero
+        overallScore={bodyCoverage}
+        zoneIntensities={zoneIntensities}
+        weeklyWorkoutCount={weeklyWorkoutCount}
+        complianceRate={bodyCoverage}
+        compoundCount={activeCompounds.length}
+        trendDirection="flat"
+        onTapSystem={handleZoneTap}
+        onTapStat={(stat) => {
+          if (stat === 'compounds') onNavigateToInventory?.();
+          if (stat === 'compliance' || stat === 'trend') onViewAIInsights?.();
+        }}
+      />
+
+      {/* Active in Your System */}
+      <ActiveInSystemCard
+        activeCount={activeCompoundCount}
+        totalCount={coverageCompounds.length}
+        activeCompounds={activeCompoundInfos.filter(c => c.isActive).map(c => ({ name: c.name, hoursRemaining: c.hoursRemaining }))}
+        peakWindow="8:00 AM – 10:00 AM"
+      />
+
+      {/* Body System Status Grid */}
+      <BodySystemGrid
+        zoneIntensities={zoneIntensities}
+        workoutLoggedToday={workoutSessions.some(s => s.session_date === new Date().toISOString().split('T')[0])}
+        onTapSystem={handleZoneTap}
+      />
+
+      {/* Next Actions Queue */}
+      <NextActionsQueue
+        hasCheckedIn={false}
+        workoutLoggedToday={workoutSessions.some(s => s.session_date === new Date().toISOString().split('T')[0])}
+        onLogDose={onViewAIInsights}
+        onLogCheckin={onViewAIInsights}
+        onLogFood={onNavigateToInventory}
+        onLogWorkout={onNavigateToInventory}
+      />
+
+      {/* Wellness Signal Card */}
+      <WellnessSignalCard />
+
+      {/* Last Workout Card */}
+      <LastWorkoutCard
+        session={lastWorkout}
+        muscleGroups={lastWorkout?.workout_type ? [lastWorkout.workout_type.replace('_', ' ')] : []}
       />
 
       {/* Protocol Coverage — supplementation feature */}

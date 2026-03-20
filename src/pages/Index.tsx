@@ -49,6 +49,7 @@ import AIInsightsView from '@/components/AIInsightsView';
 import OutcomesView from '@/components/OutcomesView';
 import WorkoutTrackerView from '@/components/WorkoutTrackerView';
 import GuardianAskBar from '@/components/GuardianAskBar';
+import TodayLogCard from '@/components/home/TodayLogCard';
 import FoodTrackerView from '@/components/FoodTrackerView';
 import SymptomsTrackerView from '@/components/SymptomsTrackerView';
 import BiomarkerHistoryView from '@/components/BiomarkerHistoryView';
