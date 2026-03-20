@@ -703,6 +703,7 @@ const Index = () => {
                 Showing combined household data — {[profile?.display_name || 'Mine', ...household.acceptedMembers.map(m => m.displayName || 'Member')].join(' + ')}
               </div>
             )}
+            <InventoryHealthBar compounds={viewCompounds} />
             <Tabs value={inventorySubTab} onValueChange={setInventorySubTab} className="w-full">
               <TabsList className="w-full bg-card/80 border border-border/60 mb-3 h-10 p-1 gap-1 logging-tabs">
                 <TabsTrigger value="stock" className="flex-1 text-xs font-semibold rounded-md data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">Stock</TabsTrigger>
