@@ -493,14 +493,54 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
     return days;
   };
 
-  const buildDayString = (days: Set<number>): string => {
-    if (days.size === 7) return 'daily';
-    if (days.size === 0) return '';
-    const sorted = Array.from(days).sort();
-    if (sorted.join(',') === '1,2,3,4,5') return 'M-F';
-    if (sorted.join(',') === '1,3,5') return 'M/W/F';
-    if (sorted.join(',') === '2,4') return 'T/Th';
-    return sorted.map(d => DAY_KEYS[d]).join('/');
+  const parseTimingsFromNote = (note: string): Set<string> => {
+    const lower = note.toLowerCase();
+    const timings = new Set<string>();
+    if (/\b(morning|am)\b/.test(lower)) timings.add('morning');
+    if (/\b(evening|pm|nightl?y?|night)\b/.test(lower)) timings.add('evening');
+    if (/\b(midday|noon)\b/.test(lower)) timings.add('midday');
+    if (/\b(pre[- ]?workout)\b/.test(lower)) timings.add('pre-workout');
+    if (/\b(pre[- ]?sleep|bedtime)\b/.test(lower)) timings.add('pre-sleep');
+    if (/\b(with[- ]?meal|with food)\b/.test(lower)) timings.add('with-meal');
+    if (/\b(fasted|empty stomach)\b/.test(lower)) timings.add('fasted');
+    return timings;
+  };
+
+  const EDIT_TIMING_OPTIONS = [
+    { id: 'morning', icon: '🌅', label: 'AM' },
+    { id: 'evening', icon: '🌙', label: 'PM' },
+    { id: 'midday', icon: '☀️', label: 'Midday' },
+    { id: 'pre-workout', icon: '💪', label: 'Pre-WO' },
+    { id: 'pre-sleep', icon: '😴', label: 'Pre-Sleep' },
+    { id: 'with-meal', icon: '🍽️', label: 'W/ Meal' },
+    { id: 'fasted', icon: '⏰', label: 'Fasted' },
+  ];
+
+  const timingIdToKeyword: Record<string, string> = {
+    morning: 'morning',
+    evening: 'evening',
+    midday: 'midday',
+    'pre-workout': 'pre-workout',
+    'pre-sleep': 'pre-sleep',
+    'with-meal': 'with meal',
+    fasted: 'fasted',
+  };
+
+  const buildDayString = (days: Set<number>, timings?: Set<string>): string => {
+    let dayPart = '';
+    if (days.size === 7) dayPart = 'daily';
+    else if (days.size === 0) dayPart = '';
+    else {
+      const sorted = Array.from(days).sort();
+      if (sorted.join(',') === '1,2,3,4,5') dayPart = 'M-F';
+      else if (sorted.join(',') === '1,3,5') dayPart = 'M/W/F';
+      else if (sorted.join(',') === '2,4') dayPart = 'T/Th';
+      else dayPart = sorted.map(d => DAY_KEYS[d]).join('/');
+    }
+    const timingPart = timings && timings.size > 0
+      ? Array.from(timings).map(t => timingIdToKeyword[t] || t).join(', ')
+      : '';
+    return [dayPart, timingPart].filter(Boolean).join(' ');
   };
 
   // ═══ startEdit — preserved exactly ═══
@@ -1027,8 +1067,9 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                     <button key={idx} type="button"
                       onClick={() => {
                         const current = parseDaysFromNote(editState.timing || '');
+                        const currentTimings = parseTimingsFromNote(editState.timing || '');
                         if (isActive) current.delete(idx); else current.add(idx);
-                        const newTiming = buildDayString(current);
+                        const newTiming = buildDayString(current, currentTimings);
                         setEditState(s => ({ ...s, timing: newTiming, daysPerWeek: current.size.toString() }));
                       }}
                       className="flex-1 py-1.5 rounded-md text-[11px] font-semibold transition-all"
@@ -1038,6 +1079,37 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                         border: `1px solid ${isActive ? 'rgba(56,189,248,0.4)' : 'var(--pg-card-border)'}`,
                       }}
                     >{lbl}</button>
+                  );
+                })}
+              </div>
+            </div>
+            {/* AM/PM Timing toggles */}
+            <div className="space-y-1">
+              <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-primary)', opacity: 0.65 }}>Timing</label>
+              <div className="flex flex-wrap gap-1.5">
+                {EDIT_TIMING_OPTIONS.map(opt => {
+                  const activeTimings = parseTimingsFromNote(editState.timing || '');
+                  const isSelected = activeTimings.has(opt.id);
+                  return (
+                    <button key={opt.id} type="button"
+                      onClick={() => {
+                        const currentDays = parseDaysFromNote(editState.timing || '');
+                        const currentTimings = parseTimingsFromNote(editState.timing || '');
+                        if (isSelected) currentTimings.delete(opt.id);
+                        else currentTimings.add(opt.id);
+                        const newTiming = buildDayString(currentDays, currentTimings);
+                        setEditState(s => ({ ...s, timing: newTiming }));
+                      }}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[10px] font-medium transition-all"
+                      style={{
+                        background: isSelected ? 'rgba(56,189,248,0.15)' : 'var(--pg-card)',
+                        color: isSelected ? 'var(--pg-accent)' : 'var(--pg-text-muted)',
+                        border: `1px solid ${isSelected ? 'rgba(56,189,248,0.4)' : 'var(--pg-card-border)'}`,
+                      }}
+                    >
+                      <span>{opt.icon}</span>
+                      <span>{opt.label}</span>
+                    </button>
                   );
                 })}
               </div>
