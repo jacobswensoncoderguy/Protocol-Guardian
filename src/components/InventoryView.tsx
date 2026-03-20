@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import CompoundEditWizard from '@/components/CompoundEditWizard';
 import { toast } from 'sonner';
 import { Compound, getStatus, CompoundCategory, getEffectiveQuantity, getConsumedSinceDate, consumedToContainerUnits, getCompoundContainerKind, validateCompoundForMath, getMonthlyConsumptionCost } from '@/data/compounds';
 import { getCycleStatus, getDaysRemainingWithCycling, isPaused, getReorderDateString } from '@/lib/cycling';
