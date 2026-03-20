@@ -184,26 +184,7 @@ export default function CompoundEditWizard({
   const sectionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const fieldRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [errorCycleIdx, setErrorCycleIdx] = useState(0);
-  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const hasEditedRef = useRef(false);
 
-  // ─── Auto-save on edits (debounced) ────────────────────────────────────────
-
-  const prevEditStateRef = useRef(editState);
-  useEffect(() => {
-    if (!open) { hasEditedRef.current = false; return; }
-    // Skip the initial load
-    if (prevEditStateRef.current === editState) return;
-    prevEditStateRef.current = editState;
-    hasEditedRef.current = true;
-
-    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-    autoSaveTimerRef.current = setTimeout(() => {
-      onSave();
-    }, 1500);
-
-    return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
-  }, [editState, open, onSave]);
 
   // ─── Critical field validation ─────────────────────────────────────────────
 
@@ -582,14 +563,7 @@ export default function CompoundEditWizard({
   };
 
   return (
-    <Sheet open={open} onOpenChange={v => {
-      // Flush any pending auto-save before closing
-      if (!v && autoSaveTimerRef.current) {
-        clearTimeout(autoSaveTimerRef.current);
-        if (hasEditedRef.current) onSave();
-      }
-      onOpenChange(v);
-    }}>
+    <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
         className="h-[100dvh] max-h-[100dvh] rounded-none flex flex-col p-0 gap-0"
