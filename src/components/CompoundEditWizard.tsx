@@ -175,7 +175,7 @@ function ClinicalField({
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-const TOTAL_CRITICAL_FIELDS = 9;
+const TOTAL_CRITICAL_FIELDS = 10;
 
 export default function CompoundEditWizard({
   open, onOpenChange, compound, editState, setEditState, onSave, isPeptide, isOil,
