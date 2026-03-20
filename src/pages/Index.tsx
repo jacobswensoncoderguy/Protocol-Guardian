@@ -517,7 +517,7 @@ const Index = () => {
         </div>
       </header>
 
-      <main className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
+      <main className="container mx-auto px-3 sm:px-4 py-3 sm:py-4 pb-24">
         <Tabs value={activeTab} onValueChange={(tab) => { setActiveTab(tab); }} className="w-full">
           <TabsList className="fixed bottom-0 left-0 right-0 z-50 w-full bg-card/95 backdrop-blur-xl border-t border-border/50 h-16 sm:h-14 rounded-none px-1 gap-0 shadow-[0_-4px_20px_rgba(0,0,0,0.15)]" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
             {([
