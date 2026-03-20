@@ -1,7 +1,7 @@
 import { lovable } from '@/integrations/lovable/index';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Navigate, useSearchParams } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { Zap, Loader2, Mail, Lock, ArrowLeft } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -10,7 +10,6 @@ type AuthMode = 'login' | 'signup' | 'forgot';
 
 const Auth = () => {
   const { user, loading } = useAuth();
-  const [searchParams] = useSearchParams();
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -19,11 +18,12 @@ const Auth = () => {
 
   // Persist ref param so it survives the OAuth redirect
   useEffect(() => {
-    const ref = searchParams.get('ref');
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
     if (ref) {
       sessionStorage.setItem('referrer_id', ref);
     }
-  }, [searchParams]);
+  }, []);
 
   const handleGoogleSignIn = async () => {
     const { error } = await lovable.auth.signInWithOAuth('google', {
