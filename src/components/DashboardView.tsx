@@ -7,6 +7,7 @@ import { useHealthData } from '@/hooks/useHealthData';
 import ChatMarkdown from '@/components/ChatMarkdown';
 import GuardianAICard from '@/components/GuardianAICard';
 import PriorityAlertBanner from '@/components/home/PriorityAlertBanner';
+import ProtocolHealthBanner from '@/components/home/ProtocolHealthBanner';
 import StackGradeHero from '@/components/home/StackGradeHero';
 import ActiveInSystemCard from '@/components/home/ActiveInSystemCard';
 import BodySystemGrid from '@/components/home/BodySystemGrid';
