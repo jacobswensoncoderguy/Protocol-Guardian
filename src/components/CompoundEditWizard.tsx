@@ -563,14 +563,7 @@ export default function CompoundEditWizard({
   };
 
   return (
-    <Sheet open={open} onOpenChange={v => {
-      // Flush any pending auto-save before closing
-      if (!v && autoSaveTimerRef.current) {
-        clearTimeout(autoSaveTimerRef.current);
-        if (hasEditedRef.current) onSave();
-      }
-      onOpenChange(v);
-    }}>
+    <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
         className="h-[100dvh] max-h-[100dvh] rounded-none flex flex-col p-0 gap-0"
