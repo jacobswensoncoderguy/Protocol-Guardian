@@ -262,17 +262,13 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
         </div>
       )}
 
-      {/* Overall Progress Header */}
-      <div className="bg-card rounded-xl border border-border/50 p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <Activity className="w-4 h-4 text-primary" />
-            Overall Progress
-          </h3>
-          <span className="text-lg font-bold font-mono" style={{ color: 'hsl(var(--neon-cyan))', textShadow: '0 0 8px hsl(190 100% 50% / 0.5)' }}>{Math.round(overallProgress)}%</span>
-        </div>
-        <NeonProgressBar progress={overallProgress} color="hsl(var(--neon-cyan))" label={`${activeGoals.length} active goal${activeGoals.length !== 1 ? 's' : ''}`} />
-      </div>
+      {/* Progress Hero Card */}
+      <ProgressHero
+        activeGoals={activeGoals}
+        achievedCount={inactiveGoals.filter(g => g.status === 'achieved').length}
+        overallProgress={overallProgress}
+        onAddGoal={() => setShowAddGoal(true)}
+      />
 
       {/* Add Goal Button */}
       <button
