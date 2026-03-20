@@ -47,6 +47,8 @@ import CostProjectionView from '@/components/CostProjectionView';
 import ReorderView from '@/components/ReorderView';
 import AIInsightsView from '@/components/AIInsightsView';
 import OutcomesView from '@/components/OutcomesView';
+import WorkoutTrackerView from '@/components/WorkoutTrackerView';
+import GuardianAskBar from '@/components/GuardianAskBar';
 import FoodTrackerView from '@/components/FoodTrackerView';
 import SymptomsTrackerView from '@/components/SymptomsTrackerView';
 import BiomarkerHistoryView from '@/components/BiomarkerHistoryView';
