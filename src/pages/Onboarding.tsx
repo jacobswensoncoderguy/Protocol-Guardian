@@ -342,32 +342,33 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border/50 px-4 py-4">
+      <header className="border-b border-border/50 px-4 py-4 sticky top-0 z-10 bg-background/95 backdrop-blur-xl">
         <div className="container mx-auto max-w-lg">
           <div className="flex items-center gap-2 mb-3">
-            <Zap className="w-5 h-5 text-primary" />
-            <h1 className="text-lg font-bold">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+              <Zap className="w-4 h-4 text-primary" />
+            </div>
+            <h1 className="text-lg font-bold" style={{ fontFamily: "'DM Sans', sans-serif" }}>
               <span className="text-gradient-cyan">PROTOCOL</span>
-              <span className="text-muted-foreground font-medium ml-1.5">Guardian Setup</span>
+              <span className="text-muted-foreground font-medium ml-1.5">Setup</span>
             </h1>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Progress bar */}
+          <div className="flex items-center gap-1.5">
             {phases.map((p, i) => {
-              const Icon = p.icon;
               const isActive = i === phaseIndex;
               const isDone = i < phaseIndex;
               return (
-                <div key={p.key} className="flex items-center gap-1.5 flex-1">
-                  <div className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all ${
-                    isActive ? 'bg-primary/15 text-primary' : isDone ? 'text-primary/60' : 'text-muted-foreground/40'
-                  }`}>
-                    <Icon className="w-3.5 h-3.5" />
+                <div key={p.key} className="flex-1 flex flex-col items-center gap-1">
+                  <div className={`w-full h-1 rounded-full transition-all duration-300 ${
+                    isDone ? 'bg-primary' : isActive ? 'bg-primary/50' : 'bg-border/40'
+                  }`} />
+                  <span className={`text-[9px] font-medium transition-colors ${
+                    isActive ? 'text-primary' : isDone ? 'text-primary/60' : 'text-muted-foreground/40'
+                  }`} style={{ fontFamily: "'DM Sans', sans-serif" }}>
                     {p.label}
-                  </div>
-                  {i < phases.length - 1 && (
-                    <div className={`flex-1 h-px ${isDone ? 'bg-primary/40' : 'bg-border/30'}`} />
-                  )}
+                  </span>
                 </div>
               );
             })}
