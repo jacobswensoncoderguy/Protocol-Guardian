@@ -751,6 +751,7 @@ const Index = () => {
               <TabsList className="w-full bg-card/80 border border-border/60 mb-3 h-10 p-1 gap-1 logging-tabs">
                 <TabsTrigger value="food" className="flex-1 text-xs font-semibold rounded-md data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">Food</TabsTrigger>
                 <TabsTrigger value="symptoms" className="flex-1 text-xs font-semibold rounded-md data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">Symptoms</TabsTrigger>
+                <TabsTrigger value="workout" className="flex-1 text-xs font-semibold rounded-md data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">Workout</TabsTrigger>
                 <TabsTrigger value="labs" className="relative flex-1 text-xs font-semibold rounded-md data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">
                   Labs
                   {labsFlaggedCount > 0 && (
@@ -766,6 +767,9 @@ const Index = () => {
                 </TabsContent>
                 <TabsContent value="symptoms" forceMount={trackingSubTab === 'symptoms' ? true : undefined}>
                   {trackingSubTab === 'symptoms' && <SymptomsTrackerView key={symptomsRefreshKey} />}
+                </TabsContent>
+                <TabsContent value="workout" forceMount={trackingSubTab === 'workout' ? true : undefined}>
+                  {trackingSubTab === 'workout' && <WorkoutTrackerView userId={user?.id} />}
                 </TabsContent>
                 <TabsContent value="labs" forceMount={trackingSubTab === 'labs' ? true : undefined}>
                   {trackingSubTab === 'labs' && (
