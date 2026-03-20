@@ -1510,6 +1510,12 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
         }}
       />
 
+      {/* Protocol Health Banner */}
+      <ProtocolHealthBanner
+        compounds={compounds}
+        onNavigate={onNavigateToInventory}
+      />
+
       {/* Active in Your System */}
       <ActiveInSystemCard
         activeCount={activeCompoundCount}
