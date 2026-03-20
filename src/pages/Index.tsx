@@ -47,11 +47,13 @@ import CostProjectionView from '@/components/CostProjectionView';
 import ReorderView from '@/components/ReorderView';
 import AIInsightsView from '@/components/AIInsightsView';
 import OutcomesView from '@/components/OutcomesView';
+import AIIntelligenceHero from '@/components/ai/AIIntelligenceHero';
 import WorkoutTrackerView from '@/components/WorkoutTrackerView';
 import GuardianAskBar from '@/components/GuardianAskBar';
 import TodayLogCard from '@/components/home/TodayLogCard';
 import ProtocolDaySummary from '@/components/protocol/ProtocolDaySummary';
 import InventoryHealthBar from '@/components/inventory/InventoryHealthBar';
+import LoggingStreakCard from '@/components/logging/LoggingStreakCard';
 import FoodTrackerView from '@/components/FoodTrackerView';
 import SymptomsTrackerView from '@/components/SymptomsTrackerView';
 import BiomarkerHistoryView from '@/components/BiomarkerHistoryView';
@@ -766,6 +768,8 @@ const Index = () => {
           </TabsContent>
           <TabsContent value="tracking" className="animate-slide-up">
             <TabErrorBoundary tabName="Logging">
+            {/* Logging Streak Card */}
+            <LoggingStreakCard userId={user?.id} />
             {/* Today's Log Status Card */}
             <TodayLogCard
               userId={user?.id}
@@ -815,6 +819,16 @@ const Index = () => {
           </TabsContent>
           <TabsContent value="ai-insights" className="animate-slide-up">
             <TabErrorBoundary tabName="AI">
+            <AIIntelligenceHero
+              overallGrade={stackAnalysis?.overallGrade}
+              overallSummary={stackAnalysis?.overallSummary}
+              contraindicationCount={stackAnalysis?.contraindications?.length ?? 0}
+              bioIssueCount={stackAnalysis?.bioavailabilityIssues?.length ?? 0}
+              recommendationCount={stackAnalysis?.topRecommendations?.length ?? 0}
+              hasAnalysis={!!stackAnalysis}
+              isLoading={aiLoading}
+              onAnalyze={analyzeStack}
+            />
             <AIInsightsView
               analysis={stackAnalysis}
               loading={aiLoading}
