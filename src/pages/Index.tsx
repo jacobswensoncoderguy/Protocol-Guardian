@@ -767,6 +767,8 @@ const Index = () => {
           </TabsContent>
           <TabsContent value="tracking" className="animate-slide-up">
             <TabErrorBoundary tabName="Logging">
+            {/* Logging Streak Card */}
+            <LoggingStreakCard userId={user?.id} />
             {/* Today's Log Status Card */}
             <TodayLogCard
               userId={user?.id}
