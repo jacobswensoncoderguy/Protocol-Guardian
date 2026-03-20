@@ -493,14 +493,54 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
     return days;
   };
 
-  const buildDayString = (days: Set<number>): string => {
-    if (days.size === 7) return 'daily';
-    if (days.size === 0) return '';
-    const sorted = Array.from(days).sort();
-    if (sorted.join(',') === '1,2,3,4,5') return 'M-F';
-    if (sorted.join(',') === '1,3,5') return 'M/W/F';
-    if (sorted.join(',') === '2,4') return 'T/Th';
-    return sorted.map(d => DAY_KEYS[d]).join('/');
+  const parseTimingsFromNote = (note: string): Set<string> => {
+    const lower = note.toLowerCase();
+    const timings = new Set<string>();
+    if (/\b(morning|am)\b/.test(lower)) timings.add('morning');
+    if (/\b(evening|pm|nightl?y?|night)\b/.test(lower)) timings.add('evening');
+    if (/\b(midday|noon)\b/.test(lower)) timings.add('midday');
+    if (/\b(pre[- ]?workout)\b/.test(lower)) timings.add('pre-workout');
+    if (/\b(pre[- ]?sleep|bedtime)\b/.test(lower)) timings.add('pre-sleep');
+    if (/\b(with[- ]?meal|with food)\b/.test(lower)) timings.add('with-meal');
+    if (/\b(fasted|empty stomach)\b/.test(lower)) timings.add('fasted');
+    return timings;
+  };
+
+  const EDIT_TIMING_OPTIONS = [
+    { id: 'morning', icon: '🌅', label: 'AM' },
+    { id: 'evening', icon: '🌙', label: 'PM' },
+    { id: 'midday', icon: '☀️', label: 'Midday' },
+    { id: 'pre-workout', icon: '💪', label: 'Pre-WO' },
+    { id: 'pre-sleep', icon: '😴', label: 'Pre-Sleep' },
+    { id: 'with-meal', icon: '🍽️', label: 'W/ Meal' },
+    { id: 'fasted', icon: '⏰', label: 'Fasted' },
+  ];
+
+  const timingIdToKeyword: Record<string, string> = {
+    morning: 'morning',
+    evening: 'evening',
+    midday: 'midday',
+    'pre-workout': 'pre-workout',
+    'pre-sleep': 'pre-sleep',
+    'with-meal': 'with meal',
+    fasted: 'fasted',
+  };
+
+  const buildDayString = (days: Set<number>, timings?: Set<string>): string => {
+    let dayPart = '';
+    if (days.size === 7) dayPart = 'daily';
+    else if (days.size === 0) dayPart = '';
+    else {
+      const sorted = Array.from(days).sort();
+      if (sorted.join(',') === '1,2,3,4,5') dayPart = 'M-F';
+      else if (sorted.join(',') === '1,3,5') dayPart = 'M/W/F';
+      else if (sorted.join(',') === '2,4') dayPart = 'T/Th';
+      else dayPart = sorted.map(d => DAY_KEYS[d]).join('/');
+    }
+    const timingPart = timings && timings.size > 0
+      ? Array.from(timings).map(t => timingIdToKeyword[t] || t).join(', ')
+      : '';
+    return [dayPart, timingPart].filter(Boolean).join(' ');
   };
 
   // ═══ startEdit — preserved exactly ═══
