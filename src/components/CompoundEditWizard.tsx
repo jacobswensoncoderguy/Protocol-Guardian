@@ -183,7 +183,7 @@ export default function CompoundEditWizard({
   const scrollRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const fieldRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-
+  const [errorCycleIdx, setErrorCycleIdx] = useState(0);
 
 
   // ─── Critical field validation ─────────────────────────────────────────────
