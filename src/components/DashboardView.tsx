@@ -1580,6 +1580,14 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
         />
       )}
 
+      {/* Guardian AI Companion Card */}
+      <GuardianAICard
+        compounds={compounds}
+        goals={goals}
+        onAskMore={onViewAIInsights ?? (() => {})}
+        onAction={onViewAIInsights}
+      />
+
       {/* ProtocolOutcomesCard moved up, near avatar */}
 
       <ZoneDetailDrawer
