@@ -47,6 +47,8 @@ import CostProjectionView from '@/components/CostProjectionView';
 import ReorderView from '@/components/ReorderView';
 import AIInsightsView from '@/components/AIInsightsView';
 import OutcomesView from '@/components/OutcomesView';
+import WorkoutTrackerView from '@/components/WorkoutTrackerView';
+import GuardianAskBar from '@/components/GuardianAskBar';
 import FoodTrackerView from '@/components/FoodTrackerView';
 import SymptomsTrackerView from '@/components/SymptomsTrackerView';
 import BiomarkerHistoryView from '@/components/BiomarkerHistoryView';
@@ -231,7 +233,7 @@ const Index = () => {
 
   const scheduleSwipe = useSwipeTabs({ tabs: ['this-week', 'titration', 'history', 'ai-changes'], currentTab: scheduleSubTab, onTabChange: setScheduleSubTab });
   const inventorySwipe = useSwipeTabs({ tabs: ['stock', 'costs', 'reorder'], currentTab: inventorySubTab, onTabChange: setInventorySubTab });
-  const trackingSwipe = useSwipeTabs({ tabs: ['food', 'symptoms', 'labs'], currentTab: trackingSubTab, onTabChange: setTrackingSubTab });
+  const trackingSwipe = useSwipeTabs({ tabs: ['food', 'symptoms', 'workout', 'labs'], currentTab: trackingSubTab, onTabChange: setTrackingSubTab });
 
   // Badge counts for low-stock alerts.
   // Must match ReorderView logic: only count compounds with a purchase date set
@@ -749,6 +751,7 @@ const Index = () => {
               <TabsList className="w-full bg-card/80 border border-border/60 mb-3 h-10 p-1 gap-1 logging-tabs">
                 <TabsTrigger value="food" className="flex-1 text-xs font-semibold rounded-md data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">Food</TabsTrigger>
                 <TabsTrigger value="symptoms" className="flex-1 text-xs font-semibold rounded-md data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">Symptoms</TabsTrigger>
+                <TabsTrigger value="workout" className="flex-1 text-xs font-semibold rounded-md data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">Workout</TabsTrigger>
                 <TabsTrigger value="labs" className="relative flex-1 text-xs font-semibold rounded-md data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">
                   Labs
                   {labsFlaggedCount > 0 && (
@@ -764,6 +767,9 @@ const Index = () => {
                 </TabsContent>
                 <TabsContent value="symptoms" forceMount={trackingSubTab === 'symptoms' ? true : undefined}>
                   {trackingSubTab === 'symptoms' && <SymptomsTrackerView key={symptomsRefreshKey} />}
+                </TabsContent>
+                <TabsContent value="workout" forceMount={trackingSubTab === 'workout' ? true : undefined}>
+                  {trackingSubTab === 'workout' && <WorkoutTrackerView userId={user?.id} />}
                 </TabsContent>
                 <TabsContent value="labs" forceMount={trackingSubTab === 'labs' ? true : undefined}>
                   {trackingSubTab === 'labs' && (
@@ -952,6 +958,10 @@ const Index = () => {
           );
         })()}
       </main>
+      <GuardianAskBar
+        onOpen={() => setActiveTab('ai-insights')}
+        visible={activeTab !== 'ai-insights'}
+      />
       <WhatsNewOverlay />
       {showTourPrompt && (
         <div className="fixed inset-0 z-[99] bg-background/80 flex items-center justify-center p-4">

@@ -5,6 +5,7 @@ import WeeklyRingHistory from '@/components/WeeklyRingHistory';
 import { useHealthData } from '@/hooks/useHealthData';
 
 import ChatMarkdown from '@/components/ChatMarkdown';
+import GuardianAICard from '@/components/GuardianAICard';
 import TitrationBanner from '@/components/TitrationBanner';
 import { TitrationSchedule, TitrationNotification } from '@/hooks/useTitration';
 import { Compound } from '@/data/compounds';
@@ -1578,6 +1579,14 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
           onViewDetails={onViewAIInsights ?? (() => {})}
         />
       )}
+
+      {/* Guardian AI Companion Card */}
+      <GuardianAICard
+        compounds={compounds}
+        goals={goals}
+        onAskMore={onViewAIInsights ?? (() => {})}
+        onAction={onViewAIInsights}
+      />
 
       {/* ProtocolOutcomesCard moved up, near avatar */}
 
