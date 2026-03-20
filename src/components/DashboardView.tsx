@@ -6,6 +6,15 @@ import { useHealthData } from '@/hooks/useHealthData';
 
 import ChatMarkdown from '@/components/ChatMarkdown';
 import GuardianAICard from '@/components/GuardianAICard';
+import PriorityAlertBanner from '@/components/home/PriorityAlertBanner';
+import StackGradeHero from '@/components/home/StackGradeHero';
+import ActiveInSystemCard from '@/components/home/ActiveInSystemCard';
+import BodySystemGrid from '@/components/home/BodySystemGrid';
+import NextActionsQueue from '@/components/home/NextActionsQueue';
+import WellnessSignalCard from '@/components/home/WellnessSignalCard';
+import LastWorkoutCard from '@/components/home/LastWorkoutCard';
+import { useWorkouts } from '@/hooks/useWorkouts';
+import { HALF_LIFE_HOURS } from '@/lib/compoundActivity';
 import TitrationBanner from '@/components/TitrationBanner';
 import { TitrationSchedule, TitrationNotification } from '@/hooks/useTitration';
 import { Compound } from '@/data/compounds';
