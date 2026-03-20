@@ -619,6 +619,14 @@ const OutcomesView = ({ userId, goals, onRefreshGoals, onUploadClick, profile, m
                         </div>
                       )}
 
+                      {/* ── Causality Timeline ── */}
+                      <CausalityTimeline
+                        readings={goalReadings}
+                        goalColor={neon.solid}
+                        targetValue={goal.target_value}
+                        baselineValue={goal.baseline_value}
+                      />
+
                       {/* ── Reading History with Timestamps ── */}
                       {goalReadings.length > 0 && (
                         <div>
