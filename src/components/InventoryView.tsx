@@ -214,6 +214,7 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
     return groups;
   };
   const groups = buildGroups();
+  const [openGroupLabel, setOpenGroupLabel] = useState<string | null>(groups.length > 0 ? groups[0].label : null);
   const [dormantExpanded, setDormantExpanded] = useState(() => {
     if (typeof window === 'undefined') return false;
     return localStorage.getItem('pg_dormant_expanded') === 'true';
