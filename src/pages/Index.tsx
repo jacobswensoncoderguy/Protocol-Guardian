@@ -52,6 +52,7 @@ import GuardianAskBar from '@/components/GuardianAskBar';
 import TodayLogCard from '@/components/home/TodayLogCard';
 import ProtocolDaySummary from '@/components/protocol/ProtocolDaySummary';
 import InventoryHealthBar from '@/components/inventory/InventoryHealthBar';
+import LoggingStreakCard from '@/components/logging/LoggingStreakCard';
 import FoodTrackerView from '@/components/FoodTrackerView';
 import SymptomsTrackerView from '@/components/SymptomsTrackerView';
 import BiomarkerHistoryView from '@/components/BiomarkerHistoryView';
