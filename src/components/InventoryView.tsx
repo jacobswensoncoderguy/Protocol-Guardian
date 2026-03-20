@@ -1083,6 +1083,37 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                 })}
               </div>
             </div>
+            {/* AM/PM Timing toggles */}
+            <div className="space-y-1">
+              <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--pg-text-primary)', opacity: 0.65 }}>Timing</label>
+              <div className="flex flex-wrap gap-1.5">
+                {EDIT_TIMING_OPTIONS.map(opt => {
+                  const activeTimings = parseTimingsFromNote(editState.timing || '');
+                  const isSelected = activeTimings.has(opt.id);
+                  return (
+                    <button key={opt.id} type="button"
+                      onClick={() => {
+                        const currentDays = parseDaysFromNote(editState.timing || '');
+                        const currentTimings = parseTimingsFromNote(editState.timing || '');
+                        if (isSelected) currentTimings.delete(opt.id);
+                        else currentTimings.add(opt.id);
+                        const newTiming = buildDayString(currentDays, currentTimings);
+                        setEditState(s => ({ ...s, timing: newTiming }));
+                      }}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[10px] font-medium transition-all"
+                      style={{
+                        background: isSelected ? 'rgba(56,189,248,0.15)' : 'var(--pg-card)',
+                        color: isSelected ? 'var(--pg-accent)' : 'var(--pg-text-muted)',
+                        border: `1px solid ${isSelected ? 'rgba(56,189,248,0.4)' : 'var(--pg-card-border)'}`,
+                      }}
+                    >
+                      <span>{opt.icon}</span>
+                      <span>{opt.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             <EditField label="Doses/day" value={editState.dosesPerDay || ''} onChange={v => setEditState(s => ({ ...s, dosesPerDay: v }))} type="number" placeholder="e.g. 1" />
 
             {/* Section B: Supply */}
