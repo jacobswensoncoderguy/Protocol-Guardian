@@ -1067,8 +1067,9 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                     <button key={idx} type="button"
                       onClick={() => {
                         const current = parseDaysFromNote(editState.timing || '');
+                        const currentTimings = parseTimingsFromNote(editState.timing || '');
                         if (isActive) current.delete(idx); else current.add(idx);
-                        const newTiming = buildDayString(current);
+                        const newTiming = buildDayString(current, currentTimings);
                         setEditState(s => ({ ...s, timing: newTiming, daysPerWeek: current.size.toString() }));
                       }}
                       className="flex-1 py-1.5 rounded-md text-[11px] font-semibold transition-all"
