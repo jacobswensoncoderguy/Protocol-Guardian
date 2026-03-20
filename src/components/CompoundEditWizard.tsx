@@ -175,7 +175,7 @@ function ClinicalField({
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-const TOTAL_CRITICAL_FIELDS = 9;
+const TOTAL_CRITICAL_FIELDS = 10;
 
 export default function CompoundEditWizard({
   open, onOpenChange, compound, editState, setEditState, onSave, isPeptide, isOil,
@@ -204,6 +204,9 @@ export default function CompoundEditWizard({
     const size = parseFloat(editState.unitSize || '');
     if (isNaN(size) || size <= 0)
       errors.push({ section: 'supply', field: 'unitSize', message: 'Required to determine container capacity and depletion rate' });
+     const wpu = parseFloat(editState.weightPerUnit || '');
+    if (isNaN(wpu) || wpu <= 0)
+      errors.push({ section: 'dosing', field: 'weightPerUnit', message: 'Depletion countdown won\'t work without this — needed to convert dose units to container units' });
     const dose = parseFloat(editState.dosePerUse || '');
     if (isNaN(dose) || dose <= 0)
       errors.push({ section: 'dosing', field: 'dosePerUse', message: 'Required to calculate consumption and supply duration' });
@@ -468,7 +471,9 @@ export default function CompoundEditWizard({
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <ClinicalField label="Strength / Unit" value={editState.weightPerUnit || ''} onChange={v => setEditState(s => ({ ...s, weightPerUnit: v }))} type="number" placeholder="500" />
+        <div ref={el => { if (el) fieldRefs.current.set('weightPerUnit', el); }}>
+          <ClinicalField label="Strength / Unit" value={editState.weightPerUnit || ''} onChange={v => setEditState(s => ({ ...s, weightPerUnit: v }))} type="number" placeholder="500" error={fieldError('weightPerUnit')} />
+        </div>
         <div>
           <label className="text-[11px] uppercase tracking-[0.08em] font-medium block mb-1" style={{ color: '#6B7280' }}>Strength Unit</label>
           <select value={editState.strengthUnit || 'mg'} onChange={e => setEditState(s => ({ ...s, strengthUnit: e.target.value }))}
