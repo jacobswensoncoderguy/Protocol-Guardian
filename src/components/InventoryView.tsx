@@ -214,6 +214,7 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
     return groups;
   };
   const groups = buildGroups();
+  const [openGroupLabel, setOpenGroupLabel] = useState<string | null>(groups.length > 0 ? groups[0].label : null);
   const [dormantExpanded, setDormantExpanded] = useState(() => {
     if (typeof window === 'undefined') return false;
     return localStorage.getItem('pg_dormant_expanded') === 'true';
@@ -338,7 +339,13 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
 
       {/* Compound Cards */}
       {groups.map(group => (
-        <Collapsible key={group.label}>
+        <Collapsible
+          key={group.label}
+          open={group.label === 'all' || openGroupLabel === group.label}
+          onOpenChange={(isOpen) => {
+            setOpenGroupLabel(isOpen ? group.label : null);
+          }}
+        >
           {group.label !== 'all' && (
             <CollapsibleTrigger className="flex items-center gap-1.5 w-full text-left mb-2 group">
               <ChevronDown className="w-3.5 h-3.5 transition-transform duration-200 group-data-[state=closed]:-rotate-90" style={{ color: 'var(--pg-text-muted)' }} />

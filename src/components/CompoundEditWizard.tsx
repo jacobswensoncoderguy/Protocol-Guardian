@@ -1,7 +1,7 @@
 /**
- * CompoundEditWizard — Command Cards layout
- * 5 expandable section cards: Identity → Schedule → Supply → Dosing → Cycling
- * Header with completion ring, inline expand/collapse, critical field validation.
+ * CompoundEditWizard — Clinical Sheet (Single Scroll)
+ * Full-screen bottom sheet, continuous scroll, colored section accents,
+ * sticky header with Protocol Health pill, auto-save on edits.
  */
 
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
@@ -9,31 +9,29 @@ import { Compound, CompoundCategory } from '@/data/compounds';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import DatePickerInput from '@/components/DatePickerInput';
 import {
-  Check, AlertTriangle, X,
+  Check, AlertTriangle, X, ChevronUp,
   Syringe, Pill, FlaskConical, Droplets, ClipboardList,
   Zap, Heart, Brain, Shield, Leaf, Microscope,
-  Tag, Calendar, Package, Crosshair, RefreshCw, ChevronDown,
+  Tag, Calendar, Package, Crosshair, RefreshCw,
 } from 'lucide-react';
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Types & Constants ───────────────────────────────────────────────────────
 
-type CardKey = 'identity' | 'schedule' | 'supply' | 'dosing' | 'cycling';
+type SectionKey = 'identity' | 'schedule' | 'supply' | 'dosing' | 'cycling';
 
 interface CriticalError {
-  card: CardKey;
+  section: SectionKey;
   field: string;
   message: string;
 }
 
-const CARD_META: { key: CardKey; label: string; icon: typeof Tag }[] = [
-  { key: 'identity', label: 'Identity', icon: Tag },
-  { key: 'schedule', label: 'Schedule', icon: Calendar },
-  { key: 'supply',   label: 'Supply',   icon: Package },
-  { key: 'dosing',   label: 'Dosing',   icon: Crosshair },
-  { key: 'cycling',  label: 'Cycling',  icon: RefreshCw },
+const SECTION_META: { key: SectionKey; label: string; icon: typeof Tag; accent: string }[] = [
+  { key: 'identity', label: 'Identity',  icon: Tag,       accent: '#00C2FF' },
+  { key: 'schedule', label: 'Schedule',  icon: Calendar,  accent: '#7C6FF7' },
+  { key: 'supply',   label: 'Supply',    icon: Package,   accent: '#F59E0B' },
+  { key: 'dosing',   label: 'Dosing',    icon: Crosshair, accent: '#10B981' },
+  { key: 'cycling',  label: 'Cycling',   icon: RefreshCw, accent: '#F97316' },
 ];
-
-// ─── Category metadata ──────────────────────────────────────────────────────
 
 const CATEGORY_META: Record<string, { label: string; icon: typeof Pill }> = {
   peptide:              { label: 'Peptides',     icon: Syringe },
@@ -52,7 +50,6 @@ const CATEGORY_META: Record<string, { label: string; icon: typeof Pill }> = {
 };
 
 const CATEGORY_ORDER: string[] = ['peptide', 'injectable-oil', 'prescription', 'oral', 'powder', 'vitamin', 'holistic', 'adaptogen', 'nootropic', 'essential-oil', 'alternative-medicine', 'probiotic', 'topical'];
-
 const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
 const TIMING_OPTIONS = [
@@ -132,16 +129,16 @@ interface CompoundEditWizardProps {
 
 // ─── Field Component ─────────────────────────────────────────────────────────
 
-function WizardField({
-  label, value, onChange, type = 'text', placeholder, error, suffix,
+function ClinicalField({
+  label, value, onChange, type = 'text', placeholder, error, suffix, className = '',
 }: {
   label: string; value: string; onChange: (v: string) => void;
-  type?: string; placeholder?: string; error?: string; suffix?: string;
+  type?: string; placeholder?: string; error?: string; suffix?: string; className?: string;
 }) {
   return (
-    <div className="space-y-1">
+    <div className={`space-y-1 ${className}`}>
       <label
-        className="text-[11px] uppercase tracking-[0.08em] font-medium"
+        className="text-[11px] uppercase tracking-[0.08em] font-medium block"
         style={{ color: error ? '#FF3B3B' : '#6B7280' }}
       >
         {label}
@@ -152,18 +149,19 @@ function WizardField({
           value={value}
           onChange={e => onChange(e.target.value)}
           placeholder={placeholder || `Enter ${label.toLowerCase()}`}
-          className="w-full px-3 py-2.5 rounded-lg text-[16px] font-medium transition-colors duration-200"
+          className="w-full px-3 py-2 rounded-lg text-[15px] font-medium transition-colors duration-200"
           style={{
             background: '#1C1F26',
             color: '#F0F4F8',
             border: error ? '1.5px solid #FF3B3B' : '1px solid #2A2D35',
+            borderBottom: error ? '2px solid #FF3B3B' : undefined,
             fontFamily: type === 'number' ? "'DM Mono', monospace" : "'DM Sans', sans-serif",
           }}
           onFocus={e => { e.target.style.borderColor = '#00C2FF'; }}
           onBlur={e => { e.target.style.borderColor = error ? '#FF3B3B' : '#2A2D35'; }}
         />
         {suffix && (
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[12px]" style={{ color: '#6B7280', fontFamily: "'DM Mono', monospace" }}>
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px]" style={{ color: '#6B7280', fontFamily: "'DM Mono', monospace" }}>
             {suffix}
           </span>
         )}
@@ -175,40 +173,6 @@ function WizardField({
   );
 }
 
-// ─── Completion Ring SVG ─────────────────────────────────────────────────────
-
-function CompletionRing({ completed, total }: { completed: number; total: number }) {
-  const size = 52;
-  const stroke = 3.5;
-  const radius = (size - stroke) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const pct = total > 0 ? completed / total : 0;
-  const offset = circumference * (1 - pct);
-
-  return (
-    <div className="relative" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="transform -rotate-90">
-        <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="#1E2228" strokeWidth={stroke} />
-        <circle
-          cx={size/2} cy={size/2} r={radius} fill="none"
-          stroke={pct >= 1 ? '#34D399' : '#00C2FF'}
-          strokeWidth={stroke}
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-          className="transition-all duration-500 ease-out"
-        />
-      </svg>
-      <span
-        className="absolute inset-0 flex items-center justify-center text-[11px] font-bold"
-        style={{ color: pct >= 1 ? '#34D399' : '#F0F4F8', fontFamily: "'DM Mono', monospace" }}
-      >
-        {completed}/{total}
-      </span>
-    </div>
-  );
-}
-
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 const TOTAL_CRITICAL_FIELDS = 9;
@@ -216,85 +180,84 @@ const TOTAL_CRITICAL_FIELDS = 9;
 export default function CompoundEditWizard({
   open, onOpenChange, compound, editState, setEditState, onSave, isPeptide, isOil,
 }: CompoundEditWizardProps) {
-  const [expandedCards, setExpandedCards] = useState<Set<CardKey>>(new Set());
-  const [shakingCard, setShakingCard] = useState<CardKey | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const sectionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const fieldRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const [errorCycleIdx, setErrorCycleIdx] = useState(0);
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasEditedRef = useRef(false);
+
+  // ─── Auto-save on edits (debounced) ────────────────────────────────────────
+
+  const prevEditStateRef = useRef(editState);
+  useEffect(() => {
+    if (!open) { hasEditedRef.current = false; return; }
+    // Skip the initial load
+    if (prevEditStateRef.current === editState) return;
+    prevEditStateRef.current = editState;
+    hasEditedRef.current = true;
+
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(() => {
+      onSave();
+    }, 1500);
+
+    return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
+  }, [editState, open, onSave]);
 
   // ─── Critical field validation ─────────────────────────────────────────────
 
   const criticalErrors = useMemo((): CriticalError[] => {
     const errors: CriticalError[] = [];
-
     if (!(editState.name || '').trim())
-      errors.push({ card: 'identity', field: 'name', message: 'Required to identify this compound in your protocol' });
-
+      errors.push({ section: 'identity', field: 'name', message: 'Required to identify this compound in your protocol' });
     const dpw = parseInt(editState.daysPerWeek || '0');
     if (isNaN(dpw) || dpw <= 0)
-      errors.push({ card: 'schedule', field: 'daysPerWeek', message: 'Required to calculate how many days of supply remain' });
+      errors.push({ section: 'schedule', field: 'daysPerWeek', message: 'Required to calculate how many days of supply remain' });
     const dpd = parseInt(editState.dosesPerDay || '0');
     if (isNaN(dpd) || dpd <= 0)
-      errors.push({ card: 'schedule', field: 'dosesPerDay', message: 'Required to calculate daily consumption rate' });
-
+      errors.push({ section: 'schedule', field: 'dosesPerDay', message: 'Required to calculate daily consumption rate' });
     const qty = parseFloat(editState.currentQuantity || '');
     if (isNaN(qty) || qty < 0)
-      errors.push({ card: 'supply', field: 'currentQuantity', message: 'Required to calculate how many days of supply remain' });
+      errors.push({ section: 'supply', field: 'currentQuantity', message: 'Required to calculate how many days of supply remain' });
     const size = parseFloat(editState.unitSize || '');
     if (isNaN(size) || size <= 0)
-      errors.push({ card: 'supply', field: 'unitSize', message: 'Required to determine container capacity and depletion rate' });
-
+      errors.push({ section: 'supply', field: 'unitSize', message: 'Required to determine container capacity and depletion rate' });
     const dose = parseFloat(editState.dosePerUse || '');
     if (isNaN(dose) || dose <= 0)
-      errors.push({ card: 'dosing', field: 'dosePerUse', message: 'Required to calculate consumption and supply duration' });
-
+      errors.push({ section: 'dosing', field: 'dosePerUse', message: 'Required to calculate consumption and supply duration' });
     if (editState.cyclingEnabled === 'true') {
       const on = parseInt(editState.cycleOnDays || '');
       const off = parseInt(editState.cycleOffDays || '');
       if (isNaN(on) || on <= 0)
-        errors.push({ card: 'cycling', field: 'cycleOnDays', message: 'Required to calculate your active cycle phase duration' });
+        errors.push({ section: 'cycling', field: 'cycleOnDays', message: 'Required to calculate your active cycle phase duration' });
       if (isNaN(off) || off <= 0)
-        errors.push({ card: 'cycling', field: 'cycleOffDays', message: 'Required to calculate your rest phase duration' });
+        errors.push({ section: 'cycling', field: 'cycleOffDays', message: 'Required to calculate your rest phase duration' });
     }
-
     return errors;
   }, [editState]);
 
-  const cardErrors = useCallback((c: CardKey) => criticalErrors.filter(e => e.card === c), [criticalErrors]);
   const fieldError = useCallback((field: string) => criticalErrors.find(e => e.field === field)?.message, [criticalErrors]);
-  const cardHasErrors = useCallback((c: CardKey) => cardErrors(c).length > 0, [cardErrors]);
   const canSave = criticalErrors.length === 0;
   const completedFields = TOTAL_CRITICAL_FIELDS - criticalErrors.length;
 
-  // ─── Auto-expand on open ───────────────────────────────────────────────────
+  // ─── Scroll to error ──────────────────────────────────────────────────────
 
-  useEffect(() => {
-    if (!open) { setExpandedCards(new Set()); return; }
-    const brokenCards = CARD_META.map(m => m.key).filter(k => cardHasErrors(k));
-    if (brokenCards.length > 0 && brokenCards.length <= 2) {
-      setExpandedCards(new Set(brokenCards));
-    } else {
-      setExpandedCards(new Set());
+  const scrollToError = useCallback(() => {
+    if (criticalErrors.length === 0) return;
+    const idx = errorCycleIdx % criticalErrors.length;
+    const err = criticalErrors[idx];
+    const el = fieldRefs.current.get(err.field);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('clinical-pulse');
+      setTimeout(() => el.classList.remove('clinical-pulse'), 1200);
     }
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+    setErrorCycleIdx(idx + 1);
+  }, [criticalErrors, errorCycleIdx]);
 
-  // ─── Toggle card ───────────────────────────────────────────────────────────
-
-  const toggleCard = useCallback((key: CardKey) => {
-    setExpandedCards(prev => {
-      const next = new Set(prev);
-      if (next.has(key)) {
-        // Prevent collapse if card has errors
-        if (cardHasErrors(key)) {
-          setShakingCard(key);
-          setTimeout(() => setShakingCard(null), 400);
-          return prev;
-        }
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
-      return next;
-    });
-  }, [cardHasErrors]);
+  // Reset cycle on open
+  useEffect(() => { if (open) setErrorCycleIdx(0); }, [open]);
 
   // ─── Day/timing helpers ────────────────────────────────────────────────────
 
@@ -302,23 +265,20 @@ export default function CompoundEditWizard({
     const current = parseDaysFromNote(editState.timing || '', parseInt(editState.daysPerWeek || '7'));
     const currentTimings = parseTimingsFromNote(editState.timing || '');
     if (current.has(idx)) current.delete(idx); else current.add(idx);
-    const newTiming = buildDayString(current, currentTimings);
-    setEditState(s => ({ ...s, timing: newTiming, daysPerWeek: current.size.toString() }));
+    setEditState(s => ({ ...s, timing: buildDayString(current, currentTimings), daysPerWeek: current.size.toString() }));
   };
 
   const toggleTiming = (id: string) => {
     const currentDays = parseDaysFromNote(editState.timing || '', parseInt(editState.daysPerWeek || '7'));
     const currentTimings = parseTimingsFromNote(editState.timing || '');
-    if (currentTimings.has(id)) currentTimings.delete(id);
-    else currentTimings.add(id);
-    const newTiming = buildDayString(currentDays, currentTimings);
-    setEditState(s => ({ ...s, timing: newTiming }));
+    if (currentTimings.has(id)) currentTimings.delete(id); else currentTimings.add(id);
+    setEditState(s => ({ ...s, timing: buildDayString(currentDays, currentTimings) }));
   };
 
   const activeDaySet = useMemo(() => parseDaysFromNote(editState.timing || '', parseInt(editState.daysPerWeek || '7')), [editState.timing, editState.daysPerWeek]);
   const activeTimings = useMemo(() => parseTimingsFromNote(editState.timing || ''), [editState.timing]);
 
-  // ─── Computed supply calc ──────────────────────────────────────────────────
+  // ─── Supply calc ──────────────────────────────────────────────────────────
 
   const supplyDaysCalc = useMemo(() => {
     const dose = parseFloat(editState.dosePerUse || '0');
@@ -329,11 +289,7 @@ export default function CompoundEditWizard({
     let dosesPerUnit: number;
     if (cat === 'peptide' || cat === 'injectable-oil') {
       const vialMl = parseFloat(editState.vialSizeMl || '10');
-      if (cat === 'injectable-oil') {
-        dosesPerUnit = (size * vialMl) / dose;
-      } else {
-        dosesPerUnit = size / dose * 10;
-      }
+      dosesPerUnit = cat === 'injectable-oil' ? (size * vialMl) / dose : size / dose * 10;
     } else {
       dosesPerUnit = size / (dose > 0 ? dose : 1);
     }
@@ -343,55 +299,19 @@ export default function CompoundEditWizard({
     return Math.floor(dosesPerUnit / dailyDoses);
   }, [editState, compound.category]);
 
-  // ─── Card summaries ────────────────────────────────────────────────────────
+  // ─── Category badge ────────────────────────────────────────────────────────
+  const catMeta = CATEGORY_META[editState.category || compound.category];
 
-  const cardSummary = useCallback((key: CardKey): string => {
-    switch (key) {
-      case 'identity': {
-        const cat = CATEGORY_META[editState.category || compound.category];
-        const status = (editState.notes || '').includes('[DORMANT]') ? 'Inactive' : 'Active';
-        return `${cat?.label || 'Unknown'} · ${status}`;
-      }
-      case 'schedule': {
-        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const days = activeDaySet;
-        const dayStr = days.size === 7 ? 'Daily' : days.size === 0 ? 'No days' : Array.from(days).sort().map(d => dayNames[d]).join(' · ');
-        const timStr = activeTimings.size > 0 ? Array.from(activeTimings).map(t => TIMING_OPTIONS.find(o => o.id === t)?.label || t).join(', ') : '';
-        const dpd = editState.dosesPerDay || '1';
-        return [dayStr, timStr, `${dpd}x/day`].filter(Boolean).join(', ');
-      }
-      case 'supply': {
-        const qty = editState.currentQuantity || '0';
-        const size = editState.unitSize || '0';
-        const unit = editState.unitLabel || 'units';
-        const price = editState.unitPrice || '0';
-        return `${qty} on hand · ${size} ${unit} · $${price}/ea`;
-      }
-      case 'dosing': {
-        const dose = editState.dosePerUse || '—';
-        const doseUnit = editState.editDoseUnit || 'mg';
-        return `${dose} ${doseUnit} per dose`;
-      }
-      case 'cycling': {
-        if (editState.cyclingEnabled !== 'true') return 'Off — continuous';
-        const on = editState.cycleOnDays || '?';
-        const off = editState.cycleOffDays || '?';
-        return `${on} days on / ${off} days off`;
-      }
-    }
-  }, [editState, compound.category, activeDaySet, activeTimings]);
+  // ─── Section renderers ─────────────────────────────────────────────────────
 
-  // ─── Card field renderers ──────────────────────────────────────────────────
-
-  const renderIdentityFields = () => (
-    <div className="space-y-4 pt-3">
-      <div className="space-y-1">
-        <label className="text-[11px] uppercase tracking-[0.08em] font-medium" style={{ color: fieldError('name') ? '#FF3B3B' : '#6B7280' }}>
+  const renderIdentity = () => (
+    <div className="space-y-4">
+      <div ref={el => { if (el) fieldRefs.current.set('name', el); }}>
+        <label className="text-[11px] uppercase tracking-[0.08em] font-medium block mb-1" style={{ color: fieldError('name') ? '#FF3B3B' : '#6B7280' }}>
           Compound Name
         </label>
         <input
-          type="text"
-          value={editState.name || ''}
+          type="text" value={editState.name || ''}
           onChange={e => setEditState(s => ({ ...s, name: e.target.value }))}
           placeholder="e.g. BPC-157"
           className="w-full px-3 py-3 rounded-lg transition-colors duration-200"
@@ -403,11 +323,11 @@ export default function CompoundEditWizard({
           onFocus={e => { e.target.style.borderColor = '#00C2FF'; }}
           onBlur={e => { e.target.style.borderColor = fieldError('name') ? '#FF3B3B' : '#2A2D35'; }}
         />
-        {fieldError('name') && <p className="text-[11px]" style={{ color: '#FF3B3B' }}>{fieldError('name')}</p>}
+        {fieldError('name') && <p className="text-[11px] mt-1" style={{ color: '#FF3B3B' }}>{fieldError('name')}</p>}
       </div>
 
-      <div className="space-y-2">
-        <label className="text-[11px] uppercase tracking-[0.08em] font-medium" style={{ color: '#6B7280' }}>Category</label>
+      <div>
+        <label className="text-[11px] uppercase tracking-[0.08em] font-medium block mb-2" style={{ color: '#6B7280' }}>Category</label>
         <div className="grid grid-cols-3 gap-1.5">
           {CATEGORY_ORDER.map(cat => {
             const meta = CATEGORY_META[cat];
@@ -448,26 +368,26 @@ export default function CompoundEditWizard({
         </button>
       </div>
 
-      <div className="space-y-1">
-        <label className="text-[11px] uppercase tracking-[0.08em] font-medium" style={{ color: '#6B7280' }}>Notes</label>
+      <div>
+        <label className="text-[11px] uppercase tracking-[0.08em] font-medium block mb-1" style={{ color: '#6B7280' }}>Notes</label>
         <textarea
           value={(editState.notes || '').replace('[DORMANT]', '').trim()}
           onChange={e => {
             const isDormant = (editState.notes || '').includes('[DORMANT]');
             setEditState(s => ({ ...s, notes: isDormant ? `[DORMANT] ${e.target.value}` : e.target.value }));
           }}
-          rows={3} placeholder="Usage notes, supplier info, etc."
-          className="w-full px-3 py-2.5 rounded-lg text-[13px] resize-none"
+          rows={2} placeholder="Usage notes, supplier info, etc."
+          className="w-full px-3 py-2 rounded-lg text-[13px] resize-none"
           style={{ background: '#1C1F26', color: '#F0F4F8', border: '1px solid #2A2D35' }}
         />
       </div>
     </div>
   );
 
-  const renderScheduleFields = () => (
-    <div className="space-y-4 pt-3">
-      <div className="space-y-2">
-        <label className="text-[11px] uppercase tracking-[0.08em] font-medium" style={{ color: '#6B7280' }}>Days of Week</label>
+  const renderSchedule = () => (
+    <div className="space-y-4">
+      <div ref={el => { if (el) fieldRefs.current.set('daysPerWeek', el); }}>
+        <label className="text-[11px] uppercase tracking-[0.08em] font-medium block mb-2" style={{ color: fieldError('daysPerWeek') ? '#FF3B3B' : '#6B7280' }}>Days of Week</label>
         <div className="flex gap-1.5">
           {DAY_LABELS.map((lbl, idx) => {
             const isActive = activeDaySet.has(idx);
@@ -475,19 +395,20 @@ export default function CompoundEditWizard({
               <button key={idx} onClick={() => toggleDay(idx)}
                 className="flex-1 py-2.5 rounded-lg text-[12px] font-semibold transition-all duration-200"
                 style={{
-                  background: isActive ? 'rgba(0,194,255,0.12)' : '#1C1F26',
-                  color: isActive ? '#00C2FF' : '#6B7280',
-                  border: isActive ? '1.5px solid rgba(0,194,255,0.4)' : '1px solid #2A2D35',
+                  background: isActive ? 'rgba(124,111,247,0.12)' : '#1C1F26',
+                  color: isActive ? '#7C6FF7' : '#6B7280',
+                  border: isActive ? '1.5px solid rgba(124,111,247,0.4)' : '1px solid #2A2D35',
                 }}>
                 {lbl}
               </button>
             );
           })}
         </div>
+        {fieldError('daysPerWeek') && <p className="text-[11px] mt-1" style={{ color: '#FF3B3B' }}>{fieldError('daysPerWeek')}</p>}
       </div>
 
-      <div className="space-y-2">
-        <label className="text-[11px] uppercase tracking-[0.08em] font-medium" style={{ color: '#6B7280' }}>Time of Day</label>
+      <div>
+        <label className="text-[11px] uppercase tracking-[0.08em] font-medium block mb-2" style={{ color: '#6B7280' }}>Time of Day</label>
         <div className="flex flex-wrap gap-1.5">
           {TIMING_OPTIONS.map(opt => {
             const isSelected = activeTimings.has(opt.id);
@@ -495,9 +416,9 @@ export default function CompoundEditWizard({
               <button key={opt.id} onClick={() => toggleTiming(opt.id)}
                 className="px-3 py-2 rounded-lg text-[11px] font-medium transition-all duration-200"
                 style={{
-                  background: isSelected ? 'rgba(0,194,255,0.12)' : '#1C1F26',
-                  color: isSelected ? '#00C2FF' : '#6B7280',
-                  border: isSelected ? '1.5px solid rgba(0,194,255,0.4)' : '1px solid #2A2D35',
+                  background: isSelected ? 'rgba(124,111,247,0.12)' : '#1C1F26',
+                  color: isSelected ? '#7C6FF7' : '#6B7280',
+                  border: isSelected ? '1.5px solid rgba(124,111,247,0.4)' : '1px solid #2A2D35',
                 }}>
                 {opt.label}
               </button>
@@ -506,85 +427,108 @@ export default function CompoundEditWizard({
         </div>
       </div>
 
-      <WizardField label="Timing Note" value={editState.timing || ''} onChange={v => setEditState(s => ({ ...s, timing: v }))} placeholder="e.g. daily AM, with breakfast" />
-      <WizardField label="Doses per Day" value={editState.dosesPerDay || ''} onChange={v => setEditState(s => ({ ...s, dosesPerDay: v }))} type="number" placeholder="1" error={fieldError('dosesPerDay')} />
+      <ClinicalField label="Timing Note" value={editState.timing || ''} onChange={v => setEditState(s => ({ ...s, timing: v }))} placeholder="e.g. daily AM, with breakfast" />
+
+      <div ref={el => { if (el) fieldRefs.current.set('dosesPerDay', el); }}>
+        <ClinicalField label="Doses per Day" value={editState.dosesPerDay || ''} onChange={v => setEditState(s => ({ ...s, dosesPerDay: v }))} type="number" placeholder="1" error={fieldError('dosesPerDay')} />
+      </div>
     </div>
   );
 
-  const renderSupplyFields = () => (
-    <div className="space-y-4 pt-3">
-      <WizardField label={isPeptide || isOil ? 'Vials on Hand' : 'On Hand'} value={editState.currentQuantity || ''} onChange={v => setEditState(s => ({ ...s, currentQuantity: v }))} type="number" placeholder="0" error={fieldError('currentQuantity')} suffix={isPeptide || isOil ? 'vials' : editState.unitLabel || 'units'} />
-      <WizardField label={isPeptide ? 'Per Vial (mg)' : isOil ? 'Concentration' : 'Per Container'} value={editState.unitSize || ''} onChange={v => setEditState(s => ({ ...s, unitSize: v }))} type="number" placeholder={isPeptide ? 'e.g. 5' : isOil ? 'e.g. 200' : 'e.g. 90'} error={fieldError('unitSize')} suffix={isOil ? 'mg/mL' : isPeptide ? 'mg' : editState.unitLabel || 'units'} />
-      <WizardField label="Unit Label" value={editState.unitLabel || ''} onChange={v => setEditState(s => ({ ...s, unitLabel: v }))} placeholder="e.g. caps, mL, servings" />
-      {isOil && <WizardField label="Vial Size" value={editState.vialSizeMl || ''} onChange={v => setEditState(s => ({ ...s, vialSizeMl: v }))} type="number" placeholder="10" suffix="mL" />}
-      <WizardField label="Price" value={editState.unitPrice || ''} onChange={v => setEditState(s => ({ ...s, unitPrice: v }))} type="number" placeholder="0.00" suffix="$" />
-      {isPeptide && editState.reorderType === 'kit' && <WizardField label="Kit Price" value={editState.kitPrice || ''} onChange={v => setEditState(s => ({ ...s, kitPrice: v }))} type="number" placeholder="0.00" suffix="$/kit" />}
-      <WizardField label="Reorder Qty" value={editState.reorderQuantity || ''} onChange={v => setEditState(s => ({ ...s, reorderQuantity: v }))} type="number" placeholder="1" />
+  const renderSupply = () => (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3">
+        <div ref={el => { if (el) fieldRefs.current.set('currentQuantity', el); }}>
+          <ClinicalField label={isPeptide || isOil ? 'Vials on Hand' : 'On Hand'} value={editState.currentQuantity || ''} onChange={v => setEditState(s => ({ ...s, currentQuantity: v }))} type="number" placeholder="0" error={fieldError('currentQuantity')} suffix={isPeptide || isOil ? 'vials' : editState.unitLabel || 'units'} />
+        </div>
+        <div ref={el => { if (el) fieldRefs.current.set('unitSize', el); }}>
+          <ClinicalField label={isPeptide ? 'Per Vial (mg)' : isOil ? 'Concentration' : 'Per Container'} value={editState.unitSize || ''} onChange={v => setEditState(s => ({ ...s, unitSize: v }))} type="number" placeholder={isPeptide ? '5' : isOil ? '200' : '90'} error={fieldError('unitSize')} suffix={isOil ? 'mg/mL' : isPeptide ? 'mg' : editState.unitLabel || 'units'} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <ClinicalField label="Unit Label" value={editState.unitLabel || ''} onChange={v => setEditState(s => ({ ...s, unitLabel: v }))} placeholder="caps, mL, servings" />
+        {isOil && <ClinicalField label="Vial Size" value={editState.vialSizeMl || ''} onChange={v => setEditState(s => ({ ...s, vialSizeMl: v }))} type="number" placeholder="10" suffix="mL" />}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <ClinicalField label="Price" value={editState.unitPrice || ''} onChange={v => setEditState(s => ({ ...s, unitPrice: v }))} type="number" placeholder="0.00" suffix="$" />
+        {isPeptide && editState.reorderType === 'kit' && <ClinicalField label="Kit Price" value={editState.kitPrice || ''} onChange={v => setEditState(s => ({ ...s, kitPrice: v }))} type="number" placeholder="0.00" suffix="$/kit" />}
+        <ClinicalField label="Reorder Qty" value={editState.reorderQuantity || ''} onChange={v => setEditState(s => ({ ...s, reorderQuantity: v }))} type="number" placeholder="1" />
+      </div>
+
       {!isPeptide && !isOil && (
-        <div className="space-y-1">
-          <label className="text-[11px] uppercase tracking-[0.08em] font-medium" style={{ color: '#6B7280' }}>Purchase Date</label>
-          <DatePickerInput value={editState.purchaseDate || ''} onChange={v => setEditState(s => ({ ...s, purchaseDate: v }))} className="text-[13px] py-2.5" />
+        <div>
+          <label className="text-[11px] uppercase tracking-[0.08em] font-medium block mb-1" style={{ color: '#6B7280' }}>Purchase Date</label>
+          <DatePickerInput value={editState.purchaseDate || ''} onChange={v => setEditState(s => ({ ...s, purchaseDate: v }))} className="text-[13px] py-2" />
         </div>
       )}
     </div>
   );
 
-  const renderDosingFields = () => (
-    <div className="space-y-4 pt-3">
-      <WizardField label="Dose Amount" value={editState.dosePerUse || ''} onChange={v => setEditState(s => ({ ...s, dosePerUse: v }))} type="number" placeholder="e.g. 2.5" error={fieldError('dosePerUse')} />
-      <div className="space-y-1">
-        <label className="text-[11px] uppercase tracking-[0.08em] font-medium" style={{ color: '#6B7280' }}>Dose Unit</label>
-        <select value={editState.editDoseUnit || 'mg'} onChange={e => setEditState(s => ({ ...s, editDoseUnit: e.target.value }))}
-          className="w-full px-3 py-2.5 rounded-lg text-[14px]"
-          style={{ background: '#1C1F26', color: '#F0F4F8', border: '1px solid #2A2D35', fontFamily: "'DM Mono', monospace" }}>
-          <option value="mg">mg</option><option value="mcg">mcg</option><option value="g">g</option>
-          <option value="iu">IU</option><option value="ml">mL</option><option value="pills">pills/caps</option>
-          <option value="scoop">scoop</option><option value="drops">drops</option><option value="spray">spray</option>
-          <option value="patch">patch</option><option value="softgels">softgels</option><option value="units">units</option>
-          <option value="tbsp">tbsp</option><option value="tsp">tsp</option><option value="oz">oz</option><option value="floz">fl oz</option>
-        </select>
-      </div>
+  const renderDosing = () => (
+    <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
-        <WizardField label="Strength / Unit" value={editState.weightPerUnit || ''} onChange={v => setEditState(s => ({ ...s, weightPerUnit: v }))} type="number" placeholder="e.g. 500" />
-        <div className="space-y-1">
-          <label className="text-[11px] uppercase tracking-[0.08em] font-medium" style={{ color: '#6B7280' }}>Strength Unit</label>
+        <div ref={el => { if (el) fieldRefs.current.set('dosePerUse', el); }}>
+          <ClinicalField label="Dose Amount" value={editState.dosePerUse || ''} onChange={v => setEditState(s => ({ ...s, dosePerUse: v }))} type="number" placeholder="2.5" error={fieldError('dosePerUse')} />
+        </div>
+        <div>
+          <label className="text-[11px] uppercase tracking-[0.08em] font-medium block mb-1" style={{ color: '#6B7280' }}>Dose Unit</label>
+          <select value={editState.editDoseUnit || 'mg'} onChange={e => setEditState(s => ({ ...s, editDoseUnit: e.target.value }))}
+            className="w-full px-3 py-2 rounded-lg text-[14px]"
+            style={{ background: '#1C1F26', color: '#F0F4F8', border: '1px solid #2A2D35', fontFamily: "'DM Mono', monospace" }}>
+            <option value="mg">mg</option><option value="mcg">mcg</option><option value="g">g</option>
+            <option value="iu">IU</option><option value="ml">mL</option><option value="pills">pills/caps</option>
+            <option value="scoop">scoop</option><option value="drops">drops</option><option value="spray">spray</option>
+            <option value="patch">patch</option><option value="softgels">softgels</option><option value="units">units</option>
+            <option value="tbsp">tbsp</option><option value="tsp">tsp</option><option value="oz">oz</option><option value="floz">fl oz</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <ClinicalField label="Strength / Unit" value={editState.weightPerUnit || ''} onChange={v => setEditState(s => ({ ...s, weightPerUnit: v }))} type="number" placeholder="500" />
+        <div>
+          <label className="text-[11px] uppercase tracking-[0.08em] font-medium block mb-1" style={{ color: '#6B7280' }}>Strength Unit</label>
           <select value={editState.strengthUnit || 'mg'} onChange={e => setEditState(s => ({ ...s, strengthUnit: e.target.value }))}
-            className="w-full px-3 py-2.5 rounded-lg text-[14px]"
+            className="w-full px-3 py-2 rounded-lg text-[14px]"
             style={{ background: '#1C1F26', color: '#F0F4F8', border: '1px solid #2A2D35', fontFamily: "'DM Mono', monospace" }}>
             <option value="mg">mg</option><option value="mcg">mcg</option><option value="g">g</option><option value="oz">oz</option><option value="lb">lb</option>
           </select>
         </div>
       </div>
+
       {supplyDaysCalc !== null && supplyDaysCalc > 0 && (
         <div className="px-3 py-3 rounded-lg" style={{ background: '#1C1F26', border: '1px solid #2A2D35' }}>
           <p className="text-[11px] uppercase tracking-[0.08em] font-medium mb-1" style={{ color: '#6B7280' }}>Calculated</p>
           <p className="text-[15px] font-medium" style={{ color: '#F0F4F8', fontFamily: "'DM Mono', monospace" }}>
             At this dose, 1 {isPeptide || isOil ? 'vial' : 'container'} lasts{' '}
-            <span style={{ color: '#00C2FF' }}>{supplyDaysCalc}</span> days
+            <span style={{ color: '#10B981' }}>{supplyDaysCalc}</span> days
           </p>
         </div>
       )}
+
       {(editState.category || compound.category) === 'peptide' && (
         <>
           <div className="pt-2" style={{ borderTop: '1px solid #1E2228' }}>
             <label className="text-[11px] uppercase tracking-[0.08em] font-medium" style={{ color: '#6B7280' }}>Dilution / Reconstitution</label>
           </div>
-          <div className="space-y-1">
-            <label className="text-[11px] uppercase tracking-[0.08em] font-medium" style={{ color: '#6B7280' }}>Solvent</label>
+          <div>
+            <label className="text-[11px] uppercase tracking-[0.08em] font-medium block mb-1" style={{ color: '#6B7280' }}>Solvent</label>
             <select value={editState.solventType || ''} onChange={e => setEditState(s => ({ ...s, solventType: e.target.value }))}
-              className="w-full px-3 py-2.5 rounded-lg text-[13px]"
+              className="w-full px-3 py-2 rounded-lg text-[13px]"
               style={{ background: '#1C1F26', color: '#F0F4F8', border: '1px solid #2A2D35', fontFamily: "'DM Mono', monospace" }}>
               <option value="">None</option><option value="Bacteriostatic Water">Bacteriostatic Water</option>
               <option value="Sterile Water">Sterile Water</option><option value="Sterile Saline">Sterile Saline</option>
               <option value="Acetic Acid 0.6%">Acetic Acid 0.6%</option><option value="Other">Other</option>
             </select>
           </div>
-          {editState.solventType && <WizardField label="Volume" value={editState.solventVolume || ''} onChange={v => setEditState(s => ({ ...s, solventVolume: v }))} type="number" suffix="mL" />}
-          <WizardField label="Storage" value={editState.storageInstructions || ''} onChange={v => setEditState(s => ({ ...s, storageInstructions: v }))} />
-          <div className="space-y-1">
-            <label className="text-[11px] uppercase tracking-[0.08em] font-medium" style={{ color: '#6B7280' }}>Prep Notes</label>
+          {editState.solventType && <ClinicalField label="Volume" value={editState.solventVolume || ''} onChange={v => setEditState(s => ({ ...s, solventVolume: v }))} type="number" suffix="mL" />}
+          <ClinicalField label="Storage" value={editState.storageInstructions || ''} onChange={v => setEditState(s => ({ ...s, storageInstructions: v }))} />
+          <div>
+            <label className="text-[11px] uppercase tracking-[0.08em] font-medium block mb-1" style={{ color: '#6B7280' }}>Prep Notes</label>
             <textarea value={editState.prepNotes || ''} onChange={e => setEditState(s => ({ ...s, prepNotes: e.target.value }))} rows={2}
-              className="w-full px-3 py-2.5 rounded-lg text-[13px] resize-none"
+              className="w-full px-3 py-2 rounded-lg text-[13px] resize-none"
               style={{ background: '#1C1F26', color: '#F0F4F8', border: '1px solid #2A2D35', fontFamily: "'DM Mono', monospace" }} />
           </div>
         </>
@@ -592,8 +536,8 @@ export default function CompoundEditWizard({
     </div>
   );
 
-  const renderCyclingFields = () => (
-    <div className="space-y-4 pt-3">
+  const renderCycling = () => (
+    <div className="space-y-4">
       <div className="flex items-center justify-between px-3 py-3 rounded-lg" style={{ background: '#1C1F26', border: '1px solid #2A2D35' }}>
         <span className="text-[11px] uppercase tracking-[0.08em] font-medium" style={{ color: '#6B7280' }}>Cycling Protocol</span>
         <button onClick={() => setEditState(s => ({ ...s, cyclingEnabled: s.cyclingEnabled === 'true' ? 'false' : 'true' }))}
@@ -606,17 +550,22 @@ export default function CompoundEditWizard({
           {editState.cyclingEnabled === 'true' ? 'ON' : 'OFF'}
         </button>
       </div>
-      {editState.cyclingEnabled === 'true' && (
+      {editState.cyclingEnabled === 'true' ? (
         <>
-          <WizardField label="ON Days" value={editState.cycleOnDays || ''} onChange={v => setEditState(s => ({ ...s, cycleOnDays: v }))} type="number" placeholder="e.g. 5" error={fieldError('cycleOnDays')} suffix="days" />
-          <WizardField label="OFF Days" value={editState.cycleOffDays || ''} onChange={v => setEditState(s => ({ ...s, cycleOffDays: v }))} type="number" placeholder="e.g. 2" error={fieldError('cycleOffDays')} suffix="days" />
-          <div className="space-y-1">
-            <label className="text-[11px] uppercase tracking-[0.08em] font-medium" style={{ color: '#6B7280' }}>Cycle Start Date</label>
-            <DatePickerInput value={editState.cycleStartDate || ''} onChange={v => setEditState(s => ({ ...s, cycleStartDate: v }))} className="text-[13px] py-2.5" />
+          <div className="grid grid-cols-2 gap-3">
+            <div ref={el => { if (el) fieldRefs.current.set('cycleOnDays', el); }}>
+              <ClinicalField label="ON Days" value={editState.cycleOnDays || ''} onChange={v => setEditState(s => ({ ...s, cycleOnDays: v }))} type="number" placeholder="5" error={fieldError('cycleOnDays')} suffix="days" />
+            </div>
+            <div ref={el => { if (el) fieldRefs.current.set('cycleOffDays', el); }}>
+              <ClinicalField label="OFF Days" value={editState.cycleOffDays || ''} onChange={v => setEditState(s => ({ ...s, cycleOffDays: v }))} type="number" placeholder="2" error={fieldError('cycleOffDays')} suffix="days" />
+            </div>
+          </div>
+          <div>
+            <label className="text-[11px] uppercase tracking-[0.08em] font-medium block mb-1" style={{ color: '#6B7280' }}>Cycle Start Date</label>
+            <DatePickerInput value={editState.cycleStartDate || ''} onChange={v => setEditState(s => ({ ...s, cycleStartDate: v }))} className="text-[13px] py-2" />
           </div>
         </>
-      )}
-      {editState.cyclingEnabled !== 'true' && (
+      ) : (
         <div className="px-3 py-4 rounded-lg text-center" style={{ background: '#1C1F26', border: '1px solid #2A2D35' }}>
           <p className="text-[12px]" style={{ color: '#6B7280' }}>Cycling is off — this compound runs continuously.</p>
         </div>
@@ -624,27 +573,31 @@ export default function CompoundEditWizard({
     </div>
   );
 
-  const FIELD_RENDERERS: Record<CardKey, () => JSX.Element> = {
-    identity: renderIdentityFields,
-    schedule: renderScheduleFields,
-    supply: renderSupplyFields,
-    dosing: renderDosingFields,
-    cycling: renderCyclingFields,
+  const SECTION_RENDERERS: Record<SectionKey, () => JSX.Element> = {
+    identity: renderIdentity,
+    schedule: renderSchedule,
+    supply: renderSupply,
+    dosing: renderDosing,
+    cycling: renderCycling,
   };
 
-  // ─── Category badge ────────────────────────────────────────────────────────
-  const catMeta = CATEGORY_META[editState.category || compound.category];
-
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={v => {
+      // Flush any pending auto-save before closing
+      if (!v && autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+        if (hasEditedRef.current) onSave();
+      }
+      onOpenChange(v);
+    }}>
       <SheetContent
         side="bottom"
         className="h-[100dvh] max-h-[100dvh] rounded-none flex flex-col p-0 gap-0"
         style={{ background: '#0A0A0F', color: '#F0F4F8' }}
       >
-        {/* ═══ HEADER ═══ */}
-        <div className="flex-shrink-0 px-4 pt-3 pb-4" style={{ borderBottom: '1px solid #1E2228' }}>
-          <div className="flex items-center justify-between mb-3">
+        {/* ═══ STICKY HEADER ═══ */}
+        <div className="flex-shrink-0 px-4 pt-3 pb-3 z-10" style={{ borderBottom: '1px solid #1E2228', background: '#0A0A0F' }}>
+          <div className="flex items-center justify-between mb-2">
             <button onClick={() => onOpenChange(false)} className="p-1 rounded-lg" style={{ color: '#6B7280' }}>
               <X className="w-5 h-5" strokeWidth={1.5} />
             </button>
@@ -652,119 +605,115 @@ export default function CompoundEditWizard({
             <div className="w-7" />
           </div>
 
-          <div className="flex items-center gap-3">
-            <CompletionRing completed={completedFields} total={TOTAL_CRITICAL_FIELDS} />
-            <div className="flex-1 min-w-0">
-              <h2 className="text-[24px] font-semibold truncate" style={{ color: '#F0F4F8', fontFamily: "'DM Sans', sans-serif" }}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex-1 min-w-0 flex items-center gap-2">
+              <h2 className="text-[20px] font-semibold truncate" style={{ color: '#F0F4F8' }}>
                 {editState.name || compound.name || 'Untitled'}
               </h2>
               {catMeta && (
-                <span className="inline-flex items-center gap-1.5 mt-1 px-2 py-0.5 rounded-full text-[10px] font-medium"
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0"
                   style={{ background: 'rgba(0,194,255,0.08)', color: '#00C2FF', border: '1px solid rgba(0,194,255,0.2)' }}>
                   <catMeta.icon className="w-3 h-3" strokeWidth={1.5} />
                   {catMeta.label}
                 </span>
               )}
             </div>
+
+            {/* Protocol Health pill */}
+            <button
+              onClick={scrollToError}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium flex-shrink-0 transition-all"
+              style={{
+                background: canSave ? 'rgba(52,211,153,0.1)' : 'rgba(255,59,59,0.1)',
+                color: canSave ? '#34D399' : '#FF3B3B',
+                border: `1px solid ${canSave ? 'rgba(52,211,153,0.3)' : 'rgba(255,59,59,0.3)'}`,
+              }}
+            >
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: canSave ? '#34D399' : '#FF3B3B' }} />
+              {canSave ? 'Complete' : `${criticalErrors.length} field${criticalErrors.length > 1 ? 's' : ''} need attention`}
+            </button>
           </div>
         </div>
 
-        {/* ═══ CARD LIST ═══ */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-2">
-          {CARD_META.map(({ key, label, icon: CardIcon }) => {
-            const isExpanded = expandedCards.has(key);
-            const hasErrors = cardHasErrors(key);
-            const errCount = cardErrors(key).length;
-            const isShaking = shakingCard === key;
+        {/* ═══ ERROR BANNER ═══ */}
+        {criticalErrors.length > 0 && (
+          <button
+            onClick={scrollToError}
+            className="flex-shrink-0 flex items-center gap-2 px-4 py-2 text-left"
+            style={{ background: 'rgba(255,59,59,0.06)', borderBottom: '1px solid rgba(255,59,59,0.15)' }}
+          >
+            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.5} style={{ color: '#FF3B3B' }} />
+            <span className="text-[12px] font-medium flex-1" style={{ color: '#FF3B3B' }}>
+              {criticalErrors.length} required field{criticalErrors.length > 1 ? 's are' : ' is'} missing — tap to jump
+            </span>
+            <ChevronUp className="w-3.5 h-3.5 flex-shrink-0 rotate-90" strokeWidth={1.5} style={{ color: '#FF3B3B' }} />
+          </button>
+        )}
 
-            return (
-              <div
-                key={key}
-                className="rounded-xl overflow-hidden transition-all duration-200"
-                style={{
-                  background: isExpanded ? '#181B23' : '#13161D',
-                  border: `1px solid ${hasErrors ? '#1E2228' : '#1E2228'}`,
-                  borderLeft: hasErrors ? '3px solid #FF3B3B' : undefined,
-                  animation: isShaking ? 'shake 0.4s ease-in-out' : undefined,
-                }}
-              >
-                {/* Card header — always visible */}
-                <button
-                  onClick={() => toggleCard(key)}
-                  className="w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors duration-200"
-                >
-                  <CardIcon className="w-4 h-4 flex-shrink-0" strokeWidth={1.5} style={{ color: hasErrors ? '#FF3B3B' : isExpanded ? '#00C2FF' : '#6B7280' }} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[13px] uppercase tracking-[0.06em] font-semibold" style={{ color: hasErrors ? '#FF3B3B' : '#F0F4F8' }}>
-                      {label}
-                    </p>
-                    <p className="text-[11px] truncate mt-0.5" style={{ color: '#9CA3AF' }}>
-                      {cardSummary(key)}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {hasErrors ? (
-                      <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold"
-                        style={{ background: 'rgba(255,59,59,0.12)', color: '#FF3B3B' }}>
-                        <AlertTriangle className="w-3 h-3" strokeWidth={1.5} />
-                        {errCount}
-                      </span>
-                    ) : (
-                      <Check className="w-4 h-4" strokeWidth={1.5} style={{ color: '#34D399' }} />
-                    )}
-                    <ChevronDown
-                      className="w-4 h-4 transition-transform duration-200"
-                      strokeWidth={1.5}
-                      style={{
-                        color: '#6B7280',
-                        transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                      }}
-                    />
-                  </div>
-                </button>
-
-                {/* Expanded fields */}
-                <div
-                  className="overflow-hidden transition-all duration-200 ease-out"
-                  style={{
-                    maxHeight: isExpanded ? '2000px' : '0px',
-                    opacity: isExpanded ? 1 : 0,
-                  }}
-                >
-                  <div className="px-4 pb-4" style={{ borderTop: '1px solid #1E2228' }}>
-                    {FIELD_RENDERERS[key]()}
-                  </div>
+        {/* ═══ SCROLLABLE CONTENT ═══ */}
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 pb-24">
+          {SECTION_META.map(({ key, label, icon: SectionIcon, accent }) => (
+            <div key={key} ref={el => { if (el) sectionRefs.current.set(key, el); }} className="pt-5">
+              {/* Section divider */}
+              <div className="mb-4">
+                <div className="w-full h-px mb-3" style={{ background: '#1E2128' }} />
+                <div className="flex items-center gap-2">
+                  <SectionIcon className="w-4 h-4" strokeWidth={1.5} style={{ color: accent }} />
+                  <span className="text-[11px] uppercase tracking-[0.1em] font-semibold" style={{ color: '#9CA3AF' }}>
+                    {label}
+                  </span>
+                  {criticalErrors.filter(e => e.section === key).length > 0 && (
+                    <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                      style={{ background: 'rgba(255,59,59,0.12)', color: '#FF3B3B' }}>
+                      <AlertTriangle className="w-3 h-3" strokeWidth={1.5} />
+                      {criticalErrors.filter(e => e.section === key).length}
+                    </span>
+                  )}
                 </div>
               </div>
-            );
-          })}
+
+              {/* Section body with left accent border */}
+              <div className="pl-4" style={{ borderLeft: `3px solid ${accent}` }}>
+                {SECTION_RENDERERS[key]()}
+              </div>
+            </div>
+          ))}
+          <div className="h-8" />
         </div>
 
-        {/* ═══ BOTTOM SAVE BAR ═══ */}
-        <div className="flex-shrink-0 px-4 py-3" style={{ background: '#0A0A0F', borderTop: '1px solid #1E2228' }}>
+        {/* ═══ BOTTOM BAR ═══ */}
+        <div className="flex-shrink-0 flex gap-3 px-4 py-3 absolute bottom-0 left-0 right-0" style={{ background: '#0A0A0F', borderTop: '1px solid #1E2228' }}>
+          <button
+            onClick={() => onOpenChange(false)}
+            className="flex-1 py-3 rounded-xl text-[14px] font-semibold transition-all"
+            style={{ background: '#1C1F26', color: '#9CA3AF', border: '1px solid #2A2D35' }}
+          >
+            Close
+          </button>
           <button
             onClick={() => canSave && onSave()}
             disabled={!canSave}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[14px] font-semibold transition-all duration-200 active:scale-[0.98] disabled:opacity-30 disabled:cursor-not-allowed"
+            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[14px] font-semibold transition-all disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.98]"
             style={{
               background: canSave ? '#00C2FF' : '#2A2D35',
               color: canSave ? '#0A0A0F' : '#6B7280',
             }}
           >
             <Check className="w-4 h-4" strokeWidth={2} />
-            Save Changes
+            Save
           </button>
         </div>
       </SheetContent>
 
-      {/* Shake animation */}
+      {/* Pulse animation for scrollToError */}
       <style>{`
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          20% { transform: translateX(-4px); }
-          40% { transform: translateX(4px); }
-          60% { transform: translateX(-3px); }
-          80% { transform: translateX(3px); }
+        @keyframes clinical-pulse {
+          0%, 100% { box-shadow: none; }
+          50% { box-shadow: 0 0 0 3px rgba(255,59,59,0.4); }
+        }
+        .clinical-pulse {
+          animation: clinical-pulse 0.6s ease-in-out 2;
+          border-radius: 8px;
         }
       `}</style>
     </Sheet>
