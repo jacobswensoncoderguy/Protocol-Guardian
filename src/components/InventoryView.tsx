@@ -745,7 +745,19 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
               </p>
             </div>
 
-            {/* Days remaining */}
+            {/* Days remaining or validation error badge */}
+            {!compoundIsPaused && hasValidationErrors && (
+              <button
+                onClick={(e) => { e.stopPropagation(); startEdit(); }}
+                className="flex items-center gap-1 px-2 py-1 rounded-full flex-shrink-0 transition-all active:scale-95"
+                style={{ background: 'rgba(255,59,59,0.12)', border: '1px solid rgba(255,59,59,0.25)' }}
+              >
+                <AlertTriangle className="w-3 h-3" strokeWidth={1.5} style={{ color: '#FF3B3B' }} />
+                <span className="text-[10px] font-bold" style={{ color: '#FF3B3B' }}>
+                  {validationErrors.length}
+                </span>
+              </button>
+            )}
             {!compoundIsPaused && !hasValidationErrors && (
               <div className="flex-shrink-0 text-right mr-1">
                 <span className="text-[16px] font-bold" style={{ color: urgencyColor, fontFamily: "'DM Mono', monospace" }}>{days}</span>
