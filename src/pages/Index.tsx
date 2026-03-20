@@ -962,6 +962,7 @@ const Index = () => {
         onOpen={() => setActiveTab('ai-insights')}
         visible={activeTab !== 'ai-insights'}
       />
+      <WhatsNewOverlay />
       {showTourPrompt && (
         <div className="fixed inset-0 z-[99] bg-background/80 flex items-center justify-center p-4">
           <div className="bg-card border border-border/50 rounded-xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in-0 zoom-in-95 duration-300 text-center">
