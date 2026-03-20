@@ -20,8 +20,8 @@ const ProgressHero: React.FC<ProgressHeroProps> = ({
   // Count goals by pace
   const onTrack = activeGoals.filter(g => {
     if (!g.target_date || !g.target_value || g.baseline_value == null) return true;
-    const total = new Date(g.target_date).getTime() - new Date(g.baseline_date || g.created_at || Date.now()).getTime();
-    const elapsed = Date.now() - new Date(g.baseline_date || g.created_at || Date.now()).getTime();
+    const total = new Date(g.target_date).getTime() - new Date(g.baseline_date || Date.now()).getTime();
+    const elapsed = Date.now() - new Date(g.baseline_date || Date.now()).getTime();
     const timePct = total > 0 ? (elapsed / total) * 100 : 100;
     const range = g.target_value - g.baseline_value;
     const progress = range !== 0 ? ((( g.current_value ?? g.baseline_value) - g.baseline_value) / range) * 100 : 100;
