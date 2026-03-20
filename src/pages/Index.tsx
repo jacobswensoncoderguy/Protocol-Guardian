@@ -47,6 +47,7 @@ import CostProjectionView from '@/components/CostProjectionView';
 import ReorderView from '@/components/ReorderView';
 import AIInsightsView from '@/components/AIInsightsView';
 import OutcomesView from '@/components/OutcomesView';
+import AIIntelligenceHero from '@/components/ai/AIIntelligenceHero';
 import WorkoutTrackerView from '@/components/WorkoutTrackerView';
 import GuardianAskBar from '@/components/GuardianAskBar';
 import TodayLogCard from '@/components/home/TodayLogCard';
