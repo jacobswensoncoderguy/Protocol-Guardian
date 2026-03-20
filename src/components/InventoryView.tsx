@@ -363,7 +363,6 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
             </CollapsibleTrigger>
             );
           })()}
-          )}
           <CollapsibleContent className="animate-accordion-down data-[state=closed]:animate-accordion-up">
             <div className="space-y-1">
               {group.items.map((compound, compoundIdx) => (
