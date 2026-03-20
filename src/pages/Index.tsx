@@ -519,45 +519,46 @@ const Index = () => {
 
       <main className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
         <Tabs value={activeTab} onValueChange={(tab) => { setActiveTab(tab); }} className="w-full">
-          <TabsList className="w-full bg-secondary/50 border border-border/50 mb-3 sm:mb-4 h-16 sm:h-11">
-            <TabsTrigger value="dashboard" className="relative flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-transparent data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5 transition-all" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-              <LayoutDashboard className="w-4 h-4 sm:w-3.5 sm:h-3.5 transition-transform data-[state=active]:scale-110" />
-              <span>Home</span>
-              {activeTab === 'dashboard' && <span className="absolute bottom-0.5 w-[18px] h-1 rounded-full bg-primary" />}
-            </TabsTrigger>
-            <TabsTrigger value="outcomes" className="relative flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-transparent data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5 transition-all" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-              <Gauge className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-              <span>Progress</span>
-              {activeTab === 'outcomes' && <span className="absolute bottom-0.5 w-[18px] h-1 rounded-full bg-primary" />}
-            </TabsTrigger>
-            <TabsTrigger value="tracking" className="relative flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-transparent data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5 transition-all" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-              <LineChart className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-              <span>Logging</span>
-              {activeTab === 'tracking' && <span className="absolute bottom-0.5 w-[18px] h-1 rounded-full bg-primary" />}
-            </TabsTrigger>
-            <TabsTrigger value="schedule" className="relative flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-transparent data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5 transition-all" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-              <CalendarDays className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-              <span>Protocol</span>
-              {activeTab === 'schedule' && <span className="absolute bottom-0.5 w-[18px] h-1 rounded-full bg-primary" />}
-              {household.pendingIncoming.length > 0 && (
-                <span className="absolute -top-1 -right-1 sm:top-0 sm:right-0 w-2.5 h-2.5 rounded-full bg-destructive ring-2 ring-background" />
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="inventory" className="relative flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-transparent data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5 transition-all" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-              <Package className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-              <span>Inventory</span>
-              {activeTab === 'inventory' && <span className="absolute bottom-0.5 w-[18px] h-1 rounded-full bg-primary" />}
-              {lowStockCounts.inventory > 0 && (
-                <span className="absolute -top-1 -right-1 sm:top-0 sm:right-0 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[8px] font-bold flex items-center justify-center">
-                  {lowStockCounts.inventory}
-                </span>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="ai-insights" className="relative flex-1 flex-col sm:flex-row gap-0.5 sm:gap-1.5 data-[state=active]:bg-transparent data-[state=active]:text-primary text-[9px] sm:text-xs py-1.5 sm:py-2.5 transition-all" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-              <Brain className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-              <span>AI</span>
-              {activeTab === 'ai-insights' && <span className="absolute bottom-0.5 w-[18px] h-1 rounded-full bg-primary" />}
-            </TabsTrigger>
+          <TabsList className="fixed bottom-0 left-0 right-0 z-50 w-full bg-card/95 backdrop-blur-xl border-t border-border/50 h-16 sm:h-14 rounded-none px-1 gap-0 shadow-[0_-4px_20px_rgba(0,0,0,0.15)]" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+            {([
+              { value: 'dashboard', icon: LayoutDashboard, label: 'Home' },
+              { value: 'outcomes', icon: Gauge, label: 'Progress' },
+              { value: 'tracking', icon: LineChart, label: 'Logging' },
+              { value: 'schedule', icon: CalendarDays, label: 'Protocol' },
+              { value: 'inventory', icon: Package, label: 'Inventory' },
+              { value: 'ai-insights', icon: Brain, label: 'AI' },
+            ] as const).map(tab => {
+              const isActive = activeTab === tab.value;
+              const Icon = tab.icon;
+              const badge = tab.value === 'inventory' && lowStockCounts.inventory > 0 ? lowStockCounts.inventory :
+                            tab.value === 'schedule' && household.pendingIncoming.length > 0 ? -1 : 0;
+              return (
+                <TabsTrigger
+                  key={tab.value}
+                  value={tab.value}
+                  className="relative flex-1 flex-col gap-0.5 py-1.5 data-[state=active]:bg-transparent data-[state=active]:shadow-none transition-all duration-200"
+                  style={{ fontFamily: "'DM Sans', sans-serif" }}
+                >
+                  <div className={`relative transition-transform duration-200 ${isActive ? 'scale-110' : ''}`}>
+                    <Icon className={`w-[18px] h-[18px] transition-colors duration-200 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
+                    {badge === -1 && (
+                      <span className="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-destructive ring-1 ring-card" />
+                    )}
+                    {badge > 0 && (
+                      <span className="absolute -top-1.5 -right-2 min-w-[14px] h-3.5 px-0.5 rounded-full bg-destructive text-destructive-foreground text-[8px] font-bold flex items-center justify-center">
+                        {badge}
+                      </span>
+                    )}
+                  </div>
+                  <span className={`text-[9px] font-medium transition-colors duration-200 ${isActive ? 'text-primary' : 'text-muted-foreground/70'}`}>
+                    {tab.label}
+                  </span>
+                  {isActive && (
+                    <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[2px] rounded-full bg-primary" />
+                  )}
+                </TabsTrigger>
+              );
+            })}
           </TabsList>
 
           <TabsContent value="dashboard" className="animate-slide-up">
