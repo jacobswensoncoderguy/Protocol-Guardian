@@ -233,7 +233,7 @@ const Index = () => {
 
   const scheduleSwipe = useSwipeTabs({ tabs: ['this-week', 'titration', 'history', 'ai-changes'], currentTab: scheduleSubTab, onTabChange: setScheduleSubTab });
   const inventorySwipe = useSwipeTabs({ tabs: ['stock', 'costs', 'reorder'], currentTab: inventorySubTab, onTabChange: setInventorySubTab });
-  const trackingSwipe = useSwipeTabs({ tabs: ['food', 'symptoms', 'labs'], currentTab: trackingSubTab, onTabChange: setTrackingSubTab });
+  const trackingSwipe = useSwipeTabs({ tabs: ['food', 'symptoms', 'workout', 'labs'], currentTab: trackingSubTab, onTabChange: setTrackingSubTab });
 
   // Badge counts for low-stock alerts.
   // Must match ReorderView logic: only count compounds with a purchase date set
