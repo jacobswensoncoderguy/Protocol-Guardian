@@ -620,6 +620,21 @@ const Index = () => {
               <div key={scheduleSubTab} className={scheduleSwipe.slideClass} onAnimationEnd={scheduleSwipe.onAnimationEnd} onTouchStart={scheduleSwipe.onTouchStart} onTouchEnd={scheduleSwipe.onTouchEnd}>
                 <TabsContent value="this-week" forceMount={scheduleSubTab === 'this-week' ? true : undefined}>
                   {scheduleSubTab === 'this-week' && <>
+                    {/* Protocol Day Summary Hero */}
+                    <ProtocolDaySummary
+                      dayLabel={(() => {
+                        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                        const isToday = scheduleSelectedDay === new Date().getDay() && scheduleWeekOffset === 0;
+                        return isToday ? `Today — ${days[scheduleSelectedDay]}` : days[scheduleSelectedDay];
+                      })()}
+                      morningCount={viewCompounds.filter(c => !c.notes?.includes('[DORMANT]') && c.purchaseDate && (c.timingNote?.toLowerCase().includes('morning') || c.timingNote?.toLowerCase().includes('am') || (!c.timingNote && c.dosesPerDay >= 1))).length}
+                      afternoonCount={viewCompounds.filter(c => !c.notes?.includes('[DORMANT]') && c.purchaseDate && (c.timingNote?.toLowerCase().includes('afternoon') || c.dosesPerDay >= 2)).length}
+                      eveningCount={viewCompounds.filter(c => !c.notes?.includes('[DORMANT]') && c.purchaseDate && (c.timingNote?.toLowerCase().includes('evening') || c.timingNote?.toLowerCase().includes('pm') || c.timingNote?.toLowerCase().includes('night') || c.dosesPerDay >= 3)).length}
+                      completedCount={combinedCheckedDoses.size}
+                      totalActive={viewCompounds.filter(c => !c.notes?.includes('[DORMANT]') && c.purchaseDate).reduce((sum, c) => sum + c.dosesPerDay, 0)}
+                      isToday={scheduleSelectedDay === new Date().getDay() && scheduleWeekOffset === 0}
+                      weekCompletedDays={0}
+                    />
                     {/* Titration step-due banners on schedule view */}
                     <TitrationBanner
                       notifications={titration.notifications}
