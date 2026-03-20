@@ -471,7 +471,9 @@ export default function CompoundEditWizard({
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <ClinicalField label="Strength / Unit" value={editState.weightPerUnit || ''} onChange={v => setEditState(s => ({ ...s, weightPerUnit: v }))} type="number" placeholder="500" />
+        <div ref={el => { if (el) fieldRefs.current.set('weightPerUnit', el); }}>
+          <ClinicalField label="Strength / Unit" value={editState.weightPerUnit || ''} onChange={v => setEditState(s => ({ ...s, weightPerUnit: v }))} type="number" placeholder="500" error={fieldError('weightPerUnit')} />
+        </div>
         <div>
           <label className="text-[11px] uppercase tracking-[0.08em] font-medium block mb-1" style={{ color: '#6B7280' }}>Strength Unit</label>
           <select value={editState.strengthUnit || 'mg'} onChange={e => setEditState(s => ({ ...s, strengthUnit: e.target.value }))}
