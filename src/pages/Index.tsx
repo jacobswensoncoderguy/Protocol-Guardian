@@ -49,6 +49,7 @@ import AIInsightsView from '@/components/AIInsightsView';
 import OutcomesView from '@/components/OutcomesView';
 import WorkoutTrackerView from '@/components/WorkoutTrackerView';
 import GuardianAskBar from '@/components/GuardianAskBar';
+import TodayLogCard from '@/components/home/TodayLogCard';
 import FoodTrackerView from '@/components/FoodTrackerView';
 import SymptomsTrackerView from '@/components/SymptomsTrackerView';
 import BiomarkerHistoryView from '@/components/BiomarkerHistoryView';
@@ -747,7 +748,12 @@ const Index = () => {
           </TabsContent>
           <TabsContent value="tracking" className="animate-slide-up">
             <TabErrorBoundary tabName="Logging">
-            <Tabs value={trackingSubTab} onValueChange={setTrackingSubTab} className="w-full">
+            {/* Today's Log Status Card */}
+            <TodayLogCard
+              userId={user?.id}
+              onNavigate={(subTab) => setTrackingSubTab(subTab)}
+            />
+            <Tabs value={trackingSubTab} onValueChange={setTrackingSubTab} className="w-full mt-3">
               <TabsList className="w-full bg-card/80 border border-border/60 mb-3 h-10 p-1 gap-1 logging-tabs">
                 <TabsTrigger value="food" className="flex-1 text-xs font-semibold rounded-md data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">Food</TabsTrigger>
                 <TabsTrigger value="symptoms" className="flex-1 text-xs font-semibold rounded-md data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground transition-all">Symptoms</TabsTrigger>
