@@ -612,7 +612,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
     else { state.unitPrice = compound.unitPrice.toString(); }
     state.purchaseDate = compound.purchaseDate;
     state.dosesPerDay = compound.dosesPerDay.toString();
-    state.solventType = compound.solventType || ''; state.solventVolume = compound.solventVolume?.toString() || '';
+    state.solventType = compound.solventType || ''; state.solventVolume = compound.solventVolume?.toString() || compound.reconVolume?.toString() || '';
     state.solventUnit = compound.solventUnit || 'mL'; state.resultingConcentration = compound.resultingConcentration?.toString() || '';
     state.concentrationUnit = compound.concentrationUnit || 'mg/mL'; state.storageInstructions = compound.storageInstructions || '';
     state.prepNotes = compound.prepNotes || '';
