@@ -1468,7 +1468,7 @@ const DashboardView = ({ compounds, stackAnalysis, aiLoading, needsRefresh, tole
       {/* Priority Alert Banner */}
       <PriorityAlertBanner
         compounds={compounds}
-        complianceRate={bodyCoverage}
+        complianceRate={protocolScore}
         goals={goals}
       />
 
