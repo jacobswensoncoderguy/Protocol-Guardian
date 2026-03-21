@@ -64,7 +64,7 @@ interface DashboardViewProps {
   onToleranceChange?: (level: ToleranceLevel) => void;
   measurementSystem?: MeasurementSystem;
   doseUnitPreference?: DoseUnitPreference;
-  onNavigateToInventory?: () => void;
+  onNavigateToInventory?: (compoundId?: string) => void;
   conversationManager?: {
     createProject: (name: string, description?: string, color?: string) => Promise<any>;
     createConversation: (title?: string, projectId?: string) => Promise<any>;

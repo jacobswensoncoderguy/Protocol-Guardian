@@ -580,7 +580,7 @@ const Index = () => {
               onToleranceChange={handleToleranceChange}
               measurementSystem={measurementSystem}
               doseUnitPreference={doseUnitPreference}
-              onNavigateToInventory={() => setActiveTab('inventory')}
+              onNavigateToInventory={(compoundId?: string) => { setActiveTab('inventory'); if (compoundId) setScrollToCompoundId(compoundId); }}
               conversationManager={conversationManager}
               appFeatures={appFeatures}
               onEnableFeature={handleToggleFeature}
