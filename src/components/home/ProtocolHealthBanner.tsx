@@ -5,7 +5,7 @@ import { getCompoundsNeedingAttention } from '@/lib/compoundValidation';
 
 interface ProtocolHealthBannerProps {
   compounds: Compound[];
-  onNavigate?: () => void;
+  onNavigate?: (compoundId?: string) => void;
 }
 
 const ProtocolHealthBanner: React.FC<ProtocolHealthBannerProps> = ({ compounds, onNavigate }) => {
@@ -14,10 +14,11 @@ const ProtocolHealthBanner: React.FC<ProtocolHealthBannerProps> = ({ compounds, 
   if (needsAttention.length === 0) return null;
 
   const count = needsAttention.length;
+  const firstId = needsAttention[0]?.compound.id;
 
   return (
     <button
-      onClick={onNavigate}
+      onClick={() => onNavigate?.(firstId)}
       className="w-full rounded-[14px] p-3.5 text-left transition-all active:scale-[0.98] flex items-center gap-3"
       style={{
         background: '#1A0F0F',

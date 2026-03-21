@@ -604,14 +604,30 @@ export function validateCompoundForMath(compound: Compound): string[] {
     errors.push('Days per week must be greater than 0');
 
   switch (compound.category) {
-    case 'peptide':
-      if (!compound.bacstatPerVial || compound.bacstatPerVial <= 0)
-        errors.push('Reconstitution volume missing — set solvent volume so IU per vial can be calculated');
-      if (!compound.reconVolume || compound.reconVolume <= 0)
-        errors.push('Reconstitution volume (mL) required');
-      if ((compound.doseLabel ?? '').toLowerCase() !== 'iu')
-        errors.push('Peptide dose unit must be IU');
+    case 'peptide': {
+      const dl_pep = (compound.doseLabel ?? '').toLowerCase();
+      // Peptides dosed in IU require reconstitution data
+      if (dl_pep === 'iu') {
+        if (!compound.bacstatPerVial || compound.bacstatPerVial <= 0)
+          errors.push('Reconstitution volume missing — set solvent volume so IU per vial can be calculated');
+        if (!compound.reconVolume || compound.reconVolume <= 0)
+          errors.push('Reconstitution volume (mL) required');
+      }
+      // Peptides dosed in mL need vial size
+      if (dl_pep === 'ml') {
+        if (!compound.vialSizeMl || compound.vialSizeMl <= 0)
+          errors.push('Vial size (mL) required for mL-dosed peptides');
+      }
+      // Peptides dosed in mg need strength/unit for depletion math
+      if (dl_pep === 'mg') {
+        if (!compound.weightPerUnit || compound.weightPerUnit <= 0)
+          errors.push('Strength per unit (mg) required for mg-dosed peptides');
+      }
+      // Must be a recognized dose unit
+      if (!['iu', 'mg', 'ml', 'mcg'].includes(dl_pep))
+        errors.push('Peptide dose unit must be IU, mg, mL, or mcg');
       break;
+    }
 
     case 'injectable-oil':
       if (!compound.vialSizeMl || compound.vialSizeMl <= 0)

@@ -612,7 +612,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
     else { state.unitPrice = compound.unitPrice.toString(); }
     state.purchaseDate = compound.purchaseDate;
     state.dosesPerDay = compound.dosesPerDay.toString();
-    state.solventType = compound.solventType || ''; state.solventVolume = compound.solventVolume?.toString() || '';
+    state.solventType = compound.solventType || ''; state.solventVolume = compound.solventVolume?.toString() || compound.reconVolume?.toString() || '';
     state.solventUnit = compound.solventUnit || 'mL'; state.resultingConcentration = compound.resultingConcentration?.toString() || '';
     state.concentrationUnit = compound.concentrationUnit || 'mg/mL'; state.storageInstructions = compound.storageInstructions || '';
     state.prepNotes = compound.prepNotes || '';
@@ -713,6 +713,10 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
     updates.concentrationUnit = editState.concentrationUnit || undefined;
     updates.storageInstructions = editState.storageInstructions?.trim() || undefined;
     updates.prepNotes = editState.prepNotes?.trim() || undefined;
+    // Sync reconVolume for peptides from solvent volume so validation clears
+    if ((editState.category || compound.category) === 'peptide') {
+      updates.reconVolume = isNaN(sv) || sv <= 0 ? undefined : sv;
+    }
     onUpdate(compound.id, updates);
     setEditSheetOpen(false);
     if (qtyChanged) { toast.success(`Stock updated. Depletion tracking reset to your new inventory of ${qty} ${compound.unitLabel || 'units'}.`); }
@@ -758,9 +762,10 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
             {/* Days remaining or validation error badge */}
             {!compoundIsPaused && hasValidationErrors && (
               <button
-                onClick={(e) => { e.stopPropagation(); startEdit(); }}
+                onClick={(e) => { e.stopPropagation(); setExpanded(true); startEdit(); }}
                 className="flex items-center gap-1 px-2 py-1 rounded-full flex-shrink-0 transition-all active:scale-95"
                 style={{ background: 'rgba(255,59,59,0.12)', border: '1px solid rgba(255,59,59,0.25)' }}
+                title={validationErrors.join('; ')}
               >
                 <AlertTriangle className="w-3 h-3" strokeWidth={1.5} style={{ color: '#FF3B3B' }} />
                 <span className="text-[10px] font-bold" style={{ color: '#FF3B3B' }}>
@@ -811,6 +816,19 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
               <button onClick={() => { onUpdate(compound.id, { notes: (compound.notes || '').replace('[DORMANT]', '').trim() }); toast.success(`${compound.name} reactivated`); }}
                 className="w-full mb-2 py-1.5 rounded-lg text-xs font-medium" style={{ background: 'rgba(52,211,153,0.1)', color: 'var(--pg-good)', border: '1px solid rgba(52,211,153,0.2)' }}
               >Reactivate</button>
+            )}
+
+            {/* Validation errors inline */}
+            {hasValidationErrors && (
+              <div className="rounded-lg p-2.5 mb-2 space-y-1" style={{ background: 'rgba(255,59,59,0.06)', border: '1px solid rgba(255,59,59,0.2)' }}>
+                <div className="flex items-center gap-1.5">
+                  <AlertTriangle className="w-3 h-3 flex-shrink-0" strokeWidth={1.5} style={{ color: '#FF3B3B' }} />
+                  <span className="text-[10px] font-semibold" style={{ color: '#FF3B3B' }}>Missing data — tap ✏️ to fix</span>
+                </div>
+                {validationErrors.map((err, i) => (
+                  <p key={i} className="text-[10px] pl-4.5" style={{ color: '#FF3B3B', opacity: 0.8 }}>• {err}</p>
+                ))}
+              </div>
             )}
 
             {/* Tab bar */}
