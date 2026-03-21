@@ -432,7 +432,11 @@ export default function CompoundEditWizard({
 
       <div className="grid grid-cols-2 gap-3">
         <ClinicalField label="Unit Label" value={editState.unitLabel || ''} onChange={v => setEditState(s => ({ ...s, unitLabel: v }))} placeholder="caps, mL, servings" />
-        {isOil && <ClinicalField label="Vial Size" value={editState.vialSizeMl || ''} onChange={v => setEditState(s => ({ ...s, vialSizeMl: v }))} type="number" placeholder="10" suffix="mL" />}
+        {(isOil || (isPeptide && (editState.editDoseUnit || '').toLowerCase() === 'ml')) && (
+          <div ref={el => { if (el) fieldRefs.current.set('vialSizeMl', el); }}>
+            <ClinicalField label="Vial Size" value={editState.vialSizeMl || ''} onChange={v => setEditState(s => ({ ...s, vialSizeMl: v }))} type="number" placeholder="10" suffix="mL" error={fieldError('vialSizeMl')} />
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
