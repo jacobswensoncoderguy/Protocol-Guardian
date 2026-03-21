@@ -185,6 +185,14 @@ export default function CompoundEditWizard({
   const fieldRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [errorCycleIdx, setErrorCycleIdx] = useState(0);
 
+  const normalizeUnitToken = useCallback((value?: string) => (value || '').toLowerCase().replace(/\s+/g, ''), []);
+  const isMlDosedPeptide = useMemo(() => {
+    if (!isPeptide) return false;
+    const editUnit = normalizeUnitToken(editState.editDoseUnit);
+    const compoundUnit = normalizeUnitToken(compound.doseLabel);
+    return editUnit === 'ml' || compoundUnit === 'ml';
+  }, [isPeptide, editState.editDoseUnit, compound.doseLabel, normalizeUnitToken]);
+
 
   // ─── Critical field validation ─────────────────────────────────────────────
 
@@ -211,8 +219,7 @@ export default function CompoundEditWizard({
     if (isNaN(dose) || dose <= 0)
       errors.push({ section: 'dosing', field: 'dosePerUse', message: 'Required to calculate consumption and supply duration' });
     // Peptides dosed in mL or injectable oils need vial size
-    const doseUnitLower = (editState.editDoseUnit || '').toLowerCase();
-    if ((isOil || (isPeptide && doseUnitLower === 'ml'))) {
+    if (isOil || isMlDosedPeptide) {
       const vml = parseFloat(editState.vialSizeMl || '');
       if (isNaN(vml) || vml <= 0)
         errors.push({ section: 'supply', field: 'vialSizeMl', message: 'Vial size (mL) required to calculate doses per vial' });
@@ -439,7 +446,7 @@ export default function CompoundEditWizard({
 
       <div className="grid grid-cols-2 gap-3">
         <ClinicalField label="Unit Label" value={editState.unitLabel || ''} onChange={v => setEditState(s => ({ ...s, unitLabel: v }))} placeholder="caps, mL, servings" />
-        {(isOil || (isPeptide && (editState.editDoseUnit || '').toLowerCase() === 'ml')) && (
+        {(isOil || isMlDosedPeptide) && (
           <div ref={el => { if (el) fieldRefs.current.set('vialSizeMl', el); }}>
             <ClinicalField label="Vial Size" value={editState.vialSizeMl || ''} onChange={v => setEditState(s => ({ ...s, vialSizeMl: v }))} type="number" placeholder="10" suffix="mL" error={fieldError('vialSizeMl')} />
           </div>
