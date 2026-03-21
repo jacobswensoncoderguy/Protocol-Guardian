@@ -713,6 +713,10 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
     updates.concentrationUnit = editState.concentrationUnit || undefined;
     updates.storageInstructions = editState.storageInstructions?.trim() || undefined;
     updates.prepNotes = editState.prepNotes?.trim() || undefined;
+    // Sync reconVolume for peptides from solvent volume so validation clears
+    if ((editState.category || compound.category) === 'peptide') {
+      updates.reconVolume = isNaN(sv) || sv <= 0 ? undefined : sv;
+    }
     onUpdate(compound.id, updates);
     setEditSheetOpen(false);
     if (qtyChanged) { toast.success(`Stock updated. Depletion tracking reset to your new inventory of ${qty} ${compound.unitLabel || 'units'}.`); }
