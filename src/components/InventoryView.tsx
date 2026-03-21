@@ -818,6 +818,19 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
               >Reactivate</button>
             )}
 
+            {/* Validation errors inline */}
+            {hasValidationErrors && (
+              <div className="rounded-lg p-2.5 mb-2 space-y-1" style={{ background: 'rgba(255,59,59,0.06)', border: '1px solid rgba(255,59,59,0.2)' }}>
+                <div className="flex items-center gap-1.5">
+                  <AlertTriangle className="w-3 h-3 flex-shrink-0" strokeWidth={1.5} style={{ color: '#FF3B3B' }} />
+                  <span className="text-[10px] font-semibold" style={{ color: '#FF3B3B' }}>Missing data — tap ✏️ to fix</span>
+                </div>
+                {validationErrors.map((err, i) => (
+                  <p key={i} className="text-[10px] pl-4.5" style={{ color: '#FF3B3B', opacity: 0.8 }}>• {err}</p>
+                ))}
+              </div>
+            )}
+
             {/* Tab bar */}
             <div className="flex border-b mb-3" style={{ borderColor: 'var(--pg-card-border)', height: 36 }}>
               {tabs.map(t => (
