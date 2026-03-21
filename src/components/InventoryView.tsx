@@ -564,7 +564,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
   // ═══ startEdit — preserved exactly ═══
   const startEdit = () => {
     const hasCycling = !!(compound.cycleOnDays && compound.cycleOnDays > 0 && compound.cycleOffDays && compound.cycleOffDays > 0);
-    const dl = compound.doseLabel.toLowerCase();
+    const dl = compound.doseLabel.toLowerCase().replace(/\s+/g, '');
     let storedUnit: string;
     if (dl.includes('iu')) storedUnit = 'iu';
     else if (dl.includes('mcg') || dl.includes('µg')) storedUnit = 'mcg';
@@ -628,7 +628,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
     const reorder = parseInt(editState.reorderQuantity);
     if (isNaN(qty) || isNaN(size) || isNaN(dose) || isNaN(reorder) || qty < 0 || size <= 0 || dose < 0 || reorder < 0) return;
     const eu = editState.editDoseUnit || 'mg';
-    const dl = compound.doseLabel.toLowerCase();
+    const dl = compound.doseLabel.toLowerCase().replace(/\s+/g, '');
     const editCat = editState.category || compound.category;
     let storedUnit: string;
     if (dl.includes('iu')) storedUnit = 'iu';
@@ -688,7 +688,10 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
       if (su === 'mcg') mgVal = rawVal / 1000; else if (su === 'g') mgVal = rawVal * 1000; else if (su === 'oz') mgVal = rawVal * 28349.5; else if (su === 'lb') mgVal = rawVal * 453592;
       updates.weightPerUnit = mgVal; updates.weightUnit = su;
     }
-    if (editIsOil || (editIsPeptide && (editState.editDoseUnit || '').toLowerCase() === 'ml')) { const vialMl = parseFloat(editState.vialSizeMl || '10'); updates.vialSizeMl = isNaN(vialMl) || vialMl <= 0 ? 10 : vialMl; }
+    const normalizedEditDoseUnit = (editState.editDoseUnit || '').toLowerCase().replace(/\s+/g, '');
+    const normalizedStoredDoseUnit = (compound.doseLabel || '').toLowerCase().replace(/\s+/g, '');
+    const requiresVialSize = editIsOil || (editIsPeptide && (normalizedEditDoseUnit === 'ml' || normalizedStoredDoseUnit === 'ml'));
+    if (requiresVialSize) { const vialMl = parseFloat(editState.vialSizeMl || '10'); updates.vialSizeMl = isNaN(vialMl) || vialMl <= 0 ? 10 : vialMl; }
     if (editIsPeptide) {
       if (editState.reorderType === 'single') { const unit = parseFloat(editState.unitPrice || '0'); if (isNaN(unit) || unit < 0) return; updates.unitPrice = unit; updates.kitPrice = Math.round(unit * 10 * 100) / 100; }
       else { const kit = parseFloat(editState.kitPrice || '0'); if (isNaN(kit) || kit < 0) return; updates.kitPrice = kit; updates.unitPrice = Math.round((kit / 10) * 100) / 100; }
