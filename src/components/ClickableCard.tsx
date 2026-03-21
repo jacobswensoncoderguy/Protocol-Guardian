@@ -26,7 +26,7 @@ const ClickableCard = React.forwardRef<HTMLDivElement, ClickableCardProps>(
           }
         }}
         className={cn(
-          'relative rounded-[14px] border border-border/50 bg-card p-4 transition-all duration-200',
+          'relative rounded-[14px] border border-border/50 bg-card p-4 transition-all duration-200 group',
           onClick && !disabled && 'cursor-pointer hover:border-primary/30 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
           disabled && 'opacity-50 cursor-default',
           className,
