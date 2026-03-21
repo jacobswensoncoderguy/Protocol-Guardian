@@ -210,6 +210,13 @@ export default function CompoundEditWizard({
     const dose = parseFloat(editState.dosePerUse || '');
     if (isNaN(dose) || dose <= 0)
       errors.push({ section: 'dosing', field: 'dosePerUse', message: 'Required to calculate consumption and supply duration' });
+    // Peptides dosed in mL or injectable oils need vial size
+    const doseUnitLower = (editState.editDoseUnit || '').toLowerCase();
+    if ((isOil || (isPeptide && doseUnitLower === 'ml'))) {
+      const vml = parseFloat(editState.vialSizeMl || '');
+      if (isNaN(vml) || vml <= 0)
+        errors.push({ section: 'supply', field: 'vialSizeMl', message: 'Vial size (mL) required to calculate doses per vial' });
+    }
     if (editState.cyclingEnabled === 'true') {
       const on = parseInt(editState.cycleOnDays || '');
       const off = parseInt(editState.cycleOffDays || '');
