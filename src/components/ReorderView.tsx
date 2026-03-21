@@ -282,7 +282,14 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
         status: 'ordered',
         month_label: monthLabel,
         ordered_at: orderDate.toISOString(),
-        notes: orderNotes.trim() || null,
+        notes: (() => {
+          const compound = compoundMap.get(compoundId);
+          const name = compound?.name || '';
+          const userNotes = orderNotes.trim();
+          if (name && userNotes) return `${name}||${userNotes}`;
+          if (name) return `${name}||`;
+          return userNotes || null;
+        })(),
         user_id: userId,
       }])
       .select()
@@ -613,7 +620,7 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
                           <div className="flex items-center justify-between mb-2">
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <h4 className="text-sm font-semibold text-foreground truncate">{compound?.name || item.compound_id}</h4>
+                                <h4 className="text-sm font-semibold text-foreground truncate">{compound?.name || 'Unknown Compound'}</h4>
                                 <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
                                   status === 'critical' ? 'bg-destructive/20 text-status-critical' :
                                   status === 'warning' ? 'bg-accent/20 text-status-warning' :
@@ -867,7 +874,7 @@ const ReorderView = ({ compounds, onUpdateCompound, userId, protocols = [], reor
                   const orderCount = receivedItems.filter(o => o.compound_id === cid && o.ordered_at && o.received_at).length;
                   return (
                     <div key={cid} className="flex items-center justify-between text-[10px]">
-                      <span className="text-muted-foreground truncate flex-1">{compound?.name || cid}</span>
+                      <span className="text-muted-foreground truncate flex-1">{compound?.name || 'Unknown'}</span>
                       <div className="flex items-center gap-2 ml-2">
                         <span className="text-muted-foreground font-mono">{orderCount} order{orderCount !== 1 ? 's' : ''}</span>
                         <span className={`flex items-center gap-0.5 font-semibold px-1.5 py-0.5 rounded-full ${

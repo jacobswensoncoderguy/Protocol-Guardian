@@ -129,8 +129,8 @@ export const DELIVERY_METHODS: Record<DeliveryMethod, DeliveryMethodMeta> = {
   'subq-injection': {
     id: 'subq-injection',
     icon: '💉',
-    label: 'SubQ Injection',
-    subtitle: 'Reconstitute → draw → inject subcutaneously',
+    label: 'Under-the-skin injection',
+    subtitle: 'Mix the powder, draw into syringe, inject under the skin',
     containerFields: 'vial-weight',
     dosingFields: 'weight-dose',
     mathChain: 'reconstitute-then-draw',
@@ -143,8 +143,8 @@ export const DELIVERY_METHODS: Record<DeliveryMethod, DeliveryMethodMeta> = {
   'im-injection': {
     id: 'im-injection',
     icon: '💉',
-    label: 'IM Injection',
-    subtitle: 'Pre-mixed oil → draw → inject intramuscularly',
+    label: 'Muscle injection',
+    subtitle: 'Draw the oil into a syringe, inject into muscle',
     containerFields: 'vial-volume',
     dosingFields: 'weight-dose',
     mathChain: 'concentration-draw',
@@ -199,7 +199,7 @@ export const DELIVERY_METHODS: Record<DeliveryMethod, DeliveryMethodMeta> = {
   'sublingual': {
     id: 'sublingual',
     icon: '👅',
-    label: 'Sublingual',
+    label: 'Under the tongue',
     subtitle: 'Under tongue — drops, tabs, or spray',
     containerFields: 'volume-container',
     dosingFields: 'drop-dose',
@@ -241,7 +241,7 @@ export const DELIVERY_METHODS: Record<DeliveryMethod, DeliveryMethodMeta> = {
   'topical-patch': {
     id: 'topical-patch',
     icon: '🩹',
-    label: 'Transdermal Patch',
+    label: 'Skin patch',
     subtitle: 'Stick-on patch — slow release through skin',
     containerFields: 'patch-box',
     dosingFields: 'patch-dose',
@@ -283,8 +283,8 @@ export const DELIVERY_METHODS: Record<DeliveryMethod, DeliveryMethodMeta> = {
   'iv-drip': {
     id: 'iv-drip',
     icon: '🩸',
-    label: 'IV Infusion',
-    subtitle: 'Clinic-administered intravenous drip',
+    label: 'IV drip (clinic)',
+    subtitle: 'Given through an IV at a clinic',
     containerFields: 'iv-bag',
     dosingFields: 'volume-dose',
     mathChain: 'iv-volume',

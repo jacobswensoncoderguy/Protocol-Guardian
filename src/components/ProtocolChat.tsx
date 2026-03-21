@@ -307,7 +307,7 @@ const ProtocolChat = ({
       onPendingMessageClear?.();
     }, 300);
     return () => clearTimeout(timer);
-  }, [pendingMessage]);
+  }, [pendingMessage, onSend, onPendingMessageClear]);
 
   const {
     projects, conversations, activeConversationId,

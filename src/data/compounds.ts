@@ -597,11 +597,11 @@ export function validateCompoundForMath(compound: Compound): string[] {
   const errors: string[] = [];
 
   if (!compound.dosePerUse || compound.dosePerUse <= 0)
-    errors.push('Dose per use must be greater than 0');
+    errors.push('Enter how much you take each time');
   if (!compound.dosesPerDay || compound.dosesPerDay <= 0)
-    errors.push('Doses per day must be greater than 0');
+    errors.push('Enter how many times per day you take this');
   if (!compound.daysPerWeek || compound.daysPerWeek <= 0)
-    errors.push('Days per week must be greater than 0');
+    errors.push('Enter how many days per week you take this');
 
   switch (compound.category) {
     case 'peptide': {
@@ -609,9 +609,9 @@ export function validateCompoundForMath(compound: Compound): string[] {
       // Peptides dosed in IU require reconstitution data
       if (dl_pep === 'iu') {
         if (!compound.bacstatPerVial || compound.bacstatPerVial <= 0)
-          errors.push('Reconstitution volume missing — set solvent volume so IU per vial can be calculated');
+          errors.push('Enter how much liquid you mix into each vial');
         if (!compound.reconVolume || compound.reconVolume <= 0)
-          errors.push('Reconstitution volume (mL) required');
+          errors.push('Enter the amount of mixing liquid (in mL)');
       }
       // Peptides dosed in mL need vial size
       if (dl_pep === 'ml') {
@@ -625,17 +625,17 @@ export function validateCompoundForMath(compound: Compound): string[] {
       }
       // Must be a recognized dose unit
       if (!['iu', 'mg', 'ml', 'mcg'].includes(dl_pep))
-        errors.push('Peptide dose unit must be IU, mg, mL, or mcg');
+        errors.push('Peptide doses should be in IU (units on the syringe)');
       break;
     }
 
     case 'injectable-oil':
       if (!compound.vialSizeMl || compound.vialSizeMl <= 0)
-        errors.push('Vial size (mL) required');
+        errors.push('Enter the vial size in mL');
       if (!compound.unitSize || compound.unitSize <= 0)
-        errors.push('Concentration (mg/mL) required as unit size');
+        errors.push('Enter the strength — how many mg per mL');
       if (!['iu', 'mg', 'ml'].includes((compound.doseLabel ?? '').toLowerCase()))
-        errors.push('Dose unit must be IU, mg, or mL');
+        errors.push('Dose should be measured in IU, mg, or mL');
       break;
 
     case 'oral':
@@ -645,7 +645,7 @@ export function validateCompoundForMath(compound: Compound): string[] {
     case 'nootropic':
     case 'probiotic':
       if (!compound.unitSize || compound.unitSize <= 0)
-        errors.push('Total count per bottle required (e.g. 90 for a 90-capsule bottle)');
+        errors.push('How many pills, caps, or servings are in the bottle?');
       break;
 
     case 'topical': {

@@ -55,7 +55,9 @@ serve(async (req: Request) => {
     }
 
     const senderLabel = inviterName || user.email || "A PROTOCOL Guardian user";
-    const appUrl = req.headers.get("origin") || "https://superhumanprotocol.lovable.app";
+    const allowedOrigins = ["https://superhumanprotocol.lovable.app", "http://localhost:5173", "http://localhost:8080"];
+    const requestOrigin = req.headers.get("origin") || "";
+    const appUrl = allowedOrigins.includes(requestOrigin) ? requestOrigin : "https://superhumanprotocol.lovable.app";
 
     // Always try inviteUserByEmail first — it sends an actual email for new users
     console.log(`Attempting invite for ${inviteeEmail} from ${senderLabel}`);

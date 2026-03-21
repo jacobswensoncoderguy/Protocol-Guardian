@@ -239,7 +239,7 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
           <div className="flex items-center gap-1.5">
             <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--pg-crit)' }} />
             <span className="text-[11px] font-semibold" style={{ color: 'var(--pg-crit)' }}>
-              {alertCompounds.length} compound{alertCompounds.length !== 1 ? 's' : ''} need attention
+              {alertCompounds.length} compound{alertCompounds.length !== 1 ? 's' : ''} need info to track correctly
             </span>
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -266,7 +266,7 @@ const InventoryView = ({ compounds, onUpdateCompound, onDeleteCompound, onAddCom
           <div className="flex items-center gap-1.5">
             <RefreshCcw className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--pg-accent)' }} />
             <span className="text-[11px] font-semibold" style={{ color: 'var(--pg-accent)' }}>
-              {incompleteCyclingCompounds.length} incomplete cycling config{incompleteCyclingCompounds.length !== 1 ? 's' : ''}
+              {incompleteCyclingCompounds.length} missing on/off schedule details{incompleteCyclingCompounds.length !== 1 ? 's' : ''}
             </span>
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -888,7 +888,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                 {!compoundIsPaused && !compound.notes?.includes('[DORMANT]') && (
                   <div className="flex items-center gap-2 rounded-lg px-2.5 py-1.5" style={{ background: 'var(--pg-card)', border: '1px solid var(--pg-card-border)' }}>
                     <TrendingDown className="w-3 h-3 flex-shrink-0" style={{ color: 'var(--pg-text-muted)' }} />
-                    <span className="text-[10px] flex-1" style={{ color: 'var(--pg-text-muted)' }}>When depleted:</span>
+                    <span className="text-[10px] flex-1" style={{ color: 'var(--pg-text-muted)' }}>When you run out:</span>
                     <select value={compound.depletionAction || ''} onChange={e => {
                       const val = e.target.value || null;
                       onUpdate(compound.id, { depletionAction: val as 'pause' | 'dormant' | null });
@@ -898,8 +898,8 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                       style={{ background: 'var(--pg-card)', color: 'var(--pg-text-primary)', border: '1px solid var(--pg-card-border)' }}
                     >
                       <option value="">Continue (reorder)</option>
-                      <option value="pause">Auto-pause</option>
-                      <option value="dormant">Go dormant</option>
+                      <option value="pause">Stop until restocked</option>
+                      <option value="dormant">Retire from stack</option>
                     </select>
                   </div>
                 )}
@@ -1047,7 +1047,7 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
                   {isPeptide && compound.kitPrice && <div className="flex justify-between"><span style={{ color: 'var(--pg-text-muted)' }}>Kit price</span><span className="font-mono">${compound.kitPrice}/kit (10)</span></div>}
                   <div className="flex justify-between"><span style={{ color: 'var(--pg-text-muted)' }}>Dose</span><span className="font-mono">{compound.dosePerUse} {compound.doseLabel}</span></div>
                   <div className="flex justify-between"><span style={{ color: 'var(--pg-text-muted)' }}>Reorder qty</span><span className="font-mono">{compound.reorderQuantity} {compound.reorderType === 'kit' ? 'kit' : 'unit'}{compound.reorderQuantity !== 1 ? 's' : ''}</span></div>
-                  <div className="flex justify-between"><span style={{ color: 'var(--pg-text-muted)' }}>Est. monthly</span><span className="font-mono">${Math.round(getMonthlyConsumptionCost(compound, getCI(compound.id)))}</span></div>
+                  <div className="flex justify-between"><span style={{ color: 'var(--pg-text-muted)' }}>Monthly cost</span><span className="font-mono">${Math.round(getMonthlyConsumptionCost(compound, getCI(compound.id)))}</span></div>
                   {!compoundIsPaused && !compound.notes?.includes('[DORMANT]') && (
                     <div className="flex justify-between"><span style={{ color: 'var(--pg-text-muted)' }}>Reorder by</span><span className="font-mono" style={{ color: 'var(--pg-warn)' }}>{reorderDate}</span></div>
                   )}

@@ -56,9 +56,9 @@ const TIMING_OPTIONS = [
   { id: 'morning', label: 'AM' },
   { id: 'evening', label: 'PM' },
   { id: 'midday', label: 'Midday' },
-  { id: 'pre-workout', label: 'Pre-WO' },
+  { id: 'pre-workout', label: 'Pre-workout' },
   { id: 'pre-sleep', label: 'Pre-Sleep' },
-  { id: 'with-meal', label: 'W/ Meal' },
+  { id: 'with-meal', label: 'With food' },
   { id: 'fasted', label: 'Fasted' },
 ];
 
@@ -199,25 +199,36 @@ export default function CompoundEditWizard({
   const criticalErrors = useMemo((): CriticalError[] => {
     const errors: CriticalError[] = [];
     if (!(editState.name || '').trim())
-      errors.push({ section: 'identity', field: 'name', message: 'Required to identify this compound in your protocol' });
+      errors.push({ section: 'identity', field: 'name', message: 'Give your compound a name' });
     const dpw = parseInt(editState.daysPerWeek || '0');
     if (isNaN(dpw) || dpw <= 0)
-      errors.push({ section: 'schedule', field: 'daysPerWeek', message: 'Required to calculate how many days of supply remain' });
+      errors.push({ section: 'schedule', field: 'daysPerWeek', message: 'How many days a week do you take this?' });
     const dpd = parseInt(editState.dosesPerDay || '0');
     if (isNaN(dpd) || dpd <= 0)
-      errors.push({ section: 'schedule', field: 'dosesPerDay', message: 'Required to calculate daily consumption rate' });
+      errors.push({ section: 'schedule', field: 'dosesPerDay', message: 'How many times a day do you take this?' });
     const qty = parseFloat(editState.currentQuantity || '');
     if (isNaN(qty) || qty < 0)
-      errors.push({ section: 'supply', field: 'currentQuantity', message: 'Required to calculate how many days of supply remain' });
+      errors.push({ section: 'supply', field: 'currentQuantity', message: 'How many do you have right now?' });
     const size = parseFloat(editState.unitSize || '');
     if (isNaN(size) || size <= 0)
-      errors.push({ section: 'supply', field: 'unitSize', message: 'Required to determine container capacity and depletion rate' });
-     const wpu = parseFloat(editState.weightPerUnit || '');
-    if (isNaN(wpu) || wpu <= 0)
-      errors.push({ section: 'dosing', field: 'weightPerUnit', message: 'Depletion countdown won\'t work without this — needed to convert dose units to container units' });
+      errors.push({ section: 'supply', field: 'unitSize', message: 'How much is in each container?' });
+    // weightPerUnit is only required for count-based containers (caps, pills, tabs, etc.)
+    // with weight-based dosing (mg, mcg, g) — NOT needed for peptides, injectable oils,
+    // or compounds dosed in the same units as their container (e.g. IU, caps, drops, sprays)
+    const cat = (editState.category || '').toLowerCase();
+    const dl = (editState.doseLabel || '').toLowerCase();
+    const ul = (editState.unitLabel || '').toLowerCase();
+    const isWeightDose = dl.includes('mg') || dl.includes('mcg') || dl.includes('µg') || dl === 'g';
+    const isCountContainer = /\b(cap|caps|pill|pills|tab|tabs|softgel|softgels|serving|servings|scoop|scoops)\b/i.test(ul);
+    const isInjectable = cat === 'peptide' || cat === 'injectable-oil';
+    if (!isInjectable && isWeightDose && isCountContainer) {
+      const wpu = parseFloat(editState.weightPerUnit || '');
+      if (isNaN(wpu) || wpu <= 0)
+        errors.push({ section: 'dosing', field: 'weightPerUnit', message: 'How much is in each pill/cap? Needed to track when you\'ll run out' });
+    }
     const dose = parseFloat(editState.dosePerUse || '');
     if (isNaN(dose) || dose <= 0)
-      errors.push({ section: 'dosing', field: 'dosePerUse', message: 'Required to calculate consumption and supply duration' });
+      errors.push({ section: 'dosing', field: 'dosePerUse', message: 'How much do you take each time?' });
     // Peptides dosed in mL or injectable oils need vial size
     if (isOil || isMlDosedPeptide) {
       const vml = parseFloat(editState.vialSizeMl || '');
@@ -228,9 +239,9 @@ export default function CompoundEditWizard({
       const on = parseInt(editState.cycleOnDays || '');
       const off = parseInt(editState.cycleOffDays || '');
       if (isNaN(on) || on <= 0)
-        errors.push({ section: 'cycling', field: 'cycleOnDays', message: 'Required to calculate your active cycle phase duration' });
+        errors.push({ section: 'cycling', field: 'cycleOnDays', message: 'How many days do you take it before stopping?' });
       if (isNaN(off) || off <= 0)
-        errors.push({ section: 'cycling', field: 'cycleOffDays', message: 'Required to calculate your rest phase duration' });
+        errors.push({ section: 'cycling', field: 'cycleOffDays', message: 'How many days do you take off?' });
     }
     return errors;
   }, [editState]);
@@ -385,7 +396,7 @@ export default function CompoundEditWizard({
   const renderSchedule = () => (
     <div className="space-y-4">
       <div ref={el => { if (el) fieldRefs.current.set('daysPerWeek', el); }}>
-        <label className="text-[11px] uppercase tracking-[0.08em] font-medium block mb-2" style={{ color: fieldError('daysPerWeek') ? '#FF3B3B' : '#6B7280' }}>Days of Week</label>
+        <label className="text-[11px] uppercase tracking-[0.08em] font-medium block mb-2" style={{ color: fieldError('daysPerWeek') ? '#FF3B3B' : '#6B7280' }}>Days you take it</label>
         <div className="flex gap-1.5">
           {DAY_LABELS.map((lbl, idx) => {
             const isActive = activeDaySet.has(idx);
@@ -425,10 +436,10 @@ export default function CompoundEditWizard({
         </div>
       </div>
 
-      <ClinicalField label="Timing Note" value={editState.timing || ''} onChange={v => setEditState(s => ({ ...s, timing: v }))} placeholder="e.g. daily AM, with breakfast" />
+      <ClinicalField label="When to take it" value={editState.timing || ''} onChange={v => setEditState(s => ({ ...s, timing: v }))} placeholder="e.g. morning, with food" />
 
       <div ref={el => { if (el) fieldRefs.current.set('dosesPerDay', el); }}>
-        <ClinicalField label="Doses per Day" value={editState.dosesPerDay || ''} onChange={v => setEditState(s => ({ ...s, dosesPerDay: v }))} type="number" placeholder="1" error={fieldError('dosesPerDay')} />
+        <ClinicalField label="Times per day" value={editState.dosesPerDay || ''} onChange={v => setEditState(s => ({ ...s, dosesPerDay: v }))} type="number" placeholder="1" error={fieldError('dosesPerDay')} />
       </div>
     </div>
   );
@@ -445,7 +456,7 @@ export default function CompoundEditWizard({
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <ClinicalField label="Unit Label" value={editState.unitLabel || ''} onChange={v => setEditState(s => ({ ...s, unitLabel: v }))} placeholder="caps, mL, servings" />
+        <ClinicalField label="What's in the container" value={editState.unitLabel || ''} onChange={v => setEditState(s => ({ ...s, unitLabel: v }))} placeholder="caps, mL, servings" />
         {(isOil || isMlDosedPeptide) && (
           <div ref={el => { if (el) fieldRefs.current.set('vialSizeMl', el); }}>
             <ClinicalField label="Vial Size" value={editState.vialSizeMl || ''} onChange={v => setEditState(s => ({ ...s, vialSizeMl: v }))} type="number" placeholder="10" suffix="mL" error={fieldError('vialSizeMl')} />
@@ -456,7 +467,7 @@ export default function CompoundEditWizard({
       <div className="grid grid-cols-2 gap-3">
         <ClinicalField label="Price" value={editState.unitPrice || ''} onChange={v => setEditState(s => ({ ...s, unitPrice: v }))} type="number" placeholder="0.00" suffix="$" />
         {isPeptide && editState.reorderType === 'kit' && <ClinicalField label="Kit Price" value={editState.kitPrice || ''} onChange={v => setEditState(s => ({ ...s, kitPrice: v }))} type="number" placeholder="0.00" suffix="$/kit" />}
-        <ClinicalField label="Reorder Qty" value={editState.reorderQuantity || ''} onChange={v => setEditState(s => ({ ...s, reorderQuantity: v }))} type="number" placeholder="1" />
+        <ClinicalField label="How many to reorder" value={editState.reorderQuantity || ''} onChange={v => setEditState(s => ({ ...s, reorderQuantity: v }))} type="number" placeholder="1" />
       </div>
 
       {!isPeptide && !isOil && (
@@ -472,10 +483,10 @@ export default function CompoundEditWizard({
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         <div ref={el => { if (el) fieldRefs.current.set('dosePerUse', el); }}>
-          <ClinicalField label="Dose Amount" value={editState.dosePerUse || ''} onChange={v => setEditState(s => ({ ...s, dosePerUse: v }))} type="number" placeholder="2.5" error={fieldError('dosePerUse')} />
+          <ClinicalField label="How much per dose" value={editState.dosePerUse || ''} onChange={v => setEditState(s => ({ ...s, dosePerUse: v }))} type="number" placeholder="2.5" error={fieldError('dosePerUse')} />
         </div>
         <div>
-          <label className="text-[11px] uppercase tracking-[0.08em] font-medium block mb-1" style={{ color: '#6B7280' }}>Dose Unit</label>
+          <label className="text-[11px] uppercase tracking-[0.08em] font-medium block mb-1" style={{ color: '#6B7280' }}>Measured in</label>
           <select value={editState.editDoseUnit || 'mg'} onChange={e => setEditState(s => ({ ...s, editDoseUnit: e.target.value }))}
             className="w-full px-3 py-2 rounded-lg text-[14px]"
             style={{ background: '#1C1F26', color: '#F0F4F8', border: '1px solid #2A2D35', fontFamily: "'DM Mono', monospace" }}>
@@ -490,10 +501,10 @@ export default function CompoundEditWizard({
 
       <div className="grid grid-cols-2 gap-3">
         <div ref={el => { if (el) fieldRefs.current.set('weightPerUnit', el); }}>
-          <ClinicalField label="Strength / Unit" value={editState.weightPerUnit || ''} onChange={v => setEditState(s => ({ ...s, weightPerUnit: v }))} type="number" placeholder="500" error={fieldError('weightPerUnit')} />
+          <ClinicalField label="How much is in each pill/cap" value={editState.weightPerUnit || ''} onChange={v => setEditState(s => ({ ...s, weightPerUnit: v }))} type="number" placeholder="500" error={fieldError('weightPerUnit')} />
         </div>
         <div>
-          <label className="text-[11px] uppercase tracking-[0.08em] font-medium block mb-1" style={{ color: '#6B7280' }}>Strength Unit</label>
+          <label className="text-[11px] uppercase tracking-[0.08em] font-medium block mb-1" style={{ color: '#6B7280' }}>Measured in</label>
           <select value={editState.strengthUnit || 'mg'} onChange={e => setEditState(s => ({ ...s, strengthUnit: e.target.value }))}
             className="w-full px-3 py-2 rounded-lg text-[14px]"
             style={{ background: '#1C1F26', color: '#F0F4F8', border: '1px solid #2A2D35', fontFamily: "'DM Mono', monospace" }}>
@@ -515,10 +526,10 @@ export default function CompoundEditWizard({
       {(editState.category || compound.category) === 'peptide' && (
         <>
           <div className="pt-2" style={{ borderTop: '1px solid #1E2228' }}>
-            <label className="text-[11px] uppercase tracking-[0.08em] font-medium" style={{ color: '#6B7280' }}>Dilution / Reconstitution</label>
+            <label className="text-[11px] uppercase tracking-[0.08em] font-medium" style={{ color: '#6B7280' }}>Mixing Instructions</label>
           </div>
           <div>
-            <label className="text-[11px] uppercase tracking-[0.08em] font-medium block mb-1" style={{ color: '#6B7280' }}>Solvent</label>
+            <label className="text-[11px] uppercase tracking-[0.08em] font-medium block mb-1" style={{ color: '#6B7280' }}>Mixing liquid</label>
             <select value={editState.solventType || ''} onChange={e => setEditState(s => ({ ...s, solventType: e.target.value }))}
               className="w-full px-3 py-2 rounded-lg text-[13px]"
               style={{ background: '#1C1F26', color: '#F0F4F8', border: '1px solid #2A2D35', fontFamily: "'DM Mono', monospace" }}>
@@ -543,7 +554,7 @@ export default function CompoundEditWizard({
   const renderCycling = () => (
     <div className="space-y-4">
       <div className="flex items-center justify-between px-3 py-3 rounded-lg" style={{ background: '#1C1F26', border: '1px solid #2A2D35' }}>
-        <span className="text-[11px] uppercase tracking-[0.08em] font-medium" style={{ color: '#6B7280' }}>Cycling Protocol</span>
+        <span className="text-[11px] uppercase tracking-[0.08em] font-medium" style={{ color: '#6B7280' }}>On/Off Schedule</span>
         <button onClick={() => setEditState(s => ({ ...s, cyclingEnabled: s.cyclingEnabled === 'true' ? 'false' : 'true' }))}
           className="px-4 py-1.5 rounded-full text-[12px] font-semibold transition-all duration-200"
           style={{
@@ -558,14 +569,14 @@ export default function CompoundEditWizard({
         <>
           <div className="grid grid-cols-2 gap-3">
             <div ref={el => { if (el) fieldRefs.current.set('cycleOnDays', el); }}>
-              <ClinicalField label="ON Days" value={editState.cycleOnDays || ''} onChange={v => setEditState(s => ({ ...s, cycleOnDays: v }))} type="number" placeholder="5" error={fieldError('cycleOnDays')} suffix="days" />
+              <ClinicalField label="Days ON" value={editState.cycleOnDays || ''} onChange={v => setEditState(s => ({ ...s, cycleOnDays: v }))} type="number" placeholder="5" error={fieldError('cycleOnDays')} suffix="days" />
             </div>
             <div ref={el => { if (el) fieldRefs.current.set('cycleOffDays', el); }}>
-              <ClinicalField label="OFF Days" value={editState.cycleOffDays || ''} onChange={v => setEditState(s => ({ ...s, cycleOffDays: v }))} type="number" placeholder="2" error={fieldError('cycleOffDays')} suffix="days" />
+              <ClinicalField label="Days OFF" value={editState.cycleOffDays || ''} onChange={v => setEditState(s => ({ ...s, cycleOffDays: v }))} type="number" placeholder="2" error={fieldError('cycleOffDays')} suffix="days" />
             </div>
           </div>
           <div>
-            <label className="text-[11px] uppercase tracking-[0.08em] font-medium block mb-1" style={{ color: '#6B7280' }}>Cycle Start Date</label>
+            <label className="text-[11px] uppercase tracking-[0.08em] font-medium block mb-1" style={{ color: '#6B7280' }}>Schedule start date</label>
             <DatePickerInput value={editState.cycleStartDate || ''} onChange={v => setEditState(s => ({ ...s, cycleStartDate: v }))} className="text-[13px] py-2" />
           </div>
         </>
