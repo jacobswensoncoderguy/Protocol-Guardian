@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Compound, CompoundCategory, normalizeCompoundUnitLabel, getDerivedWeightPerUnitMg } from '@/data/compounds';
+import { Compound, CompoundCategory, AdministrationType, normalizeCompoundUnitLabel, getDerivedWeightPerUnitMg, inferAdministrationType } from '@/data/compounds';
 
 interface DbUserCompound {
   id: string;
@@ -41,6 +41,8 @@ interface DbUserCompound {
   concentration_unit: string | null;
   storage_instructions: string | null;
   prep_notes: string | null;
+  administration_type: string | null;
+  admin_type_confirmed: boolean;
 }
 
 function normalizeCompoundForApp(compound: Compound): Compound {
@@ -118,6 +120,8 @@ function dbToCompound(row: DbUserCompound): Compound {
     concentrationUnit: row.concentration_unit ?? undefined,
     storageInstructions: row.storage_instructions ?? undefined,
     prepNotes: row.prep_notes ?? undefined,
+    administrationType: (row.administration_type as AdministrationType) ?? inferAdministrationType(row.category as CompoundCategory) ?? undefined,
+    adminTypeConfirmed: row.admin_type_confirmed ?? false,
   });
 
   // Auto-derive bacstatPerVial for peptides if missing (B2 fix)
@@ -234,6 +238,8 @@ export function useCompounds(userId: string | undefined) {
     if ('concentrationUnit' in updates) dbUpdates.concentration_unit = updates.concentrationUnit ?? null;
     if ('storageInstructions' in updates) dbUpdates.storage_instructions = updates.storageInstructions ?? null;
     if ('prepNotes' in updates) dbUpdates.prep_notes = updates.prepNotes ?? null;
+    if ('administrationType' in updates) dbUpdates.administration_type = updates.administrationType ?? null;
+    if ('adminTypeConfirmed' in updates) dbUpdates.admin_type_confirmed = updates.adminTypeConfirmed ?? false;
     if (updates.containerVolumeMl !== undefined) dbUpdates.container_volume_ml = updates.containerVolumeMl ?? null;
     if (updates.mlPerSpray !== undefined) dbUpdates.ml_per_spray = updates.mlPerSpray ?? null;
     if (updates.spraysPerDose !== undefined) dbUpdates.sprays_per_dose = updates.spraysPerDose ?? null;
@@ -290,6 +296,8 @@ export function useCompounds(userId: string | undefined) {
         purchase_date: compound.purchaseDate || null,
         reorder_quantity: compound.reorderQuantity,
         notes: compound.notes ?? null,
+        administration_type: compound.administrationType ?? inferAdministrationType(compound.category) ?? null,
+        admin_type_confirmed: compound.adminTypeConfirmed ?? false,
       })
       .select()
       .single();

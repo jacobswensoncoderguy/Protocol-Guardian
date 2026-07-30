@@ -1,5 +1,40 @@
 export type CompoundCategory = 'peptide' | 'injectable-oil' | 'oral' | 'powder' | 'prescription' | 'vitamin' | 'holistic' | 'adaptogen' | 'nootropic' | 'essential-oil' | 'alternative-medicine' | 'probiotic' | 'topical';
 
+export type AdministrationType =
+  | 'reconstituted'    // peptides: vial + bac water → syringe
+  | 'oil_injectable'   // injectable oils: draw from vial
+  | 'oral'             // pills, caps, tabs, softgels
+  | 'powder'           // scoops, servings from bag/tub
+  | 'sublingual'       // drops/sprays under tongue
+  | 'topical'          // creams, patches, applied externally
+  | 'nasal'            // nasal sprays
+  | 'suppository';     // rectal/vaginal
+
+export function inferAdministrationType(category: CompoundCategory): AdministrationType | null {
+  switch (category) {
+    case 'peptide': return 'reconstituted';
+    case 'injectable-oil': return 'oil_injectable';
+    case 'oral': case 'vitamin': case 'adaptogen': case 'nootropic':
+    case 'probiotic': case 'prescription': case 'holistic':
+    case 'alternative-medicine': return 'oral';
+    case 'powder': return 'powder';
+    case 'topical': return 'topical';
+    case 'essential-oil': return 'sublingual';
+    default: return null;
+  }
+}
+
+export const ADMINISTRATION_TYPE_META: Record<AdministrationType, { label: string; description: string }> = {
+  reconstituted:  { label: 'Reconstituted Injectable', description: 'Mix with bacteriostatic water, draw with syringe' },
+  oil_injectable: { label: 'Oil Injectable',           description: 'Draw from vial, inject (IM/SubQ)' },
+  oral:           { label: 'Oral',                     description: 'Pills, capsules, tablets, softgels' },
+  powder:         { label: 'Powder',                   description: 'Scoops or servings from a bag/tub' },
+  sublingual:     { label: 'Sublingual',               description: 'Drops or sprays under the tongue' },
+  topical:        { label: 'Topical',                  description: 'Creams, gels, patches applied to skin' },
+  nasal:          { label: 'Nasal Spray',              description: 'Sprayed into the nasal passage' },
+  suppository:    { label: 'Suppository',              description: 'Rectal or vaginal insert' },
+};
+
 export type CompoundStatus = 'good' | 'warning' | 'critical';
 
 export interface Compound {
@@ -52,6 +87,8 @@ export interface Compound {
   containerVolumeMl?: number;  // total container volume in mL (e.g. 15 for a 15mL spray bottle)
   mlPerSpray?: number;         // mL delivered per spray (e.g. 0.1)
   spraysPerDose?: number;      // number of sprays per dose
+  administrationType?: AdministrationType;
+  adminTypeConfirmed?: boolean;
 }
 
 const CONTAINER_TAG_REGEX = /\[CONTAINER:(bag|bottle)\]/i;

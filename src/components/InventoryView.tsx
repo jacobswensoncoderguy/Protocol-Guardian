@@ -616,6 +616,8 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
     state.solventUnit = compound.solventUnit || 'mL'; state.resultingConcentration = compound.resultingConcentration?.toString() || '';
     state.concentrationUnit = compound.concentrationUnit || 'mg/mL'; state.storageInstructions = compound.storageInstructions || '';
     state.prepNotes = compound.prepNotes || '';
+    state.administrationType = compound.administrationType || '';
+    state.adminTypeConfirmed = compound.adminTypeConfirmed ? 'true' : 'false';
     setEditState(state);
     setEditSheetOpen(true);
   };
@@ -716,6 +718,8 @@ const CompoundCard = ({ compound, onUpdate, onDelete, customFields = [], customF
     updates.concentrationUnit = editState.concentrationUnit || undefined;
     updates.storageInstructions = editState.storageInstructions?.trim() || undefined;
     updates.prepNotes = editState.prepNotes?.trim() || undefined;
+    if (editState.administrationType) updates.administrationType = editState.administrationType as any;
+    if (editState.adminTypeConfirmed === 'true') updates.adminTypeConfirmed = true;
     // Sync reconVolume for peptides from solvent volume so validation clears
     if ((editState.category || compound.category) === 'peptide') {
       updates.reconVolume = isNaN(sv) || sv <= 0 ? undefined : sv;

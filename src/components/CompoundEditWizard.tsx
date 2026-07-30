@@ -5,11 +5,11 @@
  */
 
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { Compound, CompoundCategory } from '@/data/compounds';
+import { Compound, CompoundCategory, AdministrationType, ADMINISTRATION_TYPE_META, inferAdministrationType } from '@/data/compounds';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import DatePickerInput from '@/components/DatePickerInput';
 import {
-  Check, AlertTriangle, X, ChevronUp,
+  Check, AlertTriangle, X, ChevronUp, Info,
   Syringe, Pill, FlaskConical, Droplets, ClipboardList,
   Zap, Heart, Brain, Shield, Leaf, Microscope,
   Tag, Calendar, Package, Crosshair, RefreshCw,
@@ -67,6 +67,33 @@ const timingIdToKeyword: Record<string, string> = {
   'pre-workout': 'pre-workout', 'pre-sleep': 'pre-sleep',
   'with-meal': 'with meal', fasted: 'fasted',
 };
+
+const ADMIN_TYPE_ORDER: AdministrationType[] = [
+  'reconstituted', 'oil_injectable', 'oral', 'powder', 'sublingual', 'topical', 'nasal', 'suppository',
+];
+
+function InferredTag({ field, confirmedFields, onConfirm }: {
+  field: string;
+  confirmedFields: Set<string>;
+  onConfirm: (field: string) => void;
+}) {
+  if (confirmedFields.has(field)) return null;
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); onConfirm(field); }}
+      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider ml-1.5 transition-all hover:opacity-80 active:scale-95"
+      style={{
+        background: 'rgba(245,158,11,0.12)',
+        color: '#F59E0B',
+        border: '1px solid rgba(245,158,11,0.3)',
+      }}
+      title="This value was auto-populated — tap to confirm"
+    >
+      <Info className="w-2.5 h-2.5" strokeWidth={2} />
+      Confirm
+    </button>
+  );
+}
 
 // ─── Timing/Day parsers ─────────────────────────────────────────────────────
 
@@ -184,6 +211,29 @@ export default function CompoundEditWizard({
   const sectionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const fieldRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [errorCycleIdx, setErrorCycleIdx] = useState(0);
+
+  // ─── Confirmation tag tracking ────────────────────────────────────────────
+  const isInferred = editState.adminTypeConfirmed !== 'true';
+  const [confirmedFields, setConfirmedFields] = useState<Set<string>>(new Set());
+  const confirmField = useCallback((field: string) => {
+    setConfirmedFields(prev => new Set(prev).add(field));
+  }, []);
+  const confirmAll = useCallback(() => {
+    setEditState(s => ({ ...s, adminTypeConfirmed: 'true' }));
+    setConfirmedFields(new Set());
+  }, [setEditState]);
+
+  useEffect(() => {
+    if (open) setConfirmedFields(new Set());
+  }, [open]);
+
+  const adminType = (editState.administrationType as AdministrationType) ||
+    inferAdministrationType((editState.category || compound.category) as CompoundCategory) ||
+    'oral';
+  const unconfirmedCount = isInferred
+    ? (['administrationType', 'dosePerUse', 'unitSize', 'daysPerWeek', 'dosesPerDay'] as const)
+        .filter(f => !confirmedFields.has(f)).length
+    : 0;
 
   const normalizeUnitToken = useCallback((value?: string) => (value || '').toLowerCase().replace(/\s+/g, ''), []);
   const isMlDosedPeptide = useMemo(() => {
@@ -358,6 +408,36 @@ export default function CompoundEditWizard({
         </div>
       </div>
 
+      {/* ── Administration Type ── */}
+      <div>
+        <div className="flex items-center mb-2">
+          <label className="text-[11px] uppercase tracking-[0.08em] font-medium" style={{ color: '#6B7280' }}>
+            Administration Type
+          </label>
+          {isInferred && <InferredTag field="administrationType" confirmedFields={confirmedFields} onConfirm={confirmField} />}
+        </div>
+        <div className="grid grid-cols-2 gap-1.5">
+          {ADMIN_TYPE_ORDER.map(at => {
+            const meta = ADMINISTRATION_TYPE_META[at];
+            const selected = adminType === at;
+            return (
+              <button key={at} onClick={() => {
+                setEditState(s => ({ ...s, administrationType: at, adminTypeConfirmed: 'true' }));
+                setConfirmedFields(prev => new Set(prev).add('administrationType'));
+              }}
+                className="flex flex-col gap-0.5 px-2.5 py-2 rounded-lg transition-all duration-200 text-left"
+                style={{
+                  background: selected ? 'rgba(0,194,255,0.08)' : '#1C1F26',
+                  border: selected ? '1.5px solid rgba(0,194,255,0.5)' : '1px solid #2A2D35',
+                }}>
+                <span className="text-[11px] font-medium" style={{ color: selected ? '#F0F4F8' : '#9CA3AF' }}>{meta.label}</span>
+                <span className="text-[9px]" style={{ color: selected ? 'rgba(0,194,255,0.7)' : '#4B5563' }}>{meta.description}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="flex items-center justify-between px-3 py-2.5 rounded-lg" style={{ background: '#1C1F26', border: '1px solid #2A2D35' }}>
         <span className="text-[11px] uppercase tracking-[0.08em] font-medium" style={{ color: '#6B7280' }}>Status</span>
         <button
@@ -396,7 +476,10 @@ export default function CompoundEditWizard({
   const renderSchedule = () => (
     <div className="space-y-4">
       <div ref={el => { if (el) fieldRefs.current.set('daysPerWeek', el); }}>
-        <label className="text-[11px] uppercase tracking-[0.08em] font-medium block mb-2" style={{ color: fieldError('daysPerWeek') ? '#FF3B3B' : '#6B7280' }}>Days you take it</label>
+        <div className="flex items-center mb-2">
+          <label className="text-[11px] uppercase tracking-[0.08em] font-medium" style={{ color: fieldError('daysPerWeek') ? '#FF3B3B' : '#6B7280' }}>Days you take it</label>
+          {isInferred && <InferredTag field="daysPerWeek" confirmedFields={confirmedFields} onConfirm={confirmField} />}
+        </div>
         <div className="flex gap-1.5">
           {DAY_LABELS.map((lbl, idx) => {
             const isActive = activeDaySet.has(idx);
@@ -439,7 +522,13 @@ export default function CompoundEditWizard({
       <ClinicalField label="When to take it" value={editState.timing || ''} onChange={v => setEditState(s => ({ ...s, timing: v }))} placeholder="e.g. morning, with food" />
 
       <div ref={el => { if (el) fieldRefs.current.set('dosesPerDay', el); }}>
-        <ClinicalField label="Times per day" value={editState.dosesPerDay || ''} onChange={v => setEditState(s => ({ ...s, dosesPerDay: v }))} type="number" placeholder="1" error={fieldError('dosesPerDay')} />
+        <div className="space-y-1">
+          <div className="flex items-center">
+            <label className="text-[11px] uppercase tracking-[0.08em] font-medium" style={{ color: fieldError('dosesPerDay') ? '#FF3B3B' : '#6B7280' }}>Times per day</label>
+            {isInferred && <InferredTag field="dosesPerDay" confirmedFields={confirmedFields} onConfirm={confirmField} />}
+          </div>
+          <ClinicalField label="" value={editState.dosesPerDay || ''} onChange={v => setEditState(s => ({ ...s, dosesPerDay: v }))} type="number" placeholder="1" error={fieldError('dosesPerDay')} />
+        </div>
       </div>
     </div>
   );
@@ -451,7 +540,15 @@ export default function CompoundEditWizard({
           <ClinicalField label={isPeptide || isOil ? 'Vials on Hand' : 'On Hand'} value={editState.currentQuantity || ''} onChange={v => setEditState(s => ({ ...s, currentQuantity: v }))} type="number" placeholder="0" error={fieldError('currentQuantity')} suffix={isPeptide || isOil ? 'vials' : editState.unitLabel || 'units'} />
         </div>
         <div ref={el => { if (el) fieldRefs.current.set('unitSize', el); }}>
-          <ClinicalField label={isPeptide ? 'Per Vial (mg)' : isOil ? 'Concentration' : 'Per Container'} value={editState.unitSize || ''} onChange={v => setEditState(s => ({ ...s, unitSize: v }))} type="number" placeholder={isPeptide ? '5' : isOil ? '200' : '90'} error={fieldError('unitSize')} suffix={isOil ? 'mg/mL' : isPeptide ? 'mg' : editState.unitLabel || 'units'} />
+          <div className="space-y-1">
+            <div className="flex items-center">
+              <label className="text-[11px] uppercase tracking-[0.08em] font-medium" style={{ color: fieldError('unitSize') ? '#FF3B3B' : '#6B7280' }}>
+                {isPeptide ? 'Per Vial (mg)' : isOil ? 'Concentration' : 'Per Container'}
+              </label>
+              {isInferred && <InferredTag field="unitSize" confirmedFields={confirmedFields} onConfirm={confirmField} />}
+            </div>
+            <ClinicalField label="" value={editState.unitSize || ''} onChange={v => setEditState(s => ({ ...s, unitSize: v }))} type="number" placeholder={isPeptide ? '5' : isOil ? '200' : '90'} error={fieldError('unitSize')} suffix={isOil ? 'mg/mL' : isPeptide ? 'mg' : editState.unitLabel || 'units'} />
+          </div>
         </div>
       </div>
 
@@ -483,7 +580,13 @@ export default function CompoundEditWizard({
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         <div ref={el => { if (el) fieldRefs.current.set('dosePerUse', el); }}>
-          <ClinicalField label="How much per dose" value={editState.dosePerUse || ''} onChange={v => setEditState(s => ({ ...s, dosePerUse: v }))} type="number" placeholder="2.5" error={fieldError('dosePerUse')} />
+          <div className="space-y-1">
+            <div className="flex items-center">
+              <label className="text-[11px] uppercase tracking-[0.08em] font-medium" style={{ color: fieldError('dosePerUse') ? '#FF3B3B' : '#6B7280' }}>How much per dose</label>
+              {isInferred && <InferredTag field="dosePerUse" confirmedFields={confirmedFields} onConfirm={confirmField} />}
+            </div>
+            <ClinicalField label="" value={editState.dosePerUse || ''} onChange={v => setEditState(s => ({ ...s, dosePerUse: v }))} type="number" placeholder="2.5" error={fieldError('dosePerUse')} />
+          </div>
         </div>
         <div>
           <label className="text-[11px] uppercase tracking-[0.08em] font-medium block mb-1" style={{ color: '#6B7280' }}>Measured in</label>
@@ -656,6 +759,26 @@ export default function CompoundEditWizard({
             </span>
             <ChevronUp className="w-3.5 h-3.5 flex-shrink-0 rotate-90" strokeWidth={1.5} style={{ color: '#FF3B3B' }} />
           </button>
+        )}
+
+        {/* ═══ INFERRED VALUES BANNER ═══ */}
+        {isInferred && unconfirmedCount > 0 && (
+          <div
+            className="flex-shrink-0 flex items-center gap-2 px-4 py-2"
+            style={{ background: 'rgba(245,158,11,0.06)', borderBottom: '1px solid rgba(245,158,11,0.15)' }}
+          >
+            <Info className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.5} style={{ color: '#F59E0B' }} />
+            <span className="text-[12px] font-medium flex-1" style={{ color: '#F59E0B' }}>
+              {unconfirmedCount} field{unconfirmedCount > 1 ? 's were' : ' was'} auto-populated — review & confirm
+            </span>
+            <button
+              onClick={confirmAll}
+              className="px-2 py-1 rounded text-[10px] font-semibold transition-all hover:opacity-80"
+              style={{ background: 'rgba(245,158,11,0.15)', color: '#F59E0B', border: '1px solid rgba(245,158,11,0.3)' }}
+            >
+              Confirm All
+            </button>
+          </div>
         )}
 
         {/* ═══ SCROLLABLE CONTENT ═══ */}
